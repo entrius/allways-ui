@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { BrowserRouter as Router } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
+import LoadingPage from './pages/LoadingPage';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -26,7 +27,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <CssBaseline />
         <Router>
           <QueryClientProvider client={queryClient}>
-            <App />
+            <Suspense fallback={<LoadingPage />}>
+              <App />
+            </Suspense>
           </QueryClientProvider>
         </Router>
       </ThemeProvider>
