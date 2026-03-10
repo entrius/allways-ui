@@ -6,13 +6,15 @@ export default defineConfig({
   base: '/',
   plugins: [react()],
   preview: {
-    port: 9080,
+    port: 8080,
     strictPort: true,
+    allowedHosts: ['test.all-ways.io', 'all-ways.io'],
   },
   server: {
-    port: 9080,
-    strictPort: true,
-    host: true,
+    port: 8080,
+    strictPort: true, //Set to true to exit if the port is already in use, instead of automatically trying the next available port.
+    host: true, //set to true to make the server accessible on your network
     origin: 'http://127.0.0.1:9080',
+    allowedHosts: ['test.all-ways.io', 'all-ways.io'],
   },
 });
