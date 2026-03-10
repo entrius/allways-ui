@@ -25,9 +25,9 @@ jobs:
         id: tags
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "tags=entrius/allways-ui:latest" >> $GITHUB_OUTPUT
+            echo "tags=entrius/aw-ui:latest" >> $GITHUB_OUTPUT
           else
-            echo "tags=entrius/allways-ui:test" >> $GITHUB_OUTPUT
+            echo "tags=entrius/aw-ui:test" >> $GITHUB_OUTPUT
           fi
 
       - name: Create .env file

@@ -1,6 +1,6 @@
 services:
   allwaysui:
-    image: entrius/allways-ui:latest
+    image: entrius/aw-ui:latest
     mem_limit: '512mb'
     container_name: aw-ui
     restart: always
