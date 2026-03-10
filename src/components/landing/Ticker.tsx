@@ -23,9 +23,10 @@ const Separator: React.FC = () => (
       color: COLORS.tickerText,
       mx: 2,
       opacity: 0.5,
+      flexShrink: 0,
     }}
   >
-    //
+    ⬡
   </Typography>
 );
 
@@ -43,6 +44,7 @@ const TickerContent: React.FC = () => (
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
         >
           {item}
@@ -66,14 +68,32 @@ const Ticker: React.FC = () => (
       py: 1.2,
     }}
   >
-    <Box className="ticker-track">
-      {/* Duplicate content for seamless loop */}
-      <Box sx={{ display: 'flex', alignItems: 'center', pr: 0 }}>
-        <TickerContent />
-      </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', pr: 0 }}>
-        <TickerContent />
-      </Box>
+    {/*
+     * The trick to a seamless ticker: the track contains two identical halves.
+     * The animation translates by exactly -50%, so when the first half scrolls
+     * off-screen, the second half is in the exact same starting position —
+     * making the loop reset invisible.
+     *
+     * We use an inner wrapper with `display: inline-flex` + `width: max-content`
+     * so the track is sized by its content rather than the viewport, which
+     * guarantees translateX(-50%) = exactly one copy's width.
+     */}
+    <Box
+      sx={{
+        display: 'inline-flex',
+        width: 'max-content',
+        animation: 'ticker-scroll 30s linear infinite',
+        '&:hover': { animationPlayState: 'running' },
+      }}
+    >
+      {/* 4 copies ensures content always fills the viewport.
+          translateX(-50%) still resets at the halfway point (2 copies worth),
+          so the loop is seamless regardless of screen width. */}
+      {[0, 1, 2, 3].map((n) => (
+        <Box key={n} sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <TickerContent />
+        </Box>
+      ))}
     </Box>
   </Box>
 );

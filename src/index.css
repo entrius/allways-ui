@@ -44,19 +44,11 @@ body {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translateX(-25%);
   }
 }
 
-.ticker-track {
-  display: flex;
-  animation: ticker-scroll 30s linear infinite;
-  white-space: nowrap;
-}
-
-.ticker-track:hover {
-  animation-play-state: running;
-}
+/* ticker-scroll is applied inline via sx; defined here as a global keyframe */
 
 /* Subtle grain texture overlay */
 @keyframes grain {

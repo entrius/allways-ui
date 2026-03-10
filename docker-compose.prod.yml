@@ -2,10 +2,10 @@ services:
   allwaysui:
     image: entrius/allways-ui:latest
     mem_limit: '512mb'
-    container_name: allways-ui
+    container_name: aw-ui
     restart: always
     ports:
-      - '127.0.0.1:8080:8080'
+      - '127.0.0.1:9080:9080'
     networks:
       - allways_network
     labels:
@@ -13,7 +13,7 @@ services:
 
   watchtower:
     image: nickfedor/watchtower
-    container_name: allways-ui-watchtower
+    container_name: aw-ui-watchtower
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

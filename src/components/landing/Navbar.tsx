@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography, Link } from '@mui/material';
+import GitHubIcon from '@mui/icons-material/GitHub';
 import { COLORS, FONTS } from '../../theme';
 
 const Navbar: React.FC = () => (
@@ -38,6 +39,19 @@ const Navbar: React.FC = () => (
 
     {/* Nav Links */}
     <Stack direction="row" spacing={{ xs: 2, md: 4 }} alignItems="center">
+      <Link
+        href="https://github.com/entrius"
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          color: COLORS.textSecondary,
+          transition: 'color 0.2s ease',
+          display: 'flex',
+          '&:hover': { color: COLORS.white },
+        }}
+      >
+        <GitHubIcon sx={{ fontSize: { xs: '1rem', md: '1.2rem' } }} />
+      </Link>
       <NavLink href="/dashboard" label="Dashboard" />
       <NavLink
         href="https://taostats.io/subnets/7"
