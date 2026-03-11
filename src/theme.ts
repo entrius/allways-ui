@@ -83,10 +83,26 @@ const theme = createTheme({
   },
   typography: {
     fontFamily: FONTS.body,
-    h1: { fontFamily: FONTS.heading, letterSpacing: '-0.04em', fontWeight: 700 },
-    h2: { fontFamily: FONTS.heading, letterSpacing: '-0.03em', fontWeight: 700 },
-    h3: { fontFamily: FONTS.heading, letterSpacing: '-0.02em', fontWeight: 600 },
-    h4: { fontFamily: FONTS.heading, letterSpacing: '-0.02em', fontWeight: 600 },
+    h1: {
+      fontFamily: FONTS.heading,
+      letterSpacing: '-0.04em',
+      fontWeight: 700,
+    },
+    h2: {
+      fontFamily: FONTS.heading,
+      letterSpacing: '-0.03em',
+      fontWeight: 700,
+    },
+    h3: {
+      fontFamily: FONTS.heading,
+      letterSpacing: '-0.02em',
+      fontWeight: 600,
+    },
+    h4: {
+      fontFamily: FONTS.heading,
+      letterSpacing: '-0.02em',
+      fontWeight: 600,
+    },
     h5: { fontFamily: FONTS.heading, fontWeight: 600 },
     h6: { fontFamily: FONTS.heading, fontWeight: 600 },
     display: {

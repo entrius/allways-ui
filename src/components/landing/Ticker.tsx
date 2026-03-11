@@ -90,7 +90,10 @@ const Ticker: React.FC = () => (
           translateX(-50%) still resets at the halfway point (2 copies worth),
           so the loop is seamless regardless of screen width. */}
       {[0, 1, 2, 3].map((n) => (
-        <Box key={n} sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        <Box
+          key={n}
+          sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+        >
           <TickerContent />
         </Box>
       ))}
