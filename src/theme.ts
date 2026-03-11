@@ -1,61 +1,51 @@
 import { createTheme } from '@mui/material/styles';
 
-export const STATUS_COLORS = {
-  neutral: '#9ca3af',
-  success: '#4ade80',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  info: '#58a6ff',
+// Shared color constants - use these outside MUI components
+export const COLORS = {
+  primary: '#10b981',
+  primaryLight: '#34d399',
+  primaryDark: '#059669',
+  bg: '#000000',
+  surface: '#0a0a0a',
+  surfaceLight: '#111111',
+  surfaceElevated: '#161616',
+  white: '#ffffff',
+  textPrimary: '#ffffff',
+  textSecondary: 'rgba(255, 255, 255, 0.5)',
+  textMuted: 'rgba(255, 255, 255, 0.3)',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderLight: 'rgba(255, 255, 255, 0.12)',
+  borderMedium: 'rgba(255, 255, 255, 0.2)',
+  ticker: '#10b981',
+  tickerText: '#000000',
 } as const;
 
-export const TEXT_OPACITY = {
-  primary: 1,
-  secondary: 0.7,
-  tertiary: 0.5,
-  muted: 0.4,
-  faint: 0.3,
-  ghost: 0.2,
+export const FONTS = {
+  heading: '"Inter", "Helvetica Neue", sans-serif',
+  body: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  mono: '"DM Mono", "JetBrains Mono", monospace',
+  accent: '"JetBrains Mono", "Courier New", monospace',
 } as const;
 
+// Module augmentation
 declare module '@mui/material/styles' {
   interface Palette {
-    border: {
-      subtle: string;
-      light: string;
-      medium: string;
-    };
-    surface: {
-      transparent: string;
-      subtle: string;
-      light: string;
-      elevated: string;
-    };
+    border: { subtle: string; light: string; medium: string };
+    surface: { main: string; light: string; elevated: string };
   }
-
   interface PaletteOptions {
-    border?: {
-      subtle: string;
-      light: string;
-      medium: string;
-    };
-    surface?: {
-      transparent: string;
-      subtle: string;
-      light: string;
-      elevated: string;
-    };
+    border?: { subtle: string; light: string; medium: string };
+    surface?: { main: string; light: string; elevated: string };
   }
-
   interface TypographyVariants {
     mono: React.CSSProperties;
     monoSmall: React.CSSProperties;
-    sectionTitle: React.CSSProperties;
+    display: React.CSSProperties;
   }
-
   interface TypographyVariantsOptions {
     mono?: React.CSSProperties;
     monoSmall?: React.CSSProperties;
-    sectionTitle?: React.CSSProperties;
+    display?: React.CSSProperties;
   }
 }
 
@@ -63,101 +53,86 @@ declare module '@mui/material/Typography' {
   interface TypographyPropsVariantOverrides {
     mono: true;
     monoSmall: true;
-    sectionTitle: true;
+    display: true;
   }
 }
 
 const theme = createTheme({
   palette: {
     mode: 'dark',
-    primary: {
-      main: '#1d37fc',
-    },
-    secondary: {
-      main: '#fff30d',
-    },
+    primary: { main: COLORS.primary },
     background: {
-      default: '#000000',
-      paper: '#0a0f1f',
+      default: COLORS.bg,
+      paper: COLORS.surface,
     },
     text: {
-      primary: '#ffffff',
-      secondary: '#7d7d7d',
+      primary: COLORS.textPrimary,
+      secondary: COLORS.textSecondary,
     },
-    divider: '#ffffff',
+    divider: COLORS.border,
     border: {
-      subtle: 'rgba(255, 255, 255, 0.05)',
-      light: 'rgba(255, 255, 255, 0.1)',
-      medium: 'rgba(255, 255, 255, 0.2)',
+      subtle: COLORS.border,
+      light: COLORS.borderLight,
+      medium: COLORS.borderMedium,
     },
     surface: {
-      transparent: 'transparent',
-      subtle: 'rgba(255, 255, 255, 0.02)',
-      light: 'rgba(255, 255, 255, 0.05)',
-      elevated: '#161b22',
+      main: COLORS.surface,
+      light: COLORS.surfaceLight,
+      elevated: COLORS.surfaceElevated,
     },
   },
   typography: {
-    fontFamily:
-      '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    h1: {
-      fontFamily: '"Inter", "Helvetica Neue", sans-serif',
-    },
-    h2: {
-      fontFamily: '"Inter", "Helvetica Neue", sans-serif',
-    },
-    h3: {
-      fontFamily: '"Inter", "Helvetica Neue", sans-serif',
-    },
-    h4: {
-      fontFamily: '"Inter", "Helvetica Neue", sans-serif',
-    },
-    h5: {
-      fontFamily: '"Inter", "Helvetica Neue", sans-serif',
-    },
-    h6: {
-      fontFamily: '"Inter", "Helvetica Neue", sans-serif',
-    },
-    mono: {
-      fontFamily: '"JetBrains Mono", monospace',
-      fontWeight: 500,
-    },
-    monoSmall: {
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: '0.7rem',
-      fontWeight: 600,
-      letterSpacing: '0.5px',
+    fontFamily: FONTS.body,
+    h1: { fontFamily: FONTS.heading, letterSpacing: '-0.04em', fontWeight: 700 },
+    h2: { fontFamily: FONTS.heading, letterSpacing: '-0.03em', fontWeight: 700 },
+    h3: { fontFamily: FONTS.heading, letterSpacing: '-0.02em', fontWeight: 600 },
+    h4: { fontFamily: FONTS.heading, letterSpacing: '-0.02em', fontWeight: 600 },
+    h5: { fontFamily: FONTS.heading, fontWeight: 600 },
+    h6: { fontFamily: FONTS.heading, fontWeight: 600 },
+    display: {
+      fontFamily: FONTS.heading,
+      fontWeight: 900,
+      letterSpacing: '-0.04em',
+      lineHeight: 1,
       textTransform: 'uppercase',
     },
-    sectionTitle: {
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: '1rem',
-      fontWeight: 600,
-      color: '#fff',
+    mono: {
+      fontFamily: FONTS.mono,
+      fontWeight: 400,
+    },
+    monoSmall: {
+      fontFamily: FONTS.mono,
+      fontSize: '0.7rem',
+      fontWeight: 400,
+      letterSpacing: '0.5px',
+      textTransform: 'uppercase',
     },
   },
   components: {
     MuiCssBaseline: {
       styleOverrides: {
-        body: {
-          fontFamily:
-            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        },
+        body: { fontFamily: FONTS.body },
       },
     },
     MuiButtonBase: {
-      defaultProps: {
-        disableRipple: true,
+      defaultProps: { disableRipple: true },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontFamily: FONTS.mono,
+          fontWeight: 500,
+          borderRadius: 0,
+        },
       },
     },
     MuiCard: {
-      defaultProps: {
-        elevation: 0,
-      },
+      defaultProps: { elevation: 0 },
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: 2,
+          border: `1px solid ${COLORS.border}`,
           backgroundColor: 'transparent',
         },
       },

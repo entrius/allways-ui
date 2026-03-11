@@ -1,52 +1,25 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
-import { Page } from '../components/layout';
+import { Box } from '@mui/material';
+import { Navbar, Hero, Ticker } from '../components/landing';
+import { COLORS } from '../theme';
 
 const HomePage: React.FC = () => {
+  document.title = 'Allways';
+
   return (
-    <Page title="Home">
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: { xs: 'calc(100vh - 64px)', md: '100vh' },
-          width: '100%',
-          px: { xs: 2, sm: 3 },
-        }}
-      >
-        <Stack
-          alignItems="center"
-          justifyContent="center"
-          gap={{ xs: 2, sm: 3 }}
-        >
-          <Typography
-            variant="h1"
-            color="#ffffff"
-            fontWeight="bold"
-            sx={{
-              fontFamily: '"JetBrains Mono", monospace',
-              fontSize: { xs: '2rem', sm: '3rem', md: '4rem' },
-              textAlign: 'center',
-            }}
-          >
-            ALLWAYS
-          </Typography>
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            fontWeight="bold"
-            sx={{
-              fontSize: { xs: '0.9rem', sm: '1rem' },
-              textAlign: 'center',
-            }}
-          >
-            Coming soon.
-          </Typography>
-        </Stack>
-      </Box>
-    </Page>
+    <Box
+      sx={{
+        width: '100vw',
+        minHeight: '100vh',
+        backgroundColor: COLORS.bg,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <Navbar />
+      <Hero />
+      <Ticker />
+    </Box>
   );
 };
 
