@@ -61,7 +61,7 @@ const MinerRatesTable: React.FC = () => {
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              {['UID', 'Pair', 'Rate', 'Collateral', 'Status', 'Hotkey'].map((h) => (
+              {['UID', 'Pair', 'Rate', 'Capacity', 'Status', 'Hotkey'].map((h) => (
                 <TableCell
                   key={h}
                   sx={{
