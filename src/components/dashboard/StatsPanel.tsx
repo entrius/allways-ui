@@ -141,7 +141,7 @@ const StatsPanel: React.FC = () => {
 
   if (!stats) return null;
 
-  const volume = parseFloat(stats.totalVolumeTao).toFixed(4);
+  const volume = parseFloat(stats.totalVolumeTao).toFixed(2);
 
   return (
     <Grid container spacing={1.5}>
