@@ -67,7 +67,7 @@ const MinerRatesTable: React.FC = () => {
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              {['UID', 'Pair', 'Rate', 'Capacity', 'Status', 'Hotkey'].map(
+              {['UID', 'Pair', 'Rate (TAO)', 'Capacity', 'Status', 'Hotkey'].map(
                 (h) => (
                   <TableCell
                     key={h}
@@ -117,7 +117,7 @@ const MinerRatesTable: React.FC = () => {
                     }}
                   >
                     {miner.sourceChain && miner.destChain
-                      ? `${miner.sourceChain} → ${miner.destChain}`
+                      ? `${miner.sourceChain?.toUpperCase()}/${miner.destChain?.toUpperCase()}`
                       : '—'}
                   </TableCell>
                   <TableCell
@@ -128,7 +128,7 @@ const MinerRatesTable: React.FC = () => {
                       borderBottom: `1px solid ${COLORS.border}`,
                     }}
                   >
-                    {miner.rate ? parseFloat(miner.rate).toFixed(8) : '—'}
+                    {miner.rate ? parseFloat(miner.rate).toFixed(2) : '—'}
                   </TableCell>
                   <TableCell
                     sx={{
