@@ -132,8 +132,6 @@ const StatCard: React.FC<{ label: string; value: string }> = ({ label, value }) 
   </Box>
 );
 
-const RAO_PER_TAO = 1_000_000_000;
-
 const StatsPanel: React.FC = () => {
   const { data: stats } = useQuery<DashboardStats>({
     queryKey: ['stats'],
@@ -143,7 +141,7 @@ const StatsPanel: React.FC = () => {
 
   if (!stats) return null;
 
-  const volume = (parseFloat(stats.totalVolumeTao) / RAO_PER_TAO).toFixed(2);
+  const volume = parseFloat(stats.totalVolumeTao).toFixed(4);
 
   return (
     <Grid container spacing={1.5}>
