@@ -7,10 +7,12 @@ export type AppRoute = Omit<PathRouteProps, 'path'> & {
 };
 
 const HomePage = React.lazy(() => import('./pages/HomePage'));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 const routesArray: AppRoute[] = [
   { name: 'home', path: '/', element: <HomePage /> },
+  { name: 'dashboard', path: '/dashboard', element: <DashboardPage /> },
 
   // 404 catch-all route (must be last)
   {
