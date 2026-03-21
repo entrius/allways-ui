@@ -75,7 +75,9 @@ const RollingChar: React.FC<{ char: string }> = ({ char }) => {
           alignItems: 'center',
           justifyContent: 'center',
           ...(animating
-            ? { animation: `${slideIn} 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards` }
+            ? {
+                animation: `${slideIn} 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards`,
+              }
             : {}),
         }}
       >
@@ -96,7 +98,10 @@ const RollingValue: React.FC<{ value: string }> = ({ value }) => {
   );
 };
 
-const StatCard: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+const StatCard: React.FC<{ label: string; value: string }> = ({
+  label,
+  value,
+}) => (
   <Box
     sx={{
       p: 2.5,

@@ -48,35 +48,43 @@ const MinerRatesTable: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}>
+      <Typography
+        variant="h6"
+        sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}
+      >
         Miner Rates
       </Typography>
       <TableContainer
         sx={{
           maxHeight: 500,
           '&::-webkit-scrollbar': { width: 4 },
-          '&::-webkit-scrollbar-thumb': { background: COLORS.borderLight, borderRadius: 2 },
+          '&::-webkit-scrollbar-thumb': {
+            background: COLORS.borderLight,
+            borderRadius: 2,
+          },
         }}
       >
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              {['UID', 'Pair', 'Rate', 'Capacity', 'Status', 'Hotkey'].map((h) => (
-                <TableCell
-                  key={h}
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.65rem',
-                    color: COLORS.textMuted,
-                    borderBottom: `1px solid ${COLORS.border}`,
-                    backgroundColor: COLORS.bg,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  {h}
-                </TableCell>
-              ))}
+              {['UID', 'Pair', 'Rate', 'Capacity', 'Status', 'Hotkey'].map(
+                (h) => (
+                  <TableCell
+                    key={h}
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.65rem',
+                      color: COLORS.textMuted,
+                      borderBottom: `1px solid ${COLORS.border}`,
+                      backgroundColor: COLORS.bg,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    {h}
+                  </TableCell>
+                ),
+              )}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -90,21 +98,51 @@ const MinerRatesTable: React.FC = () => {
                     transition: 'background-color 0.15s',
                   }}
                 >
-                  <TableCell sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: COLORS.white, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.75rem',
+                      color: COLORS.white,
+                      borderBottom: `1px solid ${COLORS.border}`,
+                    }}
+                  >
                     {miner.uid}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: COLORS.textSecondary, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.75rem',
+                      color: COLORS.textSecondary,
+                      borderBottom: `1px solid ${COLORS.border}`,
+                    }}
+                  >
                     {miner.sourceChain && miner.destChain
                       ? `${miner.sourceChain} → ${miner.destChain}`
                       : '—'}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: COLORS.primary, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.75rem',
+                      color: COLORS.primary,
+                      borderBottom: `1px solid ${COLORS.border}`,
+                    }}
+                  >
                     {miner.rate ? parseFloat(miner.rate).toFixed(8) : '—'}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: COLORS.textSecondary, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.75rem',
+                      color: COLORS.textSecondary,
+                      borderBottom: `1px solid ${COLORS.border}`,
+                    }}
+                  >
                     {formatCollateral(miner.collateralRao)} TAO
                   </TableCell>
-                  <TableCell sx={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                  <TableCell
+                    sx={{ borderBottom: `1px solid ${COLORS.border}` }}
+                  >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Box
                         sx={{
@@ -114,12 +152,25 @@ const MinerRatesTable: React.FC = () => {
                           backgroundColor: status.color,
                         }}
                       />
-                      <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: status.color }}>
+                      <Typography
+                        sx={{
+                          fontFamily: FONTS.mono,
+                          fontSize: '0.7rem',
+                          color: status.color,
+                        }}
+                      >
                         {status.label}
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: COLORS.textMuted, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: COLORS.textMuted,
+                      borderBottom: `1px solid ${COLORS.border}`,
+                    }}
+                  >
                     {shortAddr(miner.hotkey)}
                   </TableCell>
                 </TableRow>
@@ -127,7 +178,15 @@ const MinerRatesTable: React.FC = () => {
             })}
             {miners.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} sx={{ textAlign: 'center', color: COLORS.textMuted, borderBottom: 'none', py: 4 }}>
+                <TableCell
+                  colSpan={6}
+                  sx={{
+                    textAlign: 'center',
+                    color: COLORS.textMuted,
+                    borderBottom: 'none',
+                    py: 4,
+                  }}
+                >
                   No miners registered
                 </TableCell>
               </TableRow>

@@ -43,7 +43,10 @@ const SwapTracker: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}>
+      <Typography
+        variant="h6"
+        sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}
+      >
         Active Swaps
       </Typography>
       {swaps.length === 0 ? (
@@ -56,7 +59,13 @@ const SwapTracker: React.FC = () => {
             border: `1px solid ${COLORS.border}`,
           }}
         >
-          <Typography sx={{ color: COLORS.textMuted, fontFamily: FONTS.mono, fontSize: '0.8rem' }}>
+          <Typography
+            sx={{
+              color: COLORS.textMuted,
+              fontFamily: FONTS.mono,
+              fontSize: '0.8rem',
+            }}
+          >
             No active swaps
           </Typography>
         </Box>
@@ -75,8 +84,19 @@ const SwapTracker: React.FC = () => {
                   border: `1px solid ${COLORS.border}`,
                 }}
               >
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', fontWeight: 600, color: COLORS.white }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: COLORS.white,
+                    }}
+                  >
                     Swap #{swap.swapId}
                   </Typography>
                   <Typography
@@ -101,23 +121,44 @@ const SwapTracker: React.FC = () => {
                     height: 3,
                     borderRadius: 2,
                     backgroundColor: COLORS.borderLight,
-                    '& .MuiLinearProgress-bar': { backgroundColor: color, borderRadius: 2 },
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: color,
+                      borderRadius: 2,
+                    },
                   }}
                 />
 
                 <Stack direction="row" spacing={2} flexWrap="wrap">
                   {swap.userAddress && (
-                    <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: COLORS.textSecondary }}>
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.7rem',
+                        color: COLORS.textSecondary,
+                      }}
+                    >
                       User: {shortAddr(swap.userAddress)}
                     </Typography>
                   )}
                   {swap.minerHotkey && (
-                    <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: COLORS.textSecondary }}>
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.7rem',
+                        color: COLORS.textSecondary,
+                      }}
+                    >
                       Miner: {shortAddr(swap.minerHotkey)}
                     </Typography>
                   )}
                   {swap.taoAmount && (
-                    <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: COLORS.primary }}>
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.7rem',
+                        color: COLORS.primary,
+                      }}
+                    >
                       {parseFloat(swap.taoAmount).toFixed(4)} TAO
                     </Typography>
                   )}

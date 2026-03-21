@@ -38,7 +38,10 @@ const EventFeed: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}>
+      <Typography
+        variant="h6"
+        sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}
+      >
         Live Events
       </Typography>
       <Box
@@ -46,7 +49,10 @@ const EventFeed: React.FC = () => {
           maxHeight: 500,
           overflowY: 'auto',
           '&::-webkit-scrollbar': { width: 4 },
-          '&::-webkit-scrollbar-thumb': { background: COLORS.borderLight, borderRadius: 2 },
+          '&::-webkit-scrollbar-thumb': {
+            background: COLORS.borderLight,
+            borderRadius: 2,
+          },
         }}
       >
         <Stack spacing={1}>
@@ -62,7 +68,12 @@ const EventFeed: React.FC = () => {
                 '&:hover': { borderColor: COLORS.borderLight },
               }}
             >
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                spacing={1}
+              >
                 <Chip
                   label={event.eventType}
                   size="small"
@@ -70,27 +81,52 @@ const EventFeed: React.FC = () => {
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
                     height: 22,
-                    backgroundColor: EVENT_COLORS[event.eventType] || COLORS.borderLight,
+                    backgroundColor:
+                      EVENT_COLORS[event.eventType] || COLORS.borderLight,
                     color: '#fff',
                   }}
                 />
-                <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem', color: COLORS.textMuted }}>
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.65rem',
+                    color: COLORS.textMuted,
+                  }}
+                >
                   #{event.blockNumber}
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
                 {event.swapId && (
-                  <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: COLORS.textSecondary }}>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: COLORS.textSecondary,
+                    }}
+                  >
                     Swap #{event.swapId}
                   </Typography>
                 )}
                 {event.minerHotkey && (
-                  <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: COLORS.textSecondary }}>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: COLORS.textSecondary,
+                    }}
+                  >
                     {shortAddr(event.minerHotkey)}
                   </Typography>
                 )}
                 {event.taoAmount && (
-                  <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: COLORS.primary }}>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: COLORS.primary,
+                    }}
+                  >
                     {parseFloat(event.taoAmount).toFixed(4)} TAO
                   </Typography>
                 )}

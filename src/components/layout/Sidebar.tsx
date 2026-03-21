@@ -22,9 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
     onNavigate?.();
   };
 
-  const navItems = [
-    { label: 'home', path: '/' },
-  ];
+  const navItems = [{ label: 'home', path: '/' }];
 
   return (
     <Box

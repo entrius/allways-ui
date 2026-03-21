@@ -2,7 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_REACT_APP_BASE_URL || 'http://localhost:9081';
+const SOCKET_URL =
+  import.meta.env.VITE_REACT_APP_BASE_URL || 'http://localhost:9081';
 
 type MessageHandler = (type: string, data: any) => void;
 

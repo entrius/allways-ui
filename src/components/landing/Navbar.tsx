@@ -58,11 +58,7 @@ const Navbar: React.FC = () => (
         label="Tao Stats"
         external
       />
-      <NavLink
-        href="https://www.tao.app/subnets/7"
-        label="Tao.app"
-        external
-      />
+      <NavLink href="https://www.tao.app/subnets/7" label="Tao.app" external />
     </Stack>
   </Box>
 );
