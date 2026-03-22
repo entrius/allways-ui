@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Box,
+  InputAdornment,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
+  TextField,
   Typography,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 import { COLORS, FONTS } from '../../theme';
@@ -25,6 +29,9 @@ interface Miner {
   updatedAt: string;
 }
 
+type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
+type SortDir = 'asc' | 'desc';
+
 const statusDot = (miner: Miner) => {
   if (!miner.isActive) return { color: COLORS.textMuted, label: 'Inactive' };
   if (miner.hasActiveSwap) return { color: '#f59e0b', label: 'Swapping' };
@@ -39,6 +46,55 @@ const formatCollateral = (rao: string) => {
 const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
+const pairStr = (m: Miner) =>
+  m.sourceChain && m.destChain
+    ? `${m.sourceChain.toUpperCase()}/${m.destChain.toUpperCase()}`
+    : '';
+
+const statusRank = (m: Miner) => (!m.isActive ? 2 : m.hasActiveSwap ? 1 : 0);
+
+const getSortValue = (m: Miner, key: SortKey): string | number => {
+  switch (key) {
+    case 'uid':
+      return m.uid;
+    case 'pair':
+      return pairStr(m);
+    case 'rate':
+      return m.rate ? parseFloat(m.rate) : -1;
+    case 'collateral':
+      return parseInt(m.collateralRao, 10) || 0;
+    case 'status':
+      return statusRank(m);
+    case 'hotkey':
+      return m.hotkey;
+  }
+};
+
+const columns: { key: SortKey; label: string }[] = [
+  { key: 'uid', label: 'UID' },
+  { key: 'pair', label: 'Pair' },
+  { key: 'rate', label: 'Rate (TAO)' },
+  { key: 'collateral', label: 'Capacity' },
+  { key: 'status', label: 'Status' },
+  { key: 'hotkey', label: 'Hotkey' },
+];
+
+const headerSx = {
+  fontFamily: FONTS.mono,
+  fontSize: '0.65rem',
+  color: COLORS.textMuted,
+  borderBottom: `1px solid ${COLORS.border}`,
+  backgroundColor: COLORS.bg,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.05em',
+};
+
+const cellSx = {
+  fontFamily: FONTS.mono,
+  fontSize: '0.75rem',
+  borderBottom: `1px solid ${COLORS.border}`,
+};
+
 const MinerRatesTable: React.FC = () => {
   const { data: miners = [] } = useQuery<Miner[]>({
     queryKey: ['miners'],
@@ -46,14 +102,81 @@ const MinerRatesTable: React.FC = () => {
     refetchInterval: 30000,
   });
 
+  const [sortKey, setSortKey] = useState<SortKey>('rate');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [search, setSearch] = useState('');
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'rate' || key === 'collateral' ? 'desc' : 'asc');
+    }
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const sorted = [...miners].sort((a, b) => {
+      const av = getSortValue(a, sortKey);
+      const bv = getSortValue(b, sortKey);
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    if (!q) return sorted.map((m) => ({ miner: m, match: false }));
+    return sorted.map((m) => ({
+      miner: m,
+      match:
+        String(m.uid) === q ||
+        m.hotkey.toLowerCase().includes(q) ||
+        (m.sourceChain?.toLowerCase().includes(q) ?? false) ||
+        (m.destChain?.toLowerCase().includes(q) ?? false),
+    }));
+  }, [miners, sortKey, sortDir, search]);
+
+  const hasSearch = search.trim().length > 0;
+
   return (
     <Box>
-      <Typography
-        variant="h6"
-        sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
       >
-        Miner Rates
-      </Typography>
+        <Typography
+          variant="h6"
+          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+        >
+          Miner Rates
+        </Typography>
+        <TextField
+          size="small"
+          placeholder="Search UID, hotkey..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ fontSize: 16, color: COLORS.textMuted }} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{
+            width: 200,
+            '& .MuiOutlinedInput-root': {
+              fontFamily: FONTS.mono,
+              fontSize: '0.75rem',
+              color: COLORS.white,
+              '& fieldset': { borderColor: COLORS.border },
+              '&:hover fieldset': { borderColor: COLORS.borderLight },
+              '&.Mui-focused fieldset': { borderColor: COLORS.primary },
+            },
+          }}
+        />
+      </Box>
       <TableContainer
         sx={{
           maxHeight: 500,
@@ -67,83 +190,68 @@ const MinerRatesTable: React.FC = () => {
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              {['UID', 'Pair', 'Rate', 'Capacity', 'Status', 'Hotkey'].map(
-                (h) => (
-                  <TableCell
-                    key={h}
+              {columns.map((col) => (
+                <TableCell key={col.key} sx={headerSx}>
+                  <TableSortLabel
+                    active={sortKey === col.key}
+                    direction={sortKey === col.key ? sortDir : 'asc'}
+                    onClick={() => handleSort(col.key)}
                     sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.65rem',
-                      color: COLORS.textMuted,
-                      borderBottom: `1px solid ${COLORS.border}`,
-                      backgroundColor: COLORS.bg,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      color: `${COLORS.textMuted} !important`,
+                      '&.Mui-active': {
+                        color: `${COLORS.white} !important`,
+                      },
+                      '& .MuiTableSortLabel-icon': {
+                        color: `${COLORS.textMuted} !important`,
+                        fontSize: '0.75rem',
+                      },
                     }}
                   >
-                    {h}
-                  </TableCell>
-                ),
-              )}
+                    {col.label}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {miners.map((miner) => {
+            {filtered.map(({ miner, match }) => {
               const status = statusDot(miner);
+              const highlight = hasSearch && match;
+              const dimmed = hasSearch && !match;
               return (
                 <TableRow
                   key={miner.uid}
                   sx={{
                     '&:hover': { backgroundColor: COLORS.surface },
-                    transition: 'background-color 0.15s',
+                    transition: 'background-color 0.15s, opacity 0.15s',
+                    backgroundColor: highlight
+                      ? `${COLORS.primary}12`
+                      : 'transparent',
+                    opacity: dimmed ? 0.3 : 1,
                   }}
                 >
-                  <TableCell
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.75rem',
-                      color: COLORS.white,
-                      borderBottom: `1px solid ${COLORS.border}`,
-                    }}
-                  >
+                  <TableCell sx={{ ...cellSx, color: COLORS.white }}>
                     {miner.uid}
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.75rem',
-                      color: COLORS.textSecondary,
-                      borderBottom: `1px solid ${COLORS.border}`,
-                    }}
-                  >
-                    {miner.sourceChain && miner.destChain
-                      ? `${miner.sourceChain} → ${miner.destChain}`
-                      : '—'}
+                  <TableCell sx={{ ...cellSx, color: COLORS.textSecondary }}>
+                    {pairStr(miner) || '\u2014'}
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.75rem',
-                      color: COLORS.primary,
-                      borderBottom: `1px solid ${COLORS.border}`,
-                    }}
-                  >
-                    {miner.rate ? parseFloat(miner.rate).toFixed(8) : '—'}
+                  <TableCell sx={{ ...cellSx, color: COLORS.primary }}>
+                    {miner.rate ? parseFloat(miner.rate).toFixed(2) : '\u2014'}
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.75rem',
-                      color: COLORS.textSecondary,
-                      borderBottom: `1px solid ${COLORS.border}`,
-                    }}
-                  >
+                  <TableCell sx={{ ...cellSx, color: COLORS.textSecondary }}>
                     {formatCollateral(miner.collateralRao)} TAO
                   </TableCell>
                   <TableCell
                     sx={{ borderBottom: `1px solid ${COLORS.border}` }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                      }}
+                    >
                       <Box
                         sx={{
                           width: 8,
@@ -165,10 +273,9 @@ const MinerRatesTable: React.FC = () => {
                   </TableCell>
                   <TableCell
                     sx={{
-                      fontFamily: FONTS.mono,
+                      ...cellSx,
                       fontSize: '0.7rem',
                       color: COLORS.textMuted,
-                      borderBottom: `1px solid ${COLORS.border}`,
                     }}
                   >
                     {shortAddr(miner.hotkey)}
