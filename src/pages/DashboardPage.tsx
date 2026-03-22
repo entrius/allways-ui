@@ -5,6 +5,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useSSE } from '../hooks';
 import EventFeed from '../components/dashboard/EventFeed';
 import MinerRatesTable from '../components/dashboard/MinerRatesTable';
+import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import SwapTracker from '../components/dashboard/SwapTracker';
 import StatsPanel from '../components/dashboard/StatsPanel';
 import { FONTS } from '../theme';
@@ -75,10 +76,11 @@ const DashboardPage: React.FC = () => {
       </Box>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={7}>
+        <Grid item xs={12} md={6}>
           <Box
             sx={{
               p: 2.5,
+              height: '100%',
               borderRadius: 0,
               backgroundColor: 'surface.light',
               border: `1px solid`,
@@ -88,10 +90,25 @@ const DashboardPage: React.FC = () => {
             <MinerRatesTable />
           </Box>
         </Grid>
-        <Grid item xs={12} md={5}>
+        <Grid item xs={12} md={6}>
           <Box
             sx={{
               p: 2.5,
+              height: '100%',
+              borderRadius: 0,
+              backgroundColor: 'surface.light',
+              border: `1px solid`,
+              borderColor: 'divider',
+            }}
+          >
+            <OrderbookDepth />
+          </Box>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Box
+            sx={{
+              p: 2.5,
+              height: '100%',
               borderRadius: 0,
               backgroundColor: 'surface.light',
               border: `1px solid`,
@@ -101,10 +118,11 @@ const DashboardPage: React.FC = () => {
             <EventFeed />
           </Box>
         </Grid>
-        <Grid item xs={12}>
+        <Grid item xs={12} md={8}>
           <Box
             sx={{
               p: 2.5,
+              height: '100%',
               borderRadius: 0,
               backgroundColor: 'surface.light',
               border: `1px solid`,
