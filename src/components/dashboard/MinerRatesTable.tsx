@@ -13,21 +13,8 @@ import {
   Typography,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../api';
+import { useMiners, type Miner } from '../../api';
 import { COLORS, FONTS } from '../../theme';
-
-interface Miner {
-  uid: number;
-  hotkey: string;
-  sourceChain: string | null;
-  destChain: string | null;
-  rate: string | null;
-  collateralRao: string;
-  isActive: boolean;
-  hasActiveSwap: boolean;
-  updatedAt: string;
-}
 
 type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
 type SortDir = 'asc' | 'desc';
@@ -96,11 +83,7 @@ const cellSx = {
 };
 
 const MinerRatesTable: React.FC = () => {
-  const { data: miners = [] } = useQuery<Miner[]>({
-    queryKey: ['miners'],
-    queryFn: () => api.get('/miners').then((r) => r.data),
-    refetchInterval: 30000,
-  });
+  const { data: miners = [] } = useMiners();
 
   const [sortKey, setSortKey] = useState<SortKey>('rate');
   const [sortDir, setSortDir] = useState<SortDir>('desc');

@@ -11,7 +11,7 @@ import {
 import { Outlet } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
 import LoadingPage from '../../pages/LoadingPage';
-import useOnNavigate from '../../hooks/useOnNavigate';
+import { useOnNavigate } from '../../hooks';
 import Sidebar from './Sidebar';
 import theme from '../../theme';
 

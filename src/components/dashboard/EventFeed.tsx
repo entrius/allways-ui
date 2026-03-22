@@ -1,19 +1,7 @@
 import React from 'react';
 import { Box, Chip, Stack, Typography } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../api';
+import { useLatestEvents } from '../../api';
 import { COLORS, FONTS } from '../../theme';
-
-interface ContractEvent {
-  id: string;
-  eventType: string;
-  blockNumber: string;
-  swapId: string | null;
-  minerHotkey: string | null;
-  userAddress: string | null;
-  taoAmount: string | null;
-  createdAt: string;
-}
 
 const EVENT_COLORS: Record<string, string> = {
   SwapInitiated: '#3b82f6',
@@ -30,11 +18,7 @@ const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
 const EventFeed: React.FC = () => {
-  const { data: events = [] } = useQuery<ContractEvent[]>({
-    queryKey: ['events', 'latest'],
-    queryFn: () => api.get('/events/latest?limit=50').then((r) => r.data),
-    refetchInterval: 30000,
-  });
+  const { data: events = [] } = useLatestEvents();
 
   return (
     <Box>

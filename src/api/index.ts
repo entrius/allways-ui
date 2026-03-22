@@ -1,7 +1,7 @@
-import axios from 'axios';
+export * from './ApiUtils';
+export * from './EventsApi';
+export * from './MinersApi';
+export * from './StatsApi';
+export * from './SwapsApi';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_REACT_APP_BASE_URL,
-});
-
-export default api;
+export * from './models';

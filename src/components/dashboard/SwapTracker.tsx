@@ -1,21 +1,7 @@
 import React from 'react';
 import { Box, Stack, Typography, LinearProgress } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../api';
+import { useActiveSwaps } from '../../api';
 import { COLORS, FONTS } from '../../theme';
-
-interface ActiveSwap {
-  swapId: string;
-  status: string;
-  userAddress: string | null;
-  minerHotkey: string | null;
-  taoAmount: string | null;
-  sourceChain: string | null;
-  destChain: string | null;
-  initiatedAt: string | null;
-  fulfilledAt: string | null;
-  resolvedAt: string | null;
-}
 
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
@@ -35,11 +21,7 @@ const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
 const SwapTracker: React.FC = () => {
-  const { data: swaps = [] } = useQuery<ActiveSwap[]>({
-    queryKey: ['swaps', 'active'],
-    queryFn: () => api.get('/swaps/active').then((r) => r.data),
-    refetchInterval: 15000,
-  });
+  const { data: swaps = [] } = useActiveSwaps();
 
   return (
     <Box>
