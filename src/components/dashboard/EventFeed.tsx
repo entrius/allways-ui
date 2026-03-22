@@ -63,13 +63,15 @@ const EventFeed: React.FC = () => {
                 <Chip
                   label={event.eventType}
                   size="small"
+                  variant="outlined"
                   sx={{
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
                     height: 22,
-                    backgroundColor:
+                    borderRadius: 0,
+                    borderColor:
                       EVENT_COLORS[event.eventType] || theme.palette.border.light,
-                    color: '#fff',
+                    color: 'text.primary',
                   }}
                 />
                 <Typography

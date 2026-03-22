@@ -12,9 +12,17 @@ export default defineConfig({
   },
   server: {
     port: 9080,
-    strictPort: true, //Set to true to exit if the port is already in use, instead of automatically trying the next available port.
-    host: true, //set to true to make the server accessible on your network
+    strictPort: true,
+    host: true,
     origin: 'http://127.0.0.1:9080',
     allowedHosts: ['test.all-ways.io', 'all-ways.io'],
+    proxy: {
+      '/api': {
+        target: 'https://test-api.all-ways.io',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: true,
+      },
+    },
   },
 });
