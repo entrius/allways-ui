@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Chip, Stack, Typography } from '@mui/material';
-import { useLatestEvents, type ContractEvent } from '../../api';
+import { useLatestEvents } from '../../api';
 import { COLORS, FONTS } from '../../theme';
 
 const EVENT_COLORS: Record<string, string> = {
