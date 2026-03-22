@@ -1,7 +1,7 @@
 import React from 'react';
-import { Box, Stack, Typography, LinearProgress } from '@mui/material';
+import { Box, Stack, Typography, LinearProgress, useTheme } from '@mui/material';
 import { useActiveSwaps } from '../../api';
-import { COLORS, FONTS } from '../../theme';
+import { FONTS } from '../../theme';
 
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
@@ -13,7 +13,7 @@ const STATUS_PROGRESS: Record<string, number> = {
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: '#3b82f6',
   FULFILLED: '#f59e0b',
-  COMPLETED: COLORS.primary,
+  COMPLETED: '#10b981',
   TIMED_OUT: '#ef4444',
 };
 
@@ -21,6 +21,7 @@ const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
 const SwapTracker: React.FC = () => {
+  const theme = useTheme();
   const { data: swaps = [] } = useActiveSwaps();
 
   return (
@@ -36,14 +37,15 @@ const SwapTracker: React.FC = () => {
           sx={{
             p: 4,
             textAlign: 'center',
-            borderRadius: 1,
-            backgroundColor: COLORS.surface,
-            border: `1px solid ${COLORS.border}`,
+            borderRadius: 0,
+            backgroundColor: 'background.paper',
+            border: `1px solid`,
+            borderColor: 'divider',
           }}
         >
           <Typography
             sx={{
-              color: COLORS.textMuted,
+              color: 'text.secondary',
               fontFamily: FONTS.mono,
               fontSize: '0.8rem',
             }}
@@ -54,16 +56,17 @@ const SwapTracker: React.FC = () => {
       ) : (
         <Stack spacing={1.5}>
           {swaps.map((swap) => {
-            const color = STATUS_COLORS[swap.status] || COLORS.borderLight;
+            const color = STATUS_COLORS[swap.status] || theme.palette.border.light;
             const progress = STATUS_PROGRESS[swap.status] || 0;
             return (
               <Box
                 key={swap.swapId}
                 sx={{
                   p: 2,
-                  borderRadius: 1,
-                  backgroundColor: COLORS.surface,
-                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 0,
+                  backgroundColor: 'background.paper',
+                  border: `1px solid`,
+                  borderColor: 'divider',
                 }}
               >
                 <Stack
@@ -76,7 +79,7 @@ const SwapTracker: React.FC = () => {
                       fontFamily: FONTS.mono,
                       fontSize: '0.8rem',
                       fontWeight: 600,
-                      color: COLORS.white,
+                      color: 'text.primary',
                     }}
                   >
                     Swap #{swap.swapId}
@@ -101,11 +104,11 @@ const SwapTracker: React.FC = () => {
                     mt: 1,
                     mb: 1.5,
                     height: 3,
-                    borderRadius: 2,
-                    backgroundColor: COLORS.borderLight,
+                    borderRadius: 0,
+                    backgroundColor: theme.palette.border.light,
                     '& .MuiLinearProgress-bar': {
                       backgroundColor: color,
-                      borderRadius: 2,
+                      borderRadius: 0,
                     },
                   }}
                 />
@@ -116,7 +119,7 @@ const SwapTracker: React.FC = () => {
                       sx={{
                         fontFamily: FONTS.mono,
                         fontSize: '0.7rem',
-                        color: COLORS.textSecondary,
+                        color: 'text.secondary',
                       }}
                     >
                       User: {shortAddr(swap.userAddress)}
@@ -127,7 +130,7 @@ const SwapTracker: React.FC = () => {
                       sx={{
                         fontFamily: FONTS.mono,
                         fontSize: '0.7rem',
-                        color: COLORS.textSecondary,
+                        color: 'text.secondary',
                       }}
                     >
                       Miner: {shortAddr(swap.minerHotkey)}
@@ -138,7 +141,7 @@ const SwapTracker: React.FC = () => {
                       sx={{
                         fontFamily: FONTS.mono,
                         fontSize: '0.7rem',
-                        color: COLORS.primary,
+                        color: 'primary.main',
                       }}
                     >
                       {parseFloat(swap.taoAmount).toFixed(4)} TAO
