@@ -1,16 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Grid, Typography, keyframes } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../api';
+import { useStats, type DashboardStats } from '../../api';
 import { COLORS, FONTS } from '../../theme';
-
-interface DashboardStats {
-  totalSwaps: number;
-  totalVolumeTao: string;
-  activeMiners: number;
-  activeSwaps: number;
-  averageRate: string | null;
-}
 
 const slideOut = keyframes`
   from { transform: translateY(0); opacity: 1; }
@@ -138,11 +129,7 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
 );
 
 const StatsPanel: React.FC = () => {
-  const { data: stats } = useQuery<DashboardStats>({
-    queryKey: ['stats'],
-    queryFn: () => api.get('/stats').then((r) => r.data),
-    refetchInterval: 30000,
-  });
+  const { data: stats } = useStats();
 
   if (!stats) return null;
 

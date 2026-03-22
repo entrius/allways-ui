@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
-import { useRealtimeSocket } from '../hooks/useRealtimeSocket';
+import { useSSE } from '../hooks';
 import EventFeed from '../components/dashboard/EventFeed';
 import MinerRatesTable from '../components/dashboard/MinerRatesTable';
 import SwapTracker from '../components/dashboard/SwapTracker';
@@ -8,7 +8,7 @@ import StatsPanel from '../components/dashboard/StatsPanel';
 import { COLORS, FONTS } from '../theme';
 
 const DashboardPage: React.FC = () => {
-  useRealtimeSocket();
+  useSSE();
 
   return (
     <Box
