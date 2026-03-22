@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Grid, Typography, keyframes } from '@mui/material';
-import { useStats, type DashboardStats } from '../../api';
+import { useStats } from '../../api';
 import { COLORS, FONTS } from '../../theme';
 
 const slideOut = keyframes`
