@@ -67,24 +67,29 @@ const MinerRatesTable: React.FC = () => {
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              {['UID', 'Pair', 'Rate (TAO)', 'Capacity', 'Status', 'Hotkey'].map(
-                (h) => (
-                  <TableCell
-                    key={h}
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.65rem',
-                      color: COLORS.textMuted,
-                      borderBottom: `1px solid ${COLORS.border}`,
-                      backgroundColor: COLORS.bg,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    {h}
-                  </TableCell>
-                ),
-              )}
+              {[
+                'UID',
+                'Pair',
+                'Rate (TAO)',
+                'Capacity',
+                'Status',
+                'Hotkey',
+              ].map((h) => (
+                <TableCell
+                  key={h}
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.65rem',
+                    color: COLORS.textMuted,
+                    borderBottom: `1px solid ${COLORS.border}`,
+                    backgroundColor: COLORS.bg,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {h}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
