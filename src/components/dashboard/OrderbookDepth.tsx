@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Box,
+  IconButton,
   MenuItem,
   Select,
   Table,
@@ -9,9 +10,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api';
 import { FONTS } from '../../theme';
@@ -162,12 +165,33 @@ const OrderbookDepth: React.FC = () => {
           mb: 2,
         }}
       >
-        <Typography
-          variant="h6"
-          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-        >
-          Depth of Market
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+          >
+            Depth of Market
+          </Typography>
+          <Tooltip 
+            title={
+              <Box sx={{ p: 0.5, maxWidth: 250 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>What is this?</Typography>
+                <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                  This orderbook visualizes the cumulative liquidity available across all active miners at various exchange rates.
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  The background bars form a volume profile: you can identify the market equilibrium point where the left and right profiles match in width.
+                </Typography>
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
         {uniqueAssets.length > 0 && (
           <Select
@@ -216,17 +240,29 @@ const OrderbookDepth: React.FC = () => {
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell sx={headerSx}>Rate (TAO)</TableCell>
-              <TableCell sx={headerSx} align="right">Capacity</TableCell>
-              <TableCell sx={headerSx} align="right">
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                  <AssetIcon asset={getAssetSymbol()} /> → <TaoIcon />
-                </Box>
+              <TableCell sx={headerSx}>
+                <Tooltip title={`The specific exchange rate for ${getAssetSymbol() || 'Asset'}/TAO.`} arrow placement="top">
+                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>Rate (TAO)</span>
+                </Tooltip>
               </TableCell>
               <TableCell sx={headerSx} align="right">
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-                  <TaoIcon /> → <AssetIcon asset={getAssetSymbol()} />
-                </Box>
+                <Tooltip title="Total capacity available at this exact rate." arrow placement="top">
+                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>Capacity</span>
+                </Tooltip>
+              </TableCell>
+              <TableCell sx={headerSx} align="right">
+                <Tooltip title={`How much ${getAssetSymbol() || 'Asset'} you could convert to TAO.`} arrow placement="top">
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, cursor: 'help' }}>
+                    <AssetIcon asset={getAssetSymbol()} /> → <TaoIcon />
+                  </Box>
+                </Tooltip>
+              </TableCell>
+              <TableCell sx={headerSx} align="right">
+                <Tooltip title={`How much TAO you could convert to ${getAssetSymbol() || 'Asset'}.`} arrow placement="top">
+                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, cursor: 'help' }}>
+                    <TaoIcon /> → <AssetIcon asset={getAssetSymbol()} />
+                  </Box>
+                </Tooltip>
               </TableCell>
             </TableRow>
           </TableHead>
@@ -270,7 +306,7 @@ const OrderbookDepth: React.FC = () => {
                     {row.capacity.toFixed(2)}
                   </TableCell>
                   <TableCell sx={{ ...cellSx, color: assetThemeColor }} align="right">
-                    {row.cumAssetToTao.toFixed(2)}
+                    {(row.cumAssetToTao / parseFloat(row.rate)).toFixed(6)}
                   </TableCell>
                   <TableCell sx={{ ...cellSx, color: taoThemeColor }} align="right">
                     {row.cumTaoToAsset.toFixed(2)}
