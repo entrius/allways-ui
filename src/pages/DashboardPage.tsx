@@ -1,7 +1,8 @@
 import React from 'react';
-import { Grid, Typography, IconButton, Stack } from '@mui/material';
+import { Grid, Typography, IconButton, Stack, Tooltip } from '@mui/material';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 import { useSSE } from '../hooks';
 import {
   EventFeed,
@@ -19,6 +20,10 @@ import logo from '../assets/logo.jpg';
 const DashboardPage: React.FC = () => {
   useSSE();
   const { mode, toggleTheme } = useThemeMode();
+  const docsUrl =
+    window.location.hostname === 'all-ways.io'
+      ? 'https://docs.all-ways.io/'
+      : 'https://test-docs.all-ways.io/';
 
   return (
     <Page>
@@ -59,6 +64,28 @@ const DashboardPage: React.FC = () => {
             Dashboard
           </Typography>
           <Stack sx={{ flex: 1 }} />
+          <Tooltip title="Documentation" arrow>
+            <IconButton
+              component="a"
+              href={docsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                color: 'text.secondary',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 0,
+                p: 1,
+                mr: 1,
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  color: 'primary.main',
+                },
+              }}
+            >
+              <MenuBookIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
           <IconButton
             onClick={toggleTheme}
             sx={{
