@@ -48,7 +48,7 @@ const EventFeed: React.FC = () => {
                 p: 1.5,
                 borderRadius: 0,
                 backgroundColor: 'background.paper',
-                border: `1px solid`,
+                border: '1px solid',
                 borderColor: 'divider',
                 transition: 'border-color 0.2s',
                 '&:hover': { borderColor: theme.palette.border.light },

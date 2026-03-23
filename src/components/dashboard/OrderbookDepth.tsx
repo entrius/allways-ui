@@ -15,7 +15,7 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useMiners, type Miner } from '../../api';
+import { useMiners } from '../../api';
 import { FONTS } from '../../theme';
 
 const OrderbookDepth: React.FC = () => {

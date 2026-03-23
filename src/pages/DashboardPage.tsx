@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid, Typography, IconButton, useTheme } from '@mui/material';
+import { Box, Grid, Typography, IconButton } from '@mui/material';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useSSE } from '../hooks';
@@ -14,7 +14,6 @@ import logo from '../assets/logo.jpg';
 
 const DashboardPage: React.FC = () => {
   useSSE();
-  const theme = useTheme();
   const { mode, toggleTheme } = useThemeMode();
 
   return (
@@ -54,7 +53,7 @@ const DashboardPage: React.FC = () => {
           onClick={toggleTheme}
           sx={{
             color: 'text.secondary',
-            border: `1px solid`,
+            border: '1px solid',
             borderColor: 'divider',
             borderRadius: 0,
             p: 1,
@@ -83,7 +82,7 @@ const DashboardPage: React.FC = () => {
               height: '100%',
               borderRadius: 0,
               backgroundColor: 'surface.light',
-              border: `1px solid`,
+              border: '1px solid',
               borderColor: 'divider',
             }}
           >
@@ -97,7 +96,7 @@ const DashboardPage: React.FC = () => {
               height: '100%',
               borderRadius: 0,
               backgroundColor: 'surface.light',
-              border: `1px solid`,
+              border: '1px solid',
               borderColor: 'divider',
             }}
           >
@@ -111,7 +110,7 @@ const DashboardPage: React.FC = () => {
               height: '100%',
               borderRadius: 0,
               backgroundColor: 'surface.light',
-              border: `1px solid`,
+              border: '1px solid',
               borderColor: 'divider',
             }}
           >
@@ -125,7 +124,7 @@ const DashboardPage: React.FC = () => {
               height: '100%',
               borderRadius: 0,
               backgroundColor: 'surface.light',
-              border: `1px solid`,
+              border: '1px solid',
               borderColor: 'divider',
             }}
           >
