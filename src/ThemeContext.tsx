@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useCallback,
+} from 'react';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { createAppTheme, ThemeMode } from './theme';
 
@@ -26,7 +32,9 @@ function getInitialMode(): ThemeMode {
   return 'light';
 }
 
-export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [mode, setMode] = useState<ThemeMode>(getInitialMode);
 
   const toggleTheme = useCallback(() => {

@@ -1,5 +1,11 @@
 import React from 'react';
-import { Box, Stack, Typography, LinearProgress, useTheme } from '@mui/material';
+import {
+  Box,
+  Stack,
+  Typography,
+  LinearProgress,
+  useTheme,
+} from '@mui/material';
 import { useActiveSwaps } from '../../api';
 import { FONTS } from '../../theme';
 
@@ -56,7 +62,8 @@ const SwapTracker: React.FC = () => {
       ) : (
         <Stack spacing={1.5}>
           {swaps.map((swap) => {
-            const color = STATUS_COLORS[swap.status] || theme.palette.border.light;
+            const color =
+              STATUS_COLORS[swap.status] || theme.palette.border.light;
             const progress = STATUS_PROGRESS[swap.status] || 0;
             return (
               <Box

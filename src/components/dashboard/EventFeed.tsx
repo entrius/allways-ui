@@ -70,7 +70,8 @@ const EventFeed: React.FC = () => {
                     height: 22,
                     borderRadius: 0,
                     borderColor:
-                      EVENT_COLORS[event.eventType] || theme.palette.border.light,
+                      EVENT_COLORS[event.eventType] ||
+                      theme.palette.border.light,
                     color: 'text.primary',
                   }}
                 />
