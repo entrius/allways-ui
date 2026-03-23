@@ -15,21 +15,8 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../api';
+import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
-
-interface Miner {
-  uid: number;
-  hotkey: string;
-  sourceChain: string | null;
-  destChain: string | null;
-  rate: string | null;
-  collateralRao: string;
-  isActive: boolean;
-  hasActiveSwap: boolean;
-  updatedAt: string;
-}
 
 const OrderbookDepth: React.FC = () => {
   const theme = useTheme();
@@ -76,12 +63,7 @@ const OrderbookDepth: React.FC = () => {
     borderBottom: `1px solid ${theme.palette.divider}`,
   };
 
-  const { data: miners = [] } = useQuery<Miner[]>({
-    queryKey: ['miners'],
-    queryFn: () =>
-      api.get('/miners').then((r) => (Array.isArray(r.data) ? r.data : [])),
-    refetchInterval: 30000,
-  });
+  const { data: miners = [] } = useMiners();
 
   const [selectedPair, setSelectedPair] = useState<string>('');
 
