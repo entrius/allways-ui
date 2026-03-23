@@ -2,26 +2,44 @@ import React from 'react';
 import { Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 import { useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
+import CopyableAddress from '../CopyableAddress';
+import { EventFeedSkeleton } from './Skeletons';
 
-const EVENT_COLORS: Record<string, string> = {
-  SwapInitiated: '#3b82f6',
-  SwapFulfilled: '#f59e0b',
-  SwapCompleted: '#10b981',
-  SwapTimedOut: '#ef4444',
-  CollateralPosted: '#8b5cf6',
-  CollateralWithdrawn: '#8b5cf6',
-  VoteCast: '#6366f1',
-  MinerActivated: '#14b8a6',
+const getEventColor = (
+  eventType: string,
+  palette: {
+    status: {
+      active: string;
+      fulfilled: string;
+      completed: string;
+      timedOut: string;
+      collateral: string;
+      vote: string;
+      minerActivated: string;
+    };
+  },
+): string => {
+  const map: Record<string, string> = {
+    SwapInitiated: palette.status.active,
+    SwapFulfilled: palette.status.fulfilled,
+    SwapCompleted: palette.status.completed,
+    SwapTimedOut: palette.status.timedOut,
+    CollateralPosted: palette.status.collateral,
+    CollateralWithdrawn: palette.status.collateral,
+    VoteCast: palette.status.vote,
+    MinerActivated: palette.status.minerActivated,
+  };
+  return map[eventType] ?? palette.status.active;
 };
 
-const shortAddr = (addr: string) =>
-  addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
 const EventFeed: React.FC = () => {
   const theme = useTheme();
-  const { data: events = [] } = useLatestEvents();
+  const { data: events, isLoading } = useLatestEvents();
 
-  return (
+  return isLoading || !events ? (
+    <EventFeedSkeleton />
+  ) : (
     <Box>
       <Typography
         variant="h6"
@@ -41,7 +59,7 @@ const EventFeed: React.FC = () => {
         }}
       >
         <Stack spacing={1}>
-          {events.map((event) => (
+          {events?.map((event) => (
             <Box
               key={event.id}
               sx={{
@@ -70,7 +88,7 @@ const EventFeed: React.FC = () => {
                     height: 22,
                     borderRadius: 0,
                     borderColor:
-                      EVENT_COLORS[event.eventType] ||
+                      getEventColor(event.eventType, theme.palette) ||
                       theme.palette.border.light,
                     color: 'text.primary',
                   }}
@@ -98,15 +116,7 @@ const EventFeed: React.FC = () => {
                   </Typography>
                 )}
                 {event.minerHotkey && (
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.7rem',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    {shortAddr(event.minerHotkey)}
-                  </Typography>
+                  <CopyableAddress address={event.minerHotkey} />
                 )}
                 {event.taoAmount && (
                   <Typography

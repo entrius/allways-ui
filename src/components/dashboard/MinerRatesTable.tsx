@@ -16,6 +16,8 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
+import CopyableAddress from '../CopyableAddress';
+import { MinerRatesTableSkeleton } from './Skeletons';
 
 type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
 type SortDir = 'asc' | 'desc';
@@ -24,9 +26,6 @@ const formatCollateral = (rao: string) => {
   const tao = parseInt(rao, 10) / 1e9;
   return tao.toFixed(2);
 };
-
-const shortAddr = (addr: string) =>
-  addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
 const pairStr = (m: Miner) =>
   m.sourceChain && m.destChain
@@ -70,7 +69,7 @@ const MinerRatesTable: React.FC = () => {
         color: theme.palette.text.disabled || theme.palette.text.secondary,
         label: 'Inactive',
       };
-    if (miner.hasActiveSwap) return { color: '#f59e0b', label: 'Swapping' };
+    if (miner.hasActiveSwap) return { color: theme.palette.status.fulfilled, label: 'Swapping' };
     return { color: theme.palette.primary.main, label: 'Available' };
   };
 
@@ -90,8 +89,7 @@ const MinerRatesTable: React.FC = () => {
     borderBottom: `1px solid ${theme.palette.divider}`,
   };
 
-  const { data: miners = [] } = useMiners();
-
+  const { data: miners, isLoading } = useMiners();
   const [sortKey, setSortKey] = useState<SortKey>('rate');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [search, setSearch] = useState('');
@@ -107,7 +105,7 @@ const MinerRatesTable: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const sorted = [...miners].sort((a, b) => {
+    const sorted = [...(miners ?? [])].sort((a, b) => {
       const av = getSortValue(a, sortKey);
       const bv = getSortValue(b, sortKey);
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
@@ -125,7 +123,9 @@ const MinerRatesTable: React.FC = () => {
   }, [miners, sortKey, sortDir, search]);
   const hasSearch = search.trim().length > 0;
 
-  return (
+  return isLoading || !miners ? (
+    <MinerRatesTableSkeleton />
+  ) : (
     <Box>
       <Box
         sx={{
@@ -265,21 +265,23 @@ const MinerRatesTable: React.FC = () => {
                       color: 'text.secondary',
                     }}
                   >
-                    {shortAddr(miner.hotkey)}
+                    <CopyableAddress address={miner.hotkey} />
                   </TableCell>
                 </TableRow>
               );
             })}
 
-            {miners.length === 0 && (
+            {!miners?.length && (
               <TableRow>
                 <TableCell
                   colSpan={6}
                   sx={{
                     textAlign: 'center',
-                    color: 'text.secondary',
                     borderBottom: 'none',
                     py: 4,
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.8rem',
+                    color: 'text.secondary',
                   }}
                 >
                   No miners registered

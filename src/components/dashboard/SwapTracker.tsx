@@ -8,6 +8,8 @@ import {
 } from '@mui/material';
 import { useActiveSwaps } from '../../api';
 import { FONTS } from '../../theme';
+import CopyableAddress from '../CopyableAddress';
+import { SwapTrackerSkeleton } from './Skeletons';
 
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
@@ -16,21 +18,27 @@ const STATUS_PROGRESS: Record<string, number> = {
   TIMED_OUT: 100,
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: '#3b82f6',
-  FULFILLED: '#f59e0b',
-  COMPLETED: '#10b981',
-  TIMED_OUT: '#ef4444',
+const getStatusColor = (
+  status: string,
+  palette: { status: { active: string; fulfilled: string; completed: string; timedOut: string } },
+): string => {
+  const map: Record<string, string> = {
+    ACTIVE: palette.status.active,
+    FULFILLED: palette.status.fulfilled,
+    COMPLETED: palette.status.completed,
+    TIMED_OUT: palette.status.timedOut,
+  };
+  return map[status] ?? palette.status.active;
 };
 
-const shortAddr = (addr: string) =>
-  addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
 const SwapTracker: React.FC = () => {
   const theme = useTheme();
-  const { data: swaps = [] } = useActiveSwaps();
+  const { data: swaps, isLoading } = useActiveSwaps();
 
-  return (
+  return isLoading || !swaps ? (
+    <SwapTrackerSkeleton />
+  ) : (
     <Box>
       <Typography
         variant="h6"
@@ -38,7 +46,7 @@ const SwapTracker: React.FC = () => {
       >
         Active Swaps
       </Typography>
-      {swaps.length === 0 ? (
+      {!swaps?.length ? (
         <Box
           sx={{
             p: 4,
@@ -61,9 +69,9 @@ const SwapTracker: React.FC = () => {
         </Box>
       ) : (
         <Stack spacing={1.5}>
-          {swaps.map((swap) => {
+          {swaps?.map((swap) => {
             const color =
-              STATUS_COLORS[swap.status] || theme.palette.border.light;
+              getStatusColor(swap.status, theme.palette) || theme.palette.border.light;
             const progress = STATUS_PROGRESS[swap.status] || 0;
             return (
               <Box
@@ -123,24 +131,26 @@ const SwapTracker: React.FC = () => {
                 <Stack direction="row" spacing={2} flexWrap="wrap">
                   {swap.userAddress && (
                     <Typography
+                      component="span"
                       sx={{
                         fontFamily: FONTS.mono,
                         fontSize: '0.7rem',
                         color: 'text.secondary',
                       }}
                     >
-                      User: {shortAddr(swap.userAddress)}
+                      User: <CopyableAddress address={swap.userAddress} />
                     </Typography>
                   )}
                   {swap.minerHotkey && (
                     <Typography
+                      component="span"
                       sx={{
                         fontFamily: FONTS.mono,
                         fontSize: '0.7rem',
                         color: 'text.secondary',
                       }}
                     >
-                      Miner: {shortAddr(swap.minerHotkey)}
+                      Miner: <CopyableAddress address={swap.minerHotkey} />
                     </Typography>
                   )}
                   {swap.taoAmount && (

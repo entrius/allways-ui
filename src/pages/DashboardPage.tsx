@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Grid, Typography, IconButton } from '@mui/material';
+import { Grid, Typography, IconButton, Stack } from '@mui/material';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import { useSSE } from '../hooks';
@@ -10,6 +10,7 @@ import {
   SwapTracker,
   StatsPanel,
   Page,
+  SEO,
 } from '../components';
 import { FONTS } from '../theme';
 import { useThemeMode } from '../ThemeContext';
@@ -21,17 +22,22 @@ const DashboardPage: React.FC = () => {
 
   return (
     <Page>
-      <Box
+      <SEO
+        title="Dashboard"
+        description="Trustless cross-chain swaps on Bittensor Subnet 7"
+      />
+      <Stack
         sx={{
           minHeight: '100vh',
           backgroundColor: 'background.default',
-          px: { xs: 2, md: 4 },
-          py: { xs: 10, md: 12 },
+          px: { xs: 1.5, sm: 2, md: 4 },
+          py: { xs: 2, sm: 3, md: 4 },
+          width: '100%',
           maxWidth: 1400,
           mx: 'auto',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+        <Stack direction="row" alignItems="center" sx={{ mb: 3 }}>
           <img
             src={logo}
             alt="Allways Logo"
@@ -52,7 +58,7 @@ const DashboardPage: React.FC = () => {
           >
             Dashboard
           </Typography>
-          <Box sx={{ flex: 1 }} />
+          <Stack sx={{ flex: 1 }} />
           <IconButton
             onClick={toggleTheme}
             sx={{
@@ -72,17 +78,17 @@ const DashboardPage: React.FC = () => {
               <LightModeIcon sx={{ fontSize: 20 }} />
             )}
           </IconButton>
-        </Box>
+        </Stack>
 
-        <Box sx={{ mb: 3 }}>
+        <Stack sx={{ mb: 3 }}>
           <StatsPanel />
-        </Box>
+        </Stack>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Box
+        <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+          <Grid item xs={12} sm={6}>
+            <Stack
               sx={{
-                p: 2.5,
+                p: { xs: 1.5, sm: 2, md: 2.5 },
                 height: '100%',
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
@@ -91,12 +97,12 @@ const DashboardPage: React.FC = () => {
               }}
             >
               <MinerRatesTable />
-            </Box>
+            </Stack>
           </Grid>
-          <Grid item xs={12} md={6}>
-            <Box
+          <Grid item xs={12} sm={6}>
+            <Stack
               sx={{
-                p: 2.5,
+                p: { xs: 1.5, sm: 2, md: 2.5 },
                 height: '100%',
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
@@ -105,12 +111,12 @@ const DashboardPage: React.FC = () => {
               }}
             >
               <OrderbookDepth />
-            </Box>
+            </Stack>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <Box
+          <Grid item xs={12} sm={5} md={4}>
+            <Stack
               sx={{
-                p: 2.5,
+                p: { xs: 1.5, sm: 2, md: 2.5 },
                 height: '100%',
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
@@ -119,12 +125,12 @@ const DashboardPage: React.FC = () => {
               }}
             >
               <EventFeed />
-            </Box>
+            </Stack>
           </Grid>
-          <Grid item xs={12} md={8}>
-            <Box
+          <Grid item xs={12} sm={7} md={8}>
+            <Stack
               sx={{
-                p: 2.5,
+                p: { xs: 1.5, sm: 2, md: 2.5 },
                 height: '100%',
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
@@ -133,10 +139,10 @@ const DashboardPage: React.FC = () => {
               }}
             >
               <SwapTracker />
-            </Box>
+            </Stack>
           </Grid>
         </Grid>
-      </Box>
+      </Stack>
     </Page>
   );
 };

@@ -4,6 +4,7 @@ import {
   IconButton,
   MenuItem,
   Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -17,18 +18,19 @@ import {
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners } from '../../api';
 import { FONTS } from '../../theme';
+import { OrderbookDepthSkeleton } from './Skeletons';
 
 const OrderbookDepth: React.FC = () => {
   const theme = useTheme();
 
-  const TAO_COLOR = theme.palette.mode === 'dark' ? '#F3F4F6' : '#111827';
-  const BTC_COLOR = '#F7931A';
+  const TAO_COLOR = theme.palette.asset.tao;
+  const BTC_COLOR = theme.palette.asset.btc;
 
   const BtcIcon = ({ size = 16 }: { size?: number }) => (
     <svg viewBox="0 0 32 32" width={size} height={size}>
       <circle cx="16" cy="16" r="16" fill={BTC_COLOR} />
       <path
-        fill="#FFF"
+        fill={theme.palette.common.white}
         fillRule="evenodd"
         d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.92-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.533 2.147-4.148.986-5.32.695l.95-3.805c1.172.293 4.929.872 4.37 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.696 3.61 2.733z"
       />
@@ -97,13 +99,12 @@ const OrderbookDepth: React.FC = () => {
     borderBottom: `1px solid ${theme.palette.divider}`,
   };
 
-  const { data: miners = [] } = useMiners();
-
+  const { data: miners, isLoading } = useMiners();
   const [selectedPair, setSelectedPair] = useState<string>('');
 
   const uniqueAssets = useMemo(() => {
     const assets = new Set<string>();
-    miners.forEach((m) => {
+    miners?.forEach((m) => {
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
       if (!s || !d) return;
@@ -125,7 +126,7 @@ const OrderbookDepth: React.FC = () => {
   }, [uniqueAssets, selectedPair]);
 
   const depthData = useMemo(() => {
-    if (miners.length === 0 || !selectedPair) {
+    if (!miners?.length || !selectedPair) {
       return [];
     }
 
@@ -177,7 +178,9 @@ const OrderbookDepth: React.FC = () => {
   const getAssetSymbol = () =>
     selectedPair ? selectedPair.replace('/TAO', '').trim() : '';
 
-  return (
+  return isLoading || !miners ? (
+    <OrderbookDepthSkeleton />
+  ) : (
     <Box>
       <Box
         sx={{
@@ -196,26 +199,20 @@ const OrderbookDepth: React.FC = () => {
           </Typography>
           <Tooltip
             title={
-              <Box sx={{ p: 0.5, maxWidth: 250 }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: 'bold', mb: 0.5 }}
-                >
+              <Stack spacing={0.5} sx={{ maxWidth: 250 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                   What is this?
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ mb: 1, color: 'text.secondary' }}
-                >
+                <Typography variant="body2">
                   This orderbook visualizes the cumulative liquidity available
                   across all active miners at various exchange rates.
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                <Typography variant="body2">
                   The background bars form a volume profile: you can identify
                   the market equilibrium point where the left and right profiles
                   match in width.
                 </Typography>
-              </Box>
+              </Stack>
             }
             arrow
             placement="right"
@@ -402,9 +399,11 @@ const OrderbookDepth: React.FC = () => {
                   colSpan={4}
                   sx={{
                     textAlign: 'center',
-                    color: 'text.secondary',
                     borderBottom: 'none',
                     py: 4,
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.8rem',
+                    color: 'text.secondary',
                   }}
                 >
                   No depth data available
