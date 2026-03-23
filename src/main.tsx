@@ -2,9 +2,7 @@ import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { BrowserRouter as Router } from 'react-router-dom';
-import theme from './theme';
-import { ThemeProvider } from '@mui/material/styles';
-import { CssBaseline } from '@mui/material';
+import { AppThemeProvider } from './ThemeContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
 import LoadingPage from './pages/LoadingPage';
@@ -23,8 +21,7 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <HelmetProvider>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <AppThemeProvider>
         <Router>
           <QueryClientProvider client={queryClient}>
             <Suspense fallback={<LoadingPage />}>
@@ -32,7 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             </Suspense>
           </QueryClientProvider>
         </Router>
-      </ThemeProvider>
+      </AppThemeProvider>
     </HelmetProvider>
   </React.StrictMode>,
 );

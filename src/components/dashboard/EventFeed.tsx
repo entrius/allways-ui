@@ -1,12 +1,12 @@
 import React from 'react';
-import { Box, Chip, Stack, Typography } from '@mui/material';
+import { Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 import { useLatestEvents } from '../../api';
-import { COLORS, FONTS } from '../../theme';
+import { FONTS } from '../../theme';
 
 const EVENT_COLORS: Record<string, string> = {
   SwapInitiated: '#3b82f6',
   SwapFulfilled: '#f59e0b',
-  SwapCompleted: COLORS.primary,
+  SwapCompleted: '#10b981',
   SwapTimedOut: '#ef4444',
   CollateralPosted: '#8b5cf6',
   CollateralWithdrawn: '#8b5cf6',
@@ -18,6 +18,7 @@ const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-3)}` : addr;
 
 const EventFeed: React.FC = () => {
+  const theme = useTheme();
   const { data: events = [] } = useLatestEvents();
 
   return (
@@ -34,8 +35,8 @@ const EventFeed: React.FC = () => {
           overflowY: 'auto',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
-            background: COLORS.borderLight,
-            borderRadius: 2,
+            background: theme.palette.border.light,
+            borderRadius: 0,
           },
         }}
       >
@@ -45,11 +46,12 @@ const EventFeed: React.FC = () => {
               key={event.id}
               sx={{
                 p: 1.5,
-                borderRadius: 1,
-                backgroundColor: COLORS.surface,
-                border: `1px solid ${COLORS.border}`,
+                borderRadius: 0,
+                backgroundColor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
                 transition: 'border-color 0.2s',
-                '&:hover': { borderColor: COLORS.borderLight },
+                '&:hover': { borderColor: theme.palette.border.light },
               }}
             >
               <Stack
@@ -61,20 +63,23 @@ const EventFeed: React.FC = () => {
                 <Chip
                   label={event.eventType}
                   size="small"
+                  variant="outlined"
                   sx={{
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
                     height: 22,
-                    backgroundColor:
-                      EVENT_COLORS[event.eventType] || COLORS.borderLight,
-                    color: '#fff',
+                    borderRadius: 0,
+                    borderColor:
+                      EVENT_COLORS[event.eventType] ||
+                      theme.palette.border.light,
+                    color: 'text.primary',
                   }}
                 />
                 <Typography
                   sx={{
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
-                    color: COLORS.textMuted,
+                    color: 'text.secondary',
                   }}
                 >
                   #{event.blockNumber}
@@ -86,7 +91,7 @@ const EventFeed: React.FC = () => {
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.7rem',
-                      color: COLORS.textSecondary,
+                      color: 'text.secondary',
                     }}
                   >
                     Swap #{event.swapId}
@@ -97,7 +102,7 @@ const EventFeed: React.FC = () => {
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.7rem',
-                      color: COLORS.textSecondary,
+                      color: 'text.secondary',
                     }}
                   >
                     {shortAddr(event.minerHotkey)}
@@ -108,7 +113,7 @@ const EventFeed: React.FC = () => {
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.7rem',
-                      color: COLORS.primary,
+                      color: 'primary.main',
                     }}
                   >
                     {parseFloat(event.taoAmount).toFixed(4)} TAO

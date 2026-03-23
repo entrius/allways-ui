@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography, Link } from '@mui/material';
-import { COLORS, FONTS } from '../theme';
+import { FONTS } from '../theme';
 
 const NotFoundPage: React.FC = () => (
   <Box
@@ -10,7 +10,7 @@ const NotFoundPage: React.FC = () => (
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: COLORS.bg,
+      backgroundColor: 'background.default',
     }}
   >
     <Stack alignItems="center" gap={2}>
@@ -20,7 +20,7 @@ const NotFoundPage: React.FC = () => (
           fontWeight: 900,
           fontSize: '4rem',
           letterSpacing: '-0.04em',
-          color: COLORS.white,
+          color: 'text.primary',
         }}
       >
         404
@@ -29,7 +29,7 @@ const NotFoundPage: React.FC = () => (
         sx={{
           fontFamily: FONTS.mono,
           fontSize: '0.85rem',
-          color: COLORS.textSecondary,
+          color: 'text.secondary',
           textTransform: 'uppercase',
           letterSpacing: '0.1em',
         }}
@@ -42,9 +42,9 @@ const NotFoundPage: React.FC = () => (
         sx={{
           fontFamily: FONTS.mono,
           fontSize: '0.8rem',
-          color: COLORS.primary,
+          color: 'primary.main',
           mt: 2,
-          '&:hover': { color: COLORS.primaryLight },
+          '&:hover': { color: 'primary.light' },
         }}
       >
         Back to home

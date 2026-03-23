@@ -4,9 +4,6 @@
     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-accent: 'JetBrains Mono', 'Courier New', monospace;
   --font-mono: 'DM Mono', 'JetBrains Mono', monospace;
-  --color-primary: #2954ff;
-  --color-bg: #000000;
-  --color-surface: #0a0a0a;
 }
 
 ::selection {
@@ -23,7 +20,6 @@ body {
   padding: 0;
   overflow-x: hidden;
   font-family: var(--font-body);
-  background-color: var(--color-bg);
 }
 
 .font-heading {
@@ -47,8 +43,6 @@ body {
     transform: translateX(-25%);
   }
 }
-
-/* ticker-scroll is applied inline via sx; defined here as a global keyframe */
 
 /* Subtle grain texture overlay */
 @keyframes grain {
@@ -83,10 +77,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(128, 128, 128, 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(128, 128, 128, 0.5);
 }

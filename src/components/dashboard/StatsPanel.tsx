@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Grid, Typography, keyframes } from '@mui/material';
 import { useStats } from '../../api';
-import { COLORS, FONTS } from '../../theme';
+import { FONTS } from '../../theme';
 
 const slideOut = keyframes`
   from { transform: translateY(0); opacity: 1; }
@@ -96,9 +96,10 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
   <Box
     sx={{
       p: 2.5,
-      borderRadius: 1,
-      backgroundColor: COLORS.surface,
-      border: `1px solid ${COLORS.border}`,
+      borderRadius: 0,
+      backgroundColor: 'background.paper',
+      border: '1px solid',
+      borderColor: 'divider',
       textAlign: 'center',
     }}
   >
@@ -107,7 +108,7 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
         fontFamily: FONTS.mono,
         fontSize: '1.5rem',
         fontWeight: 700,
-        color: COLORS.primary,
+        color: 'primary.main',
         lineHeight: 1.2,
       }}
     >
@@ -117,7 +118,7 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
       sx={{
         fontFamily: FONTS.mono,
         fontSize: '0.65rem',
-        color: COLORS.textMuted,
+        color: 'text.secondary',
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
         mt: 0.5,
