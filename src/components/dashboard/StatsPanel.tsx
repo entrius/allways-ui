@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Box, Grid, Typography, keyframes } from '@mui/material';
 import { useStats } from '../../api';
 import { FONTS } from '../../theme';
+import { StatsPanelSkeleton } from './Skeletons';
 
 const slideOut = keyframes`
   from { transform: translateY(0); opacity: 1; }
@@ -130,24 +131,24 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
 );
 
 const StatsPanel: React.FC = () => {
-  const { data: stats } = useStats();
+  const { data: stats, isLoading } = useStats();
 
-  if (!stats) return null;
+  const volume = stats ? parseFloat(stats.totalVolumeTao).toFixed(2) : '0';
 
-  const volume = parseFloat(stats.totalVolumeTao).toFixed(2);
-
-  return (
+  return isLoading || !stats ? (
+    <StatsPanelSkeleton />
+  ) : (
     <Grid container spacing={1.5}>
-      <Grid item xs={6} sm={3}>
+      <Grid item xs={12} sm={6} md={3}>
         <StatCard label="Successful Swaps" value={String(stats.totalSwaps)} />
       </Grid>
-      <Grid item xs={6} sm={3}>
+      <Grid item xs={12} sm={6} md={3}>
         <StatCard label="Volume (TAO)" value={volume} />
       </Grid>
-      <Grid item xs={6} sm={3}>
+      <Grid item xs={12} sm={6} md={3}>
         <StatCard label="Active Miners" value={String(stats.activeMiners)} />
       </Grid>
-      <Grid item xs={6} sm={3}>
+      <Grid item xs={12} sm={6} md={3}>
         <StatCard label="Active Swaps" value={String(stats.activeSwaps)} />
       </Grid>
     </Grid>

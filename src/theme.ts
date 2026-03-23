@@ -11,9 +11,9 @@ export const FONTS = {
 // ---------- Palette definitions ----------
 
 const lightPalette = {
-  primary: '#10b981',
-  primaryLight: '#34d399',
-  primaryDark: '#059669',
+  primary: '#1e40af',
+  primaryLight: '#3b82f6',
+  primaryDark: '#1e3a8a',
   bg: '#f8fafc',
   surface: '#ffffff',
   surfaceLight: '#f1f5f9',
@@ -24,12 +24,21 @@ const lightPalette = {
   border: '#e2e8f0',
   borderLight: '#cbd5e1',
   borderMedium: '#94a3b8',
+  statusActive: '#1e40af',
+  statusFulfilled: '#f59e0b',
+  statusCompleted: '#10b981',
+  statusTimedOut: '#ef4444',
+  statusCollateral: '#8b5cf6',
+  statusVote: '#6366f1',
+  statusMinerActivated: '#14b8a6',
+  assetBtc: '#F7931A',
+  assetTao: '#111827',
 } as const;
 
 const darkPalette = {
-  primary: '#10b981',
-  primaryLight: '#34d399',
-  primaryDark: '#059669',
+  primary: '#14b8a6',
+  primaryLight: '#2dd4bf',
+  primaryDark: '#0d9488',
   bg: '#000000',
   surface: '#0a0a0a',
   surfaceLight: '#111111',
@@ -40,6 +49,15 @@ const darkPalette = {
   border: 'rgba(255, 255, 255, 0.08)',
   borderLight: 'rgba(255, 255, 255, 0.12)',
   borderMedium: 'rgba(255, 255, 255, 0.2)',
+  statusActive: '#14b8a6',
+  statusFulfilled: '#f59e0b',
+  statusCompleted: '#10b981',
+  statusTimedOut: '#ef4444',
+  statusCollateral: '#8b5cf6',
+  statusVote: '#6366f1',
+  statusMinerActivated: '#14b8a6',
+  assetBtc: '#F7931A',
+  assetTao: '#F3F4F6',
 } as const;
 
 // ---------- Module augmentation ----------
@@ -48,10 +66,30 @@ declare module '@mui/material/styles' {
   interface Palette {
     border: { subtle: string; light: string; medium: string };
     surface: { main: string; light: string; elevated: string };
+    status: {
+      active: string;
+      fulfilled: string;
+      completed: string;
+      timedOut: string;
+      collateral: string;
+      vote: string;
+      minerActivated: string;
+    };
+    asset: { btc: string; tao: string };
   }
   interface PaletteOptions {
     border?: { subtle: string; light: string; medium: string };
     surface?: { main: string; light: string; elevated: string };
+    status?: {
+      active: string;
+      fulfilled: string;
+      completed: string;
+      timedOut: string;
+      collateral: string;
+      vote: string;
+      minerActivated: string;
+    };
+    asset?: { btc: string; tao: string };
   }
   interface TypographyVariants {
     mono: React.CSSProperties;
@@ -103,6 +141,19 @@ export function createAppTheme(mode: ThemeMode): Theme {
         light: p.surfaceLight,
         elevated: p.surfaceElevated,
       },
+      status: {
+        active: p.statusActive,
+        fulfilled: p.statusFulfilled,
+        completed: p.statusCompleted,
+        timedOut: p.statusTimedOut,
+        collateral: p.statusCollateral,
+        vote: p.statusVote,
+        minerActivated: p.statusMinerActivated,
+      },
+      asset: {
+        btc: p.assetBtc,
+        tao: p.assetTao,
+      },
     },
     typography: {
       fontFamily: FONTS.body,
@@ -151,6 +202,10 @@ export function createAppTheme(mode: ThemeMode): Theme {
       MuiCssBaseline: {
         styleOverrides: {
           body: { fontFamily: FONTS.body },
+          '::selection': {
+            backgroundColor: p.primary,
+            color: '#ffffff',
+          },
         },
       },
       MuiButtonBase: {
@@ -163,6 +218,25 @@ export function createAppTheme(mode: ThemeMode): Theme {
             fontFamily: FONTS.mono,
             fontWeight: 500,
             borderRadius: 0,
+          },
+        },
+      },
+      MuiTooltip: {
+        styleOverrides: {
+          tooltip: {
+            fontFamily: FONTS.body,
+            fontSize: '0.75rem',
+            borderRadius: 0,
+            backgroundColor: p.surfaceElevated,
+            color: p.textPrimary,
+            border: `1px solid ${p.borderLight}`,
+            padding: '8px 12px',
+          },
+          arrow: {
+            color: p.surfaceElevated,
+            '&::before': {
+              border: `1px solid ${p.borderLight}`,
+            },
           },
         },
       },
