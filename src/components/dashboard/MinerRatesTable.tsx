@@ -69,7 +69,8 @@ const MinerRatesTable: React.FC = () => {
         color: theme.palette.text.disabled || theme.palette.text.secondary,
         label: 'Inactive',
       };
-    if (miner.hasActiveSwap) return { color: theme.palette.status.fulfilled, label: 'Swapping' };
+    if (miner.hasActiveSwap)
+      return { color: theme.palette.status.fulfilled, label: 'Swapping' };
     return { color: theme.palette.primary.main, label: 'Available' };
   };
 

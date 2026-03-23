@@ -32,7 +32,6 @@ const getEventColor = (
   return map[eventType] ?? palette.status.active;
 };
 
-
 const EventFeed: React.FC = () => {
   const theme = useTheme();
   const { data: events, isLoading } = useLatestEvents();

@@ -20,7 +20,14 @@ const STATUS_PROGRESS: Record<string, number> = {
 
 const getStatusColor = (
   status: string,
-  palette: { status: { active: string; fulfilled: string; completed: string; timedOut: string } },
+  palette: {
+    status: {
+      active: string;
+      fulfilled: string;
+      completed: string;
+      timedOut: string;
+    };
+  },
 ): string => {
   const map: Record<string, string> = {
     ACTIVE: palette.status.active,
@@ -30,7 +37,6 @@ const getStatusColor = (
   };
   return map[status] ?? palette.status.active;
 };
-
 
 const SwapTracker: React.FC = () => {
   const theme = useTheme();
@@ -71,7 +77,8 @@ const SwapTracker: React.FC = () => {
         <Stack spacing={1.5}>
           {swaps?.map((swap) => {
             const color =
-              getStatusColor(swap.status, theme.palette) || theme.palette.border.light;
+              getStatusColor(swap.status, theme.palette) ||
+              theme.palette.border.light;
             const progress = STATUS_PROGRESS[swap.status] || 0;
             return (
               <Box
