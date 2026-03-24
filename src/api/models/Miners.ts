@@ -6,6 +6,7 @@ export type Miner = {
   rate: string | null;
   collateralRao: string;
   isActive: boolean;
+  isReserved: boolean;
   hasActiveSwap: boolean;
   updatedAt: string;
 };

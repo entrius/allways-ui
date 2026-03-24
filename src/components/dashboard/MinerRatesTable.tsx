@@ -32,7 +32,8 @@ const pairStr = (m: Miner) =>
     ? `${m.sourceChain.toUpperCase()}/${m.destChain.toUpperCase()}`
     : '';
 
-const statusRank = (m: Miner) => (!m.isActive ? 2 : m.hasActiveSwap ? 1 : 0);
+const statusRank = (m: Miner) =>
+  !m.isActive ? 3 : m.hasActiveSwap ? 2 : m.isReserved ? 1 : 0;
 
 const getSortValue = (m: Miner, key: SortKey): string | number => {
   switch (key) {
@@ -71,6 +72,8 @@ const MinerRatesTable: React.FC = () => {
       };
     if (miner.hasActiveSwap)
       return { color: theme.palette.status.fulfilled, label: 'Swapping' };
+    if (miner.isReserved)
+      return { color: theme.palette.status.active, label: 'Reserved' };
     return { color: theme.palette.primary.main, label: 'Available' };
   };
 
