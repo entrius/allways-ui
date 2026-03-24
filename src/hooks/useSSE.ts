@@ -23,6 +23,7 @@ export function useSSE() {
 
     es.addEventListener('swap', () => {
       queryClient.invalidateQueries({ queryKey: ['swaps'] });
+      queryClient.invalidateQueries({ queryKey: ['swap'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     });
 
