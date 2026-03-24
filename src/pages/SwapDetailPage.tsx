@@ -19,8 +19,6 @@ import {
   formatBlockEstimate,
 } from '../utils/format';
 
-const STEP_LABELS = ['Initiated', 'Fulfilled', 'Completed'] as const;
-
 type TimelineStep = {
   label: string;
   block: string | null;
