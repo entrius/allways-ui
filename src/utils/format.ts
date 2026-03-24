@@ -12,7 +12,10 @@ export const formatNumber = (n: number, decimals = 2) =>
     maximumFractionDigits: decimals,
   });
 
-const CHAIN_DECIMALS: Record<string, { exp: number; digits: number; symbol: string }> = {
+const CHAIN_DECIMALS: Record<
+  string,
+  { exp: number; digits: number; symbol: string }
+> = {
   btc: { exp: 1e8, digits: 8, symbol: 'BTC' },
   tao: { exp: 1e9, digits: 4, symbol: 'TAO' },
 };

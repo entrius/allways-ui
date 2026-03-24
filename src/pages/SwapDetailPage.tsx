@@ -13,7 +13,11 @@ import { useSwapDetail } from '../api';
 import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
-import { formatAmount, chainSymbol, formatBlockEstimate } from '../utils/format';
+import {
+  formatAmount,
+  chainSymbol,
+  formatBlockEstimate,
+} from '../utils/format';
 
 const STEP_LABELS = ['Initiated', 'Fulfilled', 'Completed'] as const;
 
@@ -146,16 +150,28 @@ const SwapDetailPage: React.FC = () => {
         <Card>
           <Stack spacing={1}>
             <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary', fontWeight: 600 }}
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.85rem',
+                color: 'text.primary',
+                fontWeight: 600,
+              }}
             >
-              {chainSymbol(swap.sourceChain)} &rarr; {chainSymbol(swap.destChain)}
+              {chainSymbol(swap.sourceChain)} &rarr;{' '}
+              {chainSymbol(swap.destChain)}
             </Typography>
             <Stack direction="row" spacing={3} flexWrap="wrap">
               {swap.sourceAmount && swap.sourceChain && (
-                <LabelValue label="Source" value={formatAmount(swap.sourceAmount, swap.sourceChain)} />
+                <LabelValue
+                  label="Source"
+                  value={formatAmount(swap.sourceAmount, swap.sourceChain)}
+                />
               )}
               {swap.destAmount && swap.destChain && (
-                <LabelValue label="Dest" value={formatAmount(swap.destAmount, swap.destChain)} />
+                <LabelValue
+                  label="Dest"
+                  value={formatAmount(swap.destAmount, swap.destChain)}
+                />
               )}
               {swap.rate && <LabelValue label="Rate" value={swap.rate} />}
             </Stack>
@@ -168,15 +184,26 @@ const SwapDetailPage: React.FC = () => {
         <SectionTitle>Timeline</SectionTitle>
         <Stack spacing={1.5}>
           {steps.map((step) => (
-            <Stack key={step.label} direction="row" alignItems="center" spacing={1.5}>
-              <Typography sx={{ fontSize: '0.9rem', width: 16, textAlign: 'center' }}>
+            <Stack
+              key={step.label}
+              direction="row"
+              alignItems="center"
+              spacing={1.5}
+            >
+              <Typography
+                sx={{ fontSize: '0.9rem', width: 16, textAlign: 'center' }}
+              >
                 {step.done ? '\u25CF' : step.failed ? '\u2717' : '\u25CB'}
               </Typography>
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,
                   fontSize: '0.75rem',
-                  color: step.done ? 'text.primary' : step.failed ? 'error.main' : 'text.secondary',
+                  color: step.done
+                    ? 'text.primary'
+                    : step.failed
+                      ? 'error.main'
+                      : 'text.secondary',
                   fontWeight: step.done ? 600 : 400,
                   minWidth: 80,
                 }}
@@ -184,7 +211,11 @@ const SwapDetailPage: React.FC = () => {
                 {step.label}
               </Typography>
               <Typography
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: 'text.secondary' }}
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.7rem',
+                  color: 'text.secondary',
+                }}
               >
                 {step.block ? `Block #${step.block}` : '\u2014'}
               </Typography>
@@ -193,7 +224,9 @@ const SwapDetailPage: React.FC = () => {
           {/* Timeout line */}
           {swap.timeoutBlock && (
             <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Typography sx={{ fontSize: '0.9rem', width: 16, textAlign: 'center' }}>
+              <Typography
+                sx={{ fontSize: '0.9rem', width: 16, textAlign: 'center' }}
+              >
                 {isTimedOut ? '\u23F1' : '\u23F1'}
               </Typography>
               <Typography
@@ -208,12 +241,26 @@ const SwapDetailPage: React.FC = () => {
                 Timeout
               </Typography>
               <Typography
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: 'text.secondary' }}
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.7rem',
+                  color: 'text.secondary',
+                }}
               >
                 Block #{swap.timeoutBlock}
-                {!isTimedOut && swap.status !== 'COMPLETED' && swap.initiatedBlock && (
-                  <> ({formatBlockEstimate(parseInt(swap.timeoutBlock) - parseInt(swap.initiatedBlock))} window)</>
-                )}
+                {!isTimedOut &&
+                  swap.status !== 'COMPLETED' &&
+                  swap.initiatedBlock && (
+                    <>
+                      {' '}
+                      (
+                      {formatBlockEstimate(
+                        parseInt(swap.timeoutBlock) -
+                          parseInt(swap.initiatedBlock),
+                      )}{' '}
+                      window)
+                    </>
+                  )}
               </Typography>
             </Stack>
           )}
@@ -287,20 +334,32 @@ const SwapDetailPage: React.FC = () => {
                   }}
                 />
                 <Typography
-                  sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem', color: 'text.secondary' }}
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.65rem',
+                    color: 'text.secondary',
+                  }}
                 >
                   #{event.blockNumber}
                 </Typography>
                 {event.taoAmount && (
                   <Typography
-                    sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem', color: 'primary.main' }}
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.65rem',
+                      color: 'primary.main',
+                    }}
                   >
                     {parseFloat(event.taoAmount).toFixed(4)} TAO
                   </Typography>
                 )}
                 {event.txHash && (
                   <Typography
-                    sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem', color: 'text.secondary' }}
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.65rem',
+                      color: 'text.secondary',
+                    }}
                   >
                     tx: {event.txHash.slice(0, 10)}...
                   </Typography>
@@ -347,7 +406,9 @@ const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </Box>
 );
 
-const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => (
   <Typography
     sx={{
       fontFamily: FONTS.mono,
@@ -383,7 +444,11 @@ const LabelValue: React.FC<{
       <CopyableAddress address={value} fontSize="0.75rem" />
     ) : (
       <Typography
-        sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: 'text.primary' }}
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.75rem',
+          color: 'text.primary',
+        }}
       >
         {value}
       </Typography>
