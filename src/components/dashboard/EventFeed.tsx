@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 import { useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
@@ -105,10 +106,14 @@ const EventFeed: React.FC = () => {
               <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
                 {event.swapId && (
                   <Typography
+                    component={RouterLink}
+                    to={`/swap/${event.swapId}`}
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.7rem',
                       color: 'text.secondary',
+                      textDecoration: 'none',
+                      '&:hover': { color: 'primary.main' },
                     }}
                   >
                     Swap #{event.swapId}

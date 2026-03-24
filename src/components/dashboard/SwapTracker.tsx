@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Stack,
@@ -97,11 +98,15 @@ const SwapTracker: React.FC = () => {
                   alignItems="center"
                 >
                   <Typography
+                    component={RouterLink}
+                    to={`/swap/${swap.swapId}`}
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.8rem',
                       fontWeight: 600,
                       color: 'text.primary',
+                      textDecoration: 'none',
+                      '&:hover': { color: 'primary.main' },
                     }}
                   >
                     Swap #{swap.swapId}
