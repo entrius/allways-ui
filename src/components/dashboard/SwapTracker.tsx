@@ -1,8 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
-  Button,
   Stack,
   Typography,
   LinearProgress,
@@ -15,7 +14,7 @@ import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
 import { formatAmount } from '../../utils/format';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
@@ -64,16 +63,21 @@ const SwapTracker: React.FC = () => {
     limit,
   });
 
-  const handleLoadMore = useCallback(() => {
-    setLimit((prev) => prev + PAGE_SIZE);
-  }, []);
-
   // Reset limit when search changes
   React.useEffect(() => {
     setLimit(PAGE_SIZE);
   }, [debouncedSearch]);
 
   const hasMore = swaps?.length === limit;
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || !hasMore) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
+      setLimit((prev) => prev + PAGE_SIZE);
+    }
+  }, [hasMore]);
 
   return isLoading && !swaps ? (
     <SwapTrackerSkeleton />
@@ -124,7 +128,19 @@ const SwapTracker: React.FC = () => {
           </Typography>
         </Box>
       ) : (
-        <>
+        <Box
+          ref={scrollRef}
+          onScroll={handleScroll}
+          sx={{
+            maxHeight: 500,
+            overflowY: 'auto',
+            '&::-webkit-scrollbar': { width: 4 },
+            '&::-webkit-scrollbar-thumb': {
+              background: theme.palette.border.light,
+              borderRadius: 0,
+            },
+          }}
+        >
           <Stack spacing={1.5}>
             {swaps.map((swap) => {
               const color = getStatusColor(swap.status, theme.palette);
@@ -259,29 +275,7 @@ const SwapTracker: React.FC = () => {
               );
             })}
           </Stack>
-          {hasMore && (
-            <Button
-              onClick={handleLoadMore}
-              fullWidth
-              sx={{
-                mt: 1.5,
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                borderRadius: 0,
-                color: 'text.secondary',
-                border: '1px solid',
-                borderColor: 'divider',
-                textTransform: 'none',
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                  borderColor: theme.palette.border.light,
-                },
-              }}
-            >
-              Load more
-            </Button>
-          )}
-        </>
+        </Box>
       )}
     </Box>
   );
