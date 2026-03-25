@@ -132,7 +132,7 @@ const SwapTracker: React.FC = () => {
           ref={scrollRef}
           onScroll={handleScroll}
           sx={{
-            maxHeight: 500,
+            height: 480,
             overflowY: 'auto',
             '&::-webkit-scrollbar': { width: 4 },
             '&::-webkit-scrollbar-thumb': {
