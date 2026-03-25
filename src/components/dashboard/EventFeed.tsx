@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Chip, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Button, Chip, Stack, Typography, useTheme } from '@mui/material';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
@@ -38,11 +39,22 @@ const getEventColor = (
 const EventFeed: React.FC = () => {
   const theme = useTheme();
   const { data: events, isLoading } = useLatestEvents();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) setScrolled(el.scrollTop > 100);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   return isLoading || !events ? (
     <EventFeedSkeleton />
   ) : (
-    <Box>
+    <Box sx={{ position: 'relative' }}>
       <Typography
         variant="h6"
         sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}
@@ -50,6 +62,8 @@ const EventFeed: React.FC = () => {
         Live Events
       </Typography>
       <Box
+        ref={scrollRef}
+        onScroll={handleScroll}
         sx={{
           maxHeight: 500,
           overflowY: 'auto',
@@ -180,6 +194,32 @@ const EventFeed: React.FC = () => {
           ))}
         </Stack>
       </Box>
+      {scrolled && (
+        <Button
+          onClick={scrollToTop}
+          size="small"
+          sx={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            minWidth: 32,
+            width: 32,
+            height: 32,
+            p: 0,
+            borderRadius: 0,
+            backgroundColor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            color: 'text.secondary',
+            '&:hover': {
+              backgroundColor: 'action.hover',
+              color: 'primary.main',
+            },
+          }}
+        >
+          <KeyboardArrowUpIcon sx={{ fontSize: 18 }} />
+        </Button>
+      )}
     </Box>
   );
 };
