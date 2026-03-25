@@ -30,6 +30,29 @@ export const formatAmount = (raw: string | number, chain: string): string => {
 export const chainSymbol = (chain: string): string =>
   CHAIN_DECIMALS[chain.toLowerCase()]?.symbol ?? chain.toUpperCase();
 
+const CHAIN_NAMES: Record<string, string> = {
+  btc: 'Bitcoin',
+  tao: 'Bittensor',
+};
+
+export const chainName = (chain: string): string =>
+  CHAIN_NAMES[chain.toLowerCase()] ?? chain.toUpperCase();
+
+const EXPLORER_TX: Record<string, string> = {
+  btc: 'https://mempool.space/testnet4/tx/',
+  tao: 'https://x.taostats.io/extrinsic/',
+};
+
+export const explorerTxUrl = (txHash: string, chain: string): string | null => {
+  const base = EXPLORER_TX[chain.toLowerCase()];
+  if (!base) return null;
+  const clean =
+    txHash.startsWith('0x') && chain.toLowerCase() === 'btc'
+      ? txHash.slice(2)
+      : txHash;
+  return `${base}${clean}`;
+};
+
 const SECONDS_PER_BLOCK = 12;
 
 export const formatBlockEstimate = (blocks: number): string => {

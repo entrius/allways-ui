@@ -13,9 +13,12 @@ import { useSwapDetail } from '../api';
 import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   formatAmount,
   chainSymbol,
+  chainName,
+  explorerTxUrl,
   formatBlockEstimate,
 } from '../utils/format';
 
@@ -278,16 +281,20 @@ const SwapDetailPage: React.FC = () => {
         <Card>
           <SectionTitle>Transactions</SectionTitle>
           <Stack spacing={1}>
-            <LabelValue
-              label="Source TX"
-              value={swap.sourceTxHash || '\u2014'}
-              copyable={!!swap.sourceTxHash}
-            />
-            <LabelValue
-              label="Dest TX"
-              value={swap.destTxHash || '\u2014'}
-              copyable={!!swap.destTxHash}
-            />
+            {swap.sourceTxHash && swap.sourceChain && (
+              <TxRow
+                label={`${chainSymbol(swap.sourceChain)} TX`}
+                txHash={swap.sourceTxHash}
+                chain={swap.sourceChain}
+              />
+            )}
+            {swap.destTxHash && swap.destChain && (
+              <TxRow
+                label={`${chainSymbol(swap.destChain)} TX`}
+                txHash={swap.destTxHash}
+                chain={swap.destChain}
+              />
+            )}
           </Stack>
         </Card>
       )}
@@ -300,16 +307,37 @@ const SwapDetailPage: React.FC = () => {
             <LabelAddr label="User" address={swap.userAddress} />
           )}
           {swap.userSourceAddress && (
-            <LabelAddr label="User Source" address={swap.userSourceAddress} />
+            <LabelAddr
+              label={
+                swap.sourceChain
+                  ? `User ${chainName(swap.sourceChain)} Address`
+                  : 'User Source'
+              }
+              address={swap.userSourceAddress}
+            />
           )}
           {swap.userDestAddress && (
-            <LabelAddr label="User Dest" address={swap.userDestAddress} />
+            <LabelAddr
+              label={
+                swap.destChain
+                  ? `User ${chainName(swap.destChain)} Address`
+                  : 'User Dest'
+              }
+              address={swap.userDestAddress}
+            />
           )}
           {swap.minerHotkey && (
-            <LabelAddr label="Miner" address={swap.minerHotkey} />
+            <LabelAddr label="Miner Hotkey" address={swap.minerHotkey} />
           )}
           {swap.minerSourceAddress && (
-            <LabelAddr label="Miner Source" address={swap.minerSourceAddress} />
+            <LabelAddr
+              label={
+                swap.sourceChain
+                  ? `Miner ${chainName(swap.sourceChain)} Address`
+                  : 'Miner Source'
+              }
+              address={swap.minerSourceAddress}
+            />
           )}
         </Stack>
       </Card>
@@ -358,6 +386,34 @@ const SwapDetailPage: React.FC = () => {
                   >
                     {parseFloat(event.taoAmount).toFixed(4)} TAO
                   </Typography>
+                )}
+                {event.eventType === 'VoteCast' && event.userAddress && (
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.65rem',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      validator:
+                    </Typography>
+                    <CopyableAddress
+                      address={event.userAddress}
+                      fontSize="0.65rem"
+                    />
+                    {event.voteType && (
+                      <Typography
+                        sx={{
+                          fontFamily: FONTS.mono,
+                          fontSize: '0.6rem',
+                          color: 'text.secondary',
+                        }}
+                      >
+                        ({event.voteType.replace('_', ' ')})
+                      </Typography>
+                    )}
+                  </Stack>
                 )}
                 {event.txHash && (
                   <Typography
@@ -461,6 +517,49 @@ const LabelValue: React.FC<{
     )}
   </Stack>
 );
+
+const TxRow: React.FC<{ label: string; txHash: string; chain: string }> = ({
+  label,
+  txHash,
+  chain,
+}) => {
+  const url = explorerTxUrl(txHash, chain);
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.7rem',
+          color: 'text.secondary',
+          minWidth: 80,
+        }}
+      >
+        {label}
+      </Typography>
+      <CopyableAddress address={txHash} fontSize="0.75rem" />
+      {url && (
+        <Typography
+          component="a"
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.65rem',
+            color: 'primary.main',
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.3,
+            '&:hover': { textDecoration: 'underline' },
+          }}
+        >
+          <OpenInNewIcon sx={{ fontSize: 11 }} />
+        </Typography>
+      )}
+    </Stack>
+  );
+};
 
 const LabelAddr: React.FC<{ label: string; address: string }> = ({
   label,
