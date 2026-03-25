@@ -181,44 +181,52 @@ const SwapDetailPage: React.FC = () => {
       <Card>
         <SectionTitle>Timeline</SectionTitle>
         <Stack spacing={1.5}>
-          {steps.map((step) => (
-            <Stack
-              key={step.label}
-              direction="row"
-              alignItems="center"
-              spacing={1.5}
-            >
-              <Typography
-                sx={{ fontSize: '0.9rem', width: 16, textAlign: 'center' }}
+          {steps.map((step) => {
+            const stepColor = step.done
+              ? '#10b981'
+              : step.failed
+                ? '#ef4444'
+                : 'text.secondary';
+            return (
+              <Stack
+                key={step.label}
+                direction="row"
+                alignItems="center"
+                spacing={1.5}
               >
-                {step.done ? '\u25CF' : step.failed ? '\u2717' : '\u25CB'}
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.75rem',
-                  color: step.done
-                    ? 'text.primary'
-                    : step.failed
-                      ? 'error.main'
-                      : 'text.secondary',
-                  fontWeight: step.done ? 600 : 400,
-                  minWidth: 80,
-                }}
-              >
-                {step.label}
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.7rem',
-                  color: 'text.secondary',
-                }}
-              >
-                {step.block ? `Block #${step.block}` : '\u2014'}
-              </Typography>
-            </Stack>
-          ))}
+                <Typography
+                  sx={{
+                    fontSize: '0.9rem',
+                    width: 16,
+                    textAlign: 'center',
+                    color: stepColor,
+                  }}
+                >
+                  {step.done ? '\u25CF' : step.failed ? '\u2717' : '\u25CB'}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.75rem',
+                    color: stepColor,
+                    fontWeight: step.done ? 600 : 400,
+                    minWidth: 80,
+                  }}
+                >
+                  {step.label}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.7rem',
+                    color: step.done ? stepColor : 'text.secondary',
+                  }}
+                >
+                  {step.block ? `Block #${step.block}` : '\u2014'}
+                </Typography>
+              </Stack>
+            );
+          })}
           {/* Timeout line */}
           {swap.timeoutBlock && (
             <Stack direction="row" alignItems="center" spacing={1.5}>

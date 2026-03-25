@@ -1,27 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import {
-  Box,
-  Chip,
-  Stack,
-  Typography,
-  TextField,
-  useTheme,
-} from '@mui/material';
+import { Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 import { useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { EventFeedSkeleton } from './Skeletons';
-
-const EVENT_TYPES = [
-  'SwapInitiated',
-  'SwapFulfilled',
-  'SwapCompleted',
-  'SwapTimedOut',
-  'CollateralPosted',
-  'VoteCast',
-  'MinerReserved',
-] as const;
 
 const getEventColor = (
   eventType: string,
@@ -52,33 +35,9 @@ const getEventColor = (
   return map[eventType] ?? palette.status.active;
 };
 
-const useDebounce = (value: string, delay: number) => {
-  const [debounced, setDebounced] = useState(value);
-  React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
-};
-
 const EventFeed: React.FC = () => {
   const theme = useTheme();
-  const [addressFilter, setAddressFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string | undefined>();
-  const debouncedAddress = useDebounce(addressFilter, 300);
-
-  const filters = useMemo(() => {
-    const f: Record<string, string | undefined> = {};
-    if (typeFilter) f.eventType = typeFilter;
-    if (debouncedAddress) {
-      // Send as both params — API will match whichever column has data
-      f.minerHotkey = debouncedAddress;
-      f.userAddress = debouncedAddress;
-    }
-    return Object.keys(f).length ? f : undefined;
-  }, [typeFilter, debouncedAddress]);
-
-  const { data: events, isLoading } = useLatestEvents(filters);
+  const { data: events, isLoading } = useLatestEvents();
 
   return isLoading || !events ? (
     <EventFeedSkeleton />
@@ -86,61 +45,13 @@ const EventFeed: React.FC = () => {
     <Box>
       <Typography
         variant="h6"
-        sx={{ mb: 1.5, fontFamily: FONTS.heading, fontWeight: 700 }}
+        sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}
       >
         Live Events
       </Typography>
-
-      {/* Filter bar */}
-      <Stack spacing={1} sx={{ mb: 1.5 }}>
-        <TextField
-          size="small"
-          placeholder="Filter by address..."
-          value={addressFilter}
-          onChange={(e) => setAddressFilter(e.target.value)}
-          sx={{
-            '& .MuiInputBase-root': {
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              borderRadius: 0,
-            },
-          }}
-        />
-        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-          <Chip
-            label="All"
-            size="small"
-            variant={!typeFilter ? 'filled' : 'outlined'}
-            onClick={() => setTypeFilter(undefined)}
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.6rem',
-              height: 20,
-              borderRadius: 0,
-            }}
-          />
-          {EVENT_TYPES.map((t) => (
-            <Chip
-              key={t}
-              label={t.replace('Swap', '').replace('Collateral', 'Coll.')}
-              size="small"
-              variant={typeFilter === t ? 'filled' : 'outlined'}
-              onClick={() => setTypeFilter(typeFilter === t ? undefined : t)}
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.6rem',
-                height: 20,
-                borderRadius: 0,
-                borderColor: getEventColor(t, theme.palette),
-              }}
-            />
-          ))}
-        </Stack>
-      </Stack>
-
       <Box
         sx={{
-          maxHeight: 400,
+          maxHeight: 500,
           overflowY: 'auto',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {

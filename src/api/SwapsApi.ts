@@ -2,15 +2,19 @@ import { useApiQuery } from './ApiUtils';
 import { SSE_FALLBACK_INTERVAL } from './constants';
 import { type ActiveSwap, type SwapDetail } from './models';
 
-export const useActiveSwaps = (filters?: {
-  userAddress?: string;
-  minerHotkey?: string;
+export const useActiveSwaps = () =>
+  useApiQuery<ActiveSwap[]>('swaps', '/swaps/active', SSE_FALLBACK_INTERVAL);
+
+export const useAllSwaps = (params?: {
+  search?: string;
+  limit?: number;
+  offset?: number;
 }) =>
   useApiQuery<ActiveSwap[]>(
-    'swaps',
-    '/swaps/active',
+    'allSwaps',
+    '/swaps',
     SSE_FALLBACK_INTERVAL,
-    filters,
+    params,
   );
 
 export const useSwapDetail = (swapId: string) =>
