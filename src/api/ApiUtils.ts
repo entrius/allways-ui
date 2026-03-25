@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import axios, { type AxiosError } from 'axios';
 
 export const useApiQuery = <TResponse = void, TSelect = TResponse>(
@@ -20,5 +20,6 @@ export const useApiQuery = <TResponse = void, TSelect = TResponse>(
     retry: false,
     enabled: enabled ?? true,
     refetchInterval: refetchInterval ?? false,
+    placeholderData: keepPreviousData,
   });
 };

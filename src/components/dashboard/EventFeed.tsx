@@ -74,6 +74,7 @@ const EventFeed: React.FC = () => {
         sx={{
           flex: 1,
           minHeight: 0,
+          maxHeight: 500,
           overflowY: 'auto',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
