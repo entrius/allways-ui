@@ -28,6 +28,7 @@ const getEventColor = (
     SwapTimedOut: palette.status.timedOut,
     CollateralPosted: palette.status.collateral,
     CollateralWithdrawn: palette.status.collateral,
+    CollateralSlashed: palette.status.timedOut,
     VoteCast: palette.status.vote,
     MinerActivated: palette.status.minerActivated,
     MinerReserved: palette.status.minerActivated,
