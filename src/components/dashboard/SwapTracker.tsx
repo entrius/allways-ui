@@ -159,8 +159,9 @@ const SwapTracker: React.FC = () => {
                     textDecoration: 'none',
                     color: 'inherit',
                     display: 'block',
+                    cursor: 'pointer',
                     transition: 'border-color 0.2s',
-                    '&:hover': { borderColor: theme.palette.border.light },
+                    '&:hover': { borderColor: 'primary.main' },
                   }}
                 >
                   <Stack
@@ -247,7 +248,7 @@ const SwapTracker: React.FC = () => {
                     {swap.userAddress && (
                       <Typography
                         component="span"
-                        onClick={(e: React.MouseEvent) => e.preventDefault()}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         sx={{
                           fontFamily: FONTS.mono,
                           fontSize: '0.7rem',
@@ -260,7 +261,7 @@ const SwapTracker: React.FC = () => {
                     {swap.minerHotkey && (
                       <Typography
                         component="span"
-                        onClick={(e: React.MouseEvent) => e.preventDefault()}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         sx={{
                           fontFamily: FONTS.mono,
                           fontSize: '0.7rem',
