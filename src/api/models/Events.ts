@@ -6,5 +6,16 @@ export type ContractEvent = {
   minerHotkey: string | null;
   userAddress: string | null;
   taoAmount: string | null;
+  sourceChain: string | null;
+  destChain: string | null;
+  amountRaw: string | null;
+  secondaryAmount: string | null;
+  txHash: string | null;
+  address: string | null;
+  voteType: string | null;
+  voteCount: number | null;
+  configKey: string | null;
+  reservedUntil: string | null;
+  isActive: boolean | null;
   createdAt: string;
 };

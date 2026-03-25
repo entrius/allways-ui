@@ -6,7 +6,24 @@ export type ActiveSwap = {
   taoAmount: string | null;
   sourceChain: string | null;
   destChain: string | null;
+  sourceAmount: string | null;
+  destAmount: string | null;
+  rate: string | null;
+  userSourceAddress: string | null;
+  userDestAddress: string | null;
+  minerSourceAddress: string | null;
+  sourceTxHash: string | null;
+  destTxHash: string | null;
+  timeoutBlock: string | null;
+  initiatedBlock: string | null;
+  fulfilledBlock: string | null;
+  completedBlock: string | null;
   initiatedAt: string | null;
   fulfilledAt: string | null;
   resolvedAt: string | null;
+};
+
+export type SwapDetail = {
+  swap: ActiveSwap | null;
+  events: import('./Events').ContractEvent[];
 };
