@@ -162,6 +162,63 @@ export const OrderbookDepthSkeleton: React.FC = () => (
   </Stack>
 );
 
+export const SwapQuoteCalculatorSkeleton: React.FC = () => (
+  <Stack>
+    <Skeleton
+      variant="text"
+      width={120}
+      height={28}
+      sx={{ mb: 2, borderRadius: 0 }}
+    />
+    <Stack direction="row" spacing={1.5} sx={{ mb: 2 }}>
+      <Skeleton
+        variant="rectangular"
+        sx={{ flex: 1, height: 32, borderRadius: 0 }}
+      />
+      <Skeleton
+        variant="rectangular"
+        width={150}
+        height={32}
+        sx={{ borderRadius: 0 }}
+      />
+    </Stack>
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            {['UID', 'Rate', 'You Receive', 'Fee', 'Capacity', 'Hotkey'].map(
+              (h) => (
+                <TableCell key={h} sx={tableHeaderSx}>
+                  {h}
+                </TableCell>
+              ),
+            )}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <TableRow key={i}>
+              {[30, 50, 70, 50, 60, 80].map((w, j) => (
+                <TableCell
+                  key={j}
+                  sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+                >
+                  <Skeleton
+                    variant="text"
+                    width={w}
+                    height={16}
+                    sx={{ borderRadius: 0 }}
+                  />
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  </Stack>
+);
+
 export const EventFeedSkeleton: React.FC = () => (
   <Stack>
     <Skeleton

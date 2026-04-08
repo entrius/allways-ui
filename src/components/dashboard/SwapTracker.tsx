@@ -16,6 +16,18 @@ import { formatAmount } from '../../utils/format';
 
 const PAGE_SIZE = 5;
 
+const formatDuration = (startIso: string, endIso: string): string | null => {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  if (isNaN(start) || isNaN(end) || end <= start) return null;
+  const seconds = Math.round((end - start) / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m ${seconds % 60}s`;
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.round((seconds % 3600) / 60);
+  return `${hours}h ${mins}m`;
+};
+
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
   FULFILLED: 66,
@@ -223,6 +235,24 @@ const SwapTracker: React.FC = () => {
                   />
 
                   <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                    {swap.initiatedAt && swap.fulfilledAt && (() => {
+                      const duration = formatDuration(
+                        swap.initiatedAt,
+                        swap.fulfilledAt,
+                      );
+                      if (!duration) return null;
+                      return (
+                        <Typography
+                          sx={{
+                            fontFamily: FONTS.mono,
+                            fontSize: '0.65rem',
+                            color: theme.palette.status.completed,
+                          }}
+                        >
+                          Fulfilled in {duration}
+                        </Typography>
+                      );
+                    })()}
                     {swap.sourceAmount && swap.sourceChain && (
                       <Typography
                         sx={{

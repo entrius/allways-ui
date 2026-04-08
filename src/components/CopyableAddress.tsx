@@ -3,7 +3,7 @@ import { Tooltip, Typography } from '@mui/material';
 import { FONTS } from '../theme';
 
 const shortAddr = (addr: string) =>
-  addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
+  !addr ? '' : addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
 
 interface CopyableAddressProps {
   address: string;

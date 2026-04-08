@@ -8,6 +8,7 @@ import {
   EventFeed,
   MinerRatesTable,
   OrderbookDepth,
+  SwapQuoteCalculator,
   SwapTracker,
   StatsPanel,
   Page,
@@ -138,6 +139,19 @@ const DashboardPage: React.FC = () => {
               }}
             >
               <OrderbookDepth />
+            </Stack>
+          </Grid>
+          <Grid item xs={12}>
+            <Stack
+              sx={{
+                p: { xs: 1.5, sm: 2, md: 2.5 },
+                borderRadius: 0,
+                backgroundColor: 'surface.light',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <SwapQuoteCalculator />
             </Stack>
           </Grid>
           <Grid item xs={12} sm={5} md={4}>
