@@ -224,7 +224,7 @@ const SwapDetailPage: React.FC = () => {
                 >
                   {step.block ? (
                     <>
-                      Block #<CopyableAddress address={step.block} chain="tao" type="block" fontSize="0.7rem" />
+                      Block <CopyableAddress address={`#${step.block}`} chain="tao" type="block" fontSize="0.7rem" />
                     </>
                   ) : '\u2014'}
                 </Typography>
