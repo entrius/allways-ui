@@ -155,7 +155,7 @@ const EventFeed: React.FC = () => {
                   </Typography>
                 )}
                 {event.minerHotkey && (
-                  <CopyableAddress address={event.minerHotkey} />
+                  <CopyableAddress address={event.minerHotkey} chain="tao" />
                 )}
                 {event.taoAmount && (
                   <Typography

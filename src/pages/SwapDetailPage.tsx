@@ -282,11 +282,15 @@ const SwapDetailPage: React.FC = () => {
               label="Source TX"
               value={swap.sourceTxHash || '\u2014'}
               copyable={!!swap.sourceTxHash}
+              chain={swap.sourceChain ?? undefined}
+              type="tx"
             />
             <LabelValue
               label="Dest TX"
               value={swap.destTxHash || '\u2014'}
               copyable={!!swap.destTxHash}
+              chain={swap.destChain ?? undefined}
+              type="tx"
             />
           </Stack>
         </Card>
@@ -297,19 +301,19 @@ const SwapDetailPage: React.FC = () => {
         <SectionTitle>Participants</SectionTitle>
         <Stack spacing={1}>
           {swap.userAddress && (
-            <LabelAddr label="User" address={swap.userAddress} />
+            <LabelAddr label="User" address={swap.userAddress} chain="tao" />
           )}
           {swap.userSourceAddress && (
-            <LabelAddr label="User Source" address={swap.userSourceAddress} />
+            <LabelAddr label="User Source" address={swap.userSourceAddress} chain={swap.sourceChain ?? undefined} />
           )}
           {swap.userDestAddress && (
-            <LabelAddr label="User Dest" address={swap.userDestAddress} />
+            <LabelAddr label="User Dest" address={swap.userDestAddress} chain={swap.destChain ?? undefined} />
           )}
           {swap.minerHotkey && (
-            <LabelAddr label="Miner" address={swap.minerHotkey} />
+            <LabelAddr label="Miner" address={swap.minerHotkey} chain="tao" />
           )}
           {swap.minerSourceAddress && (
-            <LabelAddr label="Miner Source" address={swap.minerSourceAddress} />
+            <LabelAddr label="Miner Source" address={swap.minerSourceAddress} chain={swap.sourceChain ?? undefined} />
           )}
         </Stack>
       </Card>
@@ -434,7 +438,9 @@ const LabelValue: React.FC<{
   label: string;
   value: string;
   copyable?: boolean;
-}> = ({ label, value, copyable }) => (
+  chain?: string;
+  type?: 'address' | 'tx';
+}> = ({ label, value, copyable, chain, type }) => (
   <Stack direction="row" spacing={1} alignItems="baseline">
     <Typography
       sx={{
@@ -447,7 +453,7 @@ const LabelValue: React.FC<{
       {label}
     </Typography>
     {copyable ? (
-      <CopyableAddress address={value} fontSize="0.75rem" />
+      <CopyableAddress address={value} fontSize="0.75rem" chain={chain} type={type} />
     ) : (
       <Typography
         sx={{
@@ -462,9 +468,10 @@ const LabelValue: React.FC<{
   </Stack>
 );
 
-const LabelAddr: React.FC<{ label: string; address: string }> = ({
+const LabelAddr: React.FC<{ label: string; address: string; chain?: string }> = ({
   label,
   address,
+  chain,
 }) => (
   <Stack direction="row" spacing={1} alignItems="baseline">
     <Typography
@@ -477,7 +484,7 @@ const LabelAddr: React.FC<{ label: string; address: string }> = ({
     >
       {label}
     </Typography>
-    <CopyableAddress address={address} fontSize="0.75rem" />
+    <CopyableAddress address={address} fontSize="0.75rem" chain={chain} />
   </Stack>
 );
 

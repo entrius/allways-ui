@@ -269,7 +269,7 @@ const MinerRatesTable: React.FC = () => {
                       color: 'text.secondary',
                     }}
                   >
-                    <CopyableAddress address={miner.hotkey} />
+                    <CopyableAddress address={miner.hotkey} chain="tao" />
                   </TableCell>
                 </TableRow>
               );
