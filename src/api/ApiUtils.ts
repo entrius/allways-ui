@@ -17,7 +17,8 @@ export const useApiQuery = <TResponse = void, TSelect = TResponse>(
       const { data } = await axios.get(requestUrl, { params: queryParams });
       return data;
     },
-    retry: false,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     enabled: enabled ?? true,
     refetchInterval: refetchInterval ?? false,
     placeholderData: keepPreviousData,
