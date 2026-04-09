@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Box,
   InputAdornment,
@@ -99,14 +99,16 @@ const MinerRatesTable: React.FC = () => {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [search, setSearch] = useState('');
 
-  const handleSort = (key: SortKey) => {
-    if (key === sortKey) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
+  const handleSort = useCallback((key: SortKey) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
       setSortDir(key === 'rate' || key === 'collateral' ? 'desc' : 'asc');
-    }
-  };
+      return key;
+    });
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
