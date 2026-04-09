@@ -210,6 +210,14 @@ export function createAppTheme(mode: ThemeMode): Theme {
       },
       MuiButtonBase: {
         defaultProps: { disableRipple: true },
+        styleOverrides: {
+          root: {
+            '&:focus-visible': {
+              outline: `2px solid ${p.primary}`,
+              outlineOffset: 2,
+            },
+          },
+        },
       },
       MuiButton: {
         styleOverrides: {
