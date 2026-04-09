@@ -66,6 +66,7 @@ const DashboardPage: React.FC = () => {
           <Stack sx={{ flex: 1 }} />
           <Tooltip title="Documentation" arrow>
             <IconButton
+              aria-label="Documentation"
               component="a"
               href={docsUrl}
               target="_blank"
@@ -87,6 +88,7 @@ const DashboardPage: React.FC = () => {
             </IconButton>
           </Tooltip>
           <IconButton
+            aria-label={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             onClick={toggleTheme}
             sx={{
               color: 'text.secondary',
