@@ -117,7 +117,7 @@ const EventFeed: React.FC = () => {
                     color: 'text.secondary',
                   }}
                 >
-                  #{event.blockNumber}
+                  #<CopyableAddress address={String(event.blockNumber)} chain="tao" type="block" fontSize="0.65rem" />
                 </Typography>
               </Stack>
               <Stack
@@ -176,7 +176,7 @@ const EventFeed: React.FC = () => {
                       color: 'text.secondary',
                     }}
                   >
-                    until #{event.reservedUntil}
+                    until #<CopyableAddress address={String(event.reservedUntil)} chain="tao" type="block" fontSize="0.65rem" />
                   </Typography>
                 )}
                 {event.voteType && (

@@ -222,7 +222,11 @@ const SwapDetailPage: React.FC = () => {
                     color: step.done ? stepColor : 'text.secondary',
                   }}
                 >
-                  {step.block ? `Block #${step.block}` : '\u2014'}
+                  {step.block ? (
+                    <>
+                      Block #<CopyableAddress address={step.block} chain="tao" type="block" fontSize="0.7rem" />
+                    </>
+                  ) : '\u2014'}
                 </Typography>
               </Stack>
             );
@@ -253,7 +257,7 @@ const SwapDetailPage: React.FC = () => {
                   color: 'text.secondary',
                 }}
               >
-                Block #{swap.timeoutBlock}
+                Block #<CopyableAddress address={swap.timeoutBlock} chain="tao" type="block" fontSize="0.7rem" />
                 {!isTimedOut &&
                   swap.status !== 'COMPLETED' &&
                   swap.initiatedBlock && (
@@ -344,13 +348,14 @@ const SwapDetailPage: React.FC = () => {
                   }}
                 />
                 <Typography
+                  component="span"
                   sx={{
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
                     color: 'text.secondary',
                   }}
                 >
-                  #{event.blockNumber}
+                  #<CopyableAddress address={String(event.blockNumber)} chain="tao" type="block" fontSize="0.65rem" />
                 </Typography>
                 {event.taoAmount && (
                   <Typography
@@ -365,13 +370,14 @@ const SwapDetailPage: React.FC = () => {
                 )}
                 {event.txHash && (
                   <Typography
+                    component="span"
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.65rem',
                       color: 'text.secondary',
                     }}
                   >
-                    tx: {event.txHash.slice(0, 10)}...
+                    tx: <CopyableAddress address={event.txHash} chain="tao" type="tx" fontSize="0.65rem" />
                   </Typography>
                 )}
               </Stack>

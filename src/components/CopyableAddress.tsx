@@ -7,17 +7,17 @@ import { FONTS } from '../theme';
 const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
 
-const getExplorerUrl = (value: string, chain?: string, type: 'address' | 'tx' = 'address'): string | null => {
+const getExplorerUrl = (value: string, chain?: string, type: 'address' | 'tx' | 'block' = 'address'): string | null => {
   const c = chain?.toLowerCase();
   if (c === 'btc') {
-    return type === 'tx'
-      ? `https://www.blockchain.com/btc/tx/${value}`
-      : `https://www.blockchain.com/btc/address/${value}`;
+    if (type === 'tx') return `https://www.blockchain.com/btc/tx/${value}`;
+    if (type === 'block') return `https://www.blockchain.com/btc/block/${value}`;
+    return `https://www.blockchain.com/btc/address/${value}`;
   }
   if (c === 'tao') {
-    return type === 'tx'
-      ? `https://taostats.io/extrinsic/${value}`
-      : `https://taostats.io/account/${value}`;
+    if (type === 'tx') return `https://taostats.io/extrinsic/${value}`;
+    if (type === 'block') return `https://taostats.io/block/${value}`;
+    return `https://taostats.io/account/${value}`;
   }
   // Hotkeys (ss58) — default to taostats
   if (!c && value.length === 48) return `https://taostats.io/account/${value}`;
@@ -29,7 +29,7 @@ interface CopyableAddressProps {
   fontSize?: string;
   color?: string;
   chain?: string;
-  type?: 'address' | 'tx';
+  type?: 'address' | 'tx' | 'block';
 }
 
 const CopyableAddress: React.FC<CopyableAddressProps> = ({
