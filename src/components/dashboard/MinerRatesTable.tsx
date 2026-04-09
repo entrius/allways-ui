@@ -176,7 +176,7 @@ const MinerRatesTable: React.FC = () => {
 
       <TableContainer
         sx={{
-          maxHeight: 500,
+          maxHeight: { xs: '60dvh', md: 500 },
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
             background: theme.palette.border.light,
