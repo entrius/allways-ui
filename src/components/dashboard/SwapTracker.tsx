@@ -13,6 +13,7 @@ import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
 import { formatAmount } from '../../utils/format';
+import QueryError from '../QueryError';
 
 const PAGE_SIZE = 5;
 
@@ -58,7 +59,7 @@ const SwapTracker: React.FC = () => {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: swaps, isLoading } = useAllSwaps({
+  const { data: swaps, isLoading, isError, refetch } = useAllSwaps({
     search: debouncedSearch || undefined,
     limit,
   });
@@ -78,6 +79,8 @@ const SwapTracker: React.FC = () => {
       setLimit((prev) => prev + PAGE_SIZE);
     }
   }, [hasMore]);
+
+  if (isError) return <QueryError onRetry={() => refetch()} />;
 
   return isLoading && !swaps ? (
     <SwapTrackerSkeleton />

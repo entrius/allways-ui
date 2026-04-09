@@ -19,6 +19,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners } from '../../api';
 import { FONTS } from '../../theme';
 import { OrderbookDepthSkeleton } from './Skeletons';
+import QueryError from '../QueryError';
 
 const OrderbookDepth: React.FC = () => {
   const theme = useTheme();
@@ -99,7 +100,7 @@ const OrderbookDepth: React.FC = () => {
     borderBottom: `1px solid ${theme.palette.divider}`,
   };
 
-  const { data: miners, isLoading } = useMiners();
+  const { data: miners, isLoading, isError, refetch } = useMiners();
   const [selectedPair, setSelectedPair] = useState<string>('');
 
   const uniqueAssets = useMemo(() => {
@@ -177,6 +178,8 @@ const OrderbookDepth: React.FC = () => {
     depthData.length > 0 ? depthData[depthData.length - 1].cumAssetToTao : 1;
   const getAssetSymbol = () =>
     selectedPair ? selectedPair.replace('/TAO', '').trim() : '';
+
+  if (isError) return <QueryError onRetry={() => refetch()} />;
 
   return isLoading || !miners ? (
     <OrderbookDepthSkeleton />

@@ -3,6 +3,7 @@ import { Box, Grid, Typography, keyframes } from '@mui/material';
 import { useStats } from '../../api';
 import { FONTS } from '../../theme';
 import { StatsPanelSkeleton } from './Skeletons';
+import QueryError from '../QueryError';
 
 const slideOut = keyframes`
   from { transform: translateY(0); opacity: 1; }
@@ -131,9 +132,11 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
 );
 
 const StatsPanel: React.FC = () => {
-  const { data: stats, isLoading } = useStats();
+  const { data: stats, isLoading, isError, refetch } = useStats();
 
   const volume = stats ? parseFloat(stats.totalVolumeTao).toFixed(2) : '0';
+
+  if (isError) return <QueryError onRetry={() => refetch()} />;
 
   return isLoading || !stats ? (
     <StatsPanelSkeleton />
