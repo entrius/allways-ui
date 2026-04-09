@@ -15,7 +15,7 @@ const slideIn = keyframes`
   to   { transform: translateY(0); opacity: 1; }
 `;
 
-const RollingChar: React.FC<{ char: string }> = ({ char }) => {
+const RollingChar: React.FC<{ char: string }> = React.memo(({ char }) => {
   const [display, setDisplay] = useState(char);
   const [animating, setAnimating] = useState(false);
   const prevRef = useRef(char);
@@ -78,7 +78,7 @@ const RollingChar: React.FC<{ char: string }> = ({ char }) => {
       </Box>
     </Box>
   );
-};
+});
 
 const RollingValue: React.FC<{ value: string }> = ({ value }) => {
   const chars = value.split('');
@@ -91,7 +91,7 @@ const RollingValue: React.FC<{ value: string }> = ({ value }) => {
   );
 };
 
-const StatCard: React.FC<{ label: string; value: string }> = ({
+const StatCard: React.FC<{ label: string; value: string }> = React.memo(({
   label,
   value,
 }) => (
@@ -129,7 +129,7 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
       {label}
     </Typography>
   </Box>
-);
+));
 
 const StatsPanel: React.FC = () => {
   const { data: stats, isLoading, isError, refetch } = useStats();
