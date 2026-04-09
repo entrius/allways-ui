@@ -20,10 +20,7 @@ import logo from '../assets/logo.jpg';
 const DashboardPage: React.FC = () => {
   useSSE();
   const { mode, toggleTheme } = useThemeMode();
-  const docsUrl =
-    window.location.hostname === 'all-ways.io'
-      ? 'https://docs.all-ways.io/'
-      : 'https://test-docs.all-ways.io/';
+  const docsUrl = import.meta.env.VITE_DOCS_URL || 'https://docs.all-ways.io/';
 
   return (
     <Page>
