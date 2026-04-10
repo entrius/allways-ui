@@ -415,7 +415,9 @@ const OrderbookDepth: React.FC = () => {
                     sx={{ ...cellSx, color: taoThemeColor }}
                     align="right"
                   >
-                    {row.cumTaoToAsset > 0 ? row.cumTaoToAsset.toFixed(2) : '\u2014'}
+                    {row.cumTaoToAsset > 0
+                      ? row.cumTaoToAsset.toFixed(2)
+                      : '\u2014'}
                   </TableCell>
                 </TableRow>
               );

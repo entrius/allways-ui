@@ -47,7 +47,8 @@ const statusRank = (m: Miner) =>
 
 // Sort by the stronger of the two rates so bidirectional miners aren't penalized
 // by a low counter side, and one-way miners still sort by their single quote.
-const maxRate = (m: Miner) => Math.max(parseRate(m.rate), parseRate(m.counterRate));
+const maxRate = (m: Miner) =>
+  Math.max(parseRate(m.rate), parseRate(m.counterRate));
 
 const getSortValue = (m: Miner, key: SortKey): string | number => {
   switch (key) {
@@ -166,7 +167,8 @@ const MinerRatesTable: React.FC = () => {
     const hasForward = parseRate(m.rate) > 0;
     const hasReverse = parseRate(m.counterRate) > 0;
     // Bidirectional ⇄, forward-only →, reverse-only ←.
-    const glyph = hasForward && hasReverse ? '\u21C4' : hasForward ? '\u2192' : '\u2190';
+    const glyph =
+      hasForward && hasReverse ? '\u21C4' : hasForward ? '\u2192' : '\u2190';
     return (
       <Box
         sx={{
@@ -196,7 +198,8 @@ const MinerRatesTable: React.FC = () => {
     const dst = m.destChain?.toUpperCase() ?? '';
     const forward = parseRate(m.rate);
     const reverse = parseRate(m.counterRate);
-    const disabled = theme.palette.text.disabled || theme.palette.text.secondary;
+    const disabled =
+      theme.palette.text.disabled || theme.palette.text.secondary;
     const formatOr = (v: number) => (v > 0 ? v.toFixed(2) : '\u2014');
     const tooltipLines: string[] = [];
     if (src && dst) {
@@ -238,10 +241,7 @@ const MinerRatesTable: React.FC = () => {
         >
           <span
             style={{
-              color:
-                forward > 0
-                  ? theme.palette.primary.main
-                  : disabled,
+              color: forward > 0 ? theme.palette.primary.main : disabled,
             }}
           >
             {formatOr(forward)}
@@ -249,10 +249,7 @@ const MinerRatesTable: React.FC = () => {
           <span style={{ color: theme.palette.text.disabled }}>/</span>
           <span
             style={{
-              color:
-                reverse > 0
-                  ? theme.palette.text.secondary
-                  : disabled,
+              color: reverse > 0 ? theme.palette.text.secondary : disabled,
             }}
           >
             {formatOr(reverse)}
@@ -289,7 +286,14 @@ const MinerRatesTable: React.FC = () => {
           Active Providers
         </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flexWrap: 'wrap',
+          }}
+        >
           <ToggleButtonGroup
             size="small"
             exclusive
