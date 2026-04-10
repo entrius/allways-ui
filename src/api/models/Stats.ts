@@ -3,5 +3,4 @@ export type DashboardStats = {
   totalVolumeTao: string;
   activeMiners: number;
   activeSwaps: number;
-  averageRate: string | null;
 };
