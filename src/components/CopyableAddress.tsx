@@ -18,10 +18,15 @@ const CopyableAddress: React.FC<CopyableAddressProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleClick = () => {
-    navigator.clipboard.writeText(address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleClick = async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API unavailable (non-HTTPS) or permission denied
+      setCopied(false);
+    }
   };
 
   return (
