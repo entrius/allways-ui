@@ -110,8 +110,11 @@ const OrderbookDepth: React.FC = () => {
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
       if (!s || !d) return;
-      if (s === 'tao') assets.add(d.toUpperCase());
-      else if (d === 'tao') assets.add(s.toUpperCase());
+      // After canonicalization from the scraper, TAO is always destChain when present,
+      // so the asset side is always sourceChain. Keeping the tao→asset branch as a
+      // defensive fallback in case pre-migration rows are still in flight.
+      if (d === 'tao') assets.add(s.toUpperCase());
+      else if (s === 'tao') assets.add(d.toUpperCase());
     });
     return Array.from(assets).sort();
   }, [miners]);
@@ -133,50 +136,73 @@ const OrderbookDepth: React.FC = () => {
     }
 
     const asset = selectedPair.toLowerCase();
-    const groups: Record<string, number> = {};
+    // Two independent rate ladders — the forward (asset→TAO) and reverse (TAO→asset)
+    // quotes are now distinct per miner, so they each get their own aggregation.
+    const forwardGroups: Record<string, number> = {}; // key = rate, val = capacity TAO
+    const reverseGroups: Record<string, number> = {}; // key = counterRate, val = capacity TAO
 
     miners.forEach((m) => {
-      if (!m.rate || !m.collateralRao) return;
+      if (!m.collateralRao) return;
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
+      // Canonical order: asset is source, tao is dest. rate = asset→TAO, counterRate = TAO→asset.
+      if (s !== asset || d !== 'tao') return;
 
-      if ((s === asset && d === 'tao') || (s === 'tao' && d === asset)) {
-        const rateVal = parseFloat(m.rate);
-        if (!isNaN(rateVal) && rateVal > 0) {
-          const rateStr = rateVal.toFixed(2);
-          groups[rateStr] =
-            (groups[rateStr] || 0) + parseInt(m.collateralRao, 10) / 1e9;
-        }
+      const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
+      if (isNaN(capacityTao) || capacityTao <= 0) return;
+
+      const forward = m.rate ? parseFloat(m.rate) : 0;
+      if (!isNaN(forward) && forward > 0) {
+        const key = forward.toFixed(2);
+        forwardGroups[key] = (forwardGroups[key] || 0) + capacityTao;
+      }
+
+      const reverse = m.counterRate ? parseFloat(m.counterRate) : 0;
+      if (!isNaN(reverse) && reverse > 0) {
+        const key = reverse.toFixed(2);
+        reverseGroups[key] = (reverseGroups[key] || 0) + capacityTao;
       }
     });
 
-    const sortedRates = Object.keys(groups).sort(
-      (a, b) => parseFloat(b) - parseFloat(a),
-    );
+    // Union the rate axis so both ladders render against the same rows.
+    const allRates = Array.from(
+      new Set([...Object.keys(forwardGroups), ...Object.keys(reverseGroups)]),
+    ).sort((a, b) => parseFloat(b) - parseFloat(a));
 
+    // Forward book cumulates top-down (best asset→TAO rate first = highest TAO per asset).
     let cumAssetToTao = 0;
-    const topDown = sortedRates.map((rateStr) => {
-      cumAssetToTao += groups[rateStr];
-      return cumAssetToTao;
-    });
-
-    let cumTaoToAsset = 0;
-    const bottomUp = new Array(sortedRates.length);
-    for (let i = sortedRates.length - 1; i >= 0; i--) {
-      cumTaoToAsset += groups[sortedRates[i]];
-      bottomUp[i] = cumTaoToAsset;
+    const forwardCum: number[] = [];
+    for (const key of allRates) {
+      cumAssetToTao += forwardGroups[key] || 0;
+      forwardCum.push(cumAssetToTao);
     }
 
-    return sortedRates.map((rateStr, i) => ({
-      rate: rateStr,
-      capacity: groups[rateStr],
-      cumAssetToTao: topDown[i],
-      cumTaoToAsset: bottomUp[i],
+    // Reverse book cumulates bottom-up (best TAO→asset rate = lowest TAO per asset).
+    let cumTaoToAsset = 0;
+    const reverseCum = new Array<number>(allRates.length);
+    for (let i = allRates.length - 1; i >= 0; i--) {
+      cumTaoToAsset += reverseGroups[allRates[i]] || 0;
+      reverseCum[i] = cumTaoToAsset;
+    }
+
+    return allRates.map((key, i) => ({
+      rate: key,
+      forwardCapacity: forwardGroups[key] || 0,
+      reverseCapacity: reverseGroups[key] || 0,
+      cumAssetToTao: forwardCum[i],
+      cumTaoToAsset: reverseCum[i],
     }));
   }, [miners, selectedPair]);
 
-  const maxCum =
-    depthData.length > 0 ? depthData[depthData.length - 1].cumAssetToTao : 1;
+  const maxCum = useMemo(() => {
+    if (depthData.length === 0) return 1;
+    let m = 0;
+    for (const row of depthData) {
+      if (row.cumAssetToTao > m) m = row.cumAssetToTao;
+      if (row.cumTaoToAsset > m) m = row.cumTaoToAsset;
+    }
+    return m > 0 ? m : 1;
+  }, [depthData]);
   const getAssetSymbol = () =>
     selectedPair ? selectedPair.replace('/TAO', '').trim() : '';
 
@@ -379,19 +405,23 @@ const OrderbookDepth: React.FC = () => {
                     sx={{ ...cellSx, color: 'text.primary' }}
                     align="right"
                   >
-                    {row.capacity.toFixed(2)}
+                    {(row.forwardCapacity + row.reverseCapacity).toFixed(2)}
                   </TableCell>
                   <TableCell
                     sx={{ ...cellSx, color: assetThemeColor }}
                     align="right"
                   >
-                    {(row.cumAssetToTao / parseFloat(row.rate)).toFixed(6)}
+                    {row.cumAssetToTao > 0
+                      ? (row.cumAssetToTao / parseFloat(row.rate)).toFixed(6)
+                      : '\u2014'}
                   </TableCell>
                   <TableCell
                     sx={{ ...cellSx, color: taoThemeColor }}
                     align="right"
                   >
-                    {row.cumTaoToAsset.toFixed(2)}
+                    {row.cumTaoToAsset > 0
+                      ? row.cumTaoToAsset.toFixed(2)
+                      : '\u2014'}
                   </TableCell>
                 </TableRow>
               );

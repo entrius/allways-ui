@@ -10,6 +10,9 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
@@ -22,10 +25,17 @@ import QueryError from '../QueryError';
 
 type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
 type SortDir = 'asc' | 'desc';
+type DirectionFilter = 'all' | 'both' | 'forward' | 'reverse';
 
 const formatCollateral = (rao: string) => {
   const tao = parseInt(rao, 10) / 1e9;
   return tao.toFixed(2);
+};
+
+const parseRate = (raw: string | null): number => {
+  if (!raw) return 0;
+  const n = parseFloat(raw);
+  return isNaN(n) ? 0 : n;
 };
 
 const pairStr = (m: Miner) =>
@@ -36,14 +46,21 @@ const pairStr = (m: Miner) =>
 const statusRank = (m: Miner) =>
   !m.isActive ? 3 : m.hasActiveSwap ? 2 : m.isReserved ? 1 : 0;
 
+// Sort by the stronger of the two rates so bidirectional miners aren't penalized
+// by a low counter side, and one-way miners still sort by their single quote.
+const maxRate = (m: Miner) =>
+  Math.max(parseRate(m.rate), parseRate(m.counterRate));
+
 const getSortValue = (m: Miner, key: SortKey): string | number => {
   switch (key) {
     case 'uid':
       return m.uid;
     case 'pair':
       return pairStr(m);
-    case 'rate':
-      return m.rate ? parseFloat(m.rate) : -1;
+    case 'rate': {
+      const v = maxRate(m);
+      return v > 0 ? v : -1;
+    }
     case 'collateral':
       return parseInt(m.collateralRao, 10) || 0;
     case 'status':
@@ -56,7 +73,7 @@ const getSortValue = (m: Miner, key: SortKey): string | number => {
 const columns: { key: SortKey; label: string }[] = [
   { key: 'uid', label: 'UID' },
   { key: 'pair', label: 'Pair' },
-  { key: 'rate', label: 'Rate (TAO)' },
+  { key: 'rate', label: 'Rate' },
   { key: 'collateral', label: 'Capacity' },
   { key: 'status', label: 'Status' },
   { key: 'hotkey', label: 'Hotkey' },
@@ -98,6 +115,7 @@ const MinerRatesTable: React.FC = () => {
   const [sortKey, setSortKey] = useState<SortKey>('rate');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [search, setSearch] = useState('');
+  const [direction, setDirection] = useState<DirectionFilter>('all');
 
   const handleSort = useCallback((key: SortKey) => {
     setSortKey((prev) => {
@@ -112,7 +130,22 @@ const MinerRatesTable: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const sorted = [...(miners ?? [])].sort((a, b) => {
+    const directionFiltered = (miners ?? []).filter((m) => {
+      const hasForward = parseRate(m.rate) > 0;
+      const hasReverse = parseRate(m.counterRate) > 0;
+      switch (direction) {
+        case 'both':
+          return hasForward && hasReverse;
+        case 'forward':
+          return hasForward;
+        case 'reverse':
+          return hasReverse;
+        case 'all':
+        default:
+          return hasForward || hasReverse;
+      }
+    });
+    const sorted = [...directionFiltered].sort((a, b) => {
       const av = getSortValue(a, sortKey);
       const bv = getSortValue(b, sortKey);
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
@@ -127,10 +160,114 @@ const MinerRatesTable: React.FC = () => {
         (m.sourceChain?.toLowerCase().includes(q) ?? false) ||
         (m.destChain?.toLowerCase().includes(q) ?? false),
     }));
-  }, [miners, sortKey, sortDir, search]);
+  }, [miners, sortKey, sortDir, search, direction]);
   const hasSearch = search.trim().length > 0;
 
   if (isError) return <QueryError onRetry={() => refetch()} />;
+  const renderPairCell = (m: Miner) => {
+    const src = m.sourceChain?.toUpperCase() ?? '';
+    const dst = m.destChain?.toUpperCase() ?? '';
+    if (!src || !dst) return '\u2014';
+    const hasForward = parseRate(m.rate) > 0;
+    const hasReverse = parseRate(m.counterRate) > 0;
+    // Bidirectional ⇄, forward-only →, reverse-only ←.
+    const glyph =
+      hasForward && hasReverse ? '\u21C4' : hasForward ? '\u2192' : '\u2190';
+    return (
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0.75,
+          fontFamily: FONTS.mono,
+        }}
+      >
+        <span>{src}</span>
+        <span
+          style={{
+            color: theme.palette.primary.main,
+            fontWeight: 600,
+            fontSize: '0.95rem',
+          }}
+        >
+          {glyph}
+        </span>
+        <span>{dst}</span>
+      </Box>
+    );
+  };
+
+  const renderRateCell = (m: Miner) => {
+    const src = m.sourceChain?.toUpperCase() ?? '';
+    const dst = m.destChain?.toUpperCase() ?? '';
+    const forward = parseRate(m.rate);
+    const reverse = parseRate(m.counterRate);
+    const disabled =
+      theme.palette.text.disabled || theme.palette.text.secondary;
+    const formatOr = (v: number) => (v > 0 ? v.toFixed(2) : '\u2014');
+    const tooltipLines: string[] = [];
+    if (src && dst) {
+      tooltipLines.push(
+        forward > 0
+          ? `${src} \u2192 ${dst}: ${forward.toFixed(6)}`
+          : `${src} \u2192 ${dst}: not quoted`,
+      );
+      tooltipLines.push(
+        reverse > 0
+          ? `${dst} \u2192 ${src}: ${reverse.toFixed(6)}  (1 ${src} per ${(1 / reverse).toFixed(6)} ${dst})`
+          : `${dst} \u2192 ${src}: not quoted`,
+      );
+    }
+    return (
+      <Tooltip
+        title={
+          tooltipLines.length > 0 ? (
+            <Box sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}>
+              {tooltipLines.map((line) => (
+                <Box key={line}>{line}</Box>
+              ))}
+            </Box>
+          ) : (
+            ''
+          )
+        }
+        arrow
+        placement="top"
+      >
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'baseline',
+            gap: 0.5,
+            fontFamily: FONTS.mono,
+            cursor: tooltipLines.length > 0 ? 'help' : 'default',
+          }}
+        >
+          <span
+            style={{
+              color: forward > 0 ? theme.palette.primary.main : disabled,
+            }}
+          >
+            {formatOr(forward)}
+          </span>
+          <span style={{ color: theme.palette.text.disabled }}>/</span>
+          <span
+            style={{
+              color: reverse > 0 ? theme.palette.text.secondary : disabled,
+            }}
+          >
+            {formatOr(reverse)}
+          </span>
+        </Box>
+      </Tooltip>
+    );
+  };
+
+  const isOneWay = (m: Miner) => {
+    const hasForward = parseRate(m.rate) > 0;
+    const hasReverse = parseRate(m.counterRate) > 0;
+    return hasForward !== hasReverse;
+  };
 
   return isLoading || !miners ? (
     <MinerRatesTableSkeleton />
@@ -142,6 +279,8 @@ const MinerRatesTable: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           mb: 2,
+          gap: 2,
+          flexWrap: 'wrap',
         }}
       >
         <Typography
@@ -151,32 +290,70 @@ const MinerRatesTable: React.FC = () => {
           Active Providers
         </Typography>
 
-        <TextField
-          size="small"
-          placeholder="Search UID, hotkey..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-              </InputAdornment>
-            ),
-          }}
+        <Box
           sx={{
-            width: 200,
-            '& .MuiOutlinedInput-root': {
-              fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              color: 'text.primary',
-              borderRadius: 0,
-              height: 32, // Match cleanly to header controls
-              '& fieldset': { borderColor: 'divider' },
-              '&:hover fieldset': { borderColor: theme.palette.border.light },
-              '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-            },
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flexWrap: 'wrap',
           }}
-        />
+        >
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={direction}
+            onChange={(_, v) => v && setDirection(v as DirectionFilter)}
+            sx={{
+              '& .MuiToggleButton-root': {
+                fontFamily: FONTS.mono,
+                fontSize: '0.65rem',
+                px: 1.25,
+                py: 0.5,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.secondary,
+              },
+              '& .Mui-selected': {
+                backgroundColor: `${theme.palette.primary.main}22 !important`,
+                color: `${theme.palette.primary.main} !important`,
+                borderColor: `${theme.palette.primary.main} !important`,
+              },
+            }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="both">{'\u21C4'} Both</ToggleButton>
+            <ToggleButton value="forward">{'\u2192'} Forward</ToggleButton>
+            <ToggleButton value="reverse">{'\u2190'} Reverse</ToggleButton>
+          </ToggleButtonGroup>
+
+          <TextField
+            size="small"
+            placeholder="Search UID, hotkey..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width: 200,
+              '& .MuiOutlinedInput-root': {
+                fontFamily: FONTS.mono,
+                fontSize: '0.75rem',
+                color: 'text.primary',
+                borderRadius: 0,
+                height: 32,
+                '& fieldset': { borderColor: 'divider' },
+                '&:hover fieldset': { borderColor: theme.palette.border.light },
+                '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+              },
+            }}
+          />
+        </Box>
       </Box>
 
       <TableContainer
@@ -220,6 +397,7 @@ const MinerRatesTable: React.FC = () => {
               const status = statusDot(miner);
               const highlight = hasSearch && match;
               const dimmed = hasSearch && !match;
+              const oneWay = isOneWay(miner);
               return (
                 <TableRow
                   key={miner.uid}
@@ -230,16 +408,19 @@ const MinerRatesTable: React.FC = () => {
                       ? `${theme.palette.primary.main}12`
                       : 'transparent',
                     opacity: dimmed ? 0.3 : 1,
+                    borderLeft: oneWay
+                      ? `2px solid ${theme.palette.text.disabled || theme.palette.text.secondary}`
+                      : '2px solid transparent',
                   }}
                 >
                   <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
                     {miner.uid}
                   </TableCell>
                   <TableCell sx={{ ...cellSx, color: 'text.secondary' }}>
-                    {pairStr(miner) || '\u2014'}
+                    {renderPairCell(miner)}
                   </TableCell>
-                  <TableCell sx={{ ...cellSx, color: 'primary.main' }}>
-                    {miner.rate ? parseFloat(miner.rate).toFixed(2) : '\u2014'}
+                  <TableCell sx={{ ...cellSx }}>
+                    {renderRateCell(miner)}
                   </TableCell>
                   <TableCell sx={{ ...cellSx, color: 'text.secondary' }}>
                     {formatCollateral(miner.collateralRao)}
@@ -280,7 +461,7 @@ const MinerRatesTable: React.FC = () => {
               );
             })}
 
-            {!miners?.length && (
+            {filtered.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={6}
@@ -293,7 +474,9 @@ const MinerRatesTable: React.FC = () => {
                     color: 'text.secondary',
                   }}
                 >
-                  No miners registered
+                  {miners?.length
+                    ? 'No miners match the current filter'
+                    : 'No miners registered'}
                 </TableCell>
               </TableRow>
             )}
