@@ -264,7 +264,7 @@ const SwapDetailPage: React.FC = () => {
                         parseInt(swap.timeoutBlock) -
                           parseInt(swap.initiatedBlock),
                       )}{' '}
-                      window)
+                      total window)
                     </>
                   )}
               </Typography>
