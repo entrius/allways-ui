@@ -167,7 +167,7 @@ const SwapDetailPage: React.FC = () => {
               )}
               {swap.destAmount && swap.destChain && (
                 <LabelValue
-                  label="Dest"
+                  label="Destination"
                   value={formatAmount(swap.destAmount, swap.destChain)}
                 />
               )}
@@ -284,7 +284,7 @@ const SwapDetailPage: React.FC = () => {
               copyable={!!swap.sourceTxHash}
             />
             <LabelValue
-              label="Dest TX"
+              label="Destination TX"
               value={swap.destTxHash || '\u2014'}
               copyable={!!swap.destTxHash}
             />
@@ -303,7 +303,7 @@ const SwapDetailPage: React.FC = () => {
             <LabelAddr label="User Source" address={swap.userSourceAddress} />
           )}
           {swap.userDestAddress && (
-            <LabelAddr label="User Dest" address={swap.userDestAddress} />
+            <LabelAddr label="User Destination" address={swap.userDestAddress} />
           )}
           {swap.minerHotkey && (
             <LabelAddr label="Miner" address={swap.minerHotkey} />
