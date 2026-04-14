@@ -310,10 +310,16 @@ const MinerRatesTable: React.FC = () => {
                 border: `1px solid ${theme.palette.divider}`,
                 color: theme.palette.text.secondary,
               },
-              '& .Mui-selected': {
-                backgroundColor: `${theme.palette.primary.main}22 !important`,
-                color: `${theme.palette.primary.main} !important`,
-                borderColor: `${theme.palette.primary.main} !important`,
+              '& .MuiToggleButton-root.Mui-selected': {
+                backgroundColor: 'transparent',
+                color: 'primary.main',
+                borderColor: 'primary.main',
+              },
+              '& .MuiToggleButton-root.Mui-selected:hover': {
+                backgroundColor: 'transparent',
+              },
+              '& .MuiToggleButton-root.Mui-selected + .MuiToggleButton-root': {
+                borderLeftColor: 'primary.main',
               },
             }}
           >
