@@ -4,6 +4,7 @@ import { Box, Button, Chip, Stack, Typography, useTheme } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
+import { getExplorerUrl } from '../../utils';
 import CopyableAddress from '../CopyableAddress';
 import { EventFeedSkeleton } from './Skeletons';
 
@@ -111,10 +112,19 @@ const EventFeed: React.FC = () => {
                   }}
                 />
                 <Typography
+                  component="a"
+                  href={
+                    getExplorerUrl('tao', 'block', String(event.blockNumber)) ??
+                    undefined
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
                   sx={{
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
                     color: 'text.secondary',
+                    textDecoration: 'none',
+                    '&:hover': { color: 'primary.main' },
                   }}
                 >
                   #{event.blockNumber}
@@ -155,7 +165,7 @@ const EventFeed: React.FC = () => {
                   </Typography>
                 )}
                 {event.minerHotkey && (
-                  <CopyableAddress address={event.minerHotkey} />
+                  <CopyableAddress address={event.minerHotkey} chain="tao" />
                 )}
                 {event.taoAmount && (
                   <Typography
@@ -170,10 +180,22 @@ const EventFeed: React.FC = () => {
                 )}
                 {event.reservedUntil && (
                   <Typography
+                    component="a"
+                    href={
+                      getExplorerUrl(
+                        'tao',
+                        'block',
+                        String(event.reservedUntil),
+                      ) ?? undefined
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.65rem',
                       color: 'text.secondary',
+                      textDecoration: 'none',
+                      '&:hover': { color: 'primary.main' },
                     }}
                   >
                     until #{event.reservedUntil}
