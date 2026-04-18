@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Tooltip, Typography } from '@mui/material';
 import { FONTS } from '../theme';
 import { shortAddr } from '../utils/format';
+import { COPY_FEEDBACK_MS } from '../constants';
 
 interface CopyableAddressProps {
   address: string;
@@ -19,7 +20,7 @@ const CopyableAddress: React.FC<CopyableAddressProps> = ({
   const handleClick = () => {
     navigator.clipboard.writeText(address);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
   };
 
   return (

@@ -6,11 +6,6 @@
   --font-mono: 'DM Mono', 'JetBrains Mono', monospace;
 }
 
-::selection {
-  background: #10b981;
-  color: #ffffff;
-}
-
 * {
   box-sizing: border-box;
 }

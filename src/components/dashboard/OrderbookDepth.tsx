@@ -21,6 +21,7 @@ import { FONTS } from '../../theme';
 import { OrderbookDepthSkeleton } from './Skeletons';
 import { tableHeaderSx, tableCellSx } from './tableStyles';
 import { toChainUnits } from '../../utils';
+import { PANEL_HEIGHT } from '../../constants';
 
 const OrderbookDepth: React.FC = () => {
   const theme = useTheme();
@@ -274,7 +275,7 @@ const OrderbookDepth: React.FC = () => {
 
       <TableContainer
         sx={{
-          maxHeight: 500,
+          maxHeight: PANEL_HEIGHT,
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
             background: theme.palette.border.light,

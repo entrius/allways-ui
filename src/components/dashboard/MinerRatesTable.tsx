@@ -23,6 +23,7 @@ import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
 import { tableHeaderSx, tableCellSx } from './tableStyles';
 import { toChainUnits } from '../../utils';
+import { PANEL_HEIGHT } from '../../constants';
 
 type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
 type SortDir = 'asc' | 'desc';
@@ -340,7 +341,7 @@ const MinerRatesTable: React.FC = () => {
 
       <TableContainer
         sx={{
-          maxHeight: 500,
+          maxHeight: PANEL_HEIGHT,
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
             background: theme.palette.border.light,

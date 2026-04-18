@@ -19,6 +19,7 @@ import {
   formatBlockEstimate,
   getStatusColor,
 } from '../utils';
+import { LABEL_MIN_WIDTH } from '../constants';
 
 type TimelineStep = {
   label: string;
@@ -171,9 +172,9 @@ const SwapDetailPage: React.FC = () => {
         <Stack spacing={1.5}>
           {steps.map((step) => {
             const stepColor = step.done
-              ? '#10b981'
+              ? theme.palette.status.completed
               : step.failed
-                ? '#ef4444'
+                ? theme.palette.status.timedOut
                 : 'text.secondary';
             return (
               <Stack
@@ -198,7 +199,7 @@ const SwapDetailPage: React.FC = () => {
                     fontSize: '0.75rem',
                     color: stepColor,
                     fontWeight: step.done ? 600 : 400,
-                    minWidth: 80,
+                    minWidth: LABEL_MIN_WIDTH,
                   }}
                 >
                   {step.label}
@@ -229,7 +230,7 @@ const SwapDetailPage: React.FC = () => {
                   fontSize: '0.75rem',
                   color: isTimedOut ? 'error.main' : 'text.secondary',
                   fontWeight: isTimedOut ? 600 : 400,
-                  minWidth: 80,
+                  minWidth: LABEL_MIN_WIDTH,
                 }}
               >
                 Timeout
@@ -429,7 +430,7 @@ const LabelValue: React.FC<{
         fontFamily: FONTS.mono,
         fontSize: '0.7rem',
         color: 'text.secondary',
-        minWidth: 80,
+        minWidth: LABEL_MIN_WIDTH,
       }}
     >
       {label}
@@ -460,7 +461,7 @@ const LabelAddr: React.FC<{ label: string; address: string }> = ({
         fontFamily: FONTS.mono,
         fontSize: '0.7rem',
         color: 'text.secondary',
-        minWidth: 80,
+        minWidth: LABEL_MIN_WIDTH,
       }}
     >
       {label}

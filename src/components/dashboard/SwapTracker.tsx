@@ -13,8 +13,11 @@ import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
 import { formatAmount, getStatusColor } from '../../utils';
-
-const PAGE_SIZE = 5;
+import {
+  SWAP_PAGE_SIZE,
+  SEARCH_DEBOUNCE_MS,
+  PANEL_HEIGHT,
+} from '../../constants';
 
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
@@ -35,8 +38,8 @@ const useDebounce = (value: string, delay: number) => {
 const SwapTracker: React.FC = () => {
   const theme = useTheme();
   const [search, setSearch] = useState('');
-  const [limit, setLimit] = useState(PAGE_SIZE);
-  const debouncedSearch = useDebounce(search, 300);
+  const [limit, setLimit] = useState(SWAP_PAGE_SIZE);
+  const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS);
 
   const { data: swaps, isLoading } = useAllSwaps({
     search: debouncedSearch || undefined,
@@ -45,7 +48,7 @@ const SwapTracker: React.FC = () => {
 
   // Reset limit when search changes
   React.useEffect(() => {
-    setLimit(PAGE_SIZE);
+    setLimit(SWAP_PAGE_SIZE);
   }, [debouncedSearch]);
 
   const hasMore = swaps?.length === limit;
@@ -55,7 +58,7 @@ const SwapTracker: React.FC = () => {
     const el = scrollRef.current;
     if (!el || !hasMore) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
-      setLimit((prev) => prev + PAGE_SIZE);
+      setLimit((prev) => prev + SWAP_PAGE_SIZE);
     }
   }, [hasMore]);
 
@@ -112,7 +115,7 @@ const SwapTracker: React.FC = () => {
           ref={scrollRef}
           onScroll={handleScroll}
           sx={{
-            height: 480,
+            height: PANEL_HEIGHT,
             overflowY: 'auto',
             '&::-webkit-scrollbar': { width: 4 },
             '&::-webkit-scrollbar-thumb': {

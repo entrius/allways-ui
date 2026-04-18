@@ -6,6 +6,7 @@ import { useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { EventFeedSkeleton } from './Skeletons';
+import { PANEL_HEIGHT } from '../../constants';
 
 const getEventColor = (
   eventType: string,
@@ -66,7 +67,7 @@ const EventFeed: React.FC = () => {
         ref={scrollRef}
         onScroll={handleScroll}
         sx={{
-          height: 480,
+          height: PANEL_HEIGHT,
           overflowY: 'auto',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
