@@ -13,6 +13,7 @@ import { useSwapDetail } from '../api';
 import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
+import QueryError from '../components/QueryError';
 import {
   formatAmount,
   chainSymbol,
@@ -45,13 +46,21 @@ const SwapDetailPage: React.FC = () => {
   const theme = useTheme();
   useSSE();
 
-  const { data, isLoading } = useSwapDetail(swapId ?? '');
+  const { data, isLoading, isError, refetch } = useSwapDetail(swapId ?? '');
 
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', pt: 10 }}>
         <CircularProgress size={24} />
       </Box>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <PageWrapper>
+        <QueryError onRetry={() => refetch()} />
+      </PageWrapper>
     );
   }
 

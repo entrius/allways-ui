@@ -5,6 +5,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
+import QueryError from '../QueryError';
 import { EventFeedSkeleton } from './Skeletons';
 
 const getEventColor = (
@@ -39,7 +40,7 @@ const getEventColor = (
 
 const EventFeed: React.FC = () => {
   const theme = useTheme();
-  const { data: events, isLoading } = useLatestEvents();
+  const { data: events, isLoading, isError, refetch } = useLatestEvents();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -51,6 +52,8 @@ const EventFeed: React.FC = () => {
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  if (isError && !events) return <QueryError onRetry={() => refetch()} />;
 
   return isLoading || !events ? (
     <EventFeedSkeleton />
