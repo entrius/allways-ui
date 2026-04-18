@@ -315,6 +315,9 @@ const MinerRatesTable: React.FC = () => {
                 color: `${theme.palette.primary.main} !important`,
                 borderColor: `${theme.palette.primary.main} !important`,
               },
+              '& .Mui-selected + .MuiToggleButton-root': {
+                borderLeftColor: `${theme.palette.primary.main} !important`,
+              },
             }}
           >
             <ToggleButton value="all">All</ToggleButton>
