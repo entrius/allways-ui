@@ -180,10 +180,22 @@ const EventFeed: React.FC = () => {
                 )}
                 {event.reservedUntil && (
                   <Typography
+                    component="a"
+                    href={
+                      getExplorerUrl(
+                        'tao',
+                        'block',
+                        String(event.reservedUntil),
+                      ) ?? undefined
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
                     sx={{
                       fontFamily: FONTS.mono,
                       fontSize: '0.65rem',
                       color: 'text.secondary',
+                      textDecoration: 'none',
+                      '&:hover': { color: 'primary.main' },
                     }}
                   >
                     until #{event.reservedUntil}

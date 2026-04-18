@@ -394,10 +394,22 @@ const SwapDetailPage: React.FC = () => {
                   }}
                 />
                 <Typography
+                  component="a"
+                  href={
+                    getExplorerUrl(
+                      'tao',
+                      'block',
+                      String(event.blockNumber),
+                    ) ?? undefined
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
                   sx={{
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
                     color: 'text.secondary',
+                    textDecoration: 'none',
+                    '&:hover': { color: 'primary.main' },
                   }}
                 >
                   #{event.blockNumber}

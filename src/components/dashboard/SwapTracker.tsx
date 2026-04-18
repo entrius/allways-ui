@@ -256,10 +256,7 @@ const SwapTracker: React.FC = () => {
                         }}
                       >
                         User:{' '}
-                        <CopyableAddress
-                          address={swap.userAddress}
-                          chain="tao"
-                        />
+                        <CopyableAddress address={swap.userAddress} />
                       </Typography>
                     )}
                     {swap.minerHotkey && (
@@ -273,10 +270,7 @@ const SwapTracker: React.FC = () => {
                         }}
                       >
                         Miner:{' '}
-                        <CopyableAddress
-                          address={swap.minerHotkey}
-                          chain="tao"
-                        />
+                        <CopyableAddress address={swap.minerHotkey} />
                       </Typography>
                     )}
                   </Stack>
