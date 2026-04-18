@@ -33,7 +33,7 @@ const DashboardPage: React.FC = () => {
       />
       <Stack
         sx={{
-          minHeight: '100vh',
+          minHeight: '100dvh',
           backgroundColor: 'background.default',
           px: { xs: 1.5, sm: 2, md: 4 },
           py: { xs: 2, sm: 3, md: 4 },
@@ -70,6 +70,7 @@ const DashboardPage: React.FC = () => {
               href={docsUrl}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="Documentation"
               sx={{
                 color: 'text.secondary',
                 border: '1px solid',
@@ -88,6 +89,7 @@ const DashboardPage: React.FC = () => {
           </Tooltip>
           <IconButton
             onClick={toggleTheme}
+            aria-label={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             sx={{
               color: 'text.secondary',
               border: '1px solid',

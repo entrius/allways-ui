@@ -243,7 +243,11 @@ const OrderbookDepth: React.FC = () => {
             arrow
             placement="right"
           >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+            <IconButton
+              aria-label="Orderbook info"
+              size="small"
+              sx={{ p: 0, color: 'text.secondary' }}
+            >
               <InfoOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>

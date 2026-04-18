@@ -12,8 +12,8 @@ const AppLayout: React.FC = () => {
     <Stack
       sx={{
         width: '100vw',
-        minHeight: '100vh',
-        height: '100vh',
+        minHeight: '100dvh',
+        height: '100dvh',
         overflow: 'hidden',
         justifyContent: 'center',
       }}
