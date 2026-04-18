@@ -301,6 +301,7 @@ const MinerRatesTable: React.FC = () => {
             onChange={(_, v) => v && setDirection(v as DirectionFilter)}
             sx={{
               '& .MuiToggleButton-root': {
+                position: 'relative',
                 fontFamily: FONTS.mono,
                 fontSize: '0.65rem',
                 px: 1.25,
@@ -311,6 +312,7 @@ const MinerRatesTable: React.FC = () => {
                 color: theme.palette.text.secondary,
               },
               '& .Mui-selected': {
+                zIndex: 1,
                 backgroundColor: `${theme.palette.primary.main}22 !important`,
                 color: `${theme.palette.primary.main} !important`,
                 borderColor: `${theme.palette.primary.main} !important`,
