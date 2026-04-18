@@ -18,6 +18,7 @@ import {
   chainSymbol,
   formatBlockEstimate,
 } from '../utils/format';
+import { getExplorerUrl } from '../utils';
 
 type TimelineStep = {
   label: string;
@@ -215,15 +216,35 @@ const SwapDetailPage: React.FC = () => {
                 >
                   {step.label}
                 </Typography>
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.7rem',
-                    color: step.done ? stepColor : 'text.secondary',
-                  }}
-                >
-                  {step.block ? `Block #${step.block}` : '\u2014'}
-                </Typography>
+                {step.block ? (
+                  <Typography
+                    component="a"
+                    href={
+                      getExplorerUrl('tao', 'block', step.block) ?? undefined
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: step.done ? stepColor : 'text.secondary',
+                      textDecoration: 'none',
+                      '&:hover': { color: 'primary.main' },
+                    }}
+                  >
+                    Block #{step.block}
+                  </Typography>
+                ) : (
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {'\u2014'}
+                  </Typography>
+                )}
               </Stack>
             );
           })}
@@ -253,7 +274,24 @@ const SwapDetailPage: React.FC = () => {
                   color: 'text.secondary',
                 }}
               >
-                Block #{swap.timeoutBlock}
+                <Typography
+                  component="a"
+                  href={
+                    getExplorerUrl('tao', 'block', swap.timeoutBlock) ??
+                    undefined
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.7rem',
+                    color: 'inherit',
+                    textDecoration: 'none',
+                    '&:hover': { color: 'primary.main' },
+                  }}
+                >
+                  Block #{swap.timeoutBlock}
+                </Typography>
                 {!isTimedOut &&
                   swap.status !== 'COMPLETED' &&
                   swap.initiatedBlock && (
@@ -282,11 +320,15 @@ const SwapDetailPage: React.FC = () => {
               label="Source TX"
               value={swap.sourceTxHash || '\u2014'}
               copyable={!!swap.sourceTxHash}
+              chain={swap.sourceChain}
+              type="tx"
             />
             <LabelValue
               label="Dest TX"
               value={swap.destTxHash || '\u2014'}
               copyable={!!swap.destTxHash}
+              chain={swap.destChain}
+              type="tx"
             />
           </Stack>
         </Card>
@@ -297,19 +339,31 @@ const SwapDetailPage: React.FC = () => {
         <SectionTitle>Participants</SectionTitle>
         <Stack spacing={1}>
           {swap.userAddress && (
-            <LabelAddr label="User" address={swap.userAddress} />
+            <LabelAddr label="User" address={swap.userAddress} chain="tao" />
           )}
           {swap.userSourceAddress && (
-            <LabelAddr label="User Source" address={swap.userSourceAddress} />
+            <LabelAddr
+              label="User Source"
+              address={swap.userSourceAddress}
+              chain={swap.sourceChain}
+            />
           )}
           {swap.userDestAddress && (
-            <LabelAddr label="User Dest" address={swap.userDestAddress} />
+            <LabelAddr
+              label="User Dest"
+              address={swap.userDestAddress}
+              chain={swap.destChain}
+            />
           )}
           {swap.minerHotkey && (
-            <LabelAddr label="Miner" address={swap.minerHotkey} />
+            <LabelAddr label="Miner" address={swap.minerHotkey} chain="tao" />
           )}
           {swap.minerSourceAddress && (
-            <LabelAddr label="Miner Source" address={swap.minerSourceAddress} />
+            <LabelAddr
+              label="Miner Source"
+              address={swap.minerSourceAddress}
+              chain={swap.sourceChain}
+            />
           )}
         </Stack>
       </Card>
@@ -434,7 +488,9 @@ const LabelValue: React.FC<{
   label: string;
   value: string;
   copyable?: boolean;
-}> = ({ label, value, copyable }) => (
+  chain?: string | null;
+  type?: 'address' | 'tx' | 'block';
+}> = ({ label, value, copyable, chain, type }) => (
   <Stack direction="row" spacing={1} alignItems="baseline">
     <Typography
       sx={{
@@ -447,7 +503,12 @@ const LabelValue: React.FC<{
       {label}
     </Typography>
     {copyable ? (
-      <CopyableAddress address={value} fontSize="0.75rem" />
+      <CopyableAddress
+        address={value}
+        fontSize="0.75rem"
+        chain={chain}
+        type={type}
+      />
     ) : (
       <Typography
         sx={{
@@ -462,10 +523,11 @@ const LabelValue: React.FC<{
   </Stack>
 );
 
-const LabelAddr: React.FC<{ label: string; address: string }> = ({
-  label,
-  address,
-}) => (
+const LabelAddr: React.FC<{
+  label: string;
+  address: string;
+  chain?: string | null;
+}> = ({ label, address, chain }) => (
   <Stack direction="row" spacing={1} alignItems="baseline">
     <Typography
       sx={{
@@ -477,7 +539,7 @@ const LabelAddr: React.FC<{ label: string; address: string }> = ({
     >
       {label}
     </Typography>
-    <CopyableAddress address={address} fontSize="0.75rem" />
+    <CopyableAddress address={address} fontSize="0.75rem" chain={chain} />
   </Stack>
 );
 
