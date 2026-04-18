@@ -3,8 +3,10 @@ import { Link as RouterLink } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Typography, useTheme } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { useLatestEvents } from '../../api';
+import type { ContractEvent } from '../../api/models/Events';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
+import { QueryError } from '../QueryError';
 import { EventFeedSkeleton } from './Skeletons';
 
 const getEventColor = (
@@ -39,7 +41,7 @@ const getEventColor = (
 
 const EventFeed: React.FC = () => {
   const theme = useTheme();
-  const { data: events, isLoading } = useLatestEvents();
+  const { data: events, isLoading, isError, refetch } = useLatestEvents();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -52,9 +54,11 @@ const EventFeed: React.FC = () => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  return isLoading || !events ? (
-    <EventFeedSkeleton />
-  ) : (
+  if (isLoading) return <EventFeedSkeleton />;
+  if (isError) return <QueryError onRetry={() => refetch()} title="Failed to load events" />;
+  if (!events) return <EventFeedSkeleton />;
+
+  return (
     <Box sx={{ position: 'relative' }}>
       <Typography
         variant="h6"
@@ -76,7 +80,7 @@ const EventFeed: React.FC = () => {
         }}
       >
         <Stack spacing={1}>
-          {events?.map((event) => (
+          {events?.map((event: ContractEvent) => (
             <Box
               key={event.id}
               sx={{
@@ -199,6 +203,7 @@ const EventFeed: React.FC = () => {
         <Button
           onClick={scrollToTop}
           size="small"
+          aria-label="Scroll to top of event feed"
           sx={{
             position: 'absolute',
             bottom: 8,

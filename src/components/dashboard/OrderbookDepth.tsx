@@ -17,18 +17,16 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners } from '../../api';
+import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
 import { OrderbookDepthSkeleton } from './Skeletons';
+import { QueryError } from '../QueryError';
 
-const OrderbookDepth: React.FC = () => {
+const BtcIcon = ({ size = 16 }: { size?: number }) => {
   const theme = useTheme();
-
-  const TAO_COLOR = theme.palette.asset.tao;
-  const BTC_COLOR = theme.palette.asset.btc;
-
-  const BtcIcon = ({ size = 16 }: { size?: number }) => (
+  return (
     <svg viewBox="0 0 32 32" width={size} height={size}>
-      <circle cx="16" cy="16" r="16" fill={BTC_COLOR} />
+      <circle cx="16" cy="16" r="16" fill={theme.palette.asset.btc} />
       <path
         fill={theme.palette.common.white}
         fillRule="evenodd"
@@ -36,52 +34,55 @@ const OrderbookDepth: React.FC = () => {
       />
     </svg>
   );
+};
 
-  const TaoIcon = ({ size = 16, color }: { size?: number; color?: string }) => (
+const TaoIcon = ({ size = 16, color }: { size?: number; color?: string }) => {
+  const theme = useTheme();
+  const fill = color || theme.palette.asset.tao;
+  return (
     <svg viewBox="0 0 21.6 23.1" width={size} height={size}>
       <path
-        fill={color || TAO_COLOR}
+        fill={fill}
         d="M13.1,17.7V8.3c0-2.4-1.9-4.3-4.3-4.3v15.1c0,2.2,1.7,4,3.9,4c0.1,0,0.1,0,0.2,0c1,0.1,2.1-0.2,2.9-0.9C13.3,22,13.1,20.5,13.1,17.7L13.1,17.7z"
       />
       <path
-        fill={color || TAO_COLOR}
+        fill={fill}
         d="M3.9,0C1.8,0,0,1.8,0,4h17.6c2.2,0,3.9-1.8,3.9-4C21.6,0,3.9,0,3.9,0z"
       />
     </svg>
   );
+};
 
-  const AssetIcon = ({
-    asset,
-    size = 16,
-  }: {
-    asset: string;
-    size?: number;
-  }) => {
-    if (asset.toUpperCase() === 'BTC') return <BtcIcon size={size} />;
-    return (
-      <Box
+const AssetIcon = ({ asset, size = 16 }: { asset: string; size?: number }) => {
+  const theme = useTheme();
+  if (asset.toUpperCase() === 'BTC') return <BtcIcon size={size} />;
+  return (
+    <Box
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        backgroundColor: theme.palette.text.secondary,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Typography
         sx={{
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          backgroundColor: theme.palette.text.secondary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          fontSize: size * 0.6,
+          color: theme.palette.background.paper,
+          fontWeight: 'bold',
         }}
       >
-        <Typography
-          sx={{
-            fontSize: size * 0.6,
-            color: theme.palette.background.paper,
-            fontWeight: 'bold',
-          }}
-        >
-          {asset[0]?.toUpperCase()}
-        </Typography>
-      </Box>
-    );
-  };
+        {asset[0]?.toUpperCase()}
+      </Typography>
+    </Box>
+  );
+};
+
+const OrderbookDepth: React.FC = () => {
+  const theme = useTheme();
 
   const headerSx = {
     fontFamily: FONTS.mono,
@@ -99,12 +100,12 @@ const OrderbookDepth: React.FC = () => {
     borderBottom: `1px solid ${theme.palette.divider}`,
   };
 
-  const { data: miners, isLoading } = useMiners();
+  const { data: miners, isLoading, isError, refetch } = useMiners();
   const [selectedPair, setSelectedPair] = useState<string>('');
 
   const uniqueAssets = useMemo(() => {
     const assets = new Set<string>();
-    miners?.forEach((m) => {
+    miners?.forEach((m: Miner) => {
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
       if (!s || !d) return;
@@ -139,7 +140,7 @@ const OrderbookDepth: React.FC = () => {
     const forwardGroups: Record<string, number> = {}; // key = rate, val = capacity TAO
     const reverseGroups: Record<string, number> = {}; // key = counterRate, val = capacity TAO
 
-    miners.forEach((m) => {
+    miners.forEach((m: Miner) => {
       if (!m.collateralRao) return;
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
@@ -204,9 +205,11 @@ const OrderbookDepth: React.FC = () => {
   const getAssetSymbol = () =>
     selectedPair ? selectedPair.replace('/TAO', '').trim() : '';
 
-  return isLoading || !miners ? (
-    <OrderbookDepthSkeleton />
-  ) : (
+  if (isLoading) return <OrderbookDepthSkeleton />;
+  if (isError) return <QueryError onRetry={() => refetch()} title="Failed to load orderbook data" />;
+  if (!miners) return <OrderbookDepthSkeleton />;
+
+  return (
     <Box>
       <Box
         sx={{
@@ -243,7 +246,7 @@ const OrderbookDepth: React.FC = () => {
             arrow
             placement="right"
           >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }} aria-label="Orderbook depth information">
               <InfoOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -370,9 +373,9 @@ const OrderbookDepth: React.FC = () => {
               };
 
               const assetThemeColor = isBtc
-                ? BTC_COLOR
+                ? theme.palette.asset.btc
                 : theme.palette.primary.main;
-              const taoThemeColor = TAO_COLOR;
+              const taoThemeColor = theme.palette.asset.tao;
 
               const leftGradColor = hexToRgba(assetThemeColor, 0.1);
               const rightGradColor =
