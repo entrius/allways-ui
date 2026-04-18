@@ -21,15 +21,14 @@ import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
+import { tableHeaderSx, tableCellSx } from './tableStyles';
+import { toChainUnits } from '../../utils';
 
 type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
 type SortDir = 'asc' | 'desc';
 type DirectionFilter = 'all' | 'both' | 'forward' | 'reverse';
 
-const formatCollateral = (rao: string) => {
-  const tao = parseInt(rao, 10) / 1e9;
-  return tao.toFixed(2);
-};
+const formatCollateral = (rao: string) => toChainUnits(rao, 'tao').toFixed(2);
 
 const parseRate = (raw: string | null): number => {
   if (!raw) return 0;
@@ -94,21 +93,8 @@ const MinerRatesTable: React.FC = () => {
     return { color: theme.palette.primary.main, label: 'Available' };
   };
 
-  const headerSx = {
-    fontFamily: FONTS.mono,
-    fontSize: '0.65rem',
-    color: theme.palette.text.secondary,
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.background.default,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-  };
-
-  const cellSx = {
-    fontFamily: FONTS.mono,
-    fontSize: '0.75rem',
-    borderBottom: `1px solid ${theme.palette.divider}`,
-  };
+  const headerSx = tableHeaderSx(theme);
+  const cellSx = tableCellSx(theme);
 
   const { data: miners, isLoading } = useMiners();
   const [sortKey, setSortKey] = useState<SortKey>('rate');

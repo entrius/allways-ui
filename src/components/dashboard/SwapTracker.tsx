@@ -12,7 +12,7 @@ import { useAllSwaps } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
-import { formatAmount } from '../../utils/format';
+import { formatAmount, getStatusColor } from '../../utils';
 
 const PAGE_SIZE = 5;
 
@@ -21,26 +21,6 @@ const STATUS_PROGRESS: Record<string, number> = {
   FULFILLED: 66,
   COMPLETED: 100,
   TIMED_OUT: 100,
-};
-
-const getStatusColor = (
-  status: string,
-  palette: {
-    status: {
-      active: string;
-      fulfilled: string;
-      completed: string;
-      timedOut: string;
-    };
-  },
-): string => {
-  const map: Record<string, string> = {
-    ACTIVE: palette.status.active,
-    FULFILLED: palette.status.fulfilled,
-    COMPLETED: palette.status.completed,
-    TIMED_OUT: palette.status.timedOut,
-  };
-  return map[status] ?? palette.status.active;
 };
 
 const useDebounce = (value: string, delay: number) => {

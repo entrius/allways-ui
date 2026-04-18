@@ -17,7 +17,8 @@ import {
   formatAmount,
   chainSymbol,
   formatBlockEstimate,
-} from '../utils/format';
+  getStatusColor,
+} from '../utils';
 
 type TimelineStep = {
   label: string;
@@ -25,19 +26,6 @@ type TimelineStep = {
   timestamp: string | null;
   done: boolean;
   failed: boolean;
-};
-
-const getStatusColor = (
-  status: string,
-  palette: { status: Record<string, string> },
-): string => {
-  const map: Record<string, string> = {
-    ACTIVE: palette.status.active,
-    FULFILLED: palette.status.fulfilled,
-    COMPLETED: palette.status.completed,
-    TIMED_OUT: palette.status.timedOut,
-  };
-  return map[status] ?? palette.status.active;
 };
 
 const SwapDetailPage: React.FC = () => {

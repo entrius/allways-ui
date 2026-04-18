@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Tooltip, Typography } from '@mui/material';
 import { FONTS } from '../theme';
-
-const shortAddr = (addr: string) =>
-  addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
+import { shortAddr } from '../utils/format';
 
 interface CopyableAddressProps {
   address: string;

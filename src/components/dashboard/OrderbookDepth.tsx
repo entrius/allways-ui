@@ -19,6 +19,8 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners } from '../../api';
 import { FONTS } from '../../theme';
 import { OrderbookDepthSkeleton } from './Skeletons';
+import { tableHeaderSx, tableCellSx } from './tableStyles';
+import { toChainUnits } from '../../utils';
 
 const OrderbookDepth: React.FC = () => {
   const theme = useTheme();
@@ -83,21 +85,8 @@ const OrderbookDepth: React.FC = () => {
     );
   };
 
-  const headerSx = {
-    fontFamily: FONTS.mono,
-    fontSize: '0.65rem',
-    color: theme.palette.text.secondary,
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.background.default,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-  };
-
-  const cellSx = {
-    fontFamily: FONTS.mono,
-    fontSize: '0.75rem',
-    borderBottom: `1px solid ${theme.palette.divider}`,
-  };
+  const headerSx = tableHeaderSx(theme);
+  const cellSx = tableCellSx(theme);
 
   const { data: miners, isLoading } = useMiners();
   const [selectedPair, setSelectedPair] = useState<string>('');
@@ -146,7 +135,7 @@ const OrderbookDepth: React.FC = () => {
       // Canonical order: asset is source, tao is dest. rate = asset→TAO, counterRate = TAO→asset.
       if (s !== asset || d !== 'tao') return;
 
-      const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
+      const capacityTao = toChainUnits(m.collateralRao, 'tao');
       if (isNaN(capacityTao) || capacityTao <= 0) return;
 
       const forward = m.rate ? parseFloat(m.rate) : 0;

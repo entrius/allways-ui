@@ -20,6 +20,12 @@ const CHAIN_DECIMALS: Record<
   tao: { exp: 1e9, digits: 4, symbol: 'TAO' },
 };
 
+export const toChainUnits = (raw: string | number, chain: string): number => {
+  const config = CHAIN_DECIMALS[chain.toLowerCase()];
+  const val = typeof raw === 'string' ? parseInt(raw, 10) : raw;
+  return config ? val / config.exp : val;
+};
+
 export const formatAmount = (raw: string | number, chain: string): string => {
   const config = CHAIN_DECIMALS[chain.toLowerCase()];
   if (!config) return String(raw);
