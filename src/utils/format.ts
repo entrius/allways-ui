@@ -38,3 +38,24 @@ export const formatBlockEstimate = (blocks: number): string => {
   if (seconds < 3600) return `~${Math.round(seconds / 60)}m`;
   return `~${(seconds / 3600).toFixed(1)}h`;
 };
+
+// Taostats extrinsic URL: /extrinsic/<block>-<idx>, idx zero-padded to 4
+// digits (e.g. 8026775-0015). VITE_EXPLORER_EXTRINSIC_URL can override with
+// any template containing {block} and {idx}.
+const EXTRINSIC_URL_TEMPLATE =
+  (import.meta.env.VITE_EXPLORER_EXTRINSIC_URL as string | undefined) ??
+  'https://taostats.io/extrinsic/{block}-{idx}';
+
+export const extrinsicRef = (
+  blockNumber: string | number,
+  extrinsicIndex: number,
+): string => `${blockNumber}-${String(extrinsicIndex).padStart(4, '0')}`;
+
+export const explorerExtrinsicUrl = (
+  blockNumber: string | number,
+  extrinsicIndex: number,
+): string =>
+  EXTRINSIC_URL_TEMPLATE.replace('{block}', String(blockNumber)).replace(
+    '{idx}',
+    String(extrinsicIndex).padStart(4, '0'),
+  );

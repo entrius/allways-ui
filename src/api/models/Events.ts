@@ -17,5 +17,6 @@ export type ContractEvent = {
   configKey: string | null;
   reservedUntil: string | null;
   isActive: boolean | null;
+  extrinsicIndex: number | null;
   createdAt: string;
 };

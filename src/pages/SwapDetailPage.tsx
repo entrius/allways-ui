@@ -13,11 +13,15 @@ import { useSwapDetail } from '../api';
 import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   formatAmount,
   chainSymbol,
   formatBlockEstimate,
+  explorerExtrinsicUrl,
+  extrinsicRef,
 } from '../utils/format';
+import { type ContractEvent } from '../api/models';
 
 type TimelineStep = {
   label: string;
@@ -70,6 +74,13 @@ const SwapDetailPage: React.FC = () => {
 
   const statusColor = getStatusColor(swap.status, theme.palette);
   const isTimedOut = swap.status === 'TIMED_OUT';
+  const refundEvent: ContractEvent | undefined = isTimedOut
+    ? events.find(
+        (e) =>
+          e.eventType === 'CollateralSlashed' || e.eventType === 'SlashPending',
+      )
+    : undefined;
+  const refundPending = refundEvent?.eventType === 'SlashPending';
 
   const steps: TimelineStep[] = [
     {
@@ -273,6 +284,79 @@ const SwapDetailPage: React.FC = () => {
         </Stack>
       </Card>
 
+      {/* Refund (timed-out slash) */}
+      {refundEvent && (
+        <Card>
+          <SectionTitle>Refund</SectionTitle>
+          <Stack spacing={1}>
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.75rem',
+                color: refundPending ? 'warning.main' : 'success.main',
+              }}
+            >
+              {refundPending
+                ? 'Slash pending — user must claim on-chain with `alw claim`.'
+                : 'Slash paid directly from miner collateral to user.'}
+            </Typography>
+            {refundEvent.taoAmount && (
+              <LabelValue
+                label="Amount"
+                value={`${parseFloat(refundEvent.taoAmount).toFixed(4)} TAO`}
+              />
+            )}
+            {refundEvent.address && (
+              <LabelAddr label="Recipient" address={refundEvent.address} />
+            )}
+            {refundEvent.extrinsicIndex !== null && (
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="baseline"
+                sx={{ flexWrap: 'wrap' }}
+              >
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.7rem',
+                    color: 'text.secondary',
+                    minWidth: 80,
+                  }}
+                >
+                  Extrinsic
+                </Typography>
+                <Typography
+                  component="a"
+                  href={explorerExtrinsicUrl(
+                    refundEvent.blockNumber,
+                    refundEvent.extrinsicIndex,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.75rem',
+                    color: 'primary.main',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
+                >
+                  {extrinsicRef(
+                    refundEvent.blockNumber,
+                    refundEvent.extrinsicIndex,
+                  )}
+                  <OpenInNewIcon sx={{ fontSize: 12 }} />
+                </Typography>
+              </Stack>
+            )}
+          </Stack>
+        </Card>
+      )}
+
       {/* Transactions */}
       {(swap.sourceTxHash || swap.destTxHash) && (
         <Card>
@@ -368,6 +452,30 @@ const SwapDetailPage: React.FC = () => {
                     }}
                   >
                     tx: {event.txHash.slice(0, 10)}...
+                  </Typography>
+                )}
+                {event.extrinsicIndex !== null && (
+                  <Typography
+                    component="a"
+                    href={explorerExtrinsicUrl(
+                      event.blockNumber,
+                      event.extrinsicIndex,
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.65rem',
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.25,
+                      '&:hover': { textDecoration: 'underline' },
+                    }}
+                  >
+                    ex: {extrinsicRef(event.blockNumber, event.extrinsicIndex)}
+                    <OpenInNewIcon sx={{ fontSize: 10 }} />
                   </Typography>
                 )}
               </Stack>
