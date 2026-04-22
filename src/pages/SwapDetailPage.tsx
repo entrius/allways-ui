@@ -306,8 +306,13 @@ const SwapDetailPage: React.FC = () => {
                 value={`${parseFloat(refundEvent.taoAmount).toFixed(4)} TAO`}
               />
             )}
-            {refundEvent.address && (
-              <LabelAddr label="Recipient" address={refundEvent.address} />
+            {(refundEvent.address ?? refundEvent.userAddress) && (
+              <LabelAddr
+                label="Recipient"
+                address={
+                  (refundEvent.address ?? refundEvent.userAddress) as string
+                }
+              />
             )}
             {refundEvent.extrinsicIndex !== null && (
               <Stack
