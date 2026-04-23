@@ -83,9 +83,11 @@ const RollingValue: React.FC<{ value: string }> = ({ value }) => {
   const chars = value.split('');
   return (
     <Box sx={{ display: 'inline-flex', justifyContent: 'center' }}>
-      {chars.map((c, i) => (
-        <RollingChar key={`${chars.length}-${i}`} char={c} />
-      ))}
+      {chars.map((c, i) => {
+        // Calculate index from the right so keys are stable as digit count grows
+        const keyIndex = chars.length - 1 - i;
+        return <RollingChar key={`char-${keyIndex}`} char={c} />;
+      })}
     </Box>
   );
 };
