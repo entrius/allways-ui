@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Typography, useTheme } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import { useLatestEvents } from '../../api';
+import { displayEventType, useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { EventFeedSkeleton } from './Skeletons';
@@ -31,6 +31,7 @@ const getEventColor = (
     CollateralSlashed: palette.status.timedOut,
     VoteCast: palette.status.vote,
     MinerActivated: palette.status.minerActivated,
+    MinerDeactivated: palette.status.timedOut,
     MinerReserved: palette.status.minerActivated,
     ReservationExtended: palette.status.minerActivated,
   };
@@ -76,73 +77,42 @@ const EventFeed: React.FC = () => {
         }}
       >
         <Stack spacing={1}>
-          {events?.map((event) => (
-            <Box
-              key={event.id}
-              sx={{
-                p: 1.5,
-                borderRadius: 0,
-                backgroundColor: 'background.paper',
-                border: '1px solid',
-                borderColor: 'divider',
-                transition: 'border-color 0.2s',
-                '&:hover': { borderColor: theme.palette.border.light },
-              }}
-            >
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                spacing={1}
+          {events?.map((event) => {
+            const label = displayEventType(event);
+            return (
+              <Box
+                key={event.id}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 0,
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'border-color 0.2s',
+                  '&:hover': { borderColor: theme.palette.border.light },
+                }}
               >
-                <Chip
-                  label={event.eventType}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.65rem',
-                    height: 22,
-                    borderRadius: 0,
-                    borderColor:
-                      getEventColor(event.eventType, theme.palette) ||
-                      theme.palette.border.light,
-                    color: 'text.primary',
-                  }}
-                />
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.65rem',
-                    color: 'text.secondary',
-                  }}
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  spacing={1}
                 >
-                  #{event.blockNumber}
-                </Typography>
-              </Stack>
-              <Stack
-                direction="row"
-                spacing={2}
-                sx={{ mt: 0.5 }}
-                flexWrap="wrap"
-                useFlexGap
-              >
-                {event.swapId && (
-                  <Typography
-                    component={RouterLink}
-                    to={`/swap/${event.swapId}`}
+                  <Chip
+                    label={label}
+                    size="small"
+                    variant="outlined"
                     sx={{
                       fontFamily: FONTS.mono,
-                      fontSize: '0.7rem',
-                      color: 'text.secondary',
-                      textDecoration: 'none',
-                      '&:hover': { color: 'primary.main' },
+                      fontSize: '0.65rem',
+                      height: 22,
+                      borderRadius: 0,
+                      borderColor:
+                        getEventColor(label, theme.palette) ||
+                        theme.palette.border.light,
+                      color: 'text.primary',
                     }}
-                  >
-                    Swap #{event.swapId}
-                  </Typography>
-                )}
-                {event.sourceChain && event.destChain && (
+                  />
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
@@ -150,49 +120,83 @@ const EventFeed: React.FC = () => {
                       color: 'text.secondary',
                     }}
                   >
-                    {event.sourceChain.toUpperCase()} &rarr;{' '}
-                    {event.destChain.toUpperCase()}
+                    #{event.blockNumber}
                   </Typography>
-                )}
-                {event.minerHotkey && (
-                  <CopyableAddress address={event.minerHotkey} />
-                )}
-                {event.taoAmount && (
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.7rem',
-                      color: 'primary.main',
-                    }}
-                  >
-                    {parseFloat(event.taoAmount).toFixed(4)} TAO
-                  </Typography>
-                )}
-                {event.reservedUntil && (
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.65rem',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    until #{event.reservedUntil}
-                  </Typography>
-                )}
-                {event.voteType && (
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.65rem',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    {event.voteType} ({event.voteCount})
-                  </Typography>
-                )}
-              </Stack>
-            </Box>
-          ))}
+                </Stack>
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{ mt: 0.5 }}
+                  flexWrap="wrap"
+                  useFlexGap
+                >
+                  {event.swapId && (
+                    <Typography
+                      component={RouterLink}
+                      to={`/swap/${event.swapId}`}
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.7rem',
+                        color: 'text.secondary',
+                        textDecoration: 'none',
+                        '&:hover': { color: 'primary.main' },
+                      }}
+                    >
+                      Swap #{event.swapId}
+                    </Typography>
+                  )}
+                  {event.sourceChain && event.destChain && (
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.65rem',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {event.sourceChain.toUpperCase()} &rarr;{' '}
+                      {event.destChain.toUpperCase()}
+                    </Typography>
+                  )}
+                  {event.minerHotkey && (
+                    <CopyableAddress address={event.minerHotkey} />
+                  )}
+                  {event.taoAmount && (
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.7rem',
+                        color: 'primary.main',
+                      }}
+                    >
+                      {parseFloat(event.taoAmount).toFixed(4)} TAO
+                    </Typography>
+                  )}
+                  {event.reservedUntil && (
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.65rem',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      until #{event.reservedUntil}
+                    </Typography>
+                  )}
+                  {event.voteType && (
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.65rem',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {event.voteType} ({event.voteCount})
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+            );
+          })}
         </Stack>
       </Box>
       {scrolled && (

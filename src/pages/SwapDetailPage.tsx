@@ -9,7 +9,7 @@ import {
   useTheme,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useSwapDetail } from '../api';
+import { displayEventType, useSwapDetail } from '../api';
 import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
@@ -416,7 +416,7 @@ const SwapDetailPage: React.FC = () => {
                 alignItems="center"
               >
                 <Chip
-                  label={event.eventType}
+                  label={displayEventType(event)}
                   size="small"
                   variant="outlined"
                   sx={{
