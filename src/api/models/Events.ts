@@ -20,3 +20,10 @@ export type ContractEvent = {
   extrinsicIndex: number | null;
   createdAt: string;
 };
+
+export const displayEventType = (
+  e: Pick<ContractEvent, 'eventType' | 'isActive'>,
+): string =>
+  e.eventType === 'MinerActivated' && e.isActive === false
+    ? 'MinerDeactivated'
+    : e.eventType;
