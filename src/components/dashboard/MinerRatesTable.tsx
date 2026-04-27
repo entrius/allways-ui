@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
+  IconButton,
   InputAdornment,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -16,6 +18,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
@@ -224,12 +227,12 @@ const MinerRatesTable: React.FC = () => {
     if (src && dst) {
       tooltipLines.push(
         forward > 0
-          ? `${src} \u2192 ${dst}: ${forward.toFixed(6)} TAO per 1 ${src}`
+          ? `${src} \u2192 ${dst}: ${forward.toFixed(2)} TAO per 1 ${src}`
           : `${src} \u2192 ${dst}: not quoted`,
       );
       tooltipLines.push(
         reverse > 0
-          ? `${dst} \u2192 ${src}: ${reverse.toFixed(6)} TAO per 1 ${src}`
+          ? `${dst} \u2192 ${src}: ${reverse.toFixed(2)} TAO per 1 ${src}`
           : `${dst} \u2192 ${src}: not quoted`,
       );
     }
@@ -357,12 +360,38 @@ const MinerRatesTable: React.FC = () => {
           flexWrap: 'wrap',
         }}
       >
-        <Typography
-          variant="h6"
-          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-        >
-          Active Providers
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+          >
+            Active Rates
+          </Typography>
+          <Tooltip
+            title={
+              <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                  What is this?
+                </Typography>
+                <Typography variant="body2">
+                  Live exchange rates quoted by every active miner on the
+                  network. Each row is one miner; both directions (BTC→TAO and
+                  TAO→BTC) are shown when quoted, with the spread between them
+                  being the miner's margin.
+                </Typography>
+                <Typography variant="body2">
+                  Sort by rate or capacity to find the best counterparty.
+                </Typography>
+              </Stack>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
         <Box
           sx={{
@@ -514,13 +543,34 @@ const MinerRatesTable: React.FC = () => {
                       color: 'text.secondary',
                     }}
                   >
-                    {formatCollateral(miner.collateralRao)}
-                    <Box
-                      component="span"
-                      sx={{ color: theme.palette.text.disabled, ml: 0.5 }}
+                    <Tooltip
+                      title={
+                        <Box
+                          sx={{
+                            fontFamily: FONTS.mono,
+                            fontSize: '0.7rem',
+                            maxWidth: 240,
+                          }}
+                        >
+                          Total TAO collateral this miner has posted on the
+                          contract. Caps the size of swaps they can fulfill —
+                          higher collateral means more swap capacity, and is
+                          what gets slashed if they fail to deliver.
+                        </Box>
+                      }
+                      arrow
+                      placement="top"
                     >
-                      τ
-                    </Box>
+                      <Box component="span">
+                        {formatCollateral(miner.collateralRao)}
+                        <Box
+                          component="span"
+                          sx={{ color: theme.palette.text.disabled, ml: 0.5 }}
+                        >
+                          τ
+                        </Box>
+                      </Box>
+                    </Tooltip>
                   </TableCell>
                   <TableCell
                     sx={{
