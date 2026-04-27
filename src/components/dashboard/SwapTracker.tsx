@@ -2,12 +2,15 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
-  Stack,
-  Typography,
+  IconButton,
   LinearProgress,
+  Stack,
   TextField,
+  Tooltip,
+  Typography,
   useTheme,
 } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useAllSwaps } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
@@ -83,12 +86,35 @@ const SwapTracker: React.FC = () => {
     <SwapTrackerSkeleton />
   ) : (
     <Box>
-      <Typography
-        variant="h6"
-        sx={{ mb: 1.5, fontFamily: FONTS.heading, fontWeight: 700 }}
-      >
-        Swaps
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <Typography
+          variant="h6"
+          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+        >
+          Swaps
+        </Typography>
+        <Tooltip
+          title={
+            <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                What is this?
+              </Typography>
+              <Typography variant="body2">
+                Every swap on the network in chronological order, with its
+                current status and progress through the lifecycle: Initiated →
+                Fulfilled → Completed (or Timed Out). Click a row to see the
+                full timeline.
+              </Typography>
+            </Stack>
+          }
+          arrow
+          placement="right"
+        >
+          <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+            <InfoOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       <TextField
         size="small"
