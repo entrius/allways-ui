@@ -94,6 +94,8 @@ const MinerRatesTable: React.FC = () => {
     return { color: theme.palette.primary.main, label: 'Available' };
   };
 
+  // Tighter horizontal padding than MUI's default (16px → 8px) so columns
+  // get more breathing room before any content has to wrap.
   const headerSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.65rem',
@@ -102,13 +104,18 @@ const MinerRatesTable: React.FC = () => {
     backgroundColor: theme.palette.background.default,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
+    px: 1,
   };
 
   const cellSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.75rem',
     borderBottom: `1px solid ${theme.palette.divider}`,
+    px: 1,
   };
+
+  // Fixed width for UID so 1/2/3-digit values don't reflow the column.
+  const uidColSx = { width: 48, minWidth: 48 };
 
   const { data: miners, isLoading } = useMiners();
   const [sortKey, setSortKey] = useState<SortKey>('rate');
@@ -253,7 +260,15 @@ const MinerRatesTable: React.FC = () => {
         </Box>
         <Box
           component="span"
-          sx={{ color: value > 0 ? valueColor : disabled, minWidth: 36 }}
+          sx={{
+            color: value > 0 ? valueColor : disabled,
+            display: 'inline-block',
+            minWidth: 52,
+            textAlign: 'center',
+            // Tabular figures keep digit columns aligned across both rows
+            // (so "99.00" and "100.50" line up vertically).
+            fontVariantNumeric: 'tabular-nums',
+          }}
         >
           {formatOr(value)}
         </Box>
@@ -427,7 +442,10 @@ const MinerRatesTable: React.FC = () => {
           <TableHead>
             <TableRow>
               {columns.map((col) => (
-                <TableCell key={col.key} sx={headerSx}>
+                <TableCell
+                  key={col.key}
+                  sx={{ ...headerSx, ...(col.key === 'uid' ? uidColSx : {}) }}
+                >
                   <TableSortLabel
                     active={sortKey === col.key}
                     direction={sortKey === col.key ? sortDir : 'asc'}
@@ -470,7 +488,9 @@ const MinerRatesTable: React.FC = () => {
                       : '2px solid transparent',
                   }}
                 >
-                  <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
+                  <TableCell
+                    sx={{ ...cellSx, ...uidColSx, color: 'text.primary' }}
+                  >
                     {miner.uid}
                   </TableCell>
                   <TableCell sx={{ ...cellSx, color: 'text.secondary' }}>
@@ -483,7 +503,10 @@ const MinerRatesTable: React.FC = () => {
                     {formatCollateral(miner.collateralRao)}
                   </TableCell>
                   <TableCell
-                    sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}
+                    sx={{
+                      borderBottom: `1px solid ${theme.palette.divider}`,
+                      px: 1,
+                    }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Box
