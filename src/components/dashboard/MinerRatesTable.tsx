@@ -248,7 +248,7 @@ const MinerRatesTable: React.FC = () => {
         sx={{
           display: 'inline-flex',
           alignItems: 'baseline',
-          gap: 0.6,
+          gap: 1,
           opacity: dimmed ? 0.35 : 1,
           transition: 'opacity 0.15s',
         }}
@@ -263,7 +263,7 @@ const MinerRatesTable: React.FC = () => {
           sx={{
             color: value > 0 ? valueColor : disabled,
             display: 'inline-block',
-            minWidth: 52,
+            minWidth: 72,
             textAlign: 'center',
             // Tabular figures keep digit columns aligned across both rows
             // (so "99.00" and "100.50" line up vertically).
