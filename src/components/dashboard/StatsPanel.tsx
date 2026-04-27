@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Grid, Typography, keyframes } from '@mui/material';
+import { Box, Grid, Tooltip, Typography, keyframes } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useStats } from '../../api';
 import { FONTS } from '../../theme';
 import { StatsPanelSkeleton } from './Skeletons';
@@ -90,10 +91,11 @@ const RollingValue: React.FC<{ value: string }> = ({ value }) => {
   );
 };
 
-const StatCard: React.FC<{ label: string; value: string }> = ({
-  label,
-  value,
-}) => (
+const StatCard: React.FC<{
+  label: string;
+  value: string;
+  hint: string;
+}> = ({ label, value, hint }) => (
   <Box
     sx={{
       p: 2.5,
@@ -102,8 +104,23 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
       border: '1px solid',
       borderColor: 'divider',
       textAlign: 'center',
+      position: 'relative',
     }}
   >
+    <Tooltip title={hint} arrow placement="top">
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 6,
+          right: 6,
+          color: 'text.disabled',
+          display: 'inline-flex',
+          cursor: 'default',
+        }}
+      >
+        <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+      </Box>
+    </Tooltip>
     <Box
       sx={{
         fontFamily: FONTS.mono,
@@ -140,16 +157,32 @@ const StatsPanel: React.FC = () => {
   ) : (
     <Grid container spacing={1.5}>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Successful Swaps" value={String(stats.totalSwaps)} />
+        <StatCard
+          label="Successful Swaps"
+          value={String(stats.totalSwaps)}
+          hint="All-time count of swaps that completed successfully on-chain."
+        />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Volume (TAO)" value={volume} />
+        <StatCard
+          label="Volume (TAO)"
+          value={volume}
+          hint="All-time TAO volume across every completed swap. Counts the TAO leg regardless of swap direction."
+        />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Active Miners" value={String(stats.activeMiners)} />
+        <StatCard
+          label="Active Miners"
+          value={String(stats.activeMiners)}
+          hint="Miners currently registered as active on the network — they are posting rates and ready to fulfill swaps."
+        />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Active Swaps" value={String(stats.activeSwaps)} />
+        <StatCard
+          label="Active Swaps"
+          value={String(stats.activeSwaps)}
+          hint="Swaps in flight right now — initiated by a user but not yet completed or timed out."
+        />
       </Grid>
     </Grid>
   );
