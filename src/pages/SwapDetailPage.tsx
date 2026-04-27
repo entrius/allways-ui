@@ -20,6 +20,7 @@ import {
   formatBlockEstimate,
   explorerExtrinsicUrl,
   extrinsicRef,
+  trimTrailingZeros,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
 
@@ -182,7 +183,9 @@ const SwapDetailPage: React.FC = () => {
                   value={formatAmount(swap.destAmount, swap.destChain)}
                 />
               )}
-              {swap.rate && <LabelValue label="Rate" value={swap.rate} />}
+              {swap.rate && (
+                <LabelValue label="Rate" value={trimTrailingZeros(swap.rate)} />
+              )}
             </Stack>
           </Stack>
         </Card>

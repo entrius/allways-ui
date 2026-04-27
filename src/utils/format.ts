@@ -12,6 +12,11 @@ export const formatNumber = (n: number, decimals = 2) =>
     maximumFractionDigits: decimals,
   });
 
+export const trimTrailingZeros = (value: string): string => {
+  if (!value || !value.includes('.')) return value;
+  return value.replace(/0+$/, '').replace(/\.$/, '');
+};
+
 const CHAIN_DECIMALS: Record<
   string,
   { exp: number; digits: number; symbol: string }
