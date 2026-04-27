@@ -28,6 +28,10 @@ export function useSSE() {
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     });
 
+    es.addEventListener('error', (e) => {
+      console.error('SSE connection error:', e);
+    });
+
     return () => {
       es.close();
       eventSourceRef.current = null;
