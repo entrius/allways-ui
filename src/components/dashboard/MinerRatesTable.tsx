@@ -258,12 +258,11 @@ const MinerRatesTable: React.FC = () => {
         sx={{
           display: 'inline-flex',
           alignItems: 'baseline',
-          gap: 1,
           opacity: dimmed ? 0.35 : 1,
           transition: 'opacity 0.15s',
         }}
       >
-        <Box component="span" sx={labelSx}>
+        <Box component="span" sx={{ ...labelSx, mr: 1 }}>
           {from}
           {'\u2192'}
           {to}
@@ -273,7 +272,7 @@ const MinerRatesTable: React.FC = () => {
           sx={{
             color: value > 0 ? valueColor : disabled,
             display: 'inline-block',
-            minWidth: 72,
+            minWidth: 64,
             textAlign: 'center',
             // Tabular figures keep digit columns aligned across both rows
             // (so "99.00" and "100.50" line up vertically).
@@ -282,7 +281,7 @@ const MinerRatesTable: React.FC = () => {
         >
           {formatOr(value)}
         </Box>
-        <Box component="span" sx={unitSx}>
+        <Box component="span" sx={{ ...unitSx, ml: 0.25 }}>
           τ
         </Box>
       </Box>
@@ -309,7 +308,6 @@ const MinerRatesTable: React.FC = () => {
             flexDirection: 'column',
             gap: 0.25,
             fontFamily: FONTS.mono,
-            cursor: tooltipLines.length > 0 ? 'help' : 'default',
           }}
         >
           {src && dst ? (
