@@ -72,8 +72,8 @@ const getSortValue = (m: Miner, key: SortKey): string | number => {
 const columns: { key: SortKey; label: string }[] = [
   { key: 'uid', label: 'UID' },
   { key: 'pair', label: 'Pair' },
-  { key: 'rate', label: 'Rate' },
-  { key: 'collateral', label: 'Capacity' },
+  { key: 'rate', label: 'Rate (TAO/BTC · BTC/TAO)' },
+  { key: 'collateral', label: 'Capacity (TAO)' },
   { key: 'status', label: 'Status' },
   { key: 'hotkey', label: 'Hotkey' },
 ];
@@ -315,12 +315,18 @@ const MinerRatesTable: React.FC = () => {
                 color: `${theme.palette.primary.main} !important`,
                 borderColor: `${theme.palette.primary.main} !important`,
               },
+              // MUI collapses adjacent button borders via marginLeft: -1px,
+              // so a selected non-last button's right edge gets covered by
+              // the next button's transparent left border. Recolor the seam.
+              '& .Mui-selected + .MuiToggleButton-root': {
+                borderLeftColor: `${theme.palette.primary.main} !important`,
+              },
             }}
           >
             <ToggleButton value="all">All</ToggleButton>
             <ToggleButton value="both">{'\u21C4'} Both</ToggleButton>
-            <ToggleButton value="forward">{'\u2192'} Forward</ToggleButton>
-            <ToggleButton value="reverse">{'\u2190'} Reverse</ToggleButton>
+            <ToggleButton value="forward">BTC {'\u2192'} TAO</ToggleButton>
+            <ToggleButton value="reverse">TAO {'\u2192'} BTC</ToggleButton>
           </ToggleButtonGroup>
 
           <TextField
