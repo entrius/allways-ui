@@ -73,7 +73,7 @@ const columns: { key: SortKey; label: string }[] = [
   { key: 'uid', label: 'UID' },
   { key: 'pair', label: 'Pair' },
   { key: 'rate', label: 'Rate' },
-  { key: 'collateral', label: 'Capacity (TAO)' },
+  { key: 'collateral', label: 'Capacity' },
   { key: 'status', label: 'Status' },
   { key: 'hotkey', label: 'Hotkey' },
 ];
@@ -116,6 +116,15 @@ const MinerRatesTable: React.FC = () => {
 
   // Fixed width for UID so 1/2/3-digit values don't reflow the column.
   const uidColSx = { width: 48, minWidth: 48 };
+
+  // Rate cell sits a touch further from Pair so the two columns don't
+  // visually fuse together; Capacity is centered in its column instead
+  // of jamming left while the column itself is wide.
+  const colOverrides: Partial<Record<SortKey, Record<string, unknown>>> = {
+    uid: uidColSx,
+    rate: { pl: 2 },
+    collateral: { textAlign: 'center' },
+  };
 
   const { data: miners, isLoading } = useMiners();
   const [sortKey, setSortKey] = useState<SortKey>('rate');
@@ -444,7 +453,7 @@ const MinerRatesTable: React.FC = () => {
               {columns.map((col) => (
                 <TableCell
                   key={col.key}
-                  sx={{ ...headerSx, ...(col.key === 'uid' ? uidColSx : {}) }}
+                  sx={{ ...headerSx, ...(colOverrides[col.key] ?? {}) }}
                 >
                   <TableSortLabel
                     active={sortKey === col.key}
@@ -496,11 +505,23 @@ const MinerRatesTable: React.FC = () => {
                   <TableCell sx={{ ...cellSx, color: 'text.secondary' }}>
                     {renderPairCell(miner)}
                   </TableCell>
-                  <TableCell sx={{ ...cellSx }}>
+                  <TableCell sx={{ ...cellSx, ...(colOverrides.rate ?? {}) }}>
                     {renderRateCell(miner)}
                   </TableCell>
-                  <TableCell sx={{ ...cellSx, color: 'text.secondary' }}>
+                  <TableCell
+                    sx={{
+                      ...cellSx,
+                      ...(colOverrides.collateral ?? {}),
+                      color: 'text.secondary',
+                    }}
+                  >
                     {formatCollateral(miner.collateralRao)}
+                    <Box
+                      component="span"
+                      sx={{ color: theme.palette.text.disabled, ml: 0.5 }}
+                    >
+                      τ
+                    </Box>
                   </TableCell>
                   <TableCell
                     sx={{
