@@ -72,7 +72,7 @@ const getSortValue = (m: Miner, key: SortKey): string | number => {
 const columns: { key: SortKey; label: string }[] = [
   { key: 'uid', label: 'UID' },
   { key: 'pair', label: 'Pair' },
-  { key: 'rate', label: 'Rate (TAO/BTC · BTC/TAO)' },
+  { key: 'rate', label: 'Rate' },
   { key: 'collateral', label: 'Capacity (TAO)' },
   { key: 'status', label: 'Status' },
   { key: 'hotkey', label: 'Hotkey' },
@@ -201,19 +201,67 @@ const MinerRatesTable: React.FC = () => {
     const disabled =
       theme.palette.text.disabled || theme.palette.text.secondary;
     const formatOr = (v: number) => (v > 0 ? v.toFixed(2) : '\u2014');
+    // Both rates are stored and shown as TAO per 1 unit of the non-TAO asset,
+    // so the user reads a single unit ("TAO") and the spread between the two
+    // rows is the miner's margin.
     const tooltipLines: string[] = [];
     if (src && dst) {
       tooltipLines.push(
         forward > 0
-          ? `${src} \u2192 ${dst}: ${forward.toFixed(6)}`
+          ? `${src} \u2192 ${dst}: ${forward.toFixed(6)} TAO per 1 ${src}`
           : `${src} \u2192 ${dst}: not quoted`,
       );
       tooltipLines.push(
         reverse > 0
-          ? `${dst} \u2192 ${src}: ${reverse.toFixed(6)}  (1 ${src} per ${(1 / reverse).toFixed(6)} ${dst})`
+          ? `${dst} \u2192 ${src}: ${reverse.toFixed(6)} TAO per 1 ${src}`
           : `${dst} \u2192 ${src}: not quoted`,
       );
     }
+    // Dim the row whose direction is filtered out so the active rate is the
+    // obvious one to read.
+    const forwardDimmed = direction === 'reverse';
+    const reverseDimmed = direction === 'forward';
+    const labelSx = {
+      color: theme.palette.text.secondary,
+      fontSize: '0.65rem',
+      letterSpacing: '0.03em',
+    } as const;
+    const unitSx = {
+      color: theme.palette.text.disabled,
+      fontSize: '0.65rem',
+    } as const;
+    const renderRow = (
+      from: string,
+      to: string,
+      value: number,
+      dimmed: boolean,
+      valueColor: string,
+    ) => (
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          gap: 0.6,
+          opacity: dimmed ? 0.35 : 1,
+          transition: 'opacity 0.15s',
+        }}
+      >
+        <Box component="span" sx={labelSx}>
+          {from}
+          {'\u2192'}
+          {to}
+        </Box>
+        <Box
+          component="span"
+          sx={{ color: value > 0 ? valueColor : disabled, minWidth: 36 }}
+        >
+          {formatOr(value)}
+        </Box>
+        <Box component="span" sx={unitSx}>
+          TAO
+        </Box>
+      </Box>
+    );
     return (
       <Tooltip
         title={
@@ -233,27 +281,34 @@ const MinerRatesTable: React.FC = () => {
         <Box
           sx={{
             display: 'inline-flex',
-            alignItems: 'baseline',
-            gap: 0.5,
+            flexDirection: 'column',
+            gap: 0.25,
             fontFamily: FONTS.mono,
             cursor: tooltipLines.length > 0 ? 'help' : 'default',
           }}
         >
-          <span
-            style={{
-              color: forward > 0 ? theme.palette.primary.main : disabled,
-            }}
-          >
-            {formatOr(forward)}
-          </span>
-          <span style={{ color: theme.palette.text.disabled }}>/</span>
-          <span
-            style={{
-              color: reverse > 0 ? theme.palette.text.secondary : disabled,
-            }}
-          >
-            {formatOr(reverse)}
-          </span>
+          {src && dst ? (
+            <>
+              {renderRow(
+                src,
+                dst,
+                forward,
+                forwardDimmed,
+                theme.palette.primary.main,
+              )}
+              {renderRow(
+                dst,
+                src,
+                reverse,
+                reverseDimmed,
+                theme.palette.text.primary,
+              )}
+            </>
+          ) : (
+            <Box component="span" sx={{ color: disabled }}>
+              {'\u2014'}
+            </Box>
+          )}
         </Box>
       </Tooltip>
     );
