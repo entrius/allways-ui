@@ -242,9 +242,10 @@ const MinerRatesTable: React.FC = () => {
       fontSize: '0.65rem',
       letterSpacing: '0.03em',
     } as const;
+    // τ glyph inherits the cell font size (no shrink) so it carries enough
+    // visual weight to read as a unit suffix, just muted in color.
     const unitSx = {
       color: theme.palette.text.disabled,
-      fontSize: '0.65rem',
     } as const;
     const renderRow = (
       from: string,
@@ -282,7 +283,7 @@ const MinerRatesTable: React.FC = () => {
           {formatOr(value)}
         </Box>
         <Box component="span" sx={unitSx}>
-          TAO
+          τ
         </Box>
       </Box>
     );
