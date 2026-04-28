@@ -82,6 +82,23 @@ const Footer: React.FC = () => {
               Universal transaction layer. Trustless peer to peer swaps on
               Bittensor Subnet 7.
             </Typography>
+            <Typography
+              sx={{
+                fontFamily: FONTS.body,
+                fontSize: '0.7rem',
+                color: 'text.disabled',
+                mt: 1.5,
+                maxWidth: 460,
+                lineHeight: 1.55,
+              }}
+            >
+              Allways is permissionless, open-source, beta software. The
+              protocol facilitates trustless peer to peer transactions — the
+              creators and contributors do not custody, control, or intermediate
+              any funds. All code is open source and should be responsibly
+              reviewed before any use. Use at your own risk. No warranty. Not
+              financial advice.
+            </Typography>
           </Grid>
 
           <Grid item xs={6} md={3}>
@@ -151,38 +168,13 @@ const Footer: React.FC = () => {
           </Grid>
         </Grid>
 
-        <Box
-          sx={{
-            mt: { xs: 4, md: 6 },
-            pt: 3,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              lineHeight: 1.6,
-              color: 'text.secondary',
-              letterSpacing: '0.02em',
-              maxWidth: 820,
-            }}
-          >
-            Allways is permissionless, open-source, beta software. The protocol
-            facilitates trustless peer to peer transactions — the creators and
-            contributors do not custody, control, or intermediate any funds. Use
-            at your own risk. No warranty. Not financial advice.
-          </Typography>
-        </Box>
-
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           alignItems={{ xs: 'flex-start', sm: 'center' }}
           justifyContent="space-between"
           spacing={2}
           sx={{
-            mt: { xs: 3, md: 4 },
+            mt: { xs: 4, md: 6 },
             pt: 2.5,
             borderTop: '1px solid',
             borderColor: 'divider',
