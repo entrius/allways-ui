@@ -13,13 +13,12 @@ import { FONTS } from '../theme';
 
 const SectionLabel: React.FC<{ children: string }> = ({ children }) => (
   <Typography
+    variant="monoSmall"
     sx={{
-      fontFamily: FONTS.mono,
-      fontSize: '0.7rem',
       letterSpacing: '0.15em',
-      textTransform: 'uppercase',
       color: 'text.secondary',
       mb: 1.25,
+      display: 'block',
     }}
   >
     {children}
@@ -45,24 +44,11 @@ const AgentsPage: React.FC = () => {
         }}
       >
         <Stack spacing={1.5} sx={{ mb: { xs: 4, md: 6 } }}>
+          <Typography variant="eyebrow">For AI Agents</Typography>
           <Typography
+            variant="display"
             sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              color: 'primary.main',
-            }}
-          >
-            For AI Agents
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.heading,
-              fontWeight: 900,
               fontSize: { xs: '2rem', md: '3rem' },
-              letterSpacing: '-0.04em',
-              textTransform: 'uppercase',
               lineHeight: 0.95,
             }}
           >

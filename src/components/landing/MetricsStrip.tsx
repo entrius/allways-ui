@@ -28,15 +28,7 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading }) => (
       },
     }}
   >
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.65rem',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-        color: 'text.secondary',
-      }}
-    >
+    <Typography variant="monoSmall" sx={{ color: 'text.secondary' }}>
       {label}
     </Typography>
     <Box

@@ -12,6 +12,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import { FONTS } from '../../theme';
 import { useMiners } from '../../api';
+import { useCopy } from '../../hooks';
+import HoverCard from '../HoverCard';
 
 type Direction = 'BTC->TAO' | 'TAO->BTC';
 
@@ -38,10 +40,6 @@ const computeBest = (
   const candidates = miners
     .filter((m) => m.isActive)
     .map((m) => {
-      // Canonical order: TAO is destChain when present.
-      // rate = source→dest, counterRate = dest→source.
-      // For BTC->TAO: when sourceChain=BTC and destChain=TAO, use rate.
-      // For TAO->BTC: when sourceChain=BTC and destChain=TAO, use counterRate.
       const isBtcTao = m.sourceChain === 'BTC' && m.destChain === 'TAO';
       if (!isBtcTao) return null;
       const r = direction === 'BTC->TAO' ? m.rate : m.counterRate;
@@ -53,7 +51,6 @@ const computeBest = (
     );
 
   if (candidates.length === 0) return null;
-  // Best = highest output for the user.
   const best = candidates.reduce((a, b) =>
     parseFloat(a.rate) >= parseFloat(b.rate) ? a : b,
   );
@@ -67,23 +64,10 @@ interface CopyRowProps {
 }
 
 const CopyRow: React.FC<CopyRowProps> = ({ label, value }) => {
-  const [copied, setCopied] = useState(false);
-  const onClick = () => {
-    void navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const { copied, copy } = useCopy();
   return (
     <Stack spacing={0.75}>
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.65rem',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: 'text.secondary',
-        }}
-      >
+      <Typography variant="monoSmall" sx={{ color: 'text.secondary' }}>
         {label}
       </Typography>
       <Stack
@@ -112,7 +96,7 @@ const CopyRow: React.FC<CopyRowProps> = ({ label, value }) => {
         </Box>
         <Tooltip title={copied ? 'Copied' : 'Copy'} arrow>
           <IconButton
-            onClick={onClick}
+            onClick={() => copy(value)}
             sx={{
               borderRadius: 0,
               borderLeft: '1px solid',
@@ -155,163 +139,130 @@ const RateQuoteHelper: React.FC = () => {
   const curlCmd = `curl -s ${typeof window !== 'undefined' ? window.location.origin : 'https://api.all-ways.io'}/miners | jq '.[] | select(.isActive and .sourceChain=="BTC" and .destChain=="TAO") | {uid, rate: ${direction === 'BTC->TAO' ? '.rate' : '.counterRate'}, hotkey}' | jq -s 'sort_by(-.rate | tonumber)[0]'`;
 
   return (
-    <Stack
+    <HoverCard
       sx={{
-        border: '1px solid',
-        borderColor: 'divider',
         p: { xs: 2.5, md: 3 },
         backgroundColor: 'surface.light',
-        gap: 2,
       }}
     >
-      <Stack spacing={0.5}>
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase',
-            color: 'primary.main',
-          }}
-        >
-          Live rate quote
-        </Typography>
-        <Typography
-          sx={{
-            fontFamily: FONTS.heading,
-            fontWeight: 800,
-            fontSize: { xs: '1.05rem', md: '1.15rem' },
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Quote against the live orderbook.
-        </Typography>
-        <Typography
-          sx={{
-            fontFamily: FONTS.body,
-            fontSize: '0.85rem',
-            color: 'text.secondary',
-          }}
-        >
-          Picks the best active miner. Copy the CLI line and run it from any
-          agent shell.
-        </Typography>
-      </Stack>
-
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-        <TextField
-          select
-          label="Direction"
-          value={direction}
-          onChange={(e) => setDirection(e.target.value as Direction)}
-          size="small"
-          sx={{ minWidth: 160 }}
-          InputLabelProps={{
-            sx: { fontFamily: FONTS.mono, fontSize: '0.75rem' },
-          }}
-          InputProps={{ sx: { fontFamily: FONTS.mono, borderRadius: 0 } }}
-        >
-          <MenuItem value="BTC->TAO">BTC → TAO</MenuItem>
-          <MenuItem value="TAO->BTC">TAO → BTC</MenuItem>
-        </TextField>
-        <TextField
-          label={`Amount (${sourceSym})`}
-          value={amountStr}
-          onChange={(e) => setAmountStr(e.target.value)}
-          size="small"
-          sx={{ minWidth: 160 }}
-          InputLabelProps={{
-            sx: { fontFamily: FONTS.mono, fontSize: '0.75rem' },
-          }}
-          InputProps={{ sx: { fontFamily: FONTS.mono, borderRadius: 0 } }}
-        />
-      </Stack>
-
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{
-          border: '1px solid',
-          borderColor: 'divider',
-          backgroundColor: 'background.default',
-          p: 2,
-        }}
-      >
-        <Stack sx={{ flex: 1 }}>
+      <Stack sx={{ gap: 2 }}>
+        <Stack spacing={0.5}>
+          <Typography variant="eyebrow" sx={{ letterSpacing: '0.15em' }}>
+            Live rate quote
+          </Typography>
+          <Typography
+            variant="display"
+            sx={{
+              fontWeight: 800,
+              fontSize: { xs: '1.05rem', md: '1.15rem' },
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Quote against the live orderbook.
+          </Typography>
           <Typography
             sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.65rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
+              fontFamily: FONTS.body,
+              fontSize: '0.85rem',
               color: 'text.secondary',
             }}
           >
-            Best miner
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: 'text.primary',
-            }}
-          >
-            {best ? `UID ${best.uid}` : '—'}
+            Picks the best active miner. Copy the CLI line and run it from any
+            agent shell.
           </Typography>
         </Stack>
-        <Stack sx={{ flex: 1 }}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.65rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
-            Rate
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: 'text.primary',
-            }}
-          >
-            {best ? parseFloat(best.rate).toFixed(6) : '—'} {destSym}/
-            {sourceSym}
-          </Typography>
-        </Stack>
-        <Stack sx={{ flex: 1 }}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.65rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
-            You receive
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: 'primary.main',
-            }}
-          >
-            {best ? best.out : '—'} {destSym}
-          </Typography>
-        </Stack>
-      </Stack>
 
-      <CopyRow label="CLI command" value={cliCmd} />
-      <CopyRow label="curl + jq (best rate)" value={curlCmd} />
-    </Stack>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <TextField
+            select
+            label="Direction"
+            value={direction}
+            onChange={(e) => setDirection(e.target.value as Direction)}
+            size="small"
+            sx={{ minWidth: 160 }}
+            InputLabelProps={{
+              sx: { fontFamily: FONTS.mono, fontSize: '0.75rem' },
+            }}
+            InputProps={{ sx: { fontFamily: FONTS.mono, borderRadius: 0 } }}
+          >
+            <MenuItem value="BTC->TAO">BTC → TAO</MenuItem>
+            <MenuItem value="TAO->BTC">TAO → BTC</MenuItem>
+          </TextField>
+          <TextField
+            label={`Amount (${sourceSym})`}
+            value={amountStr}
+            onChange={(e) => setAmountStr(e.target.value)}
+            size="small"
+            sx={{ minWidth: 160 }}
+            InputLabelProps={{
+              sx: { fontFamily: FONTS.mono, fontSize: '0.75rem' },
+            }}
+            InputProps={{ sx: { fontFamily: FONTS.mono, borderRadius: 0 } }}
+          />
+        </Stack>
+
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          sx={{
+            border: '1px solid',
+            borderColor: 'divider',
+            backgroundColor: 'background.default',
+            p: 2,
+          }}
+        >
+          <Stack sx={{ flex: 1 }}>
+            <Typography variant="monoSmall" sx={{ color: 'text.secondary' }}>
+              Best miner
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '1rem',
+                fontWeight: 700,
+                color: 'text.primary',
+              }}
+            >
+              {best ? `UID ${best.uid}` : '—'}
+            </Typography>
+          </Stack>
+          <Stack sx={{ flex: 1 }}>
+            <Typography variant="monoSmall" sx={{ color: 'text.secondary' }}>
+              Rate
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '1rem',
+                fontWeight: 700,
+                color: 'text.primary',
+              }}
+            >
+              {best ? parseFloat(best.rate).toFixed(6) : '—'} {destSym}/
+              {sourceSym}
+            </Typography>
+          </Stack>
+          <Stack sx={{ flex: 1 }}>
+            <Typography variant="monoSmall" sx={{ color: 'text.secondary' }}>
+              You receive
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '1rem',
+                fontWeight: 700,
+                color: 'primary.main',
+              }}
+            >
+              {best ? best.out : '—'} {destSym}
+            </Typography>
+          </Stack>
+        </Stack>
+
+        <CopyRow label="CLI command" value={cliCmd} />
+        <CopyRow label="curl + jq (best rate)" value={curlCmd} />
+      </Stack>
+    </HoverCard>
   );
 };
 

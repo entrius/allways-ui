@@ -48,27 +48,15 @@ const Hero: React.FC = () => {
           justifyContent: 'center',
         }}
       >
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: 'primary.main',
-            mb: { xs: 2, md: 3 },
-          }}
-        >
+        <Typography variant="eyebrow" sx={{ mb: { xs: 2, md: 3 } }}>
           Bittensor · Subnet 7
         </Typography>
 
         <Typography
+          variant="display"
           sx={{
-            fontFamily: FONTS.heading,
-            fontWeight: 900,
             fontSize: { xs: '2.5rem', sm: '3.5rem', md: '5rem' },
             lineHeight: 0.95,
-            letterSpacing: '-0.04em',
-            textTransform: 'uppercase',
             color: 'text.primary',
             maxWidth: 1100,
           }}

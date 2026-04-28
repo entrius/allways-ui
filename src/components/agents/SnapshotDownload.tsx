@@ -9,6 +9,7 @@ import {
   useActiveSwaps,
   useLatestEvents,
 } from '../../api';
+import HoverCard from '../HoverCard';
 
 const SnapshotDownload: React.FC = () => {
   const { data: stats } = useStats();
@@ -40,82 +41,71 @@ const SnapshotDownload: React.FC = () => {
   };
 
   return (
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      alignItems={{ xs: 'flex-start', sm: 'center' }}
-      spacing={2}
-      sx={{
-        border: '1px solid',
-        borderColor: 'divider',
-        p: { xs: 2.5, md: 3 },
-        backgroundColor: 'surface.light',
-      }}
-    >
-      <Stack sx={{ flex: 1 }} spacing={0.5}>
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase',
-            color: 'primary.main',
-          }}
-        >
-          Live state snapshot
-        </Typography>
-        <Typography
-          sx={{
-            fontFamily: FONTS.heading,
-            fontWeight: 800,
-            fontSize: { xs: '1.05rem', md: '1.15rem' },
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Download a JSON of the network right now.
-        </Typography>
-        <Typography
-          sx={{
-            fontFamily: FONTS.body,
-            fontSize: '0.85rem',
-            color: 'text.secondary',
-          }}
-        >
-          Stats, miners, active swaps, and recent events in one file. Skip four
-          API calls in your agent's bootstrap.
-        </Typography>
+    <HoverCard sx={{ backgroundColor: 'surface.light' }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        spacing={2}
+        sx={{ p: { xs: 2.5, md: 3 } }}
+      >
+        <Stack sx={{ flex: 1 }} spacing={0.5}>
+          <Typography variant="eyebrow" sx={{ letterSpacing: '0.15em' }}>
+            Live state snapshot
+          </Typography>
+          <Typography
+            variant="display"
+            sx={{
+              fontWeight: 800,
+              fontSize: { xs: '1.05rem', md: '1.15rem' },
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Download a JSON of the network right now.
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: FONTS.body,
+              fontSize: '0.85rem',
+              color: 'text.secondary',
+            }}
+          >
+            Stats, miners, active swaps, and recent events in one file. Skip
+            four API calls in your agent's bootstrap.
+          </Typography>
+        </Stack>
+        <Box>
+          <Button
+            variant="outlined"
+            onClick={onDownload}
+            startIcon={
+              downloaded ? (
+                <CheckIcon sx={{ fontSize: 16 }} />
+              ) : (
+                <DownloadIcon sx={{ fontSize: 16 }} />
+              )
+            }
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.75rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              borderRadius: 0,
+              py: 1.25,
+              px: 2.5,
+              borderColor: 'divider',
+              color: 'text.primary',
+              '&:hover': {
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                backgroundColor: 'transparent',
+              },
+            }}
+          >
+            {downloaded ? 'Downloaded' : 'Download snapshot'}
+          </Button>
+        </Box>
       </Stack>
-      <Box>
-        <Button
-          variant="outlined"
-          onClick={onDownload}
-          startIcon={
-            downloaded ? (
-              <CheckIcon sx={{ fontSize: 16 }} />
-            ) : (
-              <DownloadIcon sx={{ fontSize: 16 }} />
-            )
-          }
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.75rem',
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            borderRadius: 0,
-            py: 1.25,
-            px: 2.5,
-            borderColor: 'divider',
-            color: 'text.primary',
-            '&:hover': {
-              borderColor: 'primary.main',
-              color: 'primary.main',
-              backgroundColor: 'transparent',
-            },
-          }}
-        >
-          {downloaded ? 'Downloaded' : 'Download snapshot'}
-        </Button>
-      </Box>
-    </Stack>
+    </HoverCard>
   );
 };
 

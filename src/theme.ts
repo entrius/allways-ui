@@ -95,11 +95,13 @@ declare module '@mui/material/styles' {
     mono: React.CSSProperties;
     monoSmall: React.CSSProperties;
     display: React.CSSProperties;
+    eyebrow: React.CSSProperties;
   }
   interface TypographyVariantsOptions {
     mono?: React.CSSProperties;
     monoSmall?: React.CSSProperties;
     display?: React.CSSProperties;
+    eyebrow?: React.CSSProperties;
   }
 }
 
@@ -108,6 +110,7 @@ declare module '@mui/material/Typography' {
     mono: true;
     monoSmall: true;
     display: true;
+    eyebrow: true;
   }
 }
 
@@ -196,6 +199,14 @@ export function createAppTheme(mode: ThemeMode): Theme {
         fontWeight: 400,
         letterSpacing: '0.5px',
         textTransform: 'uppercase',
+      },
+      eyebrow: {
+        fontFamily: FONTS.mono,
+        fontSize: '0.7rem',
+        fontWeight: 400,
+        letterSpacing: '0.2em',
+        textTransform: 'uppercase',
+        color: p.primary,
       },
     },
     components: {

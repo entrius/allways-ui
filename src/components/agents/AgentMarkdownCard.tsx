@@ -1,20 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import LinkIcon from '@mui/icons-material/Link';
 import { FONTS } from '../../theme';
+import { useCopy } from '../../hooks';
+import HoverCard from '../HoverCard';
 import { AGENT_MARKDOWN } from './AgentMarkdown';
-
-const useCopy = () => {
-  const [copied, setCopied] = useState(false);
-  const copy = (value: string) => {
-    void navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return { copied, copy };
-};
 
 const btnSx = {
   fontFamily: FONTS.mono,
@@ -38,13 +30,7 @@ const AgentMarkdownCard: React.FC = () => {
       : '/llms.txt';
 
   return (
-    <Stack
-      sx={{
-        border: '1px solid',
-        borderColor: 'divider',
-        backgroundColor: 'surface.light',
-      }}
-    >
+    <HoverCard sx={{ backgroundColor: 'surface.light' }}>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         alignItems={{ xs: 'flex-start', sm: 'center' }}
@@ -56,20 +42,12 @@ const AgentMarkdownCard: React.FC = () => {
         }}
       >
         <Stack sx={{ flex: 1 }} spacing={0.5}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: 'primary.main',
-            }}
-          >
+          <Typography variant="eyebrow" sx={{ letterSpacing: '0.15em' }}>
             One-click context bundle
           </Typography>
           <Typography
+            variant="display"
             sx={{
-              fontFamily: FONTS.heading,
               fontWeight: 800,
               fontSize: { xs: '1.1rem', md: '1.25rem' },
               letterSpacing: '-0.01em',
@@ -137,7 +115,7 @@ const AgentMarkdownCard: React.FC = () => {
       >
         {AGENT_MARKDOWN}
       </Box>
-    </Stack>
+    </HoverCard>
   );
 };
 

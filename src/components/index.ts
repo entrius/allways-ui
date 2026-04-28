@@ -1,4 +1,6 @@
 export { default as CopyableAddress } from './CopyableAddress';
+export { default as BrandMark } from './BrandMark';
+export { default as HoverCard } from './HoverCard';
 export { SEO } from './SEO';
 export type { SEOProps } from './SEO';
 export * from './dashboard';
@@ -7,3 +9,4 @@ export * from './nav';
 export * from './animated';
 export * from './landing';
 export * from './agents';
+export * from './swap';

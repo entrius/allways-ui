@@ -78,10 +78,14 @@ export const RollingChar: React.FC<{ char: string }> = ({ char }) => {
 
 const RollingValue: React.FC<{ value: string }> = ({ value }) => {
   const chars = value.split('');
+  // Key by position from the right so when the value gains/loses a digit
+  // (e.g. 99 -> 100), the digits that already existed keep their identity
+  // and only the new leading digit mounts. Right-anchored keys mean the
+  // ones place stays the ones place across length changes.
   return (
     <Box sx={{ display: 'inline-flex', justifyContent: 'center' }}>
       {chars.map((c, i) => (
-        <RollingChar key={`${chars.length}-${i}`} char={c} />
+        <RollingChar key={`r${chars.length - 1 - i}`} char={c} />
       ))}
     </Box>
   );

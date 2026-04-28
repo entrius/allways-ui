@@ -1,88 +1,9 @@
 import React from 'react';
-import { Box, Button, Link, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Link, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { FONTS } from '../theme';
-import { Page, SEO } from '../components';
-
-interface TokenInputProps {
-  label: string;
-  symbol: string;
-  balance: string;
-}
-
-const TokenInput: React.FC<TokenInputProps> = ({ label, symbol, balance }) => (
-  <Stack
-    sx={{
-      p: 2,
-      border: '1px solid',
-      borderColor: 'divider',
-      gap: 1,
-    }}
-  >
-    <Stack direction="row" justifyContent="space-between">
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.65rem',
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: 'text.secondary',
-        }}
-      >
-        {label}
-      </Typography>
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.65rem',
-          color: 'text.secondary',
-        }}
-      >
-        Balance: {balance}
-      </Typography>
-    </Stack>
-    <Stack direction="row" alignItems="center" spacing={1.5}>
-      <TextField
-        value="0.0"
-        variant="standard"
-        InputProps={{
-          disableUnderline: true,
-          sx: {
-            fontFamily: FONTS.mono,
-            fontSize: '1.75rem',
-            fontWeight: 600,
-          },
-        }}
-        sx={{ flex: 1 }}
-      />
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={0.5}
-        sx={{
-          px: 1.25,
-          py: 0.75,
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontWeight: 700,
-            fontSize: '0.85rem',
-            letterSpacing: '0.05em',
-          }}
-        >
-          {symbol}
-        </Typography>
-        <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
-      </Stack>
-    </Stack>
-  </Stack>
-);
+import { Page, SEO, TokenInput } from '../components';
 
 const SwapPage: React.FC = () => (
   <Page>

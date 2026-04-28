@@ -17,7 +17,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { FONTS } from '../../theme';
 import { useThemeMode } from '../../ThemeContext';
-import logo from '../../assets/logo.jpg';
+import BrandMark from '../BrandMark';
 import SocialLinks from './SocialLinks';
 import { NAV_ITEMS, docsUrl } from './links';
 
@@ -95,16 +95,7 @@ const TopNav: React.FC = () => {
         spacing={1.25}
         sx={{ textDecoration: 'none', color: 'text.primary' }}
       >
-        <Box
-          component="img"
-          src={logo}
-          alt="Allways"
-          sx={{
-            height: 24,
-            filter: mode === 'dark' ? 'invert(1)' : 'none',
-            mixBlendMode: mode === 'dark' ? 'screen' : 'multiply',
-          }}
-        />
+        <BrandMark size={24} />
         <Typography
           sx={{
             fontFamily: FONTS.heading,

@@ -1,10 +1,12 @@
 import React from 'react';
-import { Box, Grid, Stack, Typography } from '@mui/material';
+import { Grid, Stack, Typography } from '@mui/material';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import { FONTS } from '../../theme';
+import HoverCard from '../HoverCard';
+import Section from './Section';
 
 interface Prop {
   Icon: React.ElementType;
@@ -36,63 +38,16 @@ const PROPS: Prop[] = [
 ];
 
 const ValueProps: React.FC = () => (
-  <Box
-    sx={{
-      width: '100%',
-      backgroundColor: 'background.default',
-      borderBottom: '1px solid',
-      borderColor: 'divider',
-      px: { xs: 2, sm: 3, md: 6 },
-      py: { xs: 6, md: 10 },
-    }}
-  >
-    <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.7rem',
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          color: 'primary.main',
-          mb: 1,
-        }}
-      >
-        Why allways
-      </Typography>
-      <Typography
-        sx={{
-          fontFamily: FONTS.heading,
-          fontWeight: 900,
-          fontSize: { xs: '1.75rem', md: '2.5rem' },
-          letterSpacing: '-0.03em',
-          textTransform: 'uppercase',
-          color: 'text.primary',
-          mb: { xs: 4, md: 6 },
-          maxWidth: 700,
-          lineHeight: 1,
-        }}
-      >
-        Built for the next million swaps.
-      </Typography>
-
-      <Grid container spacing={{ xs: 2, md: 3 }}>
-        {PROPS.map(({ Icon, title, body }) => (
-          <Grid item xs={12} sm={6} md={3} key={title}>
-            <Stack
-              sx={{
-                p: { xs: 2.5, md: 3 },
-                border: '1px solid',
-                borderColor: 'divider',
-                height: '100%',
-                gap: 1.75,
-                transition: 'border-color 120ms',
-                '&:hover': { borderColor: 'primary.main' },
-              }}
-            >
+  <Section eyebrow="Why allways" title="Built for the next million swaps.">
+    <Grid container spacing={{ xs: 2, md: 3 }}>
+      {PROPS.map(({ Icon, title, body }) => (
+        <Grid item xs={12} sm={6} md={3} key={title}>
+          <HoverCard sx={{ p: { xs: 2.5, md: 3 }, height: '100%' }}>
+            <Stack sx={{ height: '100%', gap: 1.75 }}>
               <Icon sx={{ fontSize: 22, color: 'primary.main' }} />
               <Typography
+                variant="display"
                 sx={{
-                  fontFamily: FONTS.heading,
                   fontWeight: 800,
                   fontSize: '1.15rem',
                   letterSpacing: '-0.01em',
@@ -112,11 +67,11 @@ const ValueProps: React.FC = () => (
                 {body}
               </Typography>
             </Stack>
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
-  </Box>
+          </HoverCard>
+        </Grid>
+      ))}
+    </Grid>
+  </Section>
 );
 
 export default ValueProps;

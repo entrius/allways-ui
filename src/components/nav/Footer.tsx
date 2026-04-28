@@ -2,8 +2,7 @@ import React from 'react';
 import { Box, Grid, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { FONTS } from '../../theme';
-import logo from '../../assets/logo.jpg';
-import { useThemeMode } from '../../ThemeContext';
+import BrandMark from '../BrandMark';
 import SocialLinks from './SocialLinks';
 import { LINKS, docsUrl } from './links';
 
@@ -27,7 +26,6 @@ const linkSx = {
 };
 
 const Footer: React.FC = () => {
-  const { mode } = useThemeMode();
   const docs = docsUrl();
 
   return (
@@ -47,16 +45,7 @@ const Footer: React.FC = () => {
         <Grid container spacing={4}>
           <Grid item xs={12} md={6}>
             <Stack direction="row" alignItems="center" spacing={1.25}>
-              <Box
-                component="img"
-                src={logo}
-                alt="Allways"
-                sx={{
-                  height: 28,
-                  filter: mode === 'dark' ? 'invert(1)' : 'none',
-                  mixBlendMode: mode === 'dark' ? 'screen' : 'multiply',
-                }}
-              />
+              <BrandMark size={28} />
               <Typography
                 sx={{
                   fontFamily: FONTS.heading,

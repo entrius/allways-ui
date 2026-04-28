@@ -1,6 +1,8 @@
 import React from 'react';
-import { Box, Grid, Stack, Typography } from '@mui/material';
+import { Grid, Stack, Typography } from '@mui/material';
 import { FONTS } from '../../theme';
+import HoverCard from '../HoverCard';
+import Section from './Section';
 
 interface Step {
   num: string;
@@ -22,64 +24,17 @@ const STEPS: Step[] = [
   {
     num: '03',
     title: 'Settle',
-    body: 'Funds move peer-to-peer. Validators verify both sides. Failures auto-refund from collateral.',
+    body: 'Funds move peer to peer. Validators verify both sides. Failures auto-refund from collateral.',
   },
 ];
 
 const HowItWorks: React.FC = () => (
-  <Box
-    sx={{
-      width: '100%',
-      backgroundColor: 'background.default',
-      borderBottom: '1px solid',
-      borderColor: 'divider',
-      px: { xs: 2, sm: 3, md: 6 },
-      py: { xs: 6, md: 10 },
-    }}
-  >
-    <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.7rem',
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          color: 'primary.main',
-          mb: 1,
-        }}
-      >
-        How it works
-      </Typography>
-      <Typography
-        sx={{
-          fontFamily: FONTS.heading,
-          fontWeight: 900,
-          fontSize: { xs: '1.75rem', md: '2.5rem' },
-          letterSpacing: '-0.03em',
-          textTransform: 'uppercase',
-          color: 'text.primary',
-          mb: { xs: 4, md: 6 },
-          maxWidth: 700,
-          lineHeight: 1,
-        }}
-      >
-        Three steps. Zero trust.
-      </Typography>
-
-      <Grid container spacing={{ xs: 2, md: 3 }}>
-        {STEPS.map((step) => (
-          <Grid item xs={12} md={4} key={step.num}>
-            <Stack
-              sx={{
-                p: { xs: 2.5, md: 3 },
-                border: '1px solid',
-                borderColor: 'divider',
-                height: '100%',
-                gap: 2,
-                transition: 'border-color 120ms',
-                '&:hover': { borderColor: 'primary.main' },
-              }}
-            >
+  <Section eyebrow="How it works" title="Three steps. Zero trust.">
+    <Grid container spacing={{ xs: 2, md: 3 }}>
+      {STEPS.map((step) => (
+        <Grid item xs={12} md={4} key={step.num}>
+          <HoverCard sx={{ p: { xs: 2.5, md: 3 } }}>
+            <Stack sx={{ height: '100%', gap: 2 }}>
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,
@@ -91,13 +46,12 @@ const HowItWorks: React.FC = () => (
                 {step.num}
               </Typography>
               <Typography
+                variant="display"
                 sx={{
-                  fontFamily: FONTS.heading,
                   fontWeight: 800,
                   fontSize: { xs: '1.5rem', md: '1.75rem' },
                   letterSpacing: '-0.02em',
                   color: 'text.primary',
-                  lineHeight: 1,
                 }}
               >
                 {step.title}
@@ -113,11 +67,11 @@ const HowItWorks: React.FC = () => (
                 {step.body}
               </Typography>
             </Stack>
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
-  </Box>
+          </HoverCard>
+        </Grid>
+      ))}
+    </Grid>
+  </Section>
 );
 
 export default HowItWorks;
