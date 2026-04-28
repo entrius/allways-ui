@@ -1,5 +1,13 @@
 import React from 'react';
-import { Box, Chip, Grid, IconButton, Stack, Tooltip, Typography } from '@mui/material';
+import {
+  Box,
+  Chip,
+  Grid,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
