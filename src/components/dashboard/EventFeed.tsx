@@ -1,6 +1,16 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Button, Chip, Stack, Typography, useTheme } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+  useTheme,
+} from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { displayEventType, useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
@@ -57,12 +67,35 @@ const EventFeed: React.FC = () => {
     <EventFeedSkeleton />
   ) : (
     <Box sx={{ position: 'relative' }}>
-      <Typography
-        variant="h6"
-        sx={{ mb: 2, fontFamily: FONTS.heading, fontWeight: 700 }}
-      >
-        Live Events
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Typography
+          variant="h6"
+          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+        >
+          Live Events
+        </Typography>
+        <Tooltip
+          title={
+            <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                What is this?
+              </Typography>
+              <Typography variant="body2">
+                A real-time stream of events emitted by the smart contract and
+                the underlying chain — swap lifecycle, miner collateral changes,
+                validator votes, and reservations. Newest events appear at the
+                top.
+              </Typography>
+            </Stack>
+          }
+          arrow
+          placement="right"
+        >
+          <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+            <InfoOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
       <Box
         ref={scrollRef}
         onScroll={handleScroll}

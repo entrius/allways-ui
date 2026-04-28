@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
+  IconButton,
   InputAdornment,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -16,6 +18,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
@@ -72,8 +75,8 @@ const getSortValue = (m: Miner, key: SortKey): string | number => {
 const columns: { key: SortKey; label: string }[] = [
   { key: 'uid', label: 'UID' },
   { key: 'pair', label: 'Pair' },
-  { key: 'rate', label: 'Rate (TAO/BTC · BTC/TAO)' },
-  { key: 'collateral', label: 'Capacity (TAO)' },
+  { key: 'rate', label: 'Rate' },
+  { key: 'collateral', label: 'Capacity' },
   { key: 'status', label: 'Status' },
   { key: 'hotkey', label: 'Hotkey' },
 ];
@@ -94,6 +97,8 @@ const MinerRatesTable: React.FC = () => {
     return { color: theme.palette.primary.main, label: 'Available' };
   };
 
+  // Tighter horizontal padding than MUI's default (16px → 8px) so columns
+  // get more breathing room before any content has to wrap.
   const headerSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.65rem',
@@ -102,12 +107,26 @@ const MinerRatesTable: React.FC = () => {
     backgroundColor: theme.palette.background.default,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
+    px: 1,
   };
 
   const cellSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.75rem',
     borderBottom: `1px solid ${theme.palette.divider}`,
+    px: 1,
+  };
+
+  // Fixed width for UID so 1/2/3-digit values don't reflow the column.
+  const uidColSx = { width: 48, minWidth: 48 };
+
+  // Rate cell sits a touch further from Pair so the two columns don't
+  // visually fuse together; Capacity is centered in its column instead
+  // of jamming left while the column itself is wide.
+  const colOverrides: Partial<Record<SortKey, Record<string, unknown>>> = {
+    uid: uidColSx,
+    rate: { pl: 2 },
+    collateral: { textAlign: 'center' },
   };
 
   const { data: miners, isLoading } = useMiners();
@@ -201,19 +220,75 @@ const MinerRatesTable: React.FC = () => {
     const disabled =
       theme.palette.text.disabled || theme.palette.text.secondary;
     const formatOr = (v: number) => (v > 0 ? v.toFixed(2) : '\u2014');
+    // Both rates are stored and shown as TAO per 1 unit of the non-TAO asset,
+    // so the user reads a single unit ("TAO") and the spread between the two
+    // rows is the miner's margin.
     const tooltipLines: string[] = [];
     if (src && dst) {
       tooltipLines.push(
         forward > 0
-          ? `${src} \u2192 ${dst}: ${forward.toFixed(6)}`
+          ? `${src} \u2192 ${dst}: ${forward.toFixed(2)} TAO per 1 ${src}`
           : `${src} \u2192 ${dst}: not quoted`,
       );
       tooltipLines.push(
         reverse > 0
-          ? `${dst} \u2192 ${src}: ${reverse.toFixed(6)}  (1 ${src} per ${(1 / reverse).toFixed(6)} ${dst})`
+          ? `${dst} \u2192 ${src}: ${reverse.toFixed(2)} TAO per 1 ${src}`
           : `${dst} \u2192 ${src}: not quoted`,
       );
     }
+    // Dim the row whose direction is filtered out so the active rate is the
+    // obvious one to read.
+    const forwardDimmed = direction === 'reverse';
+    const reverseDimmed = direction === 'forward';
+    const labelSx = {
+      color: theme.palette.text.secondary,
+      fontSize: '0.65rem',
+      letterSpacing: '0.03em',
+    } as const;
+    // τ glyph inherits the cell font size (no shrink) so it carries enough
+    // visual weight to read as a unit suffix, just muted in color.
+    const unitSx = {
+      color: theme.palette.text.disabled,
+    } as const;
+    const renderRow = (
+      from: string,
+      to: string,
+      value: number,
+      dimmed: boolean,
+      valueColor: string,
+    ) => (
+      <Box
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          opacity: dimmed ? 0.35 : 1,
+          transition: 'opacity 0.15s',
+        }}
+      >
+        <Box component="span" sx={{ ...labelSx, mr: 1 }}>
+          {from}
+          {'\u2192'}
+          {to}
+        </Box>
+        <Box
+          component="span"
+          sx={{
+            color: value > 0 ? valueColor : disabled,
+            display: 'inline-block',
+            minWidth: 64,
+            textAlign: 'center',
+            // Tabular figures keep digit columns aligned across both rows
+            // (so "99.00" and "100.50" line up vertically).
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {formatOr(value)}
+        </Box>
+        <Box component="span" sx={{ ...unitSx, ml: 0.25 }}>
+          τ
+        </Box>
+      </Box>
+    );
     return (
       <Tooltip
         title={
@@ -233,27 +308,33 @@ const MinerRatesTable: React.FC = () => {
         <Box
           sx={{
             display: 'inline-flex',
-            alignItems: 'baseline',
-            gap: 0.5,
+            flexDirection: 'column',
+            gap: 0.25,
             fontFamily: FONTS.mono,
-            cursor: tooltipLines.length > 0 ? 'help' : 'default',
           }}
         >
-          <span
-            style={{
-              color: forward > 0 ? theme.palette.primary.main : disabled,
-            }}
-          >
-            {formatOr(forward)}
-          </span>
-          <span style={{ color: theme.palette.text.disabled }}>/</span>
-          <span
-            style={{
-              color: reverse > 0 ? theme.palette.text.secondary : disabled,
-            }}
-          >
-            {formatOr(reverse)}
-          </span>
+          {src && dst ? (
+            <>
+              {renderRow(
+                src,
+                dst,
+                forward,
+                forwardDimmed,
+                theme.palette.primary.main,
+              )}
+              {renderRow(
+                dst,
+                src,
+                reverse,
+                reverseDimmed,
+                theme.palette.text.primary,
+              )}
+            </>
+          ) : (
+            <Box component="span" sx={{ color: disabled }}>
+              {'\u2014'}
+            </Box>
+          )}
         </Box>
       </Tooltip>
     );
@@ -279,12 +360,38 @@ const MinerRatesTable: React.FC = () => {
           flexWrap: 'wrap',
         }}
       >
-        <Typography
-          variant="h6"
-          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-        >
-          Active Providers
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+          >
+            Active Rates
+          </Typography>
+          <Tooltip
+            title={
+              <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                  What is this?
+                </Typography>
+                <Typography variant="body2">
+                  Live exchange rates quoted by every active miner on the
+                  network. Each row is one miner; both directions (BTC→TAO and
+                  TAO→BTC) are shown when quoted, with the spread between them
+                  being the miner's margin.
+                </Typography>
+                <Typography variant="body2">
+                  Sort by rate or capacity to find the best counterparty.
+                </Typography>
+              </Stack>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
         <Box
           sx={{
@@ -372,7 +479,10 @@ const MinerRatesTable: React.FC = () => {
           <TableHead>
             <TableRow>
               {columns.map((col) => (
-                <TableCell key={col.key} sx={headerSx}>
+                <TableCell
+                  key={col.key}
+                  sx={{ ...headerSx, ...(colOverrides[col.key] ?? {}) }}
+                >
                   <TableSortLabel
                     active={sortKey === col.key}
                     direction={sortKey === col.key ? sortDir : 'asc'}
@@ -415,20 +525,58 @@ const MinerRatesTable: React.FC = () => {
                       : '2px solid transparent',
                   }}
                 >
-                  <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
+                  <TableCell
+                    sx={{ ...cellSx, ...uidColSx, color: 'text.primary' }}
+                  >
                     {miner.uid}
                   </TableCell>
                   <TableCell sx={{ ...cellSx, color: 'text.secondary' }}>
                     {renderPairCell(miner)}
                   </TableCell>
-                  <TableCell sx={{ ...cellSx }}>
+                  <TableCell sx={{ ...cellSx, ...(colOverrides.rate ?? {}) }}>
                     {renderRateCell(miner)}
                   </TableCell>
-                  <TableCell sx={{ ...cellSx, color: 'text.secondary' }}>
-                    {formatCollateral(miner.collateralRao)}
+                  <TableCell
+                    sx={{
+                      ...cellSx,
+                      ...(colOverrides.collateral ?? {}),
+                      color: 'text.secondary',
+                    }}
+                  >
+                    <Tooltip
+                      title={
+                        <Box
+                          sx={{
+                            fontFamily: FONTS.mono,
+                            fontSize: '0.7rem',
+                            maxWidth: 240,
+                          }}
+                        >
+                          Total TAO collateral this miner has posted on the
+                          contract. Caps the size of swaps they can fulfill —
+                          higher collateral means more swap capacity, and is
+                          what gets slashed if they fail to deliver.
+                        </Box>
+                      }
+                      arrow
+                      placement="top"
+                    >
+                      <Box component="span">
+                        {formatCollateral(miner.collateralRao)}
+                        <Box
+                          component="span"
+                          sx={{ color: theme.palette.text.disabled, ml: 0.5 }}
+                        >
+                          τ
+                        </Box>
+                      </Box>
+                    </Tooltip>
                   </TableCell>
                   <TableCell
-                    sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}
+                    sx={{
+                      borderBottom: `1px solid ${theme.palette.divider}`,
+                      px: 1,
+                    }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Box
