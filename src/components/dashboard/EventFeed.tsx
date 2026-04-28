@@ -81,9 +81,10 @@ const EventFeed: React.FC = () => {
                 What is this?
               </Typography>
               <Typography variant="body2">
-                A real-time stream of every event the contract emits — swap
-                initiations, fulfillments, completions, timeouts, miner
-                collateral changes, and votes. Newest events appear at the top.
+                A real-time stream of events emitted by the smart contract and
+                the underlying chain — swap lifecycle, miner collateral changes,
+                validator votes, and reservations. Newest events appear at the
+                top.
               </Typography>
             </Stack>
           }
