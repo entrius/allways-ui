@@ -85,7 +85,14 @@ const SwapTracker: React.FC = () => {
   return isLoading && !swaps ? (
     <SwapTrackerSkeleton />
   ) : (
-    <Box>
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+      }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         <Typography
           variant="h6"
@@ -158,7 +165,8 @@ const SwapTracker: React.FC = () => {
           ref={scrollRef}
           onScroll={handleScroll}
           sx={{
-            height: 480,
+            flex: 1,
+            minHeight: 0,
             overflowY: 'auto',
             '&::-webkit-scrollbar': { width: 4 },
             '&::-webkit-scrollbar-thumb': {

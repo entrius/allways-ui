@@ -3,6 +3,7 @@ import { Stack } from '@mui/material';
 import { Outlet } from 'react-router-dom';
 import { useOnNavigate } from '../../hooks';
 import LoadingPage from '../../pages/LoadingPage';
+import { TopNav, Footer } from '../nav';
 
 const AppLayout: React.FC = () => {
   const mainRef = useRef<HTMLElement>(null);
@@ -15,9 +16,9 @@ const AppLayout: React.FC = () => {
         minHeight: '100vh',
         height: '100vh',
         overflow: 'hidden',
-        justifyContent: 'center',
       }}
     >
+      <TopNav />
       <Stack
         ref={mainRef}
         component="main"
@@ -28,12 +29,13 @@ const AppLayout: React.FC = () => {
           overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
+          alignItems: 'stretch',
         }}
       >
         <Suspense fallback={<LoadingPage />}>
           <Outlet />
         </Suspense>
+        <Footer />
       </Stack>
     </Stack>
   );

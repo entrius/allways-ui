@@ -1,0 +1,134 @@
+# Allways — Agent Quickstart
+
+> Universal transaction layer for trustless peer to peer swaps on Bittensor Subnet 7.
+> This document is optimized for LLM ingestion. Read it top to bottom — by the
+> end you will be able to query rates, initiate swaps, and watch live state
+> without further help.
+
+## What Allways is
+
+Allways (SN7) runs a permissionless on-chain orderbook of miners quoting
+real exchange rates between BTC and TAO (more pairs coming). Users initiate
+swaps on-chain; miners post collateral that gets slashed if they fail to
+deliver. There is no custodian, no wrapped asset, and no bridge token. The
+contract guarantees every swap either completes or refunds.
+
+## Swap lifecycle
+
+1. **Quote.** Each miner publishes `(sourceChain, destChain, rate,
+   counterRate, collateralRao)` on-chain. The API exposes this as
+   `GET /miners`. Best rate wins.
+2. **Initiate.** User picks a miner and submits an InitiateSwap extrinsic
+   referencing that miner's hotkey, the source amount, and a deadline block.
+   Miner collateral is locked.
+3. **Fulfill.** Miner sends the destination asset to the user's destination
+   address and posts proof. Status: ACTIVE → FULFILLED.
+4. **Complete.** User confirms receipt (or validators confirm via on-chain
+   proof). Status: FULFILLED → COMPLETED. Collateral unlocks.
+5. **Timeout / refund.** If the miner fails before the timeout block, swap
+   moves to TIMED_OUT and the user receives slashed TAO from miner
+   collateral via `alw claim`.
+
+## CLI quickstart
+
+Install (Python ≥ 3.10):
+
+    pip install allways-cli
+
+Common commands:
+
+    alw rates                                                    # live orderbook
+    alw quote --from BTC --to TAO --amount 0.01                  # best rate
+    alw swap initiate --miner <uid> --from BTC --amount 0.01 --to-address <addr>
+    alw swap status <swap-id>
+    alw claim <swap-id>                                          # refund timed-out swap
+
+Wallet setup uses standard Bittensor wallet conventions (`btcli wallet
+new_coldkey`). Hotkey funds gas; coldkey holds positions.
+
+## API reference
+
+Base URL: `https://api.all-ways.io` (production), `https://test-api.all-ways.io` (testnet).
+
+| Method | Path                    | Purpose                                                  |
+|--------|-------------------------|----------------------------------------------------------|
+| GET    | /stats                  | Global counters: totalSwaps, totalVolumeTao, activeMiners, activeSwaps |
+| GET    | /miners                 | Live miner commitments (rate, collateral, status)        |
+| GET    | /miners/{hotkey}        | A single miner by hotkey                                 |
+| GET    | /swaps                  | All swaps (paginated via limit/offset, searchable)       |
+| GET    | /swaps/active           | Currently active swaps (ACTIVE | FULFILLED)              |
+| GET    | /swaps/{swapId}         | A single swap + its event timeline                       |
+| GET    | /events/latest          | Recent contract events (filterable)                      |
+| GET    | /events                 | Filtered events (eventType, blockFrom, blockTo, ...)     |
+| GET    | /sse                    | Server-Sent Events stream (event, miner, swap channels)  |
+| GET    | /llms.txt               | This document, served as static markdown                 |
+
+TypeScript shapes (mirrored from the UI):
+
+    type Miner = {
+      uid: number; hotkey: string;
+      sourceChain: string | null; destChain: string | null;
+      rate: string | null; counterRate: string | null;
+      collateralRao: string;
+      isActive: boolean; isReserved: boolean; hasActiveSwap: boolean;
+      updatedAt: string;
+    };
+
+    type DashboardStats = {
+      totalSwaps: number; totalVolumeTao: string;
+      activeMiners: number; activeSwaps: number;
+    };
+
+    type ActiveSwap = {
+      swapId: string;
+      status: 'ACTIVE' | 'FULFILLED' | 'COMPLETED' | 'TIMED_OUT';
+      userAddress: string; minerHotkey: string;
+      sourceChain: string; destChain: string;
+      sourceAmount: string; destAmount: string; taoAmount: string;
+      rate: string;
+      // ... tx hashes, blocks, timestamps
+    };
+
+## Example agent flows
+
+### Find best BTC→TAO rate
+
+    GET /miners
+    -> filter: sourceChain='BTC' AND destChain='TAO' AND isActive AND rate != null
+    -> sort by parseFloat(rate) DESC
+    -> miners[0] is your target
+
+### Initiate a swap
+
+    1. Re-fetch GET /miners (rates change every block).
+    2. CLI: alw swap initiate --miner <uid> --from BTC --amount 0.01 --to-address <tao-addr>
+    3. Persist returned swapId.
+    4. Poll GET /swaps/{swapId} every 30s OR subscribe to /sse 'swap' channel.
+    5. status === 'COMPLETED' → done. status === 'TIMED_OUT' → call alw claim.
+
+### Watch a swap with SSE
+
+    const es = new EventSource('https://api.all-ways.io/sse');
+    es.addEventListener('swap', (e) => {
+      const swap = JSON.parse(e.data);
+      if (swap.swapId === MY_SWAP_ID) updateState(swap);
+    });
+
+## Notes for agents
+
+- All amounts are decimal strings (RAO units for collateral, native units
+  elsewhere). Parse with arbitrary-precision libraries, not floats.
+- Bittensor block time ≈ 12 seconds. `timeoutBlock - initiatedBlock` is the
+  swap window in blocks.
+- The orderbook is genuinely live; rates change every block. Re-quote
+  before initiating.
+- Public API is currently unrate-limited. Be a good citizen.
+- Sender verification: validators reject any source tx whose on-chain sender
+  does not match the source_address proved at reserve time.
+
+## Source of truth
+
+- Repo: https://github.com/entrius/allways
+- UI repo: https://github.com/entrius/allways-ui
+- Docs: https://docs.all-ways.io/
+- Status: https://status.all-ways.io
