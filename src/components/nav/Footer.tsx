@@ -80,8 +80,7 @@ const Footer: React.FC = () => {
               }}
             >
               Universal transaction layer. Trustless peer to peer swaps on
-              Bittensor
-              Subnet 7.
+              Bittensor Subnet 7.
             </Typography>
           </Grid>
 
@@ -172,8 +171,8 @@ const Footer: React.FC = () => {
           >
             Allways is permissionless, open-source, beta software. The protocol
             facilitates trustless peer to peer transactions — the creators and
-            contributors do not custody, control, or intermediate any funds.
-            Use at your own risk. No warranty. Not financial advice.
+            contributors do not custody, control, or intermediate any funds. Use
+            at your own risk. No warranty. Not financial advice.
           </Typography>
         </Box>
 

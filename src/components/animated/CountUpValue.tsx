@@ -70,8 +70,10 @@ const CountUpValue: React.FC<Props> = ({ value, durationMs = 1800 }) => {
         <RollingValue value={value} />
       ) : phase === 'animating' ? (
         display
+      ) : finite ? (
+        (0).toFixed(decimals)
       ) : (
-        finite ? (0).toFixed(decimals) : '—'
+        '—'
       )}
     </Box>
   );
