@@ -235,6 +235,7 @@ const EventFeed: React.FC = () => {
       {scrolled && (
         <Button
           onClick={scrollToTop}
+          aria-label="Scroll to top"
           size="small"
           sx={{
             position: 'absolute',

@@ -500,7 +500,7 @@ const SwapDetailPage: React.FC = () => {
 const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Stack
     sx={{
-      minHeight: '100vh',
+      minHeight: '100dvh',
       backgroundColor: 'background.default',
       px: { xs: 1.5, sm: 2, md: 4 },
       py: { xs: 2, sm: 3, md: 4 },
