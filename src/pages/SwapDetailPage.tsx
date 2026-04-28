@@ -113,7 +113,7 @@ const SwapDetailPage: React.FC = () => {
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
         <Typography
           component={RouterLink}
-          to="/"
+          to="/dashboard"
           sx={{
             fontFamily: FONTS.mono,
             fontSize: '0.8rem',

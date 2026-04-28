@@ -14,8 +14,14 @@ export const useApiQuery = <TResponse = void, TSelect = TResponse>(
     queryKey: [queryName, url, queryParams],
     queryFn: async () => {
       const requestUrl = baseUrl ? `${baseUrl}${url}` : url;
-      const { data } = await axios.get(requestUrl, { params: queryParams });
-      return data;
+      const response = await axios.get(requestUrl, { params: queryParams });
+      const contentType = String(response.headers['content-type'] ?? '');
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          `Expected JSON from ${requestUrl}, got ${contentType || 'unknown'}`,
+        );
+      }
+      return response.data;
     },
     retry: false,
     enabled: enabled ?? true,

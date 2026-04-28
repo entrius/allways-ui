@@ -3,3 +3,7 @@ export { SEO } from './SEO';
 export type { SEOProps } from './SEO';
 export * from './dashboard';
 export * from './layout';
+export * from './nav';
+export * from './animated';
+export * from './landing';
+export * from './agents';

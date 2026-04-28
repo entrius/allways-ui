@@ -10,7 +10,7 @@ export interface SEOProps {
 }
 
 const SITE_NAME = 'Allways';
-const DEFAULT_IMAGE = '/allways-og.jpg';
+const DEFAULT_IMAGE = '/hero/allways-2.png';
 
 export const SEO: React.FC<SEOProps> = ({
   title,
