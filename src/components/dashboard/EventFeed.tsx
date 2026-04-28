@@ -66,7 +66,15 @@ const EventFeed: React.FC = () => {
   return isLoading || !events ? (
     <EventFeedSkeleton />
   ) : (
-    <Box sx={{ position: 'relative' }}>
+    <Box
+      sx={{
+        position: 'relative',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+      }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Typography
           variant="h6"
@@ -100,7 +108,8 @@ const EventFeed: React.FC = () => {
         ref={scrollRef}
         onScroll={handleScroll}
         sx={{
-          height: 480,
+          flex: 1,
+          minHeight: 480,
           overflowY: 'auto',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
