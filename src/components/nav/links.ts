@@ -5,11 +5,11 @@ export interface NavItem {
   external?: boolean;
 }
 
-// TODO: confirm X handle and Discord invite with team before public launch.
 export const LINKS = {
   github: 'https://github.com/entrius/allways',
-  twitter: 'https://x.com/all_ways_io',
-  discord: 'https://discord.gg/REPLACE_ME',
+  twitter: 'https://x.com/allways_io',
+  discord:
+    'https://discord.com/channels/799672011265015819/1437494877578330174',
   status: 'https://status.all-ways.io',
 } as const;
 

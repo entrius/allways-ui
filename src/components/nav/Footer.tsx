@@ -102,68 +102,72 @@ const Footer: React.FC = () => {
           </Grid>
 
           <Grid item xs={6} md={3}>
-            <Typography sx={colHeadSx}>Product</Typography>
-            <Stack>
-              <Box component={RouterLink} to="/dashboard" sx={linkSx}>
-                Dashboard
-              </Box>
-              <Box component={RouterLink} to="/swap" sx={linkSx}>
-                Swap
-              </Box>
-              <Box component={RouterLink} to="/agents" sx={linkSx}>
-                Agents
-              </Box>
-              <Box
-                component="a"
-                href={docs}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={linkSx}
-              >
-                Docs
-              </Box>
+            <Stack sx={{ height: '100%' }}>
+              <Typography sx={colHeadSx}>Product</Typography>
+              <Stack sx={{ flex: 1, justifyContent: 'space-between' }}>
+                <Box component={RouterLink} to="/dashboard" sx={linkSx}>
+                  Dashboard
+                </Box>
+                <Box component={RouterLink} to="/swap" sx={linkSx}>
+                  Swap
+                </Box>
+                <Box component={RouterLink} to="/agents" sx={linkSx}>
+                  Agents
+                </Box>
+                <Box
+                  component="a"
+                  href={docs}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={linkSx}
+                >
+                  Docs
+                </Box>
+              </Stack>
             </Stack>
           </Grid>
 
           <Grid item xs={6} md={3}>
-            <Typography sx={colHeadSx}>Network</Typography>
-            <Stack>
-              <Box
-                component="a"
-                href={LINKS.github}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={linkSx}
-              >
-                GitHub
-              </Box>
-              <Box
-                component="a"
-                href={LINKS.twitter}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={linkSx}
-              >
-                X
-              </Box>
-              <Box
-                component="a"
-                href={LINKS.discord}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={linkSx}
-              >
-                Discord
-              </Box>
-              <Box
-                component="a"
-                href={LINKS.status}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={linkSx}
-              >
-                Status
-              </Box>
+            <Stack sx={{ height: '100%' }}>
+              <Typography sx={colHeadSx}>Network</Typography>
+              <Stack sx={{ flex: 1, justifyContent: 'space-between' }}>
+                <Box
+                  component="a"
+                  href={LINKS.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={linkSx}
+                >
+                  GitHub
+                </Box>
+                <Box
+                  component="a"
+                  href={LINKS.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={linkSx}
+                >
+                  X
+                </Box>
+                <Box
+                  component="a"
+                  href={LINKS.discord}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={linkSx}
+                >
+                  Discord
+                </Box>
+                <Box
+                  component="a"
+                  href={LINKS.status}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={linkSx}
+                >
+                  Status
+                </Box>
+              </Stack>
             </Stack>
           </Grid>
         </Grid>
