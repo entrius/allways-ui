@@ -8,8 +8,7 @@ export interface NavItem {
 export const LINKS = {
   github: 'https://github.com/entrius/allways',
   twitter: 'https://x.com/allways_io',
-  discord:
-    'https://discord.com/channels/799672011265015819/1437494877578330174',
+  discord: 'https://discord.gg/Q99Z2UQt9J',
   status: 'https://status.all-ways.io',
 } as const;
 
