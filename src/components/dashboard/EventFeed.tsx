@@ -109,7 +109,7 @@ const EventFeed: React.FC = () => {
         onScroll={handleScroll}
         sx={{
           flex: 1,
-          minHeight: 480,
+          minHeight: 0,
           overflowY: 'auto',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {

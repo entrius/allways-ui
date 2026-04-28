@@ -48,7 +48,7 @@ const DashboardPage: React.FC = () => {
             <Stack
               sx={{
                 p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: '100%',
+                height: { xs: 'auto', md: 600 },
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
                 border: '1px solid',
@@ -62,7 +62,7 @@ const DashboardPage: React.FC = () => {
             <Stack
               sx={{
                 p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: '100%',
+                height: { xs: 'auto', md: 600 },
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
                 border: '1px solid',
@@ -76,7 +76,7 @@ const DashboardPage: React.FC = () => {
             <Stack
               sx={{
                 p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: '100%',
+                height: { xs: 'auto', md: 600 },
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
                 border: '1px solid',
@@ -90,7 +90,7 @@ const DashboardPage: React.FC = () => {
             <Stack
               sx={{
                 p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: '100%',
+                height: { xs: 'auto', md: 600 },
                 borderRadius: 0,
                 backgroundColor: 'surface.light',
                 border: '1px solid',

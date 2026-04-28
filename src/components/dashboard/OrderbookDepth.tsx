@@ -207,7 +207,14 @@ const OrderbookDepth: React.FC = () => {
   return isLoading || !miners ? (
     <OrderbookDepthSkeleton />
   ) : (
-    <Box>
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+      }}
+    >
       <Box
         sx={{
           display: 'flex',
@@ -285,7 +292,8 @@ const OrderbookDepth: React.FC = () => {
 
       <TableContainer
         sx={{
-          maxHeight: 500,
+          flex: 1,
+          minHeight: 0,
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
             background: theme.palette.border.light,
