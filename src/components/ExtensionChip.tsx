@@ -38,30 +38,23 @@ export const deriveSwapExtensionStatus = (s: {
   return { kind: 'none' };
 };
 
-export const deriveMinerExtensionStatus = (m: {
-  pendingReservationExtensionTarget: string | null;
-  pendingReservationExtensionProposedBlock: string | null;
-  pendingReservationExtensionProposedBy: string | null;
-  reservationExtensionsUsed: number;
+export const deriveReservationExtensionStatus = (r: {
+  pendingExtensionTarget: string | null;
+  pendingExtensionProposedBlock: string | null;
+  pendingExtensionProposedBy: string | null;
+  extensionsUsed: number;
 }): ExtensionStatus => {
-  if (
-    m.pendingReservationExtensionTarget &&
-    m.pendingReservationExtensionProposedBlock
-  ) {
-    const proposed = parseInt(m.pendingReservationExtensionProposedBlock, 10);
+  if (r.pendingExtensionTarget && r.pendingExtensionProposedBlock) {
+    const proposed = parseInt(r.pendingExtensionProposedBlock, 10);
     return {
       kind: 'pending',
-      target: parseInt(m.pendingReservationExtensionTarget, 10),
+      target: parseInt(r.pendingExtensionTarget, 10),
       finalizableAt: proposed + CHALLENGE_WINDOW_BLOCKS,
-      proposedBy: m.pendingReservationExtensionProposedBy,
+      proposedBy: r.pendingExtensionProposedBy,
     };
   }
-  if (m.reservationExtensionsUsed > 0)
-    return {
-      kind: 'applied',
-      used: m.reservationExtensionsUsed,
-      cap: EXTENSION_CAP,
-    };
+  if (r.extensionsUsed > 0)
+    return { kind: 'applied', used: r.extensionsUsed, cap: EXTENSION_CAP };
   return { kind: 'none' };
 };
 

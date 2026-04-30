@@ -25,6 +25,7 @@ export type ActiveSwap = {
   pendingTimeoutExtensionTarget: string | null;
   pendingTimeoutExtensionProposedBlock: string | null;
   pendingTimeoutExtensionProposedBy: string | null;
+  reservationRequestHash: string | null;
 };
 
 export type SwapDetail = {

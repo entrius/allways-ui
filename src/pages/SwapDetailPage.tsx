@@ -158,6 +158,24 @@ const SwapDetailPage: React.FC = () => {
         Transaction #{swap.swapId}
       </Typography>
 
+      {swap.reservationRequestHash && (
+        <Typography
+          component={RouterLink}
+          to={`/reservations/${swap.reservationRequestHash}`}
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.75rem',
+            color: 'text.secondary',
+            textDecoration: 'none',
+            display: 'inline-block',
+            mb: 2,
+            '&:hover': { color: 'primary.main' },
+          }}
+        >
+          ← View original reservation
+        </Typography>
+      )}
+
       {/* Summary */}
       {swap.sourceChain && swap.destChain && (
         <Card>

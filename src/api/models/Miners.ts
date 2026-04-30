@@ -22,10 +22,5 @@ export type Miner = {
   isActive: boolean;
   isReserved: boolean;
   hasActiveSwap: boolean;
-  reservationExtensionsUsed: number;
-  pendingReservationExtensionTarget: string | null;
-  pendingReservationExtensionProposedBlock: string | null;
-  pendingReservationExtensionProposedBy: string | null;
-  pendingReservationExtensionFromTxHash: string | null;
   updatedAt: string;
 };
