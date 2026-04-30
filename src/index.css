@@ -13,22 +13,54 @@
   --color-surface-light: var(--color-gray);
   --color-surface-elevated: var(--color-gray);
   --color-text-primary: var(--color-woodsmoke);
-  --color-text-secondary: color-mix(in srgb, var(--color-woodsmoke) 60%, transparent);
-  --color-text-muted: color-mix(in srgb, var(--color-woodsmoke) 40%, transparent);
+  --color-text-secondary: color-mix(
+    in srgb,
+    var(--color-woodsmoke) 60%,
+    transparent
+  );
+  --color-text-muted: color-mix(
+    in srgb,
+    var(--color-woodsmoke) 40%,
+    transparent
+  );
   --color-border: var(--color-gray);
   --color-border-light: var(--color-gray);
-  --color-border-medium: color-mix(in srgb, var(--color-woodsmoke) 25%, transparent);
+  --color-border-medium: color-mix(
+    in srgb,
+    var(--color-woodsmoke) 25%,
+    transparent
+  );
 
   /* ── Status colors ──
      Muted, palette-derived hues so event chips stay distinguishable
      without competing with the primary content for attention. */
-  --color-status-active: color-mix(in srgb, var(--color-primary) 55%, transparent);
-  --color-status-fulfilled: color-mix(in srgb, var(--color-secondary) 90%, transparent);
+  --color-status-active: color-mix(
+    in srgb,
+    var(--color-primary) 55%,
+    transparent
+  );
+  --color-status-fulfilled: color-mix(
+    in srgb,
+    var(--color-secondary) 90%,
+    transparent
+  );
   --color-status-completed: var(--color-text-secondary);
   --color-status-timed-out: var(--color-text-muted);
-  --color-status-collateral: color-mix(in srgb, var(--color-secondary) 75%, transparent);
-  --color-status-vote: color-mix(in srgb, var(--color-secondary) 55%, transparent);
-  --color-status-miner-activated: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  --color-status-collateral: color-mix(
+    in srgb,
+    var(--color-secondary) 75%,
+    transparent
+  );
+  --color-status-vote: color-mix(
+    in srgb,
+    var(--color-secondary) 55%,
+    transparent
+  );
+  --color-status-miner-activated: color-mix(
+    in srgb,
+    var(--color-primary) 45%,
+    transparent
+  );
 
   /* ── Asset colors ── */
   --color-asset-btc: #f7931a;
@@ -46,14 +78,30 @@
 [data-theme='dark'] {
   --color-bg: var(--color-woodsmoke);
   --color-surface: var(--color-woodsmoke);
-  --color-surface-light: color-mix(in srgb, var(--color-woodsmoke) 92%, var(--color-white));
-  --color-surface-elevated: color-mix(in srgb, var(--color-woodsmoke) 86%, var(--color-white));
+  --color-surface-light: color-mix(
+    in srgb,
+    var(--color-woodsmoke) 92%,
+    var(--color-white)
+  );
+  --color-surface-elevated: color-mix(
+    in srgb,
+    var(--color-woodsmoke) 86%,
+    var(--color-white)
+  );
   --color-text-primary: var(--color-white);
-  --color-text-secondary: color-mix(in srgb, var(--color-white) 60%, transparent);
+  --color-text-secondary: color-mix(
+    in srgb,
+    var(--color-white) 60%,
+    transparent
+  );
   --color-text-muted: color-mix(in srgb, var(--color-white) 40%, transparent);
   --color-border: color-mix(in srgb, var(--color-white) 12%, transparent);
   --color-border-light: color-mix(in srgb, var(--color-white) 18%, transparent);
-  --color-border-medium: color-mix(in srgb, var(--color-white) 25%, transparent);
+  --color-border-medium: color-mix(
+    in srgb,
+    var(--color-white) 25%,
+    transparent
+  );
   --color-asset-tao: var(--color-white);
 }
 
