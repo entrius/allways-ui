@@ -20,20 +20,26 @@ const BRAND = {
   woodsmoke: '#090b0d',
 } as const;
 
-// All theme-aware colors resolve through CSS variables in index.css, so
-// light and dark mode share one palette here. The CSS variables (and their
-// [data-theme='dark'] overrides) are the single source of truth.
-const PALETTE = {
-  bg: 'var(--color-bg)',
-  surface: 'var(--color-surface)',
-  surfaceLight: 'var(--color-surface-light)',
-  surfaceElevated: 'var(--color-surface-elevated)',
-  textPrimary: 'var(--color-text-primary)',
-  textSecondary: 'var(--color-text-secondary)',
-  textMuted: 'var(--color-text-muted)',
-  border: 'var(--color-border)',
-  borderLight: 'var(--color-border-light)',
-  borderMedium: 'var(--color-border-medium)',
+// MUI calls alpha()/darken()/getContrastText() against palette values at
+// runtime, so the JS palette must hold concrete colors (var() strings throw
+// inside colorManipulator). Light and dark mode use separate tables, both
+// derived from the BRAND constants — the values must match the equivalent
+// CSS variable in index.css so theme.palette.* and var(--color-*) agree.
+//
+// Dark surface tints are pre-computed equivalents of the index.css
+// color-mix() expressions: 92% woodsmoke + 8% white = #1d1f20, and
+// 86% woodsmoke + 14% white = #2b2d2f.
+const lightPalette = {
+  bg: BRAND.offwhite,
+  surface: BRAND.white,
+  surfaceLight: BRAND.gray,
+  surfaceElevated: BRAND.gray,
+  textPrimary: BRAND.woodsmoke,
+  textSecondary: 'rgba(9, 11, 13, 0.6)',
+  textMuted: 'rgba(9, 11, 13, 0.4)',
+  border: BRAND.gray,
+  borderLight: BRAND.gray,
+  borderMedium: 'rgba(9, 11, 13, 0.25)',
   statusActive: 'var(--color-status-active)',
   statusFulfilled: 'var(--color-status-fulfilled)',
   statusCompleted: 'var(--color-status-completed)',
@@ -41,8 +47,23 @@ const PALETTE = {
   statusCollateral: 'var(--color-status-collateral)',
   statusVote: 'var(--color-status-vote)',
   statusMinerActivated: 'var(--color-status-miner-activated)',
-  assetBtc: 'var(--color-asset-btc)',
-  assetTao: 'var(--color-asset-tao)',
+  assetBtc: '#f7931a',
+  assetTao: BRAND.woodsmoke,
+} as const;
+
+const darkPalette = {
+  ...lightPalette,
+  bg: BRAND.woodsmoke,
+  surface: BRAND.woodsmoke,
+  surfaceLight: '#1d1f20',
+  surfaceElevated: '#2b2d2f',
+  textPrimary: BRAND.white,
+  textSecondary: 'rgba(255, 255, 255, 0.6)',
+  textMuted: 'rgba(255, 255, 255, 0.4)',
+  border: 'rgba(255, 255, 255, 0.12)',
+  borderLight: 'rgba(255, 255, 255, 0.18)',
+  borderMedium: 'rgba(255, 255, 255, 0.25)',
+  assetTao: BRAND.white,
 } as const;
 
 declare module '@mui/material/styles' {
@@ -103,11 +124,11 @@ const v = (name: string) => `var(--color-${name})`;
 export type ThemeMode = 'light' | 'dark';
 
 export function createAppTheme(mode: ThemeMode): Theme {
+  const p = mode === 'light' ? lightPalette : darkPalette;
+
   return createTheme({
     palette: {
       mode,
-      // primary is the only entry that needs real color values — MUI runs
-      // darken/lighten/getContrastText on it during createPalette.
       primary: {
         main: BRAND.primary,
         light: BRAND.primary,
@@ -115,36 +136,36 @@ export function createAppTheme(mode: ThemeMode): Theme {
         contrastText: BRAND.white,
       },
       background: {
-        default: PALETTE.bg,
-        paper: PALETTE.surface,
+        default: p.bg,
+        paper: p.surface,
       },
       text: {
-        primary: PALETTE.textPrimary,
-        secondary: PALETTE.textSecondary,
+        primary: p.textPrimary,
+        secondary: p.textSecondary,
       },
-      divider: PALETTE.border,
+      divider: p.border,
       border: {
-        subtle: PALETTE.border,
-        light: PALETTE.borderLight,
-        medium: PALETTE.borderMedium,
+        subtle: p.border,
+        light: p.borderLight,
+        medium: p.borderMedium,
       },
       surface: {
-        main: PALETTE.surface,
-        light: PALETTE.surfaceLight,
-        elevated: PALETTE.surfaceElevated,
+        main: p.surface,
+        light: p.surfaceLight,
+        elevated: p.surfaceElevated,
       },
       status: {
-        active: PALETTE.statusActive,
-        fulfilled: PALETTE.statusFulfilled,
-        completed: PALETTE.statusCompleted,
-        timedOut: PALETTE.statusTimedOut,
-        collateral: PALETTE.statusCollateral,
-        vote: PALETTE.statusVote,
-        minerActivated: PALETTE.statusMinerActivated,
+        active: p.statusActive,
+        fulfilled: p.statusFulfilled,
+        completed: p.statusCompleted,
+        timedOut: p.statusTimedOut,
+        collateral: p.statusCollateral,
+        vote: p.statusVote,
+        minerActivated: p.statusMinerActivated,
       },
       asset: {
-        btc: PALETTE.assetBtc,
-        tao: PALETTE.assetTao,
+        btc: p.assetBtc,
+        tao: p.assetTao,
       },
     },
     typography: {
