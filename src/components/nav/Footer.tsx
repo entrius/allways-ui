@@ -68,8 +68,8 @@ const Footer: React.FC = () => {
                 lineHeight: 1.5,
               }}
             >
-              Universal transaction layer. Trustless peer to peer swaps on
-              Bittensor Subnet 7.
+              Universal transaction layer. Trustless peer to peer transactions
+              on Bittensor Subnet 7.
             </Typography>
             <Typography
               sx={{
@@ -98,7 +98,7 @@ const Footer: React.FC = () => {
                   Dashboard
                 </Box>
                 <Box component={RouterLink} to="/swap" sx={linkSx}>
-                  Swap
+                  Exchange
                 </Box>
                 <Box component={RouterLink} to="/agents" sx={linkSx}>
                   Agents

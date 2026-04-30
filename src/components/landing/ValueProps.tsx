@@ -18,12 +18,12 @@ const PROPS: Prop[] = [
   {
     Icon: VerifiedUserOutlinedIcon,
     title: 'Trustless',
-    body: 'Miner collateral guarantees delivery. The contract slashes on failure and refunds users automatically.',
+    body: 'Allways collateral guarantees delivery. The contract slashes on failure and refunds users automatically.',
   },
   {
     Icon: TrendingUpOutlinedIcon,
     title: 'Best rate',
-    body: 'Open orderbook. Every miner competes on price every block. You always pick the best quote.',
+    body: 'Dynamic pricing. Allways continuously updates rates every block to ensure you get the best quote.',
   },
   {
     Icon: HubOutlinedIcon,
@@ -38,7 +38,10 @@ const PROPS: Prop[] = [
 ];
 
 const ValueProps: React.FC = () => (
-  <Section eyebrow="Why allways" title="Built for the next million swaps.">
+  <Section
+    eyebrow="Why allways"
+    title="Built for the next million transactions."
+  >
     <Grid container spacing={{ xs: 2, md: 3 }}>
       {PROPS.map(({ Icon, title, body }) => (
         <Grid item xs={12} sm={6} md={3} key={title}>

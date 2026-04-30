@@ -90,9 +90,9 @@ const EventFeed: React.FC = () => {
               </Typography>
               <Typography variant="body2">
                 A real-time stream of events emitted by the smart contract and
-                the underlying chain — swap lifecycle, miner collateral changes,
-                validator votes, and reservations. Newest events appear at the
-                top.
+                the underlying chain — exchange lifecycle, network collateral
+                changes, validator votes, and reservations. Newest events appear
+                at the top.
               </Typography>
             </Stack>
           }
@@ -184,7 +184,7 @@ const EventFeed: React.FC = () => {
                         '&:hover': { color: 'primary.main' },
                       }}
                     >
-                      Swap #{event.swapId}
+                      Transaction #{event.swapId}
                     </Typography>
                   )}
                   {event.sourceChain && event.destChain && (

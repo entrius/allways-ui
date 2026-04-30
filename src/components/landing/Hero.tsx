@@ -76,8 +76,8 @@ const Hero: React.FC = () => {
             lineHeight: 1.5,
           }}
         >
-          Building trustless peer to peer swaps between all digital assets. No
-          custodian. No wrapped assets.
+          Building trustless peer to peer transactions between all digital
+          assets. No custodian. No wrapped assets.
         </Typography>
 
         <Stack
@@ -102,7 +102,7 @@ const Hero: React.FC = () => {
               '&:hover': { boxShadow: 'none' },
             }}
           >
-            Swap
+            Exchange
           </Button>
           <Button
             component={RouterLink}
