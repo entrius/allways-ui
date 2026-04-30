@@ -24,7 +24,10 @@ export const deriveSwapExtensionStatus = (s: {
   pendingTimeoutExtensionProposedBy: string | null;
   timeoutExtensionsUsed: number;
 }): ExtensionStatus => {
-  if (s.pendingTimeoutExtensionTarget && s.pendingTimeoutExtensionProposedBlock) {
+  if (
+    s.pendingTimeoutExtensionTarget &&
+    s.pendingTimeoutExtensionProposedBlock
+  ) {
     const proposed = parseInt(s.pendingTimeoutExtensionProposedBlock, 10);
     return {
       kind: 'pending',
@@ -34,7 +37,11 @@ export const deriveSwapExtensionStatus = (s: {
     };
   }
   if (s.timeoutExtensionsUsed > 0)
-    return { kind: 'applied', used: s.timeoutExtensionsUsed, cap: EXTENSION_CAP };
+    return {
+      kind: 'applied',
+      used: s.timeoutExtensionsUsed,
+      cap: EXTENSION_CAP,
+    };
   return { kind: 'none' };
 };
 
@@ -74,7 +81,11 @@ const ExtensionChip: React.FC<{ status: ExtensionStatus }> = ({ status }) => {
         label={`Extended ${status.used}/${status.cap}`}
         size="small"
         variant="outlined"
-        sx={{ ...chipSx, color: 'text.secondary', borderColor: 'text.disabled' }}
+        sx={{
+          ...chipSx,
+          color: 'text.secondary',
+          borderColor: 'text.disabled',
+        }}
       />
     );
   }

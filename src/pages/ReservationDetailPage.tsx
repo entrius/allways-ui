@@ -212,7 +212,11 @@ const LabelValue: React.FC<{
       <CopyableAddress address={value} fontSize="0.75rem" />
     ) : (
       <Typography
-        sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: 'text.primary' }}
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.75rem',
+          color: 'text.primary',
+        }}
       >
         {value}
       </Typography>
