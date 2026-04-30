@@ -401,7 +401,10 @@ const SwapDetailPage: React.FC = () => {
             <LabelAddr label="Routing Node" address={swap.minerHotkey} />
           )}
           {swap.minerSourceAddress && (
-            <LabelAddr label="Routing Node Source" address={swap.minerSourceAddress} />
+            <LabelAddr
+              label="Routing Node Source"
+              address={swap.minerSourceAddress}
+            />
           )}
         </Stack>
       </Card>

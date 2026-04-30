@@ -107,9 +107,9 @@ const SwapTracker: React.FC = () => {
                 What is this?
               </Typography>
               <Typography variant="body2">
-                Every transaction on the network in chronological order, with its
-                current status and progress through the lifecycle: Initiated →
-                Fulfilled → Completed (or Timed Out). Click a row to see the
+                Every transaction on the network in chronological order, with
+                its current status and progress through the lifecycle: Initiated
+                → Fulfilled → Completed (or Timed Out). Click a row to see the
                 full timeline.
               </Typography>
             </Stack>
@@ -302,7 +302,8 @@ const SwapTracker: React.FC = () => {
                           color: 'text.secondary',
                         }}
                       >
-                        Routing Node: <CopyableAddress address={swap.minerHotkey} />
+                        Routing Node:{' '}
+                        <CopyableAddress address={swap.minerHotkey} />
                       </Typography>
                     )}
                   </Stack>

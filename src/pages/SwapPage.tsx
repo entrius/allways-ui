@@ -150,8 +150,8 @@ const SwapPage: React.FC = () => (
               px: 1,
             }}
           >
-            In-browser exchanges land soon. Today, exchange with the CLI or bring an
-            agent —{' '}
+            In-browser exchanges land soon. Today, exchange with the CLI or
+            bring an agent —{' '}
             <Link
               component={RouterLink}
               to="/agents"

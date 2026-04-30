@@ -68,8 +68,8 @@ const Footer: React.FC = () => {
                 lineHeight: 1.5,
               }}
             >
-              Universal transaction layer. Trustless peer to peer transactions on
-              Bittensor Subnet 7.
+              Universal transaction layer. Trustless peer to peer transactions
+              on Bittensor Subnet 7.
             </Typography>
             <Typography
               sx={{

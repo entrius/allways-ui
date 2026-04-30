@@ -381,10 +381,10 @@ const MinerRatesTable: React.FC = () => {
                   What is this?
                 </Typography>
                 <Typography variant="body2">
-                  Live exchange rates quoted across the Allways
-                  network. Each row represents an active network node; both directions (BTC→TAO and
-                  TAO→BTC) are shown when quoted, with the spread between them
-                  being the network's margin.
+                  Live exchange rates quoted across the Allways network. Each
+                  row represents an active network node; both directions
+                  (BTC→TAO and TAO→BTC) are shown when quoted, with the spread
+                  between them being the network's margin.
                 </Typography>
                 <Typography variant="body2">
                   Sort by rate or capacity to find the best counterparty.
@@ -561,9 +561,9 @@ const MinerRatesTable: React.FC = () => {
                           }}
                         >
                           Total TAO collateral backing this network node on the
-                          contract. Caps the size of exchanges they can fulfill —
-                          higher collateral means more exchange capacity, and is
-                          what gets slashed if they fail to deliver.
+                          contract. Caps the size of exchanges they can fulfill
+                          — higher collateral means more exchange capacity, and
+                          is what gets slashed if they fail to deliver.
                         </Box>
                       }
                       arrow

@@ -38,7 +38,10 @@ const PROPS: Prop[] = [
 ];
 
 const ValueProps: React.FC = () => (
-  <Section eyebrow="Why allways" title="Built for the next million transactions.">
+  <Section
+    eyebrow="Why allways"
+    title="Built for the next million transactions."
+  >
     <Grid container spacing={{ xs: 2, md: 3 }}>
       {PROPS.map(({ Icon, title, body }) => (
         <Grid item xs={12} sm={6} md={3} key={title}>
