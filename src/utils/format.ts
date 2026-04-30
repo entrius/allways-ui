@@ -41,7 +41,8 @@ export const applyFee = (
 ): string | null => {
   if (raw === null || raw === undefined) return null;
   const val = typeof raw === 'string' ? parseInt(raw, 10) : raw;
-  if (!Number.isFinite(val) || !feeDivisor || feeDivisor <= 0) return String(val);
+  if (!Number.isFinite(val) || !feeDivisor || feeDivisor <= 0)
+    return String(val);
   const net = Math.floor(val - val / feeDivisor);
   return String(net);
 };
