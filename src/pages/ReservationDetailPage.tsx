@@ -10,7 +10,12 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { useProtocolConstants, useReservation } from '../api';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import CancelIcon from '@mui/icons-material/Cancel';
+import { useMiners, useProtocolConstants, useReservation } from '../api';
+import type { Miner } from '../api/models';
 import { FONTS } from '../theme';
 import { formatAmount } from '../utils/format';
 import { Card, LabelValue, PageWrapper } from '../components';
@@ -18,10 +23,33 @@ import ExtensionChip, {
   deriveReservationExtensionStatus,
 } from '../components/ExtensionChip';
 
+type StageState = 'done' | 'current' | 'pending' | 'failed';
+
+const minerSendToAddress = (
+  fromChain: string | null,
+  miner: Miner | undefined,
+): string | null => {
+  if (!miner || !fromChain) return null;
+  if (miner.sourceChain === fromChain) return miner.sourceAddress;
+  if (miner.destChain === fromChain) return miner.destAddress;
+  return null;
+};
+
+const relativeTime = (iso: string): string => {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return 'just now';
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hr ago`;
+  return `${Math.floor(h / 24)} d ago`;
+};
+
 const ReservationDetailPage: React.FC = () => {
   const { requestHash } = useParams<{ requestHash: string }>();
   const theme = useTheme();
   const { data: r, isLoading } = useReservation(requestHash ?? '');
+  const { data: miners } = useMiners();
   const { data: protocol } = useProtocolConstants();
 
   if (isLoading) {
@@ -42,6 +70,10 @@ const ReservationDetailPage: React.FC = () => {
     );
   }
 
+  const miner = miners?.find((m: Miner) => m.hotkey === r.minerHotkey);
+  const sendToAddr = minerSendToAddress(r.fromChain, miner);
+
+  // Status palette
   const statusColor =
     r.status === 'INITIATED'
       ? theme.palette.status.fulfilled
@@ -49,9 +81,35 @@ const ReservationDetailPage: React.FC = () => {
         ? theme.palette.status.active
         : theme.palette.status.timedOut;
 
+  // Funds-sent signal: if a validator saw the source tx they would have proposed
+  // an extension carrying from_tx_hash, OR an extension already finalized, OR
+  // the swap was initiated (which requires the source tx).
+  const fundsSeen =
+    !!r.pendingExtensionFromTxHash ||
+    r.extensionsUsed > 0 ||
+    r.status === 'INITIATED';
+  const isInitiated = r.status === 'INITIATED';
+  const isTerminal = r.status === 'EXPIRED' || r.status === 'CANCELLED';
+
+  const reservedStage: StageState = isTerminal ? 'failed' : 'done';
+  const fundsStage: StageState = isTerminal
+    ? 'failed'
+    : fundsSeen
+      ? 'done'
+      : 'current';
+  const initiatedStage: StageState = isTerminal
+    ? 'failed'
+    : isInitiated
+      ? 'done'
+      : fundsSeen
+        ? 'current'
+        : 'pending';
+
   const extensionStatus = deriveReservationExtensionStatus(r, protocol);
   const sourceLine =
-    r.fromAmount && r.fromChain ? formatAmount(r.fromAmount, r.fromChain) : '—';
+    r.fromAmount && r.fromChain
+      ? formatAmount(r.fromAmount, r.fromChain)
+      : '—';
   const destLine =
     r.toAmount && r.toChain ? formatAmount(r.toAmount, r.toChain) : '—';
 
@@ -102,95 +160,211 @@ const ReservationDetailPage: React.FC = () => {
         Reservation
       </Typography>
 
+      {/* Lifecycle stepper */}
       <Card>
-        <Stack spacing={1}>
-          {r.status === 'ACTIVE' && (
-            <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.primary' }}
-            >
-              Send <strong>{sourceLine}</strong> from the address below before block #{r.reservedUntilBlock}. Validators reject any source tx whose sender doesn't match — keep the source address consistent.
-            </Typography>
-          )}
-          {r.status === 'INITIATED' && r.swapId && (
-            <>
-              <Typography
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.primary' }}
-              >
-                Funds received — this reservation is no longer active. It initiated swap #{r.swapId}.
-              </Typography>
-              <Typography
-                component={RouterLink}
-                to={`/swap/${r.swapId}`}
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.85rem',
-                  color: 'primary.main',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  '&:hover': { textDecoration: 'underline' },
-                }}
-              >
-                View swap #{r.swapId} <ArrowForwardIcon sx={{ fontSize: 14 }} />
-              </Typography>
-            </>
-          )}
-          {r.status === 'EXPIRED' && (
-            <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
-            >
-              Reservation expired before funds were sent. The miner is now free for other users — start a new reservation if you still want to swap.
-            </Typography>
-          )}
-          {r.status === 'CANCELLED' && (
-            <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
-            >
-              Reservation was cancelled before initiating a swap.
-            </Typography>
-          )}
+        <Stack spacing={1.25}>
+          <Stage
+            state={reservedStage}
+            label="Miner reserved"
+            detail={`Block #${r.reservedAtBlock} · ${relativeTime(r.createdAt)}`}
+          />
+          <Stage
+            state={fundsStage}
+            label="User funds detected"
+            detail={
+              fundsSeen
+                ? r.pendingExtensionFromTxHash
+                  ? 'Validator saw your source tx'
+                  : 'Confirmed on-chain'
+                : 'Awaiting your transaction'
+            }
+          />
+          <Stage
+            state={initiatedStage}
+            label="Swap initiated"
+            detail={
+              isInitiated
+                ? `Quorum confirmed → swap #${r.swapId}`
+                : isTerminal
+                  ? 'Did not initiate'
+                  : 'Pending validator quorum'
+            }
+          />
         </Stack>
       </Card>
 
+      {/* Action / status guidance */}
       <Card>
-        <Stack spacing={1.25}>
-          <LabelValue label="Miner" value={r.minerHotkey} copyable />
-          <LabelValue label="Source" value={sourceLine} />
-          <LabelValue label="Dest" value={destLine} />
-          <LabelValue label="Send from" value={r.userFromAddress} copyable />
-          <LabelValue
-            label="Reserved until"
-            value={`Block #${r.reservedUntilBlock}`}
-          />
-          <Stack direction="row" alignItems="center" spacing={1}>
+        {r.status === 'ACTIVE' && !fundsSeen && (
+          <Stack spacing={1}>
             <Typography
               sx={{
                 fontFamily: FONTS.mono,
                 fontSize: '0.7rem',
                 color: 'text.secondary',
-                minWidth: 80,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
               }}
             >
-              Extensions
+              Next step
             </Typography>
-            <ExtensionChip status={extensionStatus} />
-            {extensionStatus.kind === 'none' && (
+            <Typography
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary' }}
+            >
+              Send <strong>{sourceLine}</strong> from your address to the miner before block <strong>#{r.reservedUntilBlock}</strong>.
+            </Typography>
+            {sendToAddr && <LabelValue label="Send to" value={sendToAddr} copyable />}
+            <LabelValue label="Send from" value={r.userFromAddress} copyable />
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.7rem',
+                color: 'text.secondary',
+              }}
+            >
+              Validators reject any source tx whose sender doesn't match — keep this address consistent.
+            </Typography>
+          </Stack>
+        )}
+
+        {r.status === 'ACTIVE' && fundsSeen && (
+          <Stack spacing={0.5}>
+            <Typography
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary' }}
+            >
+              Validators detected your source transaction.
+            </Typography>
+            <Typography
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: 'text.secondary' }}
+            >
+              Awaiting quorum to initiate the swap on-chain — usually a block or two.
+            </Typography>
+          </Stack>
+        )}
+
+        {r.status === 'INITIATED' && r.swapId && (
+          <Stack spacing={1}>
+            <Typography
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary' }}
+            >
+              Funds received and confirmed. This reservation initiated swap #{r.swapId}.
+            </Typography>
+            <Typography
+              component={RouterLink}
+              to={`/swap/${r.swapId}`}
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.85rem',
+                color: 'primary.main',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              View swap #{r.swapId} <ArrowForwardIcon sx={{ fontSize: 14 }} />
+            </Typography>
+          </Stack>
+        )}
+
+        {r.status === 'EXPIRED' && (
+          <Typography
+            sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
+          >
+            Reservation expired before funds were sent. The miner is now free for other users — start a new reservation if you still want to swap.
+          </Typography>
+        )}
+
+        {r.status === 'CANCELLED' && (
+          <Typography
+            sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
+          >
+            Reservation was cancelled before initiating a swap.
+          </Typography>
+        )}
+      </Card>
+
+      {/* Details */}
+      <Card>
+        <Stack spacing={1.25}>
+          <LabelValue
+            label="Direction"
+            value={`${(r.fromChain ?? '').toUpperCase()} → ${(r.toChain ?? '').toUpperCase()}`}
+          />
+          <LabelValue label="Send" value={sourceLine} />
+          <LabelValue label="Receive" value={destLine} />
+          <LabelValue label="Miner" value={r.minerHotkey} copyable />
+          <LabelValue
+            label="Reserved until"
+            value={`Block #${r.reservedUntilBlock}`}
+          />
+          {(extensionStatus.kind !== 'none' || r.extensionsUsed > 0) && (
+            <Stack direction="row" alignItems="center" spacing={1}>
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,
-                  fontSize: '0.75rem',
+                  fontSize: '0.7rem',
                   color: 'text.secondary',
+                  minWidth: 80,
                 }}
               >
-                None
+                Extensions
               </Typography>
-            )}
-          </Stack>
+              <ExtensionChip status={extensionStatus} />
+            </Stack>
+          )}
           <LabelValue label="Hash" value={r.requestHash} copyable />
         </Stack>
       </Card>
     </PageWrapper>
+  );
+};
+
+const Stage: React.FC<{
+  state: StageState;
+  label: string;
+  detail: string;
+}> = ({ state, label, detail }) => {
+  const theme = useTheme();
+  const Icon =
+    state === 'done'
+      ? CheckCircleIcon
+      : state === 'current'
+        ? HourglassEmptyIcon
+        : state === 'failed'
+          ? CancelIcon
+          : RadioButtonUncheckedIcon;
+  const color =
+    state === 'done'
+      ? theme.palette.status.completed
+      : state === 'current'
+        ? theme.palette.status.active
+        : state === 'failed'
+          ? theme.palette.status.timedOut
+          : theme.palette.text.disabled;
+  const labelColor =
+    state === 'pending' ? theme.palette.text.secondary : theme.palette.text.primary;
+  return (
+    <Stack direction="row" alignItems="center" spacing={1.5}>
+      <Icon sx={{ fontSize: 18, color }} />
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.8rem',
+          color: labelColor,
+          fontWeight: state === 'current' ? 600 : 400,
+          minWidth: 180,
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: 'text.secondary' }}
+      >
+        {detail}
+      </Typography>
+    </Stack>
   );
 };
 
