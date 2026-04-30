@@ -181,7 +181,11 @@ const ReservationDetailPage: React.FC = () => {
                 ? r.pendingExtensionFromTxHash
                   ? 'Validator saw your source tx'
                   : 'Confirmed on-chain'
-                : 'Awaiting your transaction'
+                : isTerminal
+                  ? r.status === 'EXPIRED'
+                    ? 'Window closed — do not send funds'
+                    : 'Reservation cancelled — do not send funds'
+                  : 'Awaiting your transaction'
             }
           />
           <Stage
