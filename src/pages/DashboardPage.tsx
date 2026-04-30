@@ -5,6 +5,7 @@ import {
   EventFeed,
   MinerRatesTable,
   OrderbookDepth,
+  ReservationsTracker,
   SwapTracker,
   Page,
   SEO,
@@ -98,6 +99,20 @@ const DashboardPage: React.FC = () => {
               }}
             >
               <SwapTracker />
+            </Stack>
+          </Grid>
+          <Grid item xs={12}>
+            <Stack
+              sx={{
+                p: { xs: 1.5, sm: 2, md: 2.5 },
+                maxHeight: 480,
+                borderRadius: 0,
+                backgroundColor: 'surface.light',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <ReservationsTracker />
             </Stack>
           </Grid>
         </Grid>

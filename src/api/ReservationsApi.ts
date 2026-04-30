@@ -19,3 +19,11 @@ export const useReservationsBySource = (sourceAddress: string) =>
     undefined,
     !!sourceAddress,
   );
+
+export const useReservations = (params?: { limit?: number; offset?: number }) =>
+  useApiQuery<Reservation[]>(
+    'reservations',
+    '/reservations',
+    SSE_FALLBACK_INTERVAL,
+    params,
+  );
