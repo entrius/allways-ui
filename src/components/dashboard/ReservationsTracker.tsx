@@ -35,13 +35,25 @@ const ReservationsTracker: React.FC = () => {
       </Typography>
 
       {isLoading && (
-        <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: 'text.secondary' }}>
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.75rem',
+            color: 'text.secondary',
+          }}
+        >
           Loading…
         </Typography>
       )}
 
       {!isLoading && reservations.length === 0 && (
-        <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: 'text.secondary' }}>
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.75rem',
+            color: 'text.secondary',
+          }}
+        >
           No reservations yet.
         </Typography>
       )}
@@ -112,7 +124,8 @@ const ReservationsTracker: React.FC = () => {
                   mt: 0.25,
                 }}
               >
-                miner {r.minerHotkey.slice(0, 6)}… · until #{r.reservedUntilBlock}
+                miner {r.minerHotkey.slice(0, 6)}… · until #
+                {r.reservedUntilBlock}
                 {r.swapId ? ` · swap #${r.swapId}` : ''}
               </Typography>
             </Box>
