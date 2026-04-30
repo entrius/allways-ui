@@ -98,8 +98,13 @@ const Hero: React.FC = () => {
               borderRadius: 0,
               px: 4,
               py: 1.5,
+              backgroundColor: 'var(--color-primary)',
+              color: 'var(--color-white)',
               boxShadow: 'none',
-              '&:hover': { boxShadow: 'none' },
+              '&:hover': {
+                backgroundColor: 'var(--color-primary)',
+                boxShadow: 'none',
+              },
             }}
           >
             Swap

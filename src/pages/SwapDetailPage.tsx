@@ -197,9 +197,9 @@ const SwapDetailPage: React.FC = () => {
         <Stack spacing={1.5}>
           {steps.map((step) => {
             const stepColor = step.done
-              ? '#10b981'
+              ? 'var(--color-status-completed)'
               : step.failed
-                ? '#ef4444'
+                ? 'var(--color-status-timed-out)'
                 : 'text.secondary';
             return (
               <Stack

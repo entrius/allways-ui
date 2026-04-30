@@ -8,59 +8,55 @@ export const FONTS = {
   accent: '"JetBrains Mono", "Courier New", monospace',
 } as const;
 
-// ---------- Palette definitions ----------
+// Brand palette — must mirror the CSS variables in index.css.
+// MUI's createTheme needs real color strings (not var()) so it can run
+// darken/lighten/getContrastText internally without throwing.
+const BRAND = {
+  primary: '#0052ff',
+  secondary: '#90afff',
+  white: '#ffffff',
+  offwhite: '#fbfbfb',
+  gray: '#eef0f3',
+  woodsmoke: '#090b0d',
+} as const;
 
 const lightPalette = {
-  primary: '#1e40af',
-  primaryLight: '#3b82f6',
-  primaryDark: '#1e3a8a',
-  bg: '#f8fafc',
-  surface: '#ffffff',
-  surfaceLight: '#f1f5f9',
-  surfaceElevated: '#e2e8f0',
-  textPrimary: '#0f172a',
-  textSecondary: '#475569',
-  textMuted: '#94a3b8',
-  border: '#e2e8f0',
-  borderLight: '#cbd5e1',
-  borderMedium: '#94a3b8',
-  statusActive: '#1e40af',
-  statusFulfilled: '#f59e0b',
-  statusCompleted: '#10b981',
-  statusTimedOut: '#ef4444',
-  statusCollateral: '#8b5cf6',
-  statusVote: '#6366f1',
-  statusMinerActivated: '#14b8a6',
-  assetBtc: '#F7931A',
-  assetTao: '#111827',
+  primary: BRAND.primary,
+  bg: BRAND.offwhite,
+  surface: BRAND.white,
+  surfaceLight: BRAND.gray,
+  surfaceElevated: BRAND.gray,
+  textPrimary: BRAND.woodsmoke,
+  textSecondary: 'rgba(9, 11, 13, 0.6)',
+  textMuted: 'rgba(9, 11, 13, 0.4)',
+  border: BRAND.gray,
+  borderLight: BRAND.gray,
+  borderMedium: 'rgba(9, 11, 13, 0.25)',
+  statusActive: 'var(--color-status-active)',
+  statusFulfilled: 'var(--color-status-fulfilled)',
+  statusCompleted: 'var(--color-status-completed)',
+  statusTimedOut: 'var(--color-status-timed-out)',
+  statusCollateral: 'var(--color-status-collateral)',
+  statusVote: 'var(--color-status-vote)',
+  statusMinerActivated: 'var(--color-status-miner-activated)',
+  assetBtc: '#f7931a',
+  assetTao: BRAND.woodsmoke,
 } as const;
 
 const darkPalette = {
-  primary: '#14b8a6',
-  primaryLight: '#2dd4bf',
-  primaryDark: '#0d9488',
-  bg: '#000000',
-  surface: '#0a0a0a',
-  surfaceLight: '#111111',
-  surfaceElevated: '#161616',
-  textPrimary: '#ffffff',
-  textSecondary: 'rgba(255, 255, 255, 0.5)',
-  textMuted: 'rgba(255, 255, 255, 0.3)',
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderLight: 'rgba(255, 255, 255, 0.12)',
-  borderMedium: 'rgba(255, 255, 255, 0.2)',
-  statusActive: '#14b8a6',
-  statusFulfilled: '#f59e0b',
-  statusCompleted: '#10b981',
-  statusTimedOut: '#ef4444',
-  statusCollateral: '#8b5cf6',
-  statusVote: '#6366f1',
-  statusMinerActivated: '#14b8a6',
-  assetBtc: '#F7931A',
-  assetTao: '#F3F4F6',
+  ...lightPalette,
+  bg: BRAND.woodsmoke,
+  surface: BRAND.woodsmoke,
+  surfaceLight: '#101214',
+  surfaceElevated: '#191b1d',
+  textPrimary: BRAND.white,
+  textSecondary: 'rgba(255, 255, 255, 0.6)',
+  textMuted: 'rgba(255, 255, 255, 0.4)',
+  border: 'rgba(255, 255, 255, 0.12)',
+  borderLight: 'rgba(255, 255, 255, 0.18)',
+  borderMedium: 'rgba(255, 255, 255, 0.25)',
+  assetTao: BRAND.white,
 } as const;
-
-// ---------- Module augmentation ----------
 
 declare module '@mui/material/styles' {
   interface Palette {
@@ -114,7 +110,8 @@ declare module '@mui/material/Typography' {
   }
 }
 
-// ---------- Theme factory ----------
+// ── CSS variable accessor (for component-level styles) ──
+const v = (name: string) => `var(--color-${name})`;
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -124,7 +121,12 @@ export function createAppTheme(mode: ThemeMode): Theme {
   return createTheme({
     palette: {
       mode,
-      primary: { main: p.primary, light: p.primaryLight, dark: p.primaryDark },
+      primary: {
+        main: p.primary,
+        light: p.primary,
+        dark: p.primary,
+        contrastText: BRAND.white,
+      },
       background: {
         default: p.bg,
         paper: p.surface,
@@ -206,7 +208,7 @@ export function createAppTheme(mode: ThemeMode): Theme {
         fontWeight: 400,
         letterSpacing: '0.2em',
         textTransform: 'uppercase',
-        color: p.primary,
+        color: v('primary'),
       },
     },
     components: {
@@ -214,8 +216,8 @@ export function createAppTheme(mode: ThemeMode): Theme {
         styleOverrides: {
           body: { fontFamily: FONTS.body },
           '::selection': {
-            backgroundColor: p.primary,
-            color: '#ffffff',
+            backgroundColor: v('primary'),
+            color: v('white'),
           },
         },
       },
@@ -223,12 +225,46 @@ export function createAppTheme(mode: ThemeMode): Theme {
         defaultProps: { disableRipple: true },
       },
       MuiButton: {
+        defaultProps: { disableElevation: true },
         styleOverrides: {
           root: {
             textTransform: 'none',
             fontFamily: FONTS.mono,
             fontWeight: 500,
             borderRadius: 0,
+          },
+          containedPrimary: {
+            backgroundColor: v('primary'),
+            color: v('white'),
+            '&:hover': {
+              backgroundColor: v('primary'),
+            },
+            '&:active': {
+              backgroundColor: v('primary'),
+            },
+            '&:focus-visible': {
+              backgroundColor: v('primary'),
+            },
+          },
+          outlinedPrimary: {
+            borderColor: v('primary'),
+            color: v('primary'),
+            '&:hover': {
+              borderColor: v('primary'),
+              color: v('primary'),
+              backgroundColor: 'transparent',
+            },
+            '&:active': {
+              borderColor: v('primary'),
+              color: v('primary'),
+            },
+          },
+          textPrimary: {
+            color: v('primary'),
+            '&:hover': {
+              color: v('primary'),
+              backgroundColor: 'transparent',
+            },
           },
         },
       },
@@ -238,15 +274,15 @@ export function createAppTheme(mode: ThemeMode): Theme {
             fontFamily: FONTS.body,
             fontSize: '0.75rem',
             borderRadius: 0,
-            backgroundColor: p.surfaceElevated,
-            color: p.textPrimary,
-            border: `1px solid ${p.borderLight}`,
+            backgroundColor: v('surface-elevated'),
+            color: v('text-primary'),
+            border: `1px solid ${v('border-light')}`,
             padding: '8px 12px',
           },
           arrow: {
-            color: p.surfaceElevated,
+            color: v('surface-elevated'),
             '&::before': {
-              border: `1px solid ${p.borderLight}`,
+              border: `1px solid ${v('border-light')}`,
             },
           },
         },
@@ -256,7 +292,7 @@ export function createAppTheme(mode: ThemeMode): Theme {
         styleOverrides: {
           root: {
             borderRadius: 0,
-            border: `1px solid ${p.border}`,
+            border: `1px solid ${v('border')}`,
             backgroundColor: 'transparent',
           },
         },

@@ -23,13 +23,15 @@ export const useThemeMode = () => useContext(ThemeContext);
 const STORAGE_KEY = 'allways-theme-mode';
 
 function getInitialMode(): ThemeMode {
+  let mode: ThemeMode = 'light';
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark') return stored;
+    if (stored === 'light' || stored === 'dark') mode = stored;
   } catch {
     // localStorage may not be available
   }
-  return 'light';
+  document.documentElement.setAttribute('data-theme', mode);
+  return mode;
 }
 
 export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -45,9 +47,9 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch {
         // ignore
       }
-      // Update the html body background to match
-      document.body.style.backgroundColor =
-        next === 'light' ? '#f8fafc' : '#000000';
+      // Swap CSS variable context via data-theme attribute
+      document.documentElement.setAttribute('data-theme', next);
+      document.body.style.backgroundColor = 'var(--color-bg)';
       return next;
     });
   }, []);
