@@ -15,14 +15,12 @@ import {
   useProtocolConstants,
   useSwapDetail,
 } from '../api';
-import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
 import { Card, LabelValue, PageWrapper } from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   formatAmount,
-  chainSymbol,
   formatTimeUntilBlock,
   explorerExtrinsicUrl,
   extrinsicRef,
@@ -57,7 +55,6 @@ const getStatusColor = (
 const SwapDetailPage: React.FC = () => {
   const { swapId } = useParams<{ swapId: string }>();
   const theme = useTheme();
-  useSSE();
 
   const { data, isLoading } = useSwapDetail(swapId ?? '');
   const { data: protocol } = useProtocolConstants();
@@ -208,35 +205,22 @@ const SwapDetailPage: React.FC = () => {
       {/* Summary */}
       {swap.sourceChain && swap.destChain && (
         <Card>
-          <Stack spacing={1}>
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.85rem',
-                color: 'text.primary',
-                fontWeight: 600,
-              }}
-            >
-              {chainSymbol(swap.sourceChain)} &rarr;{' '}
-              {chainSymbol(swap.destChain)}
-            </Typography>
-            <Stack direction="row" spacing={3} flexWrap="wrap">
-              {swap.sourceAmount && swap.sourceChain && (
-                <LabelValue
-                  label="You send"
-                  value={formatAmount(swap.sourceAmount, swap.sourceChain)}
-                />
-              )}
-              {swap.destAmount && swap.destChain && (
-                <LabelValue
-                  label="You receive"
-                  value={formatAmount(swap.destAmount, swap.destChain)}
-                />
-              )}
-              {swap.rate && (
-                <LabelValue label="Rate" value={trimTrailingZeros(swap.rate)} />
-              )}
-            </Stack>
+          <Stack direction="row" spacing={3} flexWrap="wrap">
+            {swap.sourceAmount && swap.sourceChain && (
+              <LabelValue
+                label="You send"
+                value={formatAmount(swap.sourceAmount, swap.sourceChain)}
+              />
+            )}
+            {swap.destAmount && swap.destChain && (
+              <LabelValue
+                label="You receive"
+                value={formatAmount(swap.destAmount, swap.destChain)}
+              />
+            )}
+            {swap.rate && (
+              <LabelValue label="Rate" value={trimTrailingZeros(swap.rate)} />
+            )}
           </Stack>
         </Card>
       )}

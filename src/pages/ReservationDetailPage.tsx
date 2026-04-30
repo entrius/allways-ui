@@ -16,7 +16,7 @@ import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import CancelIcon from '@mui/icons-material/Cancel';
 import {
   useChainState,
-  useMiners,
+  useMinerByHotkey,
   useProtocolConstants,
   useReservation,
 } from '../api';
@@ -54,7 +54,7 @@ const ReservationDetailPage: React.FC = () => {
   const { requestHash } = useParams<{ requestHash: string }>();
   const theme = useTheme();
   const { data: r, isLoading } = useReservation(requestHash ?? '');
-  const { data: miners } = useMiners();
+  const { data: miner } = useMinerByHotkey(r?.minerHotkey ?? '');
   const { data: protocol } = useProtocolConstants();
   const { data: chainState } = useChainState();
   const currentBlock = chainState?.currentBlock ?? 0;
@@ -77,7 +77,6 @@ const ReservationDetailPage: React.FC = () => {
     );
   }
 
-  const miner = miners?.find((m: Miner) => m.hotkey === r.minerHotkey);
   const sendToAddr = minerSendToAddress(r.fromChain, miner);
 
   // Status palette
@@ -374,7 +373,6 @@ const ReservationDetailPage: React.FC = () => {
               <ExtensionChip status={extensionStatus} />
             </Stack>
           )}
-          <LabelValue label="Hash" value={r.requestHash} copyable />
         </Stack>
       </Card>
     </PageWrapper>

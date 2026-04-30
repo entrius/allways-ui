@@ -88,7 +88,7 @@ const ReservationsBySourcePage: React.FC = () => {
             const statusColor = theme.palette.status[statusKey];
             return (
               <Box
-                key={r.requestHash}
+                key={r.id}
                 component={RouterLink}
                 to={`/reservations/${r.requestHash}`}
                 sx={{

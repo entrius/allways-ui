@@ -143,7 +143,7 @@ const ReservationsTracker: React.FC = () => {
               : null;
           return (
             <Box
-              key={r.requestHash}
+              key={r.id}
               component={RouterLink}
               to={`/reservations/${r.requestHash}`}
               sx={{

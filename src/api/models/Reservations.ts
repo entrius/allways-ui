@@ -1,4 +1,5 @@
 export type Reservation = {
+  id: string;
   requestHash: string;
   minerHotkey: string;
   userFromAddress: string;

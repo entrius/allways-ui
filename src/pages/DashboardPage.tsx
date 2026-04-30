@@ -1,6 +1,5 @@
 import React from 'react';
 import { Grid, Stack, Typography } from '@mui/material';
-import { useSSE } from '../hooks';
 import {
   EventFeed,
   MinerRatesTable,
@@ -13,8 +12,6 @@ import {
 import { FONTS } from '../theme';
 
 const DashboardPage: React.FC = () => {
-  useSSE();
-
   return (
     <Page>
       <SEO
