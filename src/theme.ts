@@ -43,12 +43,15 @@ const lightPalette = {
   assetTao: BRAND.woodsmoke,
 } as const;
 
+// Dark surface tints are pre-computed equivalents of the index.css color-mix()
+// expressions so theme.palette.surface.* and var(--color-surface-*) resolve to
+// the same color: 92% woodsmoke + 8% white = #1d1f20, 86% + 14% = #2b2d2f.
 const darkPalette = {
   ...lightPalette,
   bg: BRAND.woodsmoke,
   surface: BRAND.woodsmoke,
-  surfaceLight: '#101214',
-  surfaceElevated: '#191b1d',
+  surfaceLight: '#1d1f20',
+  surfaceElevated: '#2b2d2f',
   textPrimary: BRAND.white,
   textSecondary: 'rgba(255, 255, 255, 0.6)',
   textMuted: 'rgba(255, 255, 255, 0.4)',
