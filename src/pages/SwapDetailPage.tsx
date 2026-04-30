@@ -9,10 +9,11 @@ import {
   useTheme,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { displayEventType, useSwapDetail } from '../api';
+import { displayEventType, useProtocolConstants, useSwapDetail } from '../api';
 import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
+import { Card, LabelValue, PageWrapper } from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   formatAmount,
@@ -54,6 +55,7 @@ const SwapDetailPage: React.FC = () => {
   useSSE();
 
   const { data, isLoading } = useSwapDetail(swapId ?? '');
+  const { data: protocol } = useProtocolConstants();
 
   if (isLoading) {
     return (
@@ -303,7 +305,7 @@ const SwapDetailPage: React.FC = () => {
                     </>
                   )}
               </Typography>
-              <ExtensionChip status={deriveSwapExtensionStatus(swap)} />
+              <ExtensionChip status={deriveSwapExtensionStatus(swap, protocol)} />
             </Stack>
           )}
         </Stack>
@@ -522,36 +524,6 @@ const SwapDetailPage: React.FC = () => {
 
 /* ---- Shared sub-components ---- */
 
-const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Stack
-    sx={{
-      backgroundColor: 'background.default',
-      px: { xs: 1.5, sm: 2, md: 4 },
-      py: { xs: 2, sm: 3, md: 4 },
-      width: '100%',
-      maxWidth: 800,
-      mx: 'auto',
-    }}
-  >
-    {children}
-  </Stack>
-);
-
-const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Box
-    sx={{
-      p: 2,
-      mb: 2,
-      borderRadius: 0,
-      backgroundColor: 'background.paper',
-      border: '1px solid',
-      borderColor: 'divider',
-    }}
-  >
-    {children}
-  </Box>
-);
-
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
@@ -568,38 +540,6 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   >
     {children}
   </Typography>
-);
-
-const LabelValue: React.FC<{
-  label: string;
-  value: string;
-  copyable?: boolean;
-}> = ({ label, value, copyable }) => (
-  <Stack direction="row" spacing={1} alignItems="baseline">
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.7rem',
-        color: 'text.secondary',
-        minWidth: 80,
-      }}
-    >
-      {label}
-    </Typography>
-    {copyable ? (
-      <CopyableAddress address={value} fontSize="0.75rem" />
-    ) : (
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.75rem',
-          color: 'text.primary',
-        }}
-      >
-        {value}
-      </Typography>
-    )}
-  </Stack>
 );
 
 const LabelAddr: React.FC<{ label: string; address: string }> = ({

@@ -1,6 +1,9 @@
 export { default as CopyableAddress } from './CopyableAddress';
 export { default as BrandMark } from './BrandMark';
+export { default as Card } from './Card';
 export { default as HoverCard } from './HoverCard';
+export { default as LabelValue } from './LabelValue';
+export { default as PageWrapper } from './PageWrapper';
 export { SEO } from './SEO';
 export type { SEOProps } from './SEO';
 export * from './dashboard';

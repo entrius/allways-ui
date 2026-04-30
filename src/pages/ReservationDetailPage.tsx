@@ -10,9 +10,10 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { useReservation } from '../api';
+import { useProtocolConstants, useReservation } from '../api';
 import { FONTS } from '../theme';
-import CopyableAddress from '../components/CopyableAddress';
+import { formatAmount } from '../utils/format';
+import { Card, LabelValue, PageWrapper } from '../components';
 import ExtensionChip, {
   deriveReservationExtensionStatus,
 } from '../components/ExtensionChip';
@@ -21,6 +22,7 @@ const ReservationDetailPage: React.FC = () => {
   const { requestHash } = useParams<{ requestHash: string }>();
   const theme = useTheme();
   const { data: r, isLoading } = useReservation(requestHash ?? '');
+  const { data: protocol } = useProtocolConstants();
 
   if (isLoading) {
     return (
@@ -46,6 +48,14 @@ const ReservationDetailPage: React.FC = () => {
       : r.status === 'ACTIVE'
         ? theme.palette.status.active
         : theme.palette.status.timedOut;
+
+  const extensionStatus = deriveReservationExtensionStatus(r, protocol);
+  const sourceLine =
+    r.fromAmount && r.fromChain
+      ? formatAmount(r.fromAmount, r.fromChain)
+      : '—';
+  const destLine =
+    r.toAmount && r.toChain ? formatAmount(r.toAmount, r.toChain) : '—';
 
   return (
     <PageWrapper>
@@ -118,14 +128,8 @@ const ReservationDetailPage: React.FC = () => {
       <Card>
         <Stack spacing={1.25}>
           <LabelValue label="Miner" value={r.minerHotkey} copyable />
-          <LabelValue
-            label="Source"
-            value={`${r.fromAmount ?? '—'} ${r.fromChain?.toUpperCase() ?? ''}`}
-          />
-          <LabelValue
-            label="Dest"
-            value={`${r.toAmount ?? '—'} ${r.toChain?.toUpperCase() ?? ''}`}
-          />
+          <LabelValue label="Source" value={sourceLine} />
+          <LabelValue label="Dest" value={destLine} />
           <LabelValue label="Send from" value={r.userFromAddress} copyable />
           <LabelValue
             label="Reserved until"
@@ -142,8 +146,8 @@ const ReservationDetailPage: React.FC = () => {
             >
               Extensions
             </Typography>
-            <ExtensionChip status={deriveReservationExtensionStatus(r)} />
-            {r.extensionsUsed === 0 && !r.pendingExtensionTarget && (
+            <ExtensionChip status={extensionStatus} />
+            {extensionStatus.kind === 'none' && (
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,
@@ -161,67 +165,5 @@ const ReservationDetailPage: React.FC = () => {
     </PageWrapper>
   );
 };
-
-const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Stack
-    sx={{
-      backgroundColor: 'background.default',
-      px: { xs: 1.5, sm: 2, md: 4 },
-      py: { xs: 2, sm: 3, md: 4 },
-      width: '100%',
-      maxWidth: 800,
-      mx: 'auto',
-    }}
-  >
-    {children}
-  </Stack>
-);
-
-const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Box
-    sx={{
-      p: 2,
-      mb: 2,
-      borderRadius: 0,
-      backgroundColor: 'background.paper',
-      border: '1px solid',
-      borderColor: 'divider',
-    }}
-  >
-    {children}
-  </Box>
-);
-
-const LabelValue: React.FC<{
-  label: string;
-  value: string;
-  copyable?: boolean;
-}> = ({ label, value, copyable }) => (
-  <Stack direction="row" spacing={1} alignItems="baseline">
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.7rem',
-        color: 'text.secondary',
-        minWidth: 80,
-      }}
-    >
-      {label}
-    </Typography>
-    {copyable ? (
-      <CopyableAddress address={value} fontSize="0.75rem" />
-    ) : (
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.75rem',
-          color: 'text.primary',
-        }}
-      >
-        {value}
-      </Typography>
-    )}
-  </Stack>
-);
 
 export default ReservationDetailPage;
