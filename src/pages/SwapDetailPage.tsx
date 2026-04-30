@@ -305,7 +305,9 @@ const SwapDetailPage: React.FC = () => {
                     </>
                   )}
               </Typography>
-              <ExtensionChip status={deriveSwapExtensionStatus(swap, protocol)} />
+              <ExtensionChip
+                status={deriveSwapExtensionStatus(swap, protocol)}
+              />
             </Stack>
           )}
         </Stack>

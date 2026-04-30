@@ -51,9 +51,7 @@ const ReservationDetailPage: React.FC = () => {
 
   const extensionStatus = deriveReservationExtensionStatus(r, protocol);
   const sourceLine =
-    r.fromAmount && r.fromChain
-      ? formatAmount(r.fromAmount, r.fromChain)
-      : '—';
+    r.fromAmount && r.fromChain ? formatAmount(r.fromAmount, r.fromChain) : '—';
   const destLine =
     r.toAmount && r.toChain ? formatAmount(r.toAmount, r.toChain) : '—';
 
