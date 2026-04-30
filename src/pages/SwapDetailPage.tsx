@@ -170,7 +170,12 @@ const SwapDetailPage: React.FC = () => {
               {chainSymbol(swap.sourceChain)} &rarr;{' '}
               {chainSymbol(swap.destChain)}
             </Typography>
-            <Stack direction="row" spacing={3} flexWrap="wrap">
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={{ xs: 0.5, sm: 3 }}
+              flexWrap="wrap"
+              useFlexGap
+            >
               {swap.sourceAmount && swap.sourceChain && (
                 <LabelValue
                   label="Source"
