@@ -114,9 +114,7 @@ const ReservationDetailPage: React.FC = () => {
 
   const extensionStatus = deriveReservationExtensionStatus(r, protocol);
   const sourceLine =
-    r.fromAmount && r.fromChain
-      ? formatAmount(r.fromAmount, r.fromChain)
-      : '—';
+    r.fromAmount && r.fromChain ? formatAmount(r.fromAmount, r.fromChain) : '—';
   const destLine =
     r.toAmount && r.toChain ? formatAmount(r.toAmount, r.toChain) : '—';
 
@@ -216,18 +214,30 @@ const ReservationDetailPage: React.FC = () => {
               Next step
             </Typography>
             <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary' }}
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.85rem',
+                color: 'text.primary',
+              }}
             >
-              Send <strong>{sourceLine}</strong> from your address to the miner before block <strong>#{r.reservedUntilBlock}</strong>
+              Send <strong>{sourceLine}</strong> from your address to the miner
+              before block <strong>#{r.reservedUntilBlock}</strong>
               {currentBlock > 0 && (
                 <>
                   {' '}
-                  ({formatTimeUntilBlock(parseInt(r.reservedUntilBlock, 10), currentBlock)} remaining)
+                  (
+                  {formatTimeUntilBlock(
+                    parseInt(r.reservedUntilBlock, 10),
+                    currentBlock,
+                  )}{' '}
+                  remaining)
                 </>
               )}
               .
             </Typography>
-            {sendToAddr && <LabelValue label="Send to" value={sendToAddr} copyable />}
+            {sendToAddr && (
+              <LabelValue label="Send to" value={sendToAddr} copyable />
+            )}
             <LabelValue label="Send from" value={r.userFromAddress} copyable />
             <Typography
               sx={{
@@ -236,7 +246,8 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.secondary',
               }}
             >
-              Validators reject any source tx whose sender doesn't match — keep this address consistent.
+              Validators reject any source tx whose sender doesn't match — keep
+              this address consistent.
             </Typography>
           </Stack>
         )}
@@ -244,14 +255,23 @@ const ReservationDetailPage: React.FC = () => {
         {r.status === 'ACTIVE' && fundsSeen && (
           <Stack spacing={0.5}>
             <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary' }}
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.85rem',
+                color: 'text.primary',
+              }}
             >
               Validators detected your source transaction.
             </Typography>
             <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem', color: 'text.secondary' }}
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+              }}
             >
-              Awaiting quorum to initiate the swap on-chain — usually a block or two.
+              Awaiting quorum to initiate the swap on-chain — usually a block or
+              two.
             </Typography>
           </Stack>
         )}
@@ -259,9 +279,14 @@ const ReservationDetailPage: React.FC = () => {
         {r.status === 'INITIATED' && r.swapId && (
           <Stack spacing={1}>
             <Typography
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary' }}
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.85rem',
+                color: 'text.primary',
+              }}
             >
-              Funds received and confirmed. This reservation initiated swap #{r.swapId}.
+              Funds received and confirmed. This reservation initiated swap #
+              {r.swapId}.
             </Typography>
             <Typography
               component={RouterLink}
@@ -284,15 +309,24 @@ const ReservationDetailPage: React.FC = () => {
 
         {r.status === 'EXPIRED' && (
           <Typography
-            sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.8rem',
+              color: 'text.secondary',
+            }}
           >
-            Reservation expired before funds were sent. The miner is now free for other users — start a new reservation if you still want to swap.
+            Reservation expired before funds were sent. The miner is now free
+            for other users — start a new reservation if you still want to swap.
           </Typography>
         )}
 
         {r.status === 'CANCELLED' && (
           <Typography
-            sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.8rem',
+              color: 'text.secondary',
+            }}
           >
             Reservation was cancelled before initiating a swap.
           </Typography>
@@ -366,7 +400,9 @@ const Stage: React.FC<{
           ? theme.palette.status.timedOut
           : theme.palette.text.disabled;
   const labelColor =
-    state === 'pending' ? theme.palette.text.secondary : theme.palette.text.primary;
+    state === 'pending'
+      ? theme.palette.text.secondary
+      : theme.palette.text.primary;
   return (
     <Stack
       direction={{ xs: 'column', sm: 'row' }}

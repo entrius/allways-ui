@@ -187,7 +187,11 @@ const SwapDetailPage: React.FC = () => {
 
       <Card>
         <Typography
-          sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.primary' }}
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.8rem',
+            color: 'text.primary',
+          }}
         >
           {swap.status === 'ACTIVE' &&
             "Awaiting miner fulfillment — they're sending the destination funds now. Validators will mark it FULFILLED once the destination tx confirms."}
