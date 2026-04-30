@@ -20,11 +20,12 @@ import CopyableAddress from '../components/CopyableAddress';
 import { Card, LabelValue, PageWrapper } from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
+  applyFee,
   formatAmount,
+  formatRateLine,
   formatTimeUntilBlock,
   explorerExtrinsicUrl,
   extrinsicRef,
-  trimTrailingZeros,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
 import ExtensionChip, {
@@ -212,15 +213,26 @@ const SwapDetailPage: React.FC = () => {
                 value={formatAmount(swap.sourceAmount, swap.sourceChain)}
               />
             )}
-            {swap.destAmount && swap.destChain && (
-              <LabelValue
-                label="You receive"
-                value={formatAmount(swap.destAmount, swap.destChain)}
-              />
-            )}
-            {swap.rate && (
-              <LabelValue label="Rate" value={trimTrailingZeros(swap.rate)} />
-            )}
+            {swap.destAmount &&
+              swap.destChain &&
+              (() => {
+                const net = applyFee(swap.destAmount, protocol?.feeDivisor);
+                return net ? (
+                  <LabelValue
+                    label="You receive"
+                    value={formatAmount(net, swap.destChain)}
+                  />
+                ) : null;
+              })()}
+            {(() => {
+              const rate = formatRateLine(
+                swap.sourceAmount,
+                swap.sourceChain,
+                swap.destAmount,
+                swap.destChain,
+              );
+              return rate ? <LabelValue label="Rate" value={rate} /> : null;
+            })()}
           </Stack>
         </Card>
       )}

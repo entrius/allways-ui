@@ -22,7 +22,7 @@ import {
 } from '../api';
 import type { Miner } from '../api/models';
 import { FONTS } from '../theme';
-import { formatAmount, formatTimeUntilBlock } from '../utils/format';
+import { applyFee, formatAmount, formatTimeUntilBlock } from '../utils/format';
 import { Card, LabelValue, PageWrapper } from '../components';
 import ExtensionChip, {
   deriveReservationExtensionStatus,
@@ -114,8 +114,11 @@ const ReservationDetailPage: React.FC = () => {
   const extensionStatus = deriveReservationExtensionStatus(r, protocol);
   const sourceLine =
     r.fromAmount && r.fromChain ? formatAmount(r.fromAmount, r.fromChain) : '—';
+  // Destination amount is gross on-chain; deduct the protocol fee so the user
+  // sees what they'll actually receive.
+  const netToAmount = applyFee(r.toAmount, protocol?.feeDivisor);
   const destLine =
-    r.toAmount && r.toChain ? formatAmount(r.toAmount, r.toChain) : '—';
+    netToAmount && r.toChain ? formatAmount(netToAmount, r.toChain) : '—';
 
   return (
     <PageWrapper>

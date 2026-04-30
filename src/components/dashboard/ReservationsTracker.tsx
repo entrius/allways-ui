@@ -10,10 +10,19 @@ import {
   useTheme,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import { useChainState, useMiners, useReservations } from '../../api';
+import {
+  useChainState,
+  useMiners,
+  useProtocolConstants,
+  useReservations,
+} from '../../api';
 import type { Miner, Reservation } from '../../api/models';
 import { FONTS } from '../../theme';
-import { formatAmount, formatTimeUntilBlock } from '../../utils/format';
+import {
+  applyFee,
+  formatAmount,
+  formatTimeUntilBlock,
+} from '../../utils/format';
 
 const STATUS_COLORS = (palette: {
   status: { active: string; fulfilled: string; timedOut: string };
@@ -30,6 +39,7 @@ const ReservationsTracker: React.FC = () => {
   const { data, isLoading } = useReservations();
   const { data: miners } = useMiners();
   const { data: chainState } = useChainState();
+  const { data: protocol } = useProtocolConstants();
   const reservations = data ?? [];
   const colors = STATUS_COLORS(theme.palette);
   const currentBlock = chainState?.currentBlock ?? 0;
@@ -129,8 +139,9 @@ const ReservationsTracker: React.FC = () => {
             r.fromAmount && r.fromChain
               ? formatAmount(r.fromAmount, r.fromChain)
               : '—';
+          const netRecv = applyFee(r.toAmount, protocol?.feeDivisor);
           const recvLabel =
-            r.toAmount && r.toChain ? formatAmount(r.toAmount, r.toChain) : '—';
+            netRecv && r.toChain ? formatAmount(netRecv, r.toChain) : '—';
           const uid = minerUid(r.minerHotkey);
           const minerLabel =
             uid !== undefined ? `UID ${uid}` : `${r.minerHotkey.slice(0, 6)}…`;
