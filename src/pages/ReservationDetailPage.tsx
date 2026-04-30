@@ -354,7 +354,7 @@ const ReservationDetailPage: React.FC = () => {
           <LabelValue
             label="Reserved until"
             value={
-              currentBlock > 0
+              r.status === 'ACTIVE' && currentBlock > 0
                 ? `Block #${r.reservedUntilBlock} (${formatTimeUntilBlock(parseInt(r.reservedUntilBlock, 10), currentBlock)} remaining)`
                 : `Block #${r.reservedUntilBlock}`
             }
