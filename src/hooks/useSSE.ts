@@ -26,6 +26,17 @@ export function useSSE() {
       queryClient.invalidateQueries({ queryKey: ['swap'] });
       queryClient.invalidateQueries({ queryKey: ['allSwaps'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      // SwapInitiated/Completed/TimedOut also transition the originating
+      // reservation row, so refresh those views too.
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['reservation'] });
+      queryClient.invalidateQueries({ queryKey: ['reservationsBySource'] });
+    });
+
+    es.addEventListener('reservation', () => {
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['reservation'] });
+      queryClient.invalidateQueries({ queryKey: ['reservationsBySource'] });
     });
 
     return () => {

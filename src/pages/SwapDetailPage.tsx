@@ -178,6 +178,23 @@ const SwapDetailPage: React.FC = () => {
         </Typography>
       )}
 
+      <Card>
+        <Typography
+          sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.primary' }}
+        >
+          {swap.status === 'ACTIVE' &&
+            "Awaiting miner fulfillment — they're sending the destination funds now. Validators will mark it FULFILLED once the destination tx confirms."}
+          {swap.status === 'FULFILLED' &&
+            'Miner delivered the destination funds. Validators are voting to confirm on-chain — once quorum lands, the swap completes and you can spend.'}
+          {swap.status === 'COMPLETED' &&
+            'Swap completed. Both legs settled and the protocol fee was deducted from the miner collateral.'}
+          {swap.status === 'TIMED_OUT' &&
+            (refundPending
+              ? 'Miner did not deliver in time. Slash is pending — claim your refund on-chain with `alw claim`.'
+              : 'Miner did not deliver in time. The slashed collateral was paid directly to your destination address.')}
+        </Typography>
+      </Card>
+
       {/* Summary */}
       {swap.sourceChain && swap.destChain && (
         <Card>

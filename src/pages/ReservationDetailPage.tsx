@@ -102,26 +102,56 @@ const ReservationDetailPage: React.FC = () => {
         Reservation
       </Typography>
 
-      {r.swapId && (
-        <Card>
-          <Typography
-            component={RouterLink}
-            to={`/swap/${r.swapId}`}
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.85rem',
-              color: 'primary.main',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              '&:hover': { textDecoration: 'underline' },
-            }}
-          >
-            View swap #{r.swapId} <ArrowForwardIcon sx={{ fontSize: 14 }} />
-          </Typography>
-        </Card>
-      )}
+      <Card>
+        <Stack spacing={1}>
+          {r.status === 'ACTIVE' && (
+            <Typography
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.primary' }}
+            >
+              Send <strong>{sourceLine}</strong> from the address below before block #{r.reservedUntilBlock}. Validators reject any source tx whose sender doesn't match — keep the source address consistent.
+            </Typography>
+          )}
+          {r.status === 'INITIATED' && r.swapId && (
+            <>
+              <Typography
+                sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.primary' }}
+              >
+                Funds received — this reservation is no longer active. It initiated swap #{r.swapId}.
+              </Typography>
+              <Typography
+                component={RouterLink}
+                to={`/swap/${r.swapId}`}
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.85rem',
+                  color: 'primary.main',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  '&:hover': { textDecoration: 'underline' },
+                }}
+              >
+                View swap #{r.swapId} <ArrowForwardIcon sx={{ fontSize: 14 }} />
+              </Typography>
+            </>
+          )}
+          {r.status === 'EXPIRED' && (
+            <Typography
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
+            >
+              Reservation expired before funds were sent. The miner is now free for other users — start a new reservation if you still want to swap.
+            </Typography>
+          )}
+          {r.status === 'CANCELLED' && (
+            <Typography
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem', color: 'text.secondary' }}
+            >
+              Reservation was cancelled before initiating a swap.
+            </Typography>
+          )}
+        </Stack>
+      </Card>
 
       <Card>
         <Stack spacing={1.25}>
