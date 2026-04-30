@@ -67,7 +67,7 @@ const SwapDetailPage: React.FC = () => {
     return (
       <PageWrapper>
         <Typography sx={{ fontFamily: FONTS.mono, color: 'text.secondary' }}>
-          Swap #{swapId} not found
+          Transaction #{swapId} not found
         </Typography>
       </PageWrapper>
     );
@@ -152,7 +152,7 @@ const SwapDetailPage: React.FC = () => {
           mb: 3,
         }}
       >
-        Swap #{swap.swapId}
+        Transaction #{swap.swapId}
       </Typography>
 
       {/* Summary */}
@@ -301,7 +301,7 @@ const SwapDetailPage: React.FC = () => {
             >
               {refundPending
                 ? 'Slash pending — user must claim on-chain with `alw claim`.'
-                : 'Slash paid directly from miner collateral to user.'}
+                : 'Slash paid directly from network collateral to user.'}
             </Typography>
             {refundEvent.taoAmount && (
               <LabelValue
@@ -398,10 +398,10 @@ const SwapDetailPage: React.FC = () => {
             <LabelAddr label="User Dest" address={swap.userDestAddress} />
           )}
           {swap.minerHotkey && (
-            <LabelAddr label="Miner" address={swap.minerHotkey} />
+            <LabelAddr label="Routing Node" address={swap.minerHotkey} />
           )}
           {swap.minerSourceAddress && (
-            <LabelAddr label="Miner Source" address={swap.minerSourceAddress} />
+            <LabelAddr label="Routing Node Source" address={swap.minerSourceAddress} />
           )}
         </Stack>
       </Card>

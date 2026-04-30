@@ -8,8 +8,8 @@ import { Page, SEO, TokenInput } from '../components';
 const SwapPage: React.FC = () => (
   <Page>
     <SEO
-      title="Swap"
-      description="Swap BTC ↔ TAO directly through Bittensor Subnet 7 miners."
+      title="Exchange"
+      description="Exchange BTC ↔ TAO directly through Allways."
     />
     <Stack
       sx={{
@@ -48,7 +48,7 @@ const SwapPage: React.FC = () => (
               mb: 0.5,
             }}
           >
-            Swap
+            Exchange
           </Typography>
 
           <TokenInput label="From" symbol="BTC" balance="0.000" />
@@ -106,7 +106,7 @@ const SwapPage: React.FC = () => (
               mt: 1,
             }}
           >
-            Swap
+            Exchange
           </Button>
         </Stack>
 
@@ -150,7 +150,7 @@ const SwapPage: React.FC = () => (
               px: 1,
             }}
           >
-            In-browser swaps land soon. Today, swap with the CLI or bring an
+            In-browser exchanges land soon. Today, exchange with the CLI or bring an
             agent —{' '}
             <Link
               component={RouterLink}

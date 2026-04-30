@@ -72,7 +72,7 @@ const MetricsStrip: React.FC = () => {
         <Grid container>
           <Grid item xs={12} sm={6} md={3}>
             <Metric
-              label="Successful Swaps"
+              label="Successful Transactions"
               value={String(stats?.totalSwaps ?? 0)}
               loading={isLoading}
             />
@@ -82,14 +82,14 @@ const MetricsStrip: React.FC = () => {
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <Metric
-              label="Active Miners"
+              label="Active Network Nodes"
               value={String(stats?.activeMiners ?? 0)}
               loading={isLoading}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <Metric
-              label="Active Swaps"
+              label="Active Transactions"
               value={String(stats?.activeSwaps ?? 0)}
               loading={isLoading}
             />

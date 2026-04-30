@@ -91,7 +91,7 @@ const MinerRatesTable: React.FC = () => {
         label: 'Inactive',
       };
     if (miner.hasActiveSwap)
-      return { color: theme.palette.status.fulfilled, label: 'Swapping' };
+      return { color: theme.palette.status.fulfilled, label: 'Exchanging' };
     if (miner.isReserved)
       return { color: theme.palette.status.active, label: 'Reserved' };
     return { color: theme.palette.primary.main, label: 'Available' };
@@ -222,7 +222,7 @@ const MinerRatesTable: React.FC = () => {
     const formatOr = (v: number) => (v > 0 ? v.toFixed(2) : '\u2014');
     // Both rates are stored and shown as TAO per 1 unit of the non-TAO asset,
     // so the user reads a single unit ("TAO") and the spread between the two
-    // rows is the miner's margin.
+    // rows is the network's margin.
     const tooltipLines: string[] = [];
     if (src && dst) {
       tooltipLines.push(
@@ -381,10 +381,10 @@ const MinerRatesTable: React.FC = () => {
                   What is this?
                 </Typography>
                 <Typography variant="body2">
-                  Live exchange rates quoted by every active miner on the
-                  network. Each row is one miner; both directions (BTC→TAO and
+                  Live exchange rates quoted across the Allways
+                  network. Each row represents an active network node; both directions (BTC→TAO and
                   TAO→BTC) are shown when quoted, with the spread between them
-                  being the miner's margin.
+                  being the network's margin.
                 </Typography>
                 <Typography variant="body2">
                   Sort by rate or capacity to find the best counterparty.
@@ -560,9 +560,9 @@ const MinerRatesTable: React.FC = () => {
                             maxWidth: 240,
                           }}
                         >
-                          Total TAO collateral this miner has posted on the
-                          contract. Caps the size of swaps they can fulfill —
-                          higher collateral means more swap capacity, and is
+                          Total TAO collateral backing this network node on the
+                          contract. Caps the size of exchanges they can fulfill —
+                          higher collateral means more exchange capacity, and is
                           what gets slashed if they fail to deliver.
                         </Box>
                       }
@@ -633,8 +633,8 @@ const MinerRatesTable: React.FC = () => {
                   }}
                 >
                   {miners?.length
-                    ? 'No miners match the current filter'
-                    : 'No miners registered'}
+                    ? 'No network nodes match the current filter'
+                    : 'No network nodes registered'}
                 </TableCell>
               </TableRow>
             )}

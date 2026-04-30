@@ -55,16 +55,16 @@ const StatsPanel: React.FC = () => {
   ) : (
     <Grid container spacing={1.5}>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Successful Swaps" value={String(stats.totalSwaps)} />
+        <StatCard label="Successful Transactions" value={String(stats.totalSwaps)} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard label="Volume (TAO)" value={volume} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Active Miners" value={String(stats.activeMiners)} />
+        <StatCard label="Active Network Nodes" value={String(stats.activeMiners)} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Active Swaps" value={String(stats.activeSwaps)} />
+        <StatCard label="Active Transactions" value={String(stats.activeSwaps)} />
       </Grid>
     </Grid>
   );

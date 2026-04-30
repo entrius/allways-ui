@@ -73,7 +73,7 @@ const AgentTeaser: React.FC = () => {
                 }}
               >
                 Copy a single markdown bundle of context, CLI, and API. Paste it
-                into any LLM and it can quote, swap, and watch live state.
+                into any LLM and it can quote, exchange, and watch live state.
               </Typography>
             </Stack>
 

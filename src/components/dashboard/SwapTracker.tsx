@@ -98,7 +98,7 @@ const SwapTracker: React.FC = () => {
           variant="h6"
           sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
         >
-          Swaps
+          Transactions
         </Typography>
         <Tooltip
           title={
@@ -107,7 +107,7 @@ const SwapTracker: React.FC = () => {
                 What is this?
               </Typography>
               <Typography variant="body2">
-                Every swap on the network in chronological order, with its
+                Every transaction on the network in chronological order, with its
                 current status and progress through the lifecycle: Initiated →
                 Fulfilled → Completed (or Timed Out). Click a row to see the
                 full timeline.
@@ -125,7 +125,7 @@ const SwapTracker: React.FC = () => {
 
       <TextField
         size="small"
-        placeholder="Search by swap ID or address..."
+        placeholder="Search by transaction ID or address..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         sx={{
@@ -157,7 +157,7 @@ const SwapTracker: React.FC = () => {
               fontSize: '0.8rem',
             }}
           >
-            {search ? 'No matching swaps' : 'No swaps yet'}
+            {search ? 'No matching transactions' : 'No transactions yet'}
           </Typography>
         </Box>
       ) : (
@@ -211,7 +211,7 @@ const SwapTracker: React.FC = () => {
                         color: 'text.primary',
                       }}
                     >
-                      Swap #{swap.swapId}
+                      Transaction #{swap.swapId}
                     </Typography>
                     <Stack direction="row" spacing={1} alignItems="center">
                       {swap.sourceChain && swap.destChain && (
@@ -302,7 +302,7 @@ const SwapTracker: React.FC = () => {
                           color: 'text.secondary',
                         }}
                       >
-                        Miner: <CopyableAddress address={swap.minerHotkey} />
+                        Routing Node: <CopyableAddress address={swap.minerHotkey} />
                       </Typography>
                     )}
                   </Stack>
