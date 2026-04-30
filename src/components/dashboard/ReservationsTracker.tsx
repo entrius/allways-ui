@@ -1,9 +1,19 @@
-import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
-import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useReservations } from '../../api';
+import React, { useState } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  IconButton,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+  useTheme,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import { useChainState, useMiners, useReservations } from '../../api';
+import type { Miner, Reservation } from '../../api/models';
 import { FONTS } from '../../theme';
-import { formatAmount } from '../../utils/format';
+import { formatAmount, formatTimeUntilBlock } from '../../utils/format';
 
 const STATUS_COLORS = (palette: {
   status: { active: string; fulfilled: string; timedOut: string };
@@ -16,23 +26,77 @@ const STATUS_COLORS = (palette: {
 
 const ReservationsTracker: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { data, isLoading } = useReservations();
+  const { data: miners } = useMiners();
+  const { data: chainState } = useChainState();
   const reservations = data ?? [];
   const colors = STATUS_COLORS(theme.palette);
+  const currentBlock = chainState?.currentBlock ?? 0;
+
+  const [searchAddr, setSearchAddr] = useState('');
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const addr = searchAddr.trim();
+    if (addr) navigate(`/reservations/by-source/${addr}`);
+  };
+
+  const minerUid = (hotkey: string): number | undefined =>
+    miners?.find((m: Miner) => m.hotkey === hotkey)?.uid;
 
   return (
     <Stack spacing={1.5} sx={{ height: '100%' }}>
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.7rem',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: 'text.secondary',
-        }}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 1, sm: 2 }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        justifyContent="space-between"
       >
-        Reservations
-      </Typography>
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.7rem',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'text.secondary',
+          }}
+        >
+          Reservations
+        </Typography>
+        <Box
+          component="form"
+          onSubmit={submitSearch}
+          sx={{ minWidth: { sm: 280 } }}
+        >
+          <TextField
+            value={searchAddr}
+            onChange={(e) => setSearchAddr(e.target.value)}
+            placeholder="Find your reservations by source address"
+            size="small"
+            fullWidth
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    type="submit"
+                    size="small"
+                    aria-label="search"
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    <SearchIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </InputAdornment>
+              ),
+              sx: {
+                fontFamily: FONTS.mono,
+                fontSize: '0.75rem',
+                borderRadius: 0,
+              },
+            }}
+          />
+        </Box>
+      </Stack>
 
       {isLoading && (
         <Typography
@@ -59,14 +123,24 @@ const ReservationsTracker: React.FC = () => {
       )}
 
       <Stack spacing={0.75} sx={{ overflowY: 'auto', pr: 0.5 }}>
-        {reservations.map((r) => {
+        {reservations.map((r: Reservation) => {
           const statusColor = colors[r.status] ?? colors.ACTIVE;
-          const sourceLabel =
+          const sendLabel =
             r.fromAmount && r.fromChain
               ? formatAmount(r.fromAmount, r.fromChain)
               : '—';
-          const destLabel =
+          const recvLabel =
             r.toAmount && r.toChain ? formatAmount(r.toAmount, r.toChain) : '—';
+          const uid = minerUid(r.minerHotkey);
+          const minerLabel =
+            uid !== undefined ? `UID ${uid}` : `${r.minerHotkey.slice(0, 6)}…`;
+          const remaining =
+            r.status === 'ACTIVE' && currentBlock > 0
+              ? formatTimeUntilBlock(
+                  parseInt(r.reservedUntilBlock, 10),
+                  currentBlock,
+                )
+              : null;
           return (
             <Box
               key={r.requestHash}
@@ -87,10 +161,10 @@ const ReservationsTracker: React.FC = () => {
               }}
             >
               <Stack
-                direction="row"
-                alignItems="center"
+                direction={{ xs: 'column', sm: 'row' }}
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
                 justifyContent="space-between"
-                spacing={1}
+                spacing={{ xs: 0.25, sm: 1 }}
               >
                 <Typography
                   sx={{
@@ -102,7 +176,7 @@ const ReservationsTracker: React.FC = () => {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {sourceLabel} → {destLabel}
+                  Send {sendLabel} → Receive {recvLabel}
                 </Typography>
                 <Typography
                   sx={{
@@ -124,8 +198,8 @@ const ReservationsTracker: React.FC = () => {
                   mt: 0.25,
                 }}
               >
-                miner {r.minerHotkey.slice(0, 6)}… · until #
-                {r.reservedUntilBlock}
+                miner {minerLabel} · until #{r.reservedUntilBlock}
+                {remaining ? ` (${remaining} left)` : ''}
                 {r.swapId ? ` · swap #${r.swapId}` : ''}
               </Typography>
             </Box>

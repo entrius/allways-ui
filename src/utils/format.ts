@@ -44,6 +44,15 @@ export const formatBlockEstimate = (blocks: number): string => {
   return `~${(seconds / 3600).toFixed(1)}h`;
 };
 
+export const formatTimeUntilBlock = (
+  targetBlock: number,
+  currentBlock: number,
+): string => {
+  const remaining = targetBlock - currentBlock;
+  if (remaining <= 0) return 'past';
+  return formatBlockEstimate(remaining);
+};
+
 // Taostats extrinsic URL: /extrinsic/<block>-<idx>, idx zero-padded to 4
 // digits (e.g. 8026775-0015). VITE_EXPLORER_EXTRINSIC_URL can override with
 // any template containing {block} and {idx}.

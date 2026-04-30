@@ -1,4 +1,5 @@
 import { useApiQuery } from './ApiUtils';
+import { SSE_FALLBACK_INTERVAL } from './constants';
 import { type ProtocolConstants } from './models';
 
 // Constants are immutable contract values — fetch once, cache long.
@@ -9,4 +10,11 @@ export const useProtocolConstants = () =>
     'protocolConstants',
     '/protocol/constants',
     ONE_HOUR_MS,
+  );
+
+export const useChainState = () =>
+  useApiQuery<{ currentBlock: number }>(
+    'chainState',
+    '/protocol/chain-state',
+    SSE_FALLBACK_INTERVAL,
   );

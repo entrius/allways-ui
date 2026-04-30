@@ -14,10 +14,15 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { useMiners, useProtocolConstants, useReservation } from '../api';
+import {
+  useChainState,
+  useMiners,
+  useProtocolConstants,
+  useReservation,
+} from '../api';
 import type { Miner } from '../api/models';
 import { FONTS } from '../theme';
-import { formatAmount } from '../utils/format';
+import { formatAmount, formatTimeUntilBlock } from '../utils/format';
 import { Card, LabelValue, PageWrapper } from '../components';
 import ExtensionChip, {
   deriveReservationExtensionStatus,
@@ -51,6 +56,8 @@ const ReservationDetailPage: React.FC = () => {
   const { data: r, isLoading } = useReservation(requestHash ?? '');
   const { data: miners } = useMiners();
   const { data: protocol } = useProtocolConstants();
+  const { data: chainState } = useChainState();
+  const currentBlock = chainState?.currentBlock ?? 0;
 
   if (isLoading) {
     return (
@@ -211,7 +218,14 @@ const ReservationDetailPage: React.FC = () => {
             <Typography
               sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem', color: 'text.primary' }}
             >
-              Send <strong>{sourceLine}</strong> from your address to the miner before block <strong>#{r.reservedUntilBlock}</strong>.
+              Send <strong>{sourceLine}</strong> from your address to the miner before block <strong>#{r.reservedUntilBlock}</strong>
+              {currentBlock > 0 && (
+                <>
+                  {' '}
+                  ({formatTimeUntilBlock(parseInt(r.reservedUntilBlock, 10), currentBlock)} remaining)
+                </>
+              )}
+              .
             </Typography>
             {sendToAddr && <LabelValue label="Send to" value={sendToAddr} copyable />}
             <LabelValue label="Send from" value={r.userFromAddress} copyable />
@@ -288,16 +302,24 @@ const ReservationDetailPage: React.FC = () => {
       {/* Details */}
       <Card>
         <Stack spacing={1.25}>
+          <LabelValue label="You send" value={sourceLine} />
+          <LabelValue label="You receive" value={destLine} />
           <LabelValue
-            label="Direction"
-            value={`${(r.fromChain ?? '').toUpperCase()} → ${(r.toChain ?? '').toUpperCase()}`}
+            label="Miner"
+            value={
+              miner?.uid !== undefined
+                ? `UID ${miner.uid} · ${r.minerHotkey}`
+                : r.minerHotkey
+            }
+            copyable
           />
-          <LabelValue label="Send" value={sourceLine} />
-          <LabelValue label="Receive" value={destLine} />
-          <LabelValue label="Miner" value={r.minerHotkey} copyable />
           <LabelValue
             label="Reserved until"
-            value={`Block #${r.reservedUntilBlock}`}
+            value={
+              currentBlock > 0
+                ? `Block #${r.reservedUntilBlock} (${formatTimeUntilBlock(parseInt(r.reservedUntilBlock, 10), currentBlock)} remaining)`
+                : `Block #${r.reservedUntilBlock}`
+            }
           />
           {(extensionStatus.kind !== 'none' || r.extensionsUsed > 0) && (
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -346,21 +368,32 @@ const Stage: React.FC<{
   const labelColor =
     state === 'pending' ? theme.palette.text.secondary : theme.palette.text.primary;
   return (
-    <Stack direction="row" alignItems="center" spacing={1.5}>
-      <Icon sx={{ fontSize: 18, color }} />
+    <Stack
+      direction={{ xs: 'column', sm: 'row' }}
+      alignItems={{ xs: 'flex-start', sm: 'center' }}
+      spacing={{ xs: 0.25, sm: 1.5 }}
+    >
+      <Stack direction="row" alignItems="center" spacing={1.5}>
+        <Icon sx={{ fontSize: 18, color }} />
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.8rem',
+            color: labelColor,
+            fontWeight: state === 'current' ? 600 : 400,
+            minWidth: { sm: 180 },
+          }}
+        >
+          {label}
+        </Typography>
+      </Stack>
       <Typography
         sx={{
           fontFamily: FONTS.mono,
-          fontSize: '0.8rem',
-          color: labelColor,
-          fontWeight: state === 'current' ? 600 : 400,
-          minWidth: 180,
+          fontSize: '0.7rem',
+          color: 'text.secondary',
+          pl: { xs: 4, sm: 0 },
         }}
-      >
-        {label}
-      </Typography>
-      <Typography
-        sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem', color: 'text.secondary' }}
       >
         {detail}
       </Typography>

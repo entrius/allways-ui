@@ -9,7 +9,12 @@ import {
   useTheme,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { displayEventType, useProtocolConstants, useSwapDetail } from '../api';
+import {
+  displayEventType,
+  useChainState,
+  useProtocolConstants,
+  useSwapDetail,
+} from '../api';
 import { useSSE } from '../hooks';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
@@ -18,7 +23,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   formatAmount,
   chainSymbol,
-  formatBlockEstimate,
+  formatTimeUntilBlock,
   explorerExtrinsicUrl,
   extrinsicRef,
   trimTrailingZeros,
@@ -56,6 +61,8 @@ const SwapDetailPage: React.FC = () => {
 
   const { data, isLoading } = useSwapDetail(swapId ?? '');
   const { data: protocol } = useProtocolConstants();
+  const { data: chainState } = useChainState();
+  const currentBlock = chainState?.currentBlock ?? 0;
 
   if (isLoading) {
     return (
@@ -186,8 +193,7 @@ const SwapDetailPage: React.FC = () => {
             "Awaiting miner fulfillment — they're sending the destination funds now. Validators will mark it FULFILLED once the destination tx confirms."}
           {swap.status === 'FULFILLED' &&
             'Miner delivered the destination funds. Validators are voting to confirm on-chain — once quorum lands, the swap completes and you can spend.'}
-          {swap.status === 'COMPLETED' &&
-            'Swap completed. Both legs settled and the protocol fee was deducted from the miner collateral.'}
+          {swap.status === 'COMPLETED' && 'Exchange completed.'}
           {swap.status === 'TIMED_OUT' &&
             (refundPending
               ? 'Miner did not deliver in time. Slash is pending — claim your refund on-chain with `alw claim`.'
@@ -213,13 +219,13 @@ const SwapDetailPage: React.FC = () => {
             <Stack direction="row" spacing={3} flexWrap="wrap">
               {swap.sourceAmount && swap.sourceChain && (
                 <LabelValue
-                  label="Source"
+                  label="You send"
                   value={formatAmount(swap.sourceAmount, swap.sourceChain)}
                 />
               )}
               {swap.destAmount && swap.destChain && (
                 <LabelValue
-                  label="Dest"
+                  label="You receive"
                   value={formatAmount(swap.destAmount, swap.destChain)}
                 />
               )}
@@ -310,15 +316,15 @@ const SwapDetailPage: React.FC = () => {
                 Block #{swap.timeoutBlock}
                 {!isTimedOut &&
                   swap.status !== 'COMPLETED' &&
-                  swap.initiatedBlock && (
+                  currentBlock > 0 && (
                     <>
                       {' '}
                       (
-                      {formatBlockEstimate(
-                        parseInt(swap.timeoutBlock) -
-                          parseInt(swap.initiatedBlock),
+                      {formatTimeUntilBlock(
+                        parseInt(swap.timeoutBlock),
+                        currentBlock,
                       )}{' '}
-                      window)
+                      remaining)
                     </>
                   )}
               </Typography>

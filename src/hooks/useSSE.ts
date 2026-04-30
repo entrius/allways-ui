@@ -14,6 +14,7 @@ export function useSSE() {
     es.addEventListener('event', () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['chainState'] });
     });
 
     es.addEventListener('miner', () => {
