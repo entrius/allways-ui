@@ -23,6 +23,9 @@ import {
   trimTrailingZeros,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
+import ExtensionChip, {
+  deriveSwapExtensionStatus,
+} from '../components/ExtensionChip';
 
 type TimelineStep = {
   label: string;
@@ -282,6 +285,7 @@ const SwapDetailPage: React.FC = () => {
                     </>
                   )}
               </Typography>
+              <ExtensionChip status={deriveSwapExtensionStatus(swap)} />
             </Stack>
           )}
         </Stack>

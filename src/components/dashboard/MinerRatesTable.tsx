@@ -23,6 +23,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
+import ExtensionChip, {
+  deriveMinerExtensionStatus,
+} from '../ExtensionChip';
 import { MinerRatesTableSkeleton } from './Skeletons';
 
 type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
@@ -604,6 +607,9 @@ const MinerRatesTable: React.FC = () => {
                       >
                         {status.label}
                       </Typography>
+                      <ExtensionChip
+                        status={deriveMinerExtensionStatus(miner)}
+                      />
                     </Box>
                   </TableCell>
                   <TableCell

@@ -21,6 +21,10 @@ export type ActiveSwap = {
   initiatedAt: string | null;
   fulfilledAt: string | null;
   resolvedAt: string | null;
+  timeoutExtensionsUsed: number;
+  pendingTimeoutExtensionTarget: string | null;
+  pendingTimeoutExtensionProposedBlock: string | null;
+  pendingTimeoutExtensionProposedBy: string | null;
 };
 
 export type SwapDetail = {
