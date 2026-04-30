@@ -20,18 +20,20 @@ const BRAND = {
   woodsmoke: '#090b0d',
 } as const;
 
-const lightPalette = {
-  primary: BRAND.primary,
-  bg: BRAND.offwhite,
-  surface: BRAND.white,
-  surfaceLight: BRAND.gray,
-  surfaceElevated: BRAND.gray,
-  textPrimary: BRAND.woodsmoke,
-  textSecondary: 'rgba(9, 11, 13, 0.6)',
-  textMuted: 'rgba(9, 11, 13, 0.4)',
-  border: BRAND.gray,
-  borderLight: BRAND.gray,
-  borderMedium: 'rgba(9, 11, 13, 0.25)',
+// All theme-aware colors resolve through CSS variables in index.css, so
+// light and dark mode share one palette here. The CSS variables (and their
+// [data-theme='dark'] overrides) are the single source of truth.
+const PALETTE = {
+  bg: 'var(--color-bg)',
+  surface: 'var(--color-surface)',
+  surfaceLight: 'var(--color-surface-light)',
+  surfaceElevated: 'var(--color-surface-elevated)',
+  textPrimary: 'var(--color-text-primary)',
+  textSecondary: 'var(--color-text-secondary)',
+  textMuted: 'var(--color-text-muted)',
+  border: 'var(--color-border)',
+  borderLight: 'var(--color-border-light)',
+  borderMedium: 'var(--color-border-medium)',
   statusActive: 'var(--color-status-active)',
   statusFulfilled: 'var(--color-status-fulfilled)',
   statusCompleted: 'var(--color-status-completed)',
@@ -39,23 +41,8 @@ const lightPalette = {
   statusCollateral: 'var(--color-status-collateral)',
   statusVote: 'var(--color-status-vote)',
   statusMinerActivated: 'var(--color-status-miner-activated)',
-  assetBtc: '#f7931a',
-  assetTao: BRAND.woodsmoke,
-} as const;
-
-const darkPalette = {
-  ...lightPalette,
-  bg: BRAND.woodsmoke,
-  surface: BRAND.woodsmoke,
-  surfaceLight: '#101214',
-  surfaceElevated: '#191b1d',
-  textPrimary: BRAND.white,
-  textSecondary: 'rgba(255, 255, 255, 0.6)',
-  textMuted: 'rgba(255, 255, 255, 0.4)',
-  border: 'rgba(255, 255, 255, 0.12)',
-  borderLight: 'rgba(255, 255, 255, 0.18)',
-  borderMedium: 'rgba(255, 255, 255, 0.25)',
-  assetTao: BRAND.white,
+  assetBtc: 'var(--color-asset-btc)',
+  assetTao: 'var(--color-asset-tao)',
 } as const;
 
 declare module '@mui/material/styles' {
@@ -116,48 +103,48 @@ const v = (name: string) => `var(--color-${name})`;
 export type ThemeMode = 'light' | 'dark';
 
 export function createAppTheme(mode: ThemeMode): Theme {
-  const p = mode === 'light' ? lightPalette : darkPalette;
-
   return createTheme({
     palette: {
       mode,
+      // primary is the only entry that needs real color values — MUI runs
+      // darken/lighten/getContrastText on it during createPalette.
       primary: {
-        main: p.primary,
-        light: p.primary,
-        dark: p.primary,
+        main: BRAND.primary,
+        light: BRAND.primary,
+        dark: BRAND.primary,
         contrastText: BRAND.white,
       },
       background: {
-        default: p.bg,
-        paper: p.surface,
+        default: PALETTE.bg,
+        paper: PALETTE.surface,
       },
       text: {
-        primary: p.textPrimary,
-        secondary: p.textSecondary,
+        primary: PALETTE.textPrimary,
+        secondary: PALETTE.textSecondary,
       },
-      divider: p.border,
+      divider: PALETTE.border,
       border: {
-        subtle: p.border,
-        light: p.borderLight,
-        medium: p.borderMedium,
+        subtle: PALETTE.border,
+        light: PALETTE.borderLight,
+        medium: PALETTE.borderMedium,
       },
       surface: {
-        main: p.surface,
-        light: p.surfaceLight,
-        elevated: p.surfaceElevated,
+        main: PALETTE.surface,
+        light: PALETTE.surfaceLight,
+        elevated: PALETTE.surfaceElevated,
       },
       status: {
-        active: p.statusActive,
-        fulfilled: p.statusFulfilled,
-        completed: p.statusCompleted,
-        timedOut: p.statusTimedOut,
-        collateral: p.statusCollateral,
-        vote: p.statusVote,
-        minerActivated: p.statusMinerActivated,
+        active: PALETTE.statusActive,
+        fulfilled: PALETTE.statusFulfilled,
+        completed: PALETTE.statusCompleted,
+        timedOut: PALETTE.statusTimedOut,
+        collateral: PALETTE.statusCollateral,
+        vote: PALETTE.statusVote,
+        minerActivated: PALETTE.statusMinerActivated,
       },
       asset: {
-        btc: p.assetBtc,
-        tao: p.assetTao,
+        btc: PALETTE.assetBtc,
+        tao: PALETTE.assetTao,
       },
     },
     typography: {
