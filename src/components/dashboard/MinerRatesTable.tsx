@@ -200,7 +200,7 @@ const MinerRatesTable: React.FC = () => {
         <span>{src}</span>
         <span
           style={{
-            color: theme.palette.primary.main,
+            color: theme.palette.text.secondary,
             fontWeight: 600,
             fontSize: '0.95rem',
           }}
@@ -245,10 +245,8 @@ const MinerRatesTable: React.FC = () => {
       fontSize: '0.65rem',
       letterSpacing: '0.03em',
     } as const;
-    // τ glyph inherits the cell font size (no shrink) so it carries enough
-    // visual weight to read as a unit suffix, just muted in color.
     const unitSx = {
-      color: theme.palette.text.disabled,
+      color: theme.palette.text.secondary,
     } as const;
     const renderRow = (
       from: string,
@@ -320,7 +318,7 @@ const MinerRatesTable: React.FC = () => {
                 dst,
                 forward,
                 forwardDimmed,
-                theme.palette.primary.main,
+                theme.palette.text.primary,
               )}
               {renderRow(
                 dst,
@@ -573,7 +571,7 @@ const MinerRatesTable: React.FC = () => {
                         {formatCollateral(miner.collateralRao)}
                         <Box
                           component="span"
-                          sx={{ color: theme.palette.text.disabled, ml: 0.5 }}
+                          sx={{ color: theme.palette.text.secondary, ml: 0.5 }}
                         >
                           τ
                         </Box>
