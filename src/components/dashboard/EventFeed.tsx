@@ -207,7 +207,7 @@ const EventFeed: React.FC = () => {
                       sx={{
                         fontFamily: FONTS.mono,
                         fontSize: '0.7rem',
-                        color: 'primary.main',
+                        color: 'text.primary',
                       }}
                     >
                       {parseFloat(event.taoAmount).toFixed(4)} TAO

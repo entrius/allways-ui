@@ -262,7 +262,7 @@ const SwapTracker: React.FC = () => {
                         sx={{
                           fontFamily: FONTS.mono,
                           fontSize: '0.7rem',
-                          color: 'primary.main',
+                          color: 'text.primary',
                         }}
                       >
                         {formatAmount(swap.sourceAmount, swap.sourceChain)}
@@ -273,7 +273,7 @@ const SwapTracker: React.FC = () => {
                         sx={{
                           fontFamily: FONTS.mono,
                           fontSize: '0.7rem',
-                          color: 'primary.main',
+                          color: 'text.primary',
                         }}
                       >
                         {parseFloat(swap.taoAmount).toFixed(4)} TAO
