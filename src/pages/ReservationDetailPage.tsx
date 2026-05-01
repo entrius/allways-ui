@@ -28,7 +28,7 @@ import ExtensionChip, {
   deriveReservationExtensionStatus,
 } from '../components/ExtensionChip';
 
-type StageState = 'done' | 'current' | 'pending' | 'failed';
+type StageState = 'done' | 'current' | 'awaiting' | 'pending' | 'failed';
 
 const minerSendToAddress = (
   fromChain: string | null,
@@ -98,18 +98,26 @@ const ReservationDetailPage: React.FC = () => {
   const isTerminal = r.status === 'EXPIRED' || r.status === 'CANCELLED';
 
   const reservedStage: StageState = isTerminal ? 'failed' : 'done';
-  const fundsStage: StageState = isTerminal
+  // Stage 2: user has sent the source tx — we infer this from the validator
+  // having seen it. Until detected, the user owns this step (awaiting them).
+  const sentStage: StageState = isTerminal
     ? 'failed'
     : fundsSeen
       ? 'done'
-      : 'current';
-  const initiatedStage: StageState = isTerminal
+      : 'awaiting';
+  // Stage 3: validator awaits confirmation blocks before quorum can vote.
+  const confirmStage: StageState = isTerminal
     ? 'failed'
     : isInitiated
       ? 'done'
       : fundsSeen
         ? 'current'
         : 'pending';
+  const initiatedStage: StageState = isTerminal
+    ? 'failed'
+    : isInitiated
+      ? 'done'
+      : 'pending';
 
   const extensionStatus = deriveReservationExtensionStatus(r, protocol);
   const sourceLine =
@@ -176,18 +184,29 @@ const ReservationDetailPage: React.FC = () => {
             detail={`Block #${r.reservedAtBlock} · ${relativeTime(r.createdAt)}`}
           />
           <Stage
-            state={fundsStage}
-            label="User funds detected"
+            state={sentStage}
+            label="User sends tx to miner"
             detail={
               fundsSeen
-                ? r.pendingExtensionFromTxHash
-                  ? 'Validator saw your source tx'
-                  : 'Confirmed on-chain'
+                ? 'Validator detected source tx'
                 : isTerminal
                   ? r.status === 'EXPIRED'
                     ? 'Window closed — do not send funds'
                     : 'Reservation cancelled — do not send funds'
-                  : 'Awaiting validator confirmation'
+                  : 'Send funds to the miner — usually appears within a block'
+            }
+          />
+          <Stage
+            state={confirmStage}
+            label="Validator awaits confirmation"
+            detail={
+              isInitiated
+                ? 'Confirmation blocks reached'
+                : fundsSeen
+                  ? 'Awaiting confirmation blocks before quorum vote'
+                  : isTerminal
+                    ? 'Skipped'
+                    : 'Pending source tx'
             }
           />
           <Stage
@@ -226,8 +245,9 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              Send <strong>{sourceLine}</strong> from your address to the miner
-              before block <strong>#{r.reservedUntilBlock}</strong>
+              If you haven't sent yet, send <strong>{sourceLine}</strong> from
+              your address to the miner before block{' '}
+              <strong>#{r.reservedUntilBlock}</strong>
               {currentBlock > 0 && (
                 <>
                   {' '}
@@ -245,6 +265,16 @@ const ReservationDetailPage: React.FC = () => {
               <LabelValue label="Send to" value={sendToAddr} copyable />
             )}
             <LabelValue label="Send from" value={r.userFromAddress} copyable />
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.7rem',
+                color: 'text.secondary',
+              }}
+            >
+              Already sent? Validators usually pick it up within a block — this
+              page will update automatically.
+            </Typography>
             <Typography
               sx={{
                 fontFamily: FONTS.mono,
@@ -401,9 +431,11 @@ const Stage: React.FC<{
       ? theme.palette.status.completed
       : state === 'current'
         ? theme.palette.status.active
-        : state === 'failed'
-          ? theme.palette.status.timedOut
-          : theme.palette.text.disabled;
+        : state === 'awaiting'
+          ? theme.palette.status.active
+          : state === 'failed'
+            ? theme.palette.status.timedOut
+            : theme.palette.text.disabled;
   const labelColor =
     state === 'pending'
       ? theme.palette.text.secondary
@@ -421,7 +453,7 @@ const Stage: React.FC<{
             fontFamily: FONTS.mono,
             fontSize: '0.8rem',
             color: labelColor,
-            fontWeight: state === 'current' ? 600 : 400,
+            fontWeight: state === 'current' || state === 'awaiting' ? 600 : 400,
             minWidth: { sm: 180 },
           }}
         >

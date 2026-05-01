@@ -194,11 +194,11 @@ const SwapDetailPage: React.FC = () => {
           {swap.status === 'ACTIVE' &&
             "Awaiting miner fulfillment — they're sending the destination funds now. Validators will mark it FULFILLED once the destination tx confirms."}
           {swap.status === 'FULFILLED' &&
-            'Miner delivered the destination funds. Validators are voting to confirm on-chain — once quorum lands, the swap completes and you can spend.'}
+            'Miner delivered the destination funds. Validators are voting to confirm on-chain — once quorum lands, the swap completes.'}
           {swap.status === 'COMPLETED' && 'Exchange completed.'}
           {swap.status === 'TIMED_OUT' &&
             (refundPending
-              ? 'Miner did not deliver in time. Slash is pending — claim your refund on-chain with `alw claim`.'
+              ? 'Miner did not deliver in time. Slash is pending — user must claim the refund on-chain with `alw claim`.'
               : "Miner did not deliver in time. The slashed collateral was paid directly to the user's address.")}
         </Typography>
       </Card>
@@ -209,7 +209,7 @@ const SwapDetailPage: React.FC = () => {
           <Stack direction="row" spacing={3} flexWrap="wrap">
             {swap.sourceAmount && swap.sourceChain && (
               <LabelValue
-                label="You send"
+                label="User sends"
                 value={formatAmount(swap.sourceAmount, swap.sourceChain)}
               />
             )}
@@ -219,7 +219,7 @@ const SwapDetailPage: React.FC = () => {
                 const net = applyFee(swap.destAmount, protocol?.feeDivisor);
                 return net ? (
                   <LabelValue
-                    label="You receive"
+                    label="User receives"
                     value={formatAmount(net, swap.destChain)}
                   />
                 ) : null;
@@ -332,6 +332,20 @@ const SwapDetailPage: React.FC = () => {
                 status={deriveSwapExtensionStatus(swap, protocol)}
               />
             </Stack>
+          )}
+          {swap.timeoutBlock && !isTimedOut && swap.status !== 'COMPLETED' && (
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.65rem',
+                color: 'text.secondary',
+                pl: 4,
+                lineHeight: 1.4,
+              }}
+            >
+              Timeout may extend if validators need additional blocks to safely
+              confirm the destination tx.
+            </Typography>
           )}
         </Stack>
       </Card>
@@ -459,17 +473,17 @@ const SwapDetailPage: React.FC = () => {
         return (
           <>
             <Card>
-              <SectionTitle>You send</SectionTitle>
+              <SectionTitle>User sends</SectionTitle>
               <Stack spacing={1}>
-                {sentAmount && <LabelValue label="Amount" value={sentAmount} />}
+                <LabelValue label="Amount" value={sentAmount ?? '—'} />
                 {sentFrom && <LabelAddr label="From user" address={sentFrom} />}
                 {sentTo && <LabelAddr label="To miner" address={sentTo} />}
               </Stack>
             </Card>
             <Card>
-              <SectionTitle>You receive</SectionTitle>
+              <SectionTitle>User receives</SectionTitle>
               <Stack spacing={1}>
-                {recvAmount && <LabelValue label="Amount" value={recvAmount} />}
+                <LabelValue label="Amount" value={recvAmount ?? '—'} />
                 {recvFrom && (
                   <LabelAddr label="From miner" address={recvFrom} />
                 )}

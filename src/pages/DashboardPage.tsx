@@ -1,5 +1,6 @@
 import React from 'react';
 import { Grid, Stack, Typography } from '@mui/material';
+import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import {
   EventFeed,
   MinerRatesTable,
@@ -9,9 +10,12 @@ import {
   Page,
   SEO,
 } from '../components';
+import { useChainState } from '../api';
 import { FONTS } from '../theme';
 
 const DashboardPage: React.FC = () => {
+  const { data: chainState } = useChainState();
+  const currentBlock = chainState?.currentBlock;
   return (
     <Page>
       <SEO
@@ -28,18 +32,47 @@ const DashboardPage: React.FC = () => {
           mx: 'auto',
         }}
       >
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'text.secondary',
-            mb: 2,
-          }}
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 2, gap: 2 }}
         >
-          Network Activity
-        </Typography>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.7rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'text.secondary',
+            }}
+          >
+            Network Activity
+          </Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.75}
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.7rem',
+              color: 'text.secondary',
+            }}
+          >
+            <ViewInArIcon sx={{ fontSize: 14 }} />
+            <Typography
+              component="span"
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.7rem',
+                letterSpacing: '0.04em',
+                color: 'text.secondary',
+              }}
+            >
+              Block #{currentBlock ? currentBlock.toLocaleString() : '—'}
+            </Typography>
+          </Stack>
+        </Stack>
 
         <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
           <Grid item xs={12}>
