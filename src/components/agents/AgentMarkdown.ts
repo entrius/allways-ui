@@ -10,34 +10,66 @@ export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 ## TL;DR
 
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for
-trustless native swaps between independent assets (currently BTC ↔ TAO).
-Miners post collateral and exchange rates. Validators verify both legs
-of each swap. The smart contract slashes collateral on failure and
-refunds the user. No custodian, no wrapped asset, no bridge token.
+trustless native swaps between independent assets. **BTC ↔ TAO is live
+today; more pairs are coming online.** Miners post collateral and quote
+exchange rates. Validators verify both legs of each swap. The smart
+contract slashes collateral on failure and refunds the user. No custodian,
+no wrapped asset, no bridge token.
+
+## Resources (skim these first)
+
+| What | Where |
+|---|---|
+| Live dashboard (mainnet) | https://all-ways.io |
+| Live dashboard (testnet) | https://test.all-ways.io |
+| Public API + Swagger | https://api.all-ways.io/swagger |
+| Testnet API | https://test-api.all-ways.io |
+| Docs site | https://docs.all-ways.io |
+| Source repo | https://github.com/entrius/allways |
+| This document, raw | https://all-ways.io/llms.txt |
 
 ## Why agents use it
 
 - **Trustless.** Collateral guarantees delivery; the contract slashes on failure.
 - **Best rate.** Dynamic pricing — quotes update every block.
 - **Subnet-native.** Settles in real BTC and real TAO. No IOUs.
-- **Open + agentic.** Public API, SSE feeds, open-source CLI.
+- **Open + agentic.** Public API, SSE feeds, open-source CLI, scriptable end-to-end.
 
 ## Concepts you actually need
 
 - **Actors.** User picks a miner. Miner posts collateral + rate, fulfills. Validators verify both legs and vote. Contract enforces slash / timeout / payout.
 - **Statuses.** \`ACTIVE → FULFILLED → COMPLETED\` (happy) or \`ACTIVE → TIMED_OUT\` (slash to user).
-- **Fee.** 1% of the TAO leg, deducted from miner collateral. Hardcoded.
+- **Fee — 1%, paid via the rate.** The fee is *implicit in the price you accept*. If a miner quotes \`1 BTC = 300 TAO\` and you send 1 BTC, you receive **297 TAO** — the 3-TAO fee is the protocol's cut. The fee never leaves your wallet as a separate charge; it's harvested from the miner's collateral on settlement. Always preview with \`alw swap quote\` (or the rate display in \`alw swap now\`) — the post-fee receive amount is shown.
 - **Block time.** ~12s on Bittensor; 30 blocks ≈ 6 min.
-- **Slash payouts are always TAO.** Even on BTC-side swaps you need a Bittensor wallet — that's where any refund lands.
+- **Reservation TTL.** Once a miner is reserved, you have ~5 min (30 blocks) to broadcast your source tx. Miss the window and the reservation expires, the miner unlocks, and nothing is lost — just start over.
+- **Slash payouts are always TAO.** Even on BTC-side swaps you need a Bittensor wallet — that's where any timeout refund lands.
 - **Sender verification.** Validators reject any source tx whose on-chain sender does not match the address you proved at reserve time. Don't try to send from a different wallet than the one you registered.
 
-> **Bittensor primer.** Allways runs on Bittensor (an L1 subnet network). You don't need to learn it — the CLI handles chain interaction. Background reading only: https://docs.bittensor.com.
+> **Bittensor primer.** Allways runs on Bittensor (an L1 subnet network). You don't need to learn it — the CLI handles all chain interaction. Background reading only: https://docs.bittensor.com.
+
+## End-to-end swap flow
+
+This is what actually happens between "I want to swap" and "funds in my wallet":
+
+1. **Quote.** You call \`alw swap quote\` (or read \`GET /miners\`). Miners advertise live rates on-chain via subnet commitments — no off-chain orderbook.
+2. **Reserve.** You sign a proof of ownership of your source address and broadcast a \`SwapReserveSynapse\` to validators. Quorum of validators vote on-chain to lock the chosen miner to you for ~5 min. \`alw swap now\` does this for you.
+3. **Send source funds.** You broadcast a tx on the source chain (TAO via your hotkey, BTC via WIF or your own wallet) sending the agreed amount **from the address you proved at reserve time** to the miner's address. Must happen inside the reservation window.
+4. **Confirm.** You sign a proof binding your source tx to the reservation and broadcast a \`SwapConfirmSynapse\` to validators. They:
+   - Verify the source tx exists on the source chain, has enough confirmations, came from your reserved address, and matches the agreed amount.
+   - Vote on-chain to **initiate** the swap. The contract creates an \`ACTIVE\` swap and locks miner collateral. Status: \`ACTIVE\`.
+5. **Miner detects + fulfills.** The miner watches the contract for new \`ACTIVE\` swaps targeted at them, sends the destination asset to your receive address, posts the destination tx hash, and marks itself \`FULFILLED\`. Status: \`ACTIVE → FULFILLED\`.
+6. **Validators confirm fulfillment.** Validators verify the destination tx (on-chain, correct amount, correct recipient, enough confirmations) and vote to complete. Contract releases miner collateral, books the 1% fee. Status: \`FULFILLED → COMPLETED\`. Done.
+7. **Timeout / refund.** If the miner doesn't fulfill within the swap timeout, validators vote \`TIMED_OUT\`. The contract slashes the miner's collateral and pays you out in TAO directly. If that on-chain transfer fails, the slash is held pending — \`alw claim <swap-id>\` claims it.
+
+Throughout, you can poll \`GET /swaps/{id}\` or watch \`alw view swap <id> --watch\` for the live timeline.
 
 ## Setup (shell-first)
 
 > A pure-HTTP flow (run swaps via API only, no local CLI) is on the roadmap. For now, agents need shell access and a Python ≥ 3.10 environment.
 
 ### 1. Install
+
+The Allways package pins and pulls in \`bittensor\` (10.3.0) and \`bittensor-cli\` (9.21.0) automatically — you do **not** need to install them separately. \`btcli\` lands on PATH after this step.
 
 Recommended — \`pipx\` keeps \`alw\` in its own isolated venv on PATH and avoids resolver conflicts with whatever else is installed:
 
@@ -52,6 +84,7 @@ Alternative (cloning the repo, e.g. for development):
 Verify:
 
     alw --help
+    btcli --help
 
 ### 2. Bittensor wallet
 
@@ -60,7 +93,7 @@ Standard Bittensor wallet conventions. Create one if you don't have one:
     btcli wallet new_coldkey --wallet.name <coldkey-name>
     btcli wallet new_hotkey  --wallet.name <coldkey-name> --wallet.hotkey <hotkey-name>
 
-Wallets land in \`~/.bittensor/wallets/\`. **Fund the hotkey with TAO** — it signs swap and collateral calls and pays extrinsic fees. Keep at least ~0.25 TAO above your intended swap amount as a fee buffer.
+Wallets land in \`~/.bittensor/wallets/\`. **Fund the hotkey with TAO** — it signs swap and collateral calls and pays extrinsic fees. Keep a small buffer (~0.02 TAO is enough — the in-code constant is \`MIN_BALANCE_FOR_TX_RAO = 20_000_000\`) above your intended swap amount.
 
 ### 3. Configure the CLI
 
@@ -69,9 +102,7 @@ Wallets land in \`~/.bittensor/wallets/\`. **Fund the hotkey with TAO** — it s
     alw config set network finney
     alw config set netuid  7
 
-The mainnet contract address is bundled — you do **not** need to set \`contract-address\` for production. Override only for testnet or local dev:
-
-    alw config set contract-address 5FTkUEhRmLPsALn4b7bJpVFhDQqohGbc6khnmA2aiYFLMZYP
+The mainnet contract address is **bundled in code** (\`5FTkUEhRmLPsALn4b7bJpVFhDQqohGbc6khnmA2aiYFLMZYP\`) — you do not need to set \`contract-address\` for production. Only override for testnet (see the Testnet section).
 
 Config persists at \`~/.allways/config.json\`.
 
@@ -83,7 +114,11 @@ For BTC→TAO swaps, the CLI can broadcast BTC for you if you put a WIF private 
     BTC_NETWORK=mainnet
     BTC_PRIVATE_KEY=<your_WIF_key>
 
-\`lightweight\` mode talks to the Blockstream API — no Bitcoin node required. If \`BTC_PRIVATE_KEY\` is unset, BTC→TAO falls back to a manual flow: the CLI prints the miner's address + exact amount, you broadcast from your own wallet, then run \`alw swap post-tx <tx-hash>\`. TAO→BTC swaps need no \`.env\` — TAO is signed by your hotkey.
+\`lightweight\` mode talks to the Blockstream API — no Bitcoin node required.
+
+If \`BTC_PRIVATE_KEY\` is unset, BTC→TAO falls back to a manual flow: the CLI prints the miner's address + exact amount, you broadcast from your own wallet, **then run \`alw swap post-tx <tx-hash>\` *within the ~5 min reservation window***. Miss the window and the reservation expires before you can confirm.
+
+TAO→BTC swaps need no \`.env\` — TAO is signed by your hotkey.
 
 ## Verify the install (read-only, no funds spent)
 
@@ -100,11 +135,36 @@ If any step fails, jump to **Known issues** below.
 
 ## Run a swap
 
-Interactive (recommended):
+### Non-interactive (recommended for agents)
 
-    alw swap now
+Drive the entire flow with flags — no prompts. \`--auto\` picks the best-rate eligible miner; \`--yes\` skips every confirmation.
 
-The CLI walks through direction, miner pick, amount, address, reserve, send, watch. TAO is sent automatically; BTC is sent automatically when \`BTC_PRIVATE_KEY\` is set, otherwise manual + \`alw swap post-tx\`.
+    alw swap now \\
+      --from btc --to tao \\
+      --amount 0.001 \\
+      --receive-address 5C...           \\  # your TAO (dest) address
+      --from-address bc1q...            \\  # your BTC (source) address — must match the wallet that broadcasts
+      --auto --yes
+
+If you've already broadcast the source tx yourself (e.g. you skipped \`BTC_PRIVATE_KEY\`), pass \`--from-tx-hash\` so the CLI doesn't try to send for you:
+
+    alw swap now --from btc --to tao --amount 0.001 \\
+      --receive-address 5C... --from-address bc1q... \\
+      --from-tx-hash <hash> --auto --yes
+
+Available flags on \`alw swap now\`:
+
+| Flag | Purpose |
+|---|---|
+| \`--from <chain>\` | Source chain (\`btc\`, \`tao\`) |
+| \`--to <chain>\` | Destination chain |
+| \`--amount <n>\` | Source amount in chain units (e.g. 0.001 BTC) |
+| \`--receive-address <addr>\` | Destination address — where the miner sends to you |
+| \`--from-address <addr>\` | Source address — where you send from (must match the wallet you'll broadcast with) |
+| \`--from-tx-hash <hash>\` | Reuse an existing source tx (skip the send step) |
+| \`--auto\` | Auto-pick the best-rate eligible miner — no menu |
+| \`--yes\` | Skip every confirmation prompt |
+| \`--btc-fee-rate <sat/vB>\` | Override BTC fee rate (default: auto-estimated) |
 
 After it returns a swap ID:
 
@@ -113,8 +173,13 @@ After it returns a swap ID:
 
 If something interrupts the flow before swap initiation:
 
-    alw view reservation          # check on-chain reservation state
-    alw swap resume-reservation   # resume pre-initiate
+    alw view reservation                                       # check on-chain reservation state
+    alw swap resume-reservation                                # resume pre-initiate (interactive)
+    alw swap resume-reservation --from-tx-hash <hash> --yes    # non-interactive resume
+
+### Interactive
+
+\`alw swap now\` with no flags walks through direction, miner pick, amount, address, reserve, send, watch.
 
 ## CLI cheat sheet (real commands only)
 
@@ -129,18 +194,20 @@ If something interrupts the flow before swap initiation:
 | \`alw view reservation\` | Your active pre-initiate reservation, if any |
 | \`alw view contract\` | Contract parameters (fee, timeouts, bounds) |
 | \`alw view validators\` | Whitelisted validator allowlist |
-| \`alw swap now\` | Guided interactive swap |
+| \`alw swap now [...flags]\` | Run a swap — interactive by default, fully scriptable with flags |
 | \`alw swap quote --from <c> --to <c> --amount <n>\` | Preview rate + receive amount |
 | \`alw swap post-tx <tx-hash>\` | Submit your source tx hash for a pending reservation |
-| \`alw swap resume-reservation\` | Resume an interrupted pre-initiate flow |
-| \`alw claim <swap-id>\` | Claim slash payout (TAO) from a TIMED_OUT swap |
+| \`alw swap resume-reservation [--from-tx-hash <h>] [--yes]\` | Resume an interrupted pre-initiate flow |
+| \`alw claim <swap-id> [-y]\` | Claim slash payout (TAO) from a TIMED_OUT swap |
 
 Miner-only commands (\`alw miner post|status|activate|deactivate|mark-fulfilled\`, \`alw collateral deposit|withdraw|view\`) are documented at https://docs.all-ways.io/cli.
 
 ## Public API
 
 Base URL: \`https://api.all-ways.io\`. Live OpenAPI / Swagger:
-\`https://api.all-ways.io/swagger\`. Currently un-rate-limited — be a good citizen.
+\`https://api.all-ways.io/swagger\`. **Be a good citizen** — the public API
+serves the dashboard and other agents; cache aggressively, use SSE for
+live state instead of polling, and don't hammer it.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -195,15 +262,26 @@ Base URL: \`https://api.all-ways.io\`. Live OpenAPI / Swagger:
 
 - **Dependency resolver conflicts** — \`bittensor==10.3.0\` is hard-pinned. Always install into a fresh environment. \`pipx install git+…\` is safest. \`python -m venv .venv && pip install …\` also works. Don't install into a system Python.
 - **\`No module named 'bittensor'\`** — you're outside the venv \`pip\`/\`pipx\` installed into. With \`pipx\`, just call \`alw\` directly. With \`pip install -e .\`, run \`source .venv/bin/activate\` first.
+- **\`BTC_MODE=lightweight requires BTC_PRIVATE_KEY\`** — you set lightweight mode but didn't set a WIF. Either add \`BTC_PRIVATE_KEY=<wif>\` to the \`.env\` for auto-send, or accept the manual-broadcast flow (CLI will prompt and you'll run \`alw swap post-tx <hash>\` after sending).
+- **\`BTC_PRIVATE_KEY is not a valid WIF (prefix '...')\`** — your WIF doesn't start with \`5/K/L\` (mainnet) or \`9/c\` (test/regtest). You probably pasted an extended key (xprv…), a hex private key, or a public address by mistake. Re-export the WIF from your wallet (e.g. \`bitcoin-cli dumpprivkey <addr>\`).
+- **\`Blockstream API unreachable\` / \`Blockstream API error\`** — outbound HTTPS to \`blockstream.info\` is broken from this host. Check egress, retry on transient errors, or switch to \`BTC_MODE=node\` + run a local Bitcoin Core node.
 - **Empty \`SWAP_ID\` from \`alw swap now\`** — almost always a missing \`BTC_PRIVATE_KEY\` or unreachable BTC RPC. Check \`~/.allways/logs/\`; re-run with \`--verbose\` for full output.
 - **\`Wallet not found\`** — \`wallet\` / \`hotkey\` in \`alw config\` don't match anything in \`~/.bittensor/wallets/\`. Verify with \`btcli wallet list\`.
-- **\`InsufficientBalance\` on a swap** — your hotkey needs ≥ 0.25 TAO for extrinsic fees on top of the swap amount. Top up the hotkey, not the coldkey.
-- **Reservation expired before send** — miner is auto-unlocked. Start a new swap; nothing is lost. Reservation TTL is ~5 min.
+- **\`InsufficientBalance\` on a swap** — your hotkey needs ≥ 0.02 TAO above the swap amount for extrinsic fees. Top up the hotkey, not the coldkey.
+- **Reservation expired before send** — miner is auto-unlocked. Start a new swap; nothing is lost. Reservation TTL is ~5 min (30 blocks).
 - **Miner timed out — where's my refund?** — slashed collateral is paid in TAO to your hotkey automatically. If that fails, run \`alw claim <swap-id>\`.
 
-## Testnet & local dev (optional)
+## Testnet
 
-For exercising the full swap flow without spending real funds, stand up the local stack at https://github.com/entrius/alw-utils — full subtensor + BTC regtest + contract + neurons + API. Public testnet is \`network=test\`; parameters drift, so the local dev environment is the recommended path.
+Public testnet runs on netuid 19 with its own contract deployment. To target it, override config and point any BTC env vars at testnet too:
+
+    alw config set network test
+    alw config set netuid  19
+    alw config set contract-address 5HTL2snUCca5tjhp6vxNHuo8FZyCSE3wnmyQTNFEKSo6h6kA
+
+For BTC, set \`BTC_NETWORK=testnet\` (lightweight uses Blockstream's testnet endpoint automatically) and use a testnet WIF. Inspect state with the testnet API at \`https://test-api.all-ways.io\` and the dashboard at \`https://test.all-ways.io\`.
+
+Testnet parameters drift — check \`alw view contract\` for current bounds.
 
 ## Disclaimer
 
@@ -217,6 +295,6 @@ your own risk. No warranty. Not financial advice.
 - Repo: https://github.com/entrius/allways
 - Docs: https://docs.all-ways.io
 - API + Swagger: https://api.all-ways.io/swagger
-- UI: https://all-ways.io
-- Status: https://status.all-ways.io
+- Mainnet UI: https://all-ways.io
+- Testnet UI: https://test.all-ways.io
 `;
