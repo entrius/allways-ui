@@ -441,13 +441,9 @@ const SwapDetailPage: React.FC = () => {
         // sourceChain === 'btc': user sends BTC from userSourceAddress → minerSourceAddress;
         //                       miner sends TAO from miner hotkey → user's TAO hotkey.
         const taoSource = swap.sourceChain?.toLowerCase() === 'tao';
-        const sentFrom = taoSource
-          ? swap.userAddress
-          : swap.userSourceAddress;
+        const sentFrom = taoSource ? swap.userAddress : swap.userSourceAddress;
         const sentTo = taoSource ? swap.minerHotkey : swap.minerSourceAddress;
-        const recvFrom = taoSource
-          ? swap.minerSourceAddress
-          : swap.minerHotkey;
+        const recvFrom = taoSource ? swap.minerSourceAddress : swap.minerHotkey;
         const recvTo = taoSource
           ? swap.userDestAddress
           : (swap.userDestAddress ?? swap.userAddress);
@@ -457,16 +453,16 @@ const SwapDetailPage: React.FC = () => {
             : null;
         const netRecv = applyFee(swap.destAmount, protocol?.feeDivisor);
         const recvAmount =
-          netRecv && swap.destChain ? formatAmount(netRecv, swap.destChain) : null;
+          netRecv && swap.destChain
+            ? formatAmount(netRecv, swap.destChain)
+            : null;
         return (
           <>
             <Card>
               <SectionTitle>You sent</SectionTitle>
               <Stack spacing={1}>
                 {sentAmount && <LabelValue label="Amount" value={sentAmount} />}
-                {sentFrom && (
-                  <LabelAddr label="From you" address={sentFrom} />
-                )}
+                {sentFrom && <LabelAddr label="From you" address={sentFrom} />}
                 {sentTo && <LabelAddr label="To miner" address={sentTo} />}
               </Stack>
             </Card>
