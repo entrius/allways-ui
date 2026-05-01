@@ -18,6 +18,8 @@ export type ContractEvent = {
   reservedUntil: string | null;
   isActive: boolean | null;
   extrinsicIndex: number | null;
+  actorHotkey: string | null;
+  extensionTargetBlock: string | null;
   createdAt: string;
 };
 

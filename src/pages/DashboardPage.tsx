@@ -1,10 +1,10 @@
 import React from 'react';
 import { Grid, Stack, Typography } from '@mui/material';
-import { useSSE } from '../hooks';
 import {
   EventFeed,
   MinerRatesTable,
   OrderbookDepth,
+  ReservationsTracker,
   SwapTracker,
   Page,
   SEO,
@@ -12,8 +12,6 @@ import {
 import { FONTS } from '../theme';
 
 const DashboardPage: React.FC = () => {
-  useSSE();
-
   return (
     <Page>
       <SEO
@@ -44,6 +42,20 @@ const DashboardPage: React.FC = () => {
         </Typography>
 
         <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
+          <Grid item xs={12}>
+            <Stack
+              sx={{
+                p: { xs: 1.5, sm: 2, md: 2.5 },
+                maxHeight: { xs: 'none', md: 480 },
+                borderRadius: 0,
+                backgroundColor: 'surface.light',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <ReservationsTracker />
+            </Stack>
+          </Grid>
           <Grid item xs={12} sm={6}>
             <Stack
               sx={{

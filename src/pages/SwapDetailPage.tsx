@@ -9,20 +9,28 @@ import {
   useTheme,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { displayEventType, useSwapDetail } from '../api';
-import { useSSE } from '../hooks';
+import {
+  displayEventType,
+  useChainState,
+  useProtocolConstants,
+  useSwapDetail,
+} from '../api';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
+import { Card, LabelValue, PageWrapper } from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
+  applyFee,
   formatAmount,
-  chainSymbol,
-  formatBlockEstimate,
+  formatRateLine,
+  formatTimeUntilBlock,
   explorerExtrinsicUrl,
   extrinsicRef,
-  trimTrailingZeros,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
+import ExtensionChip, {
+  deriveSwapExtensionStatus,
+} from '../components/ExtensionChip';
 
 type TimelineStep = {
   label: string;
@@ -48,9 +56,11 @@ const getStatusColor = (
 const SwapDetailPage: React.FC = () => {
   const { swapId } = useParams<{ swapId: string }>();
   const theme = useTheme();
-  useSSE();
 
   const { data, isLoading } = useSwapDetail(swapId ?? '');
+  const { data: protocol } = useProtocolConstants();
+  const { data: chainState } = useChainState();
+  const currentBlock = chainState?.currentBlock ?? 0;
 
   if (isLoading) {
     return (
@@ -155,38 +165,74 @@ const SwapDetailPage: React.FC = () => {
         Transaction #{swap.swapId}
       </Typography>
 
+      {swap.reservationRequestHash && (
+        <Typography
+          component={RouterLink}
+          to={`/reservations/${swap.reservationRequestHash}`}
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.75rem',
+            color: 'text.secondary',
+            textDecoration: 'none',
+            display: 'inline-block',
+            mb: 2,
+            '&:hover': { color: 'primary.main' },
+          }}
+        >
+          ← View original reservation
+        </Typography>
+      )}
+
+      <Card>
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.8rem',
+            color: 'text.primary',
+          }}
+        >
+          {swap.status === 'ACTIVE' &&
+            "Awaiting miner fulfillment — they're sending the destination funds now. Validators will mark it FULFILLED once the destination tx confirms."}
+          {swap.status === 'FULFILLED' &&
+            'Miner delivered the destination funds. Validators are voting to confirm on-chain — once quorum lands, the swap completes and you can spend.'}
+          {swap.status === 'COMPLETED' && 'Exchange completed.'}
+          {swap.status === 'TIMED_OUT' &&
+            (refundPending
+              ? 'Miner did not deliver in time. Slash is pending — claim your refund on-chain with `alw claim`.'
+              : "Miner did not deliver in time. The slashed collateral was paid directly to the user's address.")}
+        </Typography>
+      </Card>
+
       {/* Summary */}
       {swap.sourceChain && swap.destChain && (
         <Card>
-          <Stack spacing={1}>
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.85rem',
-                color: 'text.primary',
-                fontWeight: 600,
-              }}
-            >
-              {chainSymbol(swap.sourceChain)} &rarr;{' '}
-              {chainSymbol(swap.destChain)}
-            </Typography>
-            <Stack direction="row" spacing={3} flexWrap="wrap">
-              {swap.sourceAmount && swap.sourceChain && (
-                <LabelValue
-                  label="Source"
-                  value={formatAmount(swap.sourceAmount, swap.sourceChain)}
-                />
-              )}
-              {swap.destAmount && swap.destChain && (
-                <LabelValue
-                  label="Dest"
-                  value={formatAmount(swap.destAmount, swap.destChain)}
-                />
-              )}
-              {swap.rate && (
-                <LabelValue label="Rate" value={trimTrailingZeros(swap.rate)} />
-              )}
-            </Stack>
+          <Stack direction="row" spacing={3} flexWrap="wrap">
+            {swap.sourceAmount && swap.sourceChain && (
+              <LabelValue
+                label="You send"
+                value={formatAmount(swap.sourceAmount, swap.sourceChain)}
+              />
+            )}
+            {swap.destAmount &&
+              swap.destChain &&
+              (() => {
+                const net = applyFee(swap.destAmount, protocol?.feeDivisor);
+                return net ? (
+                  <LabelValue
+                    label="You receive"
+                    value={formatAmount(net, swap.destChain)}
+                  />
+                ) : null;
+              })()}
+            {(() => {
+              const rate = formatRateLine(
+                swap.sourceAmount,
+                swap.sourceChain,
+                swap.destAmount,
+                swap.destChain,
+              );
+              return rate ? <LabelValue label="Rate" value={rate} /> : null;
+            })()}
           </Stack>
         </Card>
       )}
@@ -270,18 +316,21 @@ const SwapDetailPage: React.FC = () => {
                 Block #{swap.timeoutBlock}
                 {!isTimedOut &&
                   swap.status !== 'COMPLETED' &&
-                  swap.initiatedBlock && (
+                  currentBlock > 0 && (
                     <>
                       {' '}
                       (
-                      {formatBlockEstimate(
-                        parseInt(swap.timeoutBlock) -
-                          parseInt(swap.initiatedBlock),
+                      {formatTimeUntilBlock(
+                        parseInt(swap.timeoutBlock),
+                        currentBlock,
                       )}{' '}
-                      window)
+                      remaining)
                     </>
                   )}
               </Typography>
+              <ExtensionChip
+                status={deriveSwapExtensionStatus(swap, protocol)}
+              />
             </Stack>
           )}
         </Stack>
@@ -384,30 +433,52 @@ const SwapDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Participants */}
-      <Card>
-        <SectionTitle>Participants</SectionTitle>
-        <Stack spacing={1}>
-          {swap.userAddress && (
-            <LabelAddr label="User" address={swap.userAddress} />
-          )}
-          {swap.userSourceAddress && (
-            <LabelAddr label="User Source" address={swap.userSourceAddress} />
-          )}
-          {swap.userDestAddress && (
-            <LabelAddr label="User Dest" address={swap.userDestAddress} />
-          )}
-          {swap.minerHotkey && (
-            <LabelAddr label="Routing Node" address={swap.minerHotkey} />
-          )}
-          {swap.minerSourceAddress && (
-            <LabelAddr
-              label="Routing Node Source"
-              address={swap.minerSourceAddress}
-            />
-          )}
-        </Stack>
-      </Card>
+      {/* Transaction flow */}
+      {(() => {
+        // Resolve "from" / "to" addresses for each leg from the user's POV.
+        // sourceChain === 'tao': user sends TAO from their hotkey → miner hotkey;
+        //                       miner sends BTC from minerSourceAddress → user's BTC addr.
+        // sourceChain === 'btc': user sends BTC from userSourceAddress → minerSourceAddress;
+        //                       miner sends TAO from miner hotkey → user's TAO hotkey.
+        const taoSource = swap.sourceChain?.toLowerCase() === 'tao';
+        const sentFrom = taoSource ? swap.userAddress : swap.userSourceAddress;
+        const sentTo = taoSource ? swap.minerHotkey : swap.minerSourceAddress;
+        const recvFrom = taoSource ? swap.minerSourceAddress : swap.minerHotkey;
+        const recvTo = taoSource
+          ? swap.userDestAddress
+          : (swap.userDestAddress ?? swap.userAddress);
+        const sentAmount =
+          swap.sourceAmount && swap.sourceChain
+            ? formatAmount(swap.sourceAmount, swap.sourceChain)
+            : null;
+        const netRecv = applyFee(swap.destAmount, protocol?.feeDivisor);
+        const recvAmount =
+          netRecv && swap.destChain
+            ? formatAmount(netRecv, swap.destChain)
+            : null;
+        return (
+          <>
+            <Card>
+              <SectionTitle>You send</SectionTitle>
+              <Stack spacing={1}>
+                {sentAmount && <LabelValue label="Amount" value={sentAmount} />}
+                {sentFrom && <LabelAddr label="From user" address={sentFrom} />}
+                {sentTo && <LabelAddr label="To miner" address={sentTo} />}
+              </Stack>
+            </Card>
+            <Card>
+              <SectionTitle>You receive</SectionTitle>
+              <Stack spacing={1}>
+                {recvAmount && <LabelValue label="Amount" value={recvAmount} />}
+                {recvFrom && (
+                  <LabelAddr label="From miner" address={recvFrom} />
+                )}
+                {recvTo && <LabelAddr label="To user" address={recvTo} />}
+              </Stack>
+            </Card>
+          </>
+        );
+      })()}
 
       {/* Event History */}
       {events.length > 0 && (
@@ -500,36 +571,6 @@ const SwapDetailPage: React.FC = () => {
 
 /* ---- Shared sub-components ---- */
 
-const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Stack
-    sx={{
-      backgroundColor: 'background.default',
-      px: { xs: 1.5, sm: 2, md: 4 },
-      py: { xs: 2, sm: 3, md: 4 },
-      width: '100%',
-      maxWidth: 800,
-      mx: 'auto',
-    }}
-  >
-    {children}
-  </Stack>
-);
-
-const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Box
-    sx={{
-      p: 2,
-      mb: 2,
-      borderRadius: 0,
-      backgroundColor: 'background.paper',
-      border: '1px solid',
-      borderColor: 'divider',
-    }}
-  >
-    {children}
-  </Box>
-);
-
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
@@ -546,38 +587,6 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   >
     {children}
   </Typography>
-);
-
-const LabelValue: React.FC<{
-  label: string;
-  value: string;
-  copyable?: boolean;
-}> = ({ label, value, copyable }) => (
-  <Stack direction="row" spacing={1} alignItems="baseline">
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.7rem',
-        color: 'text.secondary',
-        minWidth: 80,
-      }}
-    >
-      {label}
-    </Typography>
-    {copyable ? (
-      <CopyableAddress address={value} fontSize="0.75rem" />
-    ) : (
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.75rem',
-          color: 'text.primary',
-        }}
-      >
-        {value}
-      </Typography>
-    )}
-  </Stack>
 );
 
 const LabelAddr: React.FC<{ label: string; address: string }> = ({

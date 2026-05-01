@@ -10,6 +10,12 @@ const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 const SwapPage = React.lazy(() => import('./pages/SwapPage'));
 const SwapDetailPage = React.lazy(() => import('./pages/SwapDetailPage'));
+const ReservationDetailPage = React.lazy(
+  () => import('./pages/ReservationDetailPage'),
+);
+const ReservationsBySourcePage = React.lazy(
+  () => import('./pages/ReservationsBySourcePage'),
+);
 const AgentsPage = React.lazy(() => import('./pages/AgentsPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
@@ -18,6 +24,16 @@ const routesArray: AppRoute[] = [
   { name: 'dashboard', path: '/dashboard', element: <DashboardPage /> },
   { name: 'swap', path: '/swap', element: <SwapPage /> },
   { name: 'swap-detail', path: '/swap/:swapId', element: <SwapDetailPage /> },
+  {
+    name: 'reservations-by-source',
+    path: '/reservations/by-source/:address',
+    element: <ReservationsBySourcePage />,
+  },
+  {
+    name: 'reservation-detail',
+    path: '/reservations/:requestHash',
+    element: <ReservationDetailPage />,
+  },
   { name: 'agents', path: '/agents', element: <AgentsPage /> },
 
   // 404 catch-all route (must be last)

@@ -1,11 +1,14 @@
 import React, { Suspense, useRef } from 'react';
 import { Stack } from '@mui/material';
 import { Outlet } from 'react-router-dom';
-import { useOnNavigate } from '../../hooks';
+import { useOnNavigate, useSSE } from '../../hooks';
 import LoadingPage from '../../pages/LoadingPage';
 import { TopNav, Footer } from '../nav';
 
 const AppLayout: React.FC = () => {
+  // Single SSE subscription for the whole app — every routed page
+  // automatically receives live invalidations.
+  useSSE();
   const mainRef = useRef<HTMLElement>(null);
   useOnNavigate(() => mainRef.current?.scrollTo(0, 0));
 

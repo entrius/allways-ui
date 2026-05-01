@@ -15,7 +15,9 @@ export type Miner = {
   uid: number;
   hotkey: string;
   sourceChain: string | null;
+  sourceAddress: string | null;
   destChain: string | null;
+  destAddress: string | null;
   rate: string | null;
   counterRate: string | null;
   collateralRao: string;

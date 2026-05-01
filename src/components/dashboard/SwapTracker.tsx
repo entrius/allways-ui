@@ -302,8 +302,7 @@ const SwapTracker: React.FC = () => {
                           color: 'text.secondary',
                         }}
                       >
-                        Routing Node:{' '}
-                        <CopyableAddress address={swap.minerHotkey} />
+                        Miner: <CopyableAddress address={swap.minerHotkey} />
                       </Typography>
                     )}
                   </Stack>

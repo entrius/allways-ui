@@ -1,6 +1,5 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { useSSE } from '../hooks';
 import {
   AgentMarkdownCard,
   SnapshotDownload,
@@ -26,8 +25,6 @@ const SectionLabel: React.FC<{ children: string }> = ({ children }) => (
 );
 
 const AgentsPage: React.FC = () => {
-  useSSE();
-
   return (
     <Page>
       <SEO

@@ -1,0 +1,23 @@
+export type Reservation = {
+  id: string;
+  requestHash: string;
+  minerHotkey: string;
+  userFromAddress: string;
+  fromChain: string | null;
+  toChain: string | null;
+  taoAmount: string | null;
+  fromAmount: string | null;
+  toAmount: string | null;
+  reservedAtBlock: string;
+  reservedUntilBlock: string;
+  status: string;
+  swapId: string | null;
+  extensionsUsed: number;
+  pendingExtensionTarget: string | null;
+  pendingExtensionProposedBlock: string | null;
+  pendingExtensionProposedBy: string | null;
+  pendingExtensionFromTxHash: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+};

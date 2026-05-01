@@ -1,6 +1,5 @@
 import React from 'react';
 import { Stack } from '@mui/material';
-import { useSSE } from '../hooks';
 import {
   Hero,
   MetricsStrip,
@@ -12,7 +11,6 @@ import {
 } from '../components';
 
 const LandingPage: React.FC = () => {
-  useSSE();
   return (
     <Page>
       <SEO

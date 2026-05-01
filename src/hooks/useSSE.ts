@@ -14,10 +14,12 @@ export function useSSE() {
     es.addEventListener('event', () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      queryClient.invalidateQueries({ queryKey: ['chainState'] });
     });
 
     es.addEventListener('miner', () => {
       queryClient.invalidateQueries({ queryKey: ['miners'] });
+      queryClient.invalidateQueries({ queryKey: ['miner'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     });
 
@@ -26,6 +28,17 @@ export function useSSE() {
       queryClient.invalidateQueries({ queryKey: ['swap'] });
       queryClient.invalidateQueries({ queryKey: ['allSwaps'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      // SwapInitiated/Completed/TimedOut also transition the originating
+      // reservation row, so refresh those views too.
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['reservation'] });
+      queryClient.invalidateQueries({ queryKey: ['reservationsBySource'] });
+    });
+
+    es.addEventListener('reservation', () => {
+      queryClient.invalidateQueries({ queryKey: ['reservations'] });
+      queryClient.invalidateQueries({ queryKey: ['reservation'] });
+      queryClient.invalidateQueries({ queryKey: ['reservationsBySource'] });
     });
 
     return () => {
