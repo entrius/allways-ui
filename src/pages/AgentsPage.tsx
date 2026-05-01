@@ -67,7 +67,7 @@ const AgentsPage: React.FC = () => {
 
         <Stack spacing={4}>
           <Box>
-            <SectionLabel>1 · Hand off context</SectionLabel>
+            <SectionLabel>1 · Hand off context — copy once, ingest once</SectionLabel>
             <AgentMarkdownCard />
           </Box>
 
