@@ -77,12 +77,12 @@ const ReservationsTracker: React.FC = () => {
         <Box
           component="form"
           onSubmit={submitSearch}
-          sx={{ minWidth: { sm: 280 } }}
+          sx={{ width: { xs: '100%', sm: 420 } }}
         >
           <TextField
             value={searchAddr}
             onChange={(e) => setSearchAddr(e.target.value)}
-            placeholder="Find your reservations by source address"
+            placeholder="Lookup your reservations by your source address"
             size="small"
             fullWidth
             InputProps={{
@@ -105,6 +105,16 @@ const ReservationsTracker: React.FC = () => {
               },
             }}
           />
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.65rem',
+              color: 'text.secondary',
+              mt: 0.5,
+            }}
+          >
+            Press enter to view all reservations from that address.
+          </Typography>
         </Box>
       </Stack>
 
