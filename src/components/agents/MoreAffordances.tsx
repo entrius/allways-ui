@@ -185,9 +185,11 @@ const MoreAffordances: React.FC = () => (
     <Grid item xs={12} md={6}>
       <AgentCard
         title="OpenAPI spec"
-        badge="Soon"
-        blurb="Machine-readable API description — point any OpenAPI codegen at it to scaffold a typed client in your agent's language of choice."
-        link={{ href: '/openapi.json', label: 'View /openapi.json' }}
+        blurb="Live Swagger UI for every endpoint, plus a machine-readable schema you can point any OpenAPI codegen at to scaffold a typed client."
+        link={{
+          href: 'https://api.all-ways.io/swagger',
+          label: 'Open Swagger',
+        }}
       />
     </Grid>
     <Grid item xs={12} md={6}>
