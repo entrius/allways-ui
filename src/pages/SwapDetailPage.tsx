@@ -199,7 +199,7 @@ const SwapDetailPage: React.FC = () => {
           {swap.status === 'TIMED_OUT' &&
             (refundPending
               ? 'Miner did not deliver in time. Slash is pending — claim your refund on-chain with `alw claim`.'
-              : 'Miner did not deliver in time. The slashed collateral was paid directly to your destination address.')}
+              : "Miner did not deliver in time. The slashed collateral was paid directly to the user's address.")}
         </Typography>
       </Card>
 
@@ -462,7 +462,9 @@ const SwapDetailPage: React.FC = () => {
               <SectionTitle>You send</SectionTitle>
               <Stack spacing={1}>
                 {sentAmount && <LabelValue label="Amount" value={sentAmount} />}
-                {sentFrom && <LabelAddr label="From you" address={sentFrom} />}
+                {sentFrom && (
+                  <LabelAddr label="From user" address={sentFrom} />
+                )}
                 {sentTo && <LabelAddr label="To miner" address={sentTo} />}
               </Stack>
             </Card>
@@ -473,7 +475,7 @@ const SwapDetailPage: React.FC = () => {
                 {recvFrom && (
                   <LabelAddr label="From miner" address={recvFrom} />
                 )}
-                {recvTo && <LabelAddr label="To you" address={recvTo} />}
+                {recvTo && <LabelAddr label="To user" address={recvTo} />}
               </Stack>
             </Card>
           </>
