@@ -17,7 +17,7 @@ import {
 } from '../api';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
-import { Card, LabelValue, PageWrapper } from '../components';
+import { BlockIndicator, Card, LabelValue, PageWrapper } from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   applyFee,
@@ -153,17 +153,25 @@ const SwapDetailPage: React.FC = () => {
         />
       </Stack>
 
-      <Typography
-        sx={{
-          fontFamily: FONTS.heading,
-          fontWeight: 900,
-          fontSize: '1.5rem',
-          color: 'text.primary',
-          mb: 3,
-        }}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: 3 }}
       >
-        Transaction #{swap.swapId}
-      </Typography>
+        <Typography
+          sx={{
+            fontFamily: FONTS.heading,
+            fontWeight: 900,
+            fontSize: '1.5rem',
+            color: 'text.primary',
+          }}
+        >
+          Transaction #{swap.swapId}
+        </Typography>
+        <BlockIndicator />
+      </Stack>
 
       {swap.reservationRequestHash && (
         <Typography

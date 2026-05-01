@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid, Stack, Typography } from '@mui/material';
-import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import {
+  BlockIndicator,
   EventFeed,
   MinerRatesTable,
   OrderbookDepth,
@@ -10,12 +10,9 @@ import {
   Page,
   SEO,
 } from '../components';
-import { useChainState } from '../api';
 import { FONTS } from '../theme';
 
 const DashboardPage: React.FC = () => {
-  const { data: chainState } = useChainState();
-  const currentBlock = chainState?.currentBlock;
   return (
     <Page>
       <SEO
@@ -49,29 +46,7 @@ const DashboardPage: React.FC = () => {
           >
             Network Activity
           </Typography>
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={0.75}
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              color: 'text.secondary',
-            }}
-          >
-            <ViewInArIcon sx={{ fontSize: 14 }} />
-            <Typography
-              component="span"
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                letterSpacing: '0.04em',
-                color: 'text.secondary',
-              }}
-            >
-              Block #{currentBlock ? currentBlock.toLocaleString() : '—'}
-            </Typography>
-          </Stack>
+          <BlockIndicator />
         </Stack>
 
         <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
