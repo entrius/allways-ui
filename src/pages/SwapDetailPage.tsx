@@ -459,7 +459,7 @@ const SwapDetailPage: React.FC = () => {
         return (
           <>
             <Card>
-              <SectionTitle>You sent</SectionTitle>
+              <SectionTitle>You send</SectionTitle>
               <Stack spacing={1}>
                 {sentAmount && <LabelValue label="Amount" value={sentAmount} />}
                 {sentFrom && <LabelAddr label="From you" address={sentFrom} />}
@@ -467,7 +467,7 @@ const SwapDetailPage: React.FC = () => {
               </Stack>
             </Card>
             <Card>
-              <SectionTitle>You received</SectionTitle>
+              <SectionTitle>You receive</SectionTitle>
               <Stack spacing={1}>
                 {recvAmount && <LabelValue label="Amount" value={recvAmount} />}
                 {recvFrom && (
