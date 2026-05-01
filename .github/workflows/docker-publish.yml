@@ -21,17 +21,19 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Set image tags
-        id: tags
+      - name: Set image tag and API base URL
+        id: build
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "tags=entrius/aw-ui:latest" >> $GITHUB_OUTPUT
+            echo "api_base_url=https://api.all-ways.io" >> $GITHUB_OUTPUT
           else
             echo "tags=entrius/aw-ui:test" >> $GITHUB_OUTPUT
+            echo "api_base_url=https://test-api.all-ways.io" >> $GITHUB_OUTPUT
           fi
 
       - name: Create .env file
-        run: echo "VITE_REACT_APP_BASE_URL=${{ vars.VITE_REACT_APP_BASE_URL }}" > .env
+        run: echo "VITE_REACT_APP_BASE_URL=${{ steps.build.outputs.api_base_url }}" > .env
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -39,4 +41,4 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ${{ steps.tags.outputs.tags }}
+          tags: ${{ steps.build.outputs.tags }}
