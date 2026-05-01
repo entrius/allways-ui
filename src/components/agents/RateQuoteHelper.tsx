@@ -37,11 +37,16 @@ const computeBest = (
   direction: Direction,
   amount: number,
 ): BestQuote | null => {
+  // Canonical ordering: API returns sourceChain='btc', destChain='tao' (lowercase).
+  // `rate` is the BTC->TAO quote; `counterRate` is the TAO->BTC quote when
+  // posted. Filter on a case-insensitive btc/tao match so a future casing
+  // change on the API side doesn't silently zero this out again.
   const candidates = miners
     .filter((m) => m.isActive)
     .map((m) => {
-      const isBtcTao = m.sourceChain === 'BTC' && m.destChain === 'TAO';
-      if (!isBtcTao) return null;
+      const src = (m.sourceChain ?? '').toLowerCase();
+      const dst = (m.destChain ?? '').toLowerCase();
+      if (src !== 'btc' || dst !== 'tao') return null;
       const r = direction === 'BTC->TAO' ? m.rate : m.counterRate;
       if (!r || parseFloat(r) <= 0) return null;
       return { uid: m.uid, hotkey: m.hotkey, rate: r };
@@ -132,11 +137,15 @@ const RateQuoteHelper: React.FC = () => {
   const sourceSym = direction === 'BTC->TAO' ? 'BTC' : 'TAO';
   const destSym = direction === 'BTC->TAO' ? 'TAO' : 'BTC';
 
+  const fromArg = sourceSym.toLowerCase();
+  const toArg = destSym.toLowerCase();
+  const destLabel = destSym.toLowerCase();
+  const sourceLabel = sourceSym.toLowerCase();
   const cliCmd = best
-    ? `alw swap initiate --miner ${best.uid} --from ${sourceSym} --amount ${amount} --to-address <your-${destSym.toLowerCase()}-address>`
+    ? `alw swap now --auto --yes --from ${fromArg} --to ${toArg} --amount ${amount} --receive-address <your-${destLabel}-address> --from-address <your-${sourceLabel}-address>`
     : `# no active miner quoting ${sourceSym} -> ${destSym} right now`;
 
-  const curlCmd = `curl -s ${typeof window !== 'undefined' ? window.location.origin : 'https://api.all-ways.io'}/miners | jq '.[] | select(.isActive and .sourceChain=="BTC" and .destChain=="TAO") | {uid, rate: ${direction === 'BTC->TAO' ? '.rate' : '.counterRate'}, hotkey}' | jq -s 'sort_by(-.rate | tonumber)[0]'`;
+  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "btc" and (.destChain | ascii_downcase) == "tao") | {uid, rate: ${direction === 'BTC->TAO' ? '.rate' : '.counterRate'}, hotkey}' | jq -s 'sort_by(-(.rate | tonumber))[0]'`;
 
   return (
     <HoverCard
