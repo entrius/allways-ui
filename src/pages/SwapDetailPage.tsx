@@ -462,9 +462,7 @@ const SwapDetailPage: React.FC = () => {
               <SectionTitle>You send</SectionTitle>
               <Stack spacing={1}>
                 {sentAmount && <LabelValue label="Amount" value={sentAmount} />}
-                {sentFrom && (
-                  <LabelAddr label="From user" address={sentFrom} />
-                )}
+                {sentFrom && <LabelAddr label="From user" address={sentFrom} />}
                 {sentTo && <LabelAddr label="To miner" address={sentTo} />}
               </Stack>
             </Card>
