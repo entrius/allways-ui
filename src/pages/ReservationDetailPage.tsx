@@ -23,7 +23,7 @@ import {
 import type { Miner } from '../api/models';
 import { FONTS } from '../theme';
 import { applyFee, formatAmount, formatTimeUntilBlock } from '../utils/format';
-import { Card, LabelValue, PageWrapper } from '../components';
+import { BlockIndicator, Card, LabelValue, PageWrapper } from '../components';
 import ExtensionChip, {
   deriveReservationExtensionStatus,
 } from '../components/ExtensionChip';
@@ -163,17 +163,25 @@ const ReservationDetailPage: React.FC = () => {
         />
       </Stack>
 
-      <Typography
-        sx={{
-          fontFamily: FONTS.heading,
-          fontWeight: 900,
-          fontSize: '1.5rem',
-          color: 'text.primary',
-          mb: 3,
-        }}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: 3 }}
       >
-        Reservation
-      </Typography>
+        <Typography
+          sx={{
+            fontFamily: FONTS.heading,
+            fontWeight: 900,
+            fontSize: '1.5rem',
+            color: 'text.primary',
+          }}
+        >
+          Reservation
+        </Typography>
+        <BlockIndicator />
+      </Stack>
 
       {/* Lifecycle stepper */}
       <Card>
