@@ -11,6 +11,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useReservationsBySource } from '../api';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
+import { PageWrapper } from '../components';
 
 const ReservationsBySourcePage: React.FC = () => {
   const { address } = useParams<{ address: string }>();
@@ -28,16 +29,7 @@ const ReservationsBySourcePage: React.FC = () => {
   const reservations = data ?? [];
 
   return (
-    <Stack
-      sx={{
-        backgroundColor: 'background.default',
-        px: { xs: 1.5, sm: 2, md: 4 },
-        py: { xs: 2, sm: 3, md: 4 },
-        width: '100%',
-        maxWidth: 800,
-        mx: 'auto',
-      }}
-    >
+    <PageWrapper>
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
         <Typography
           component={RouterLink}
@@ -145,7 +137,7 @@ const ReservationsBySourcePage: React.FC = () => {
           })}
         </Stack>
       )}
-    </Stack>
+    </PageWrapper>
   );
 };
 
