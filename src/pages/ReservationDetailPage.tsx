@@ -187,7 +187,7 @@ const ReservationDetailPage: React.FC = () => {
                   ? r.status === 'EXPIRED'
                     ? 'Window closed — do not send funds'
                     : 'Reservation cancelled — do not send funds'
-                  : 'Awaiting your transaction'
+                  : 'Awaiting validator confirmation'
             }
           />
           <Stage

@@ -6,7 +6,7 @@ export const useReservation = (requestHash: string) =>
   useApiQuery<Reservation>(
     'reservation',
     `/reservations/${requestHash}`,
-    SSE_FALLBACK_INTERVAL,
+    10_000,
     undefined,
     !!requestHash,
   );
