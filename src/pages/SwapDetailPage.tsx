@@ -433,30 +433,56 @@ const SwapDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Participants */}
-      <Card>
-        <SectionTitle>Participants</SectionTitle>
-        <Stack spacing={1}>
-          {swap.userAddress && (
-            <LabelAddr label="User" address={swap.userAddress} />
-          )}
-          {swap.userSourceAddress && (
-            <LabelAddr label="User Source" address={swap.userSourceAddress} />
-          )}
-          {swap.userDestAddress && (
-            <LabelAddr label="User Dest" address={swap.userDestAddress} />
-          )}
-          {swap.minerHotkey && (
-            <LabelAddr label="Routing Node" address={swap.minerHotkey} />
-          )}
-          {swap.minerSourceAddress && (
-            <LabelAddr
-              label="Routing Node Source"
-              address={swap.minerSourceAddress}
-            />
-          )}
-        </Stack>
-      </Card>
+      {/* Transaction flow */}
+      {(() => {
+        // Resolve "from" / "to" addresses for each leg from the user's POV.
+        // sourceChain === 'tao': user sends TAO from their hotkey → miner hotkey;
+        //                       miner sends BTC from minerSourceAddress → user's BTC addr.
+        // sourceChain === 'btc': user sends BTC from userSourceAddress → minerSourceAddress;
+        //                       miner sends TAO from miner hotkey → user's TAO hotkey.
+        const taoSource = swap.sourceChain?.toLowerCase() === 'tao';
+        const sentFrom = taoSource
+          ? swap.userAddress
+          : swap.userSourceAddress;
+        const sentTo = taoSource ? swap.minerHotkey : swap.minerSourceAddress;
+        const recvFrom = taoSource
+          ? swap.minerSourceAddress
+          : swap.minerHotkey;
+        const recvTo = taoSource
+          ? swap.userDestAddress
+          : (swap.userDestAddress ?? swap.userAddress);
+        const sentAmount =
+          swap.sourceAmount && swap.sourceChain
+            ? formatAmount(swap.sourceAmount, swap.sourceChain)
+            : null;
+        const netRecv = applyFee(swap.destAmount, protocol?.feeDivisor);
+        const recvAmount =
+          netRecv && swap.destChain ? formatAmount(netRecv, swap.destChain) : null;
+        return (
+          <>
+            <Card>
+              <SectionTitle>You sent</SectionTitle>
+              <Stack spacing={1}>
+                {sentAmount && <LabelValue label="Amount" value={sentAmount} />}
+                {sentFrom && (
+                  <LabelAddr label="From you" address={sentFrom} />
+                )}
+                {sentTo && <LabelAddr label="To miner" address={sentTo} />}
+              </Stack>
+            </Card>
+            <Card>
+              <SectionTitle>You received</SectionTitle>
+              <Stack spacing={1}>
+                {recvAmount && <LabelValue label="Amount" value={recvAmount} />}
+                {recvFrom && (
+                  <LabelAddr label="From miner" address={recvFrom} />
+                )}
+                {recvTo && <LabelAddr label="To you" address={recvTo} />}
+              </Stack>
+            </Card>
+          </>
+        );
+      })()}
 
       {/* Event History */}
       {events.length > 0 && (
