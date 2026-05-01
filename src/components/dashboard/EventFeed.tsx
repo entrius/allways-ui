@@ -43,7 +43,13 @@ const getEventColor = (
     MinerActivated: palette.status.minerActivated,
     MinerDeactivated: palette.status.timedOut,
     MinerReserved: palette.status.minerActivated,
-    ReservationExtended: palette.status.minerActivated,
+    ReservationCancelled: palette.status.timedOut,
+    ReservationExtensionProposed: palette.status.minerActivated,
+    ReservationExtensionFinalized: palette.status.minerActivated,
+    ReservationExtensionChallenged: palette.status.timedOut,
+    TimeoutExtensionProposed: palette.status.minerActivated,
+    TimeoutExtensionFinalized: palette.status.minerActivated,
+    TimeoutExtensionChallenged: palette.status.timedOut,
   };
   return map[eventType] ?? palette.status.active;
 };
