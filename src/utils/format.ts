@@ -12,18 +12,14 @@ export const formatNumber = (n: number, decimals = 2) =>
     maximumFractionDigits: decimals,
   });
 
-// Mirror of allways.constants.RATE_SIG_FIGS — every committed rate is
-// normalized to this many significant digits at the validator on read, so
-// the dashboard renders the same canonical string. Older pre-fix data may
-// still arrive with extra precision; this helper ensures a single display
-// shape regardless.
+// Mirror of allways.constants.RATE_SIG_FIGS — keep in lockstep.
 export const RATE_SIG_FIGS = 6;
 
+// JS equivalent of Python's `:.6g`: strips trailing zeros, drops to
+// scientific for sub-1e-4 values, matches the validator-normalized form.
 export const formatRate = (rate: string | number): string => {
   const n = typeof rate === 'string' ? parseFloat(rate) : rate;
   if (!Number.isFinite(n)) return '—';
-  // parseFloat ∘ toPrecision strips trailing zeros — the JS equivalent of
-  // Python's `:.6g` formatter used on the validator side.
   return parseFloat(n.toPrecision(RATE_SIG_FIGS)).toString();
 };
 
