@@ -13,10 +13,10 @@ export const formatNumber = (n: number, decimals = 2) =>
   });
 
 // Mirror of allways.constants.RATE_SIG_FIGS — keep in lockstep.
-export const RATE_SIG_FIGS = 6;
+export const RATE_SIG_FIGS = 4;
 
-// JS equivalent of Python's `:.6g`: strips trailing zeros, drops to
-// scientific for sub-1e-4 values, matches the validator-normalized form.
+// JS equivalent of Python's `:.{RATE_SIG_FIGS}g`: strips trailing zeros,
+// drops to scientific for sub-1e-4 values, matches the validator-normalized form.
 export const formatRate = (rate: string | number): string => {
   const n = typeof rate === 'string' ? parseFloat(rate) : rate;
   if (!Number.isFinite(n)) return '—';
