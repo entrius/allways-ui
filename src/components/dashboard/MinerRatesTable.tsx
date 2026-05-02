@@ -24,6 +24,7 @@ import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
+import { formatRate } from '../../utils/format';
 
 type SortKey = 'uid' | 'pair' | 'rate' | 'collateral' | 'status' | 'hotkey';
 type SortDir = 'asc' | 'desc';
@@ -219,7 +220,7 @@ const MinerRatesTable: React.FC = () => {
     const reverse = parseRate(m.counterRate);
     const disabled =
       theme.palette.text.disabled || theme.palette.text.secondary;
-    const formatOr = (v: number) => (v > 0 ? v.toFixed(2) : '\u2014');
+    const formatOr = (v: number) => (v > 0 ? formatRate(v) : '\u2014');
     // Both rates are stored and shown as TAO per 1 unit of the non-TAO asset,
     // so the user reads a single unit ("TAO") and the spread between the two
     // rows is the network's margin.
@@ -227,12 +228,12 @@ const MinerRatesTable: React.FC = () => {
     if (src && dst) {
       tooltipLines.push(
         forward > 0
-          ? `${src} \u2192 ${dst}: ${forward.toFixed(2)} TAO per 1 ${src}`
+          ? `${src} \u2192 ${dst}: ${formatRate(forward)} TAO per 1 ${src}`
           : `${src} \u2192 ${dst}: not quoted`,
       );
       tooltipLines.push(
         reverse > 0
-          ? `${dst} \u2192 ${src}: ${reverse.toFixed(2)} TAO per 1 ${src}`
+          ? `${dst} \u2192 ${src}: ${formatRate(reverse)} TAO per 1 ${src}`
           : `${dst} \u2192 ${src}: not quoted`,
       );
     }

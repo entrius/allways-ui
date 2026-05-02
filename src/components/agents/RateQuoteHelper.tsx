@@ -14,6 +14,7 @@ import { FONTS } from '../../theme';
 import { useMiners } from '../../api';
 import { useCopy } from '../../hooks';
 import HoverCard from '../HoverCard';
+import { formatRate } from '../../utils/format';
 
 type Direction = 'BTC->TAO' | 'TAO->BTC';
 
@@ -247,8 +248,7 @@ const RateQuoteHelper: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              {best ? parseFloat(best.rate).toFixed(6) : '—'} {destSym}/
-              {sourceSym}
+              {best ? formatRate(best.rate) : '—'} {destSym}/{sourceSym}
             </Typography>
           </Stack>
           <Stack sx={{ flex: 1 }}>

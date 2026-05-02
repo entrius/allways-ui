@@ -12,6 +12,21 @@ export const formatNumber = (n: number, decimals = 2) =>
     maximumFractionDigits: decimals,
   });
 
+// Mirror of allways.constants.RATE_SIG_FIGS — every committed rate is
+// normalized to this many significant digits at the validator on read, so
+// the dashboard renders the same canonical string. Older pre-fix data may
+// still arrive with extra precision; this helper ensures a single display
+// shape regardless.
+export const RATE_SIG_FIGS = 6;
+
+export const formatRate = (rate: string | number): string => {
+  const n = typeof rate === 'string' ? parseFloat(rate) : rate;
+  if (!Number.isFinite(n)) return '—';
+  // parseFloat ∘ toPrecision strips trailing zeros — the JS equivalent of
+  // Python's `:.6g` formatter used on the validator side.
+  return parseFloat(n.toPrecision(RATE_SIG_FIGS)).toString();
+};
+
 export const trimTrailingZeros = (value: string): string => {
   if (!value || !value.includes('.')) return value;
   return value.replace(/0+$/, '').replace(/\.$/, '');
@@ -69,7 +84,7 @@ export const formatRateLine = (
   const otherSym = (fromIsTao ? toChain : fromChain).toUpperCase();
   if (otherSide === 0) return null;
   const ratio = taoSide / otherSide;
-  return `1 ${otherSym} = ${ratio.toFixed(2)} TAO`;
+  return `1 ${otherSym} = ${formatRate(ratio)} TAO`;
 };
 
 export const chainSymbol = (chain: string): string =>
