@@ -13,7 +13,7 @@ export const formatNumber = (n: number, decimals = 2) =>
   });
 
 // Mirror of allways.constants.RATE_SIG_FIGS — keep in lockstep.
-export const RATE_SIG_FIGS = 4;
+export const RATE_SIG_FIGS = 5;
 
 // JS equivalent of Python's `:.{RATE_SIG_FIGS}g`: strips trailing zeros,
 // drops to scientific for sub-1e-4 values, matches the validator-normalized form.
