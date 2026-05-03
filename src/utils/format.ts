@@ -12,6 +12,17 @@ export const formatNumber = (n: number, decimals = 2) =>
     maximumFractionDigits: decimals,
   });
 
+// Mirror of allways.constants.RATE_SIG_FIGS — keep in lockstep.
+export const RATE_SIG_FIGS = 5;
+
+// JS equivalent of Python's `:.{RATE_SIG_FIGS}g`: strips trailing zeros,
+// drops to scientific for sub-1e-4 values, matches the validator-normalized form.
+export const formatRate = (rate: string | number): string => {
+  const n = typeof rate === 'string' ? parseFloat(rate) : rate;
+  if (!Number.isFinite(n)) return '—';
+  return parseFloat(n.toPrecision(RATE_SIG_FIGS)).toString();
+};
+
 export const trimTrailingZeros = (value: string): string => {
   if (!value || !value.includes('.')) return value;
   return value.replace(/0+$/, '').replace(/\.$/, '');
@@ -69,7 +80,7 @@ export const formatRateLine = (
   const otherSym = (fromIsTao ? toChain : fromChain).toUpperCase();
   if (otherSide === 0) return null;
   const ratio = taoSide / otherSide;
-  return `1 ${otherSym} = ${ratio.toFixed(2)} TAO`;
+  return `1 ${otherSym} = ${formatRate(ratio)} TAO`;
 };
 
 export const chainSymbol = (chain: string): string =>
