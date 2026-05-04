@@ -253,7 +253,7 @@ const RateQuoteHelper: React.FC = () => {
           </Stack>
           <Stack sx={{ flex: 1 }}>
             <Typography variant="monoSmall" sx={{ color: 'text.secondary' }}>
-              You receive
+              User receives
             </Typography>
             <Typography
               sx={{

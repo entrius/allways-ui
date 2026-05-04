@@ -98,21 +98,16 @@ const ReservationDetailPage: React.FC = () => {
   const isTerminal = r.status === 'EXPIRED' || r.status === 'CANCELLED';
 
   const reservedStage: StageState = isTerminal ? 'failed' : 'done';
-  // Stage 2: user has sent the source tx — we infer this from the validator
-  // having seen it. Until detected, the user owns this step (awaiting them).
-  const sentStage: StageState = isTerminal
-    ? 'failed'
-    : fundsSeen
-      ? 'done'
-      : 'awaiting';
-  // Stage 3: validator awaits confirmation blocks before quorum can vote.
-  const confirmStage: StageState = isTerminal
+  // Funds + confirmation collapse into one step: send → detect → confirm.
+  // 'awaiting' = user owes the send; 'current' = detected, waiting on conf
+  // blocks; 'done' = confirmed (which is what INITIATED requires).
+  const sendConfirmStage: StageState = isTerminal
     ? 'failed'
     : isInitiated
       ? 'done'
       : fundsSeen
         ? 'current'
-        : 'pending';
+        : 'awaiting';
   const initiatedStage: StageState = isTerminal
     ? 'failed'
     : isInitiated
@@ -192,29 +187,18 @@ const ReservationDetailPage: React.FC = () => {
             detail={`Block #${r.reservedAtBlock} · ${relativeTime(r.createdAt)}`}
           />
           <Stage
-            state={sentStage}
-            label="User sends tx to miner"
-            detail={
-              fundsSeen
-                ? 'Validator detected source tx'
-                : isTerminal
-                  ? r.status === 'EXPIRED'
-                    ? 'Window closed — do not send funds'
-                    : 'Reservation cancelled — do not send funds'
-                  : 'Send funds to the miner — usually appears within a block'
-            }
-          />
-          <Stage
-            state={confirmStage}
-            label="Validator awaits confirmation"
+            state={sendConfirmStage}
+            label="User sends funds, validator confirms"
             detail={
               isInitiated
-                ? 'Confirmation blocks reached'
+                ? 'Source tx detected and confirmed'
                 : fundsSeen
-                  ? 'Awaiting confirmation blocks before quorum vote'
+                  ? 'Source tx detected — awaiting confirmation blocks'
                   : isTerminal
-                    ? 'Skipped'
-                    : 'Pending source tx'
+                    ? r.status === 'EXPIRED'
+                      ? 'Window closed — funds were not sent'
+                      : 'Reservation cancelled — funds were not sent'
+                    : 'Send funds to the miner — usually appears within a block'
             }
           />
           <Stage
@@ -253,8 +237,8 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              If you haven't sent yet, send <strong>{sourceLine}</strong> from
-              your address to the miner before block{' '}
+              If not yet sent, send <strong>{sourceLine}</strong> from the
+              source address to the miner before block{' '}
               <strong>#{r.reservedUntilBlock}</strong>
               {currentBlock > 0 && (
                 <>
@@ -305,7 +289,7 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              Validators detected your source transaction.
+              Validators detected the source transaction.
             </Typography>
             <Typography
               sx={{
@@ -360,7 +344,7 @@ const ReservationDetailPage: React.FC = () => {
             }}
           >
             Reservation expired before funds were sent. The miner is now free
-            for other users — start a new reservation if you still want to swap.
+            for other users — start a new reservation to swap.
           </Typography>
         )}
 
@@ -380,8 +364,8 @@ const ReservationDetailPage: React.FC = () => {
       {/* Details */}
       <Card>
         <Stack spacing={1.25}>
-          <LabelValue label="You send" value={sourceLine} />
-          <LabelValue label="You receive" value={destLine} />
+          <LabelValue label="User sends" value={sourceLine} />
+          <LabelValue label="User receives" value={destLine} />
           <LabelValue
             label="Miner"
             value={

@@ -336,9 +336,6 @@ const SwapDetailPage: React.FC = () => {
                     </>
                   )}
               </Typography>
-              <ExtensionChip
-                status={deriveSwapExtensionStatus(swap, protocol)}
-              />
             </Stack>
           )}
           {swap.timeoutBlock && !isTimedOut && swap.status !== 'COMPLETED' && (
@@ -355,6 +352,25 @@ const SwapDetailPage: React.FC = () => {
               confirm the destination tx.
             </Typography>
           )}
+          {(() => {
+            const ext = deriveSwapExtensionStatus(swap, protocol);
+            if (ext.kind === 'none') return null;
+            return (
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.7rem',
+                    color: 'text.secondary',
+                    minWidth: 80,
+                  }}
+                >
+                  Extensions
+                </Typography>
+                <ExtensionChip status={ext} />
+              </Stack>
+            );
+          })()}
         </Stack>
       </Card>
 
@@ -480,24 +496,34 @@ const SwapDetailPage: React.FC = () => {
             : null;
         return (
           <>
-            <Card>
-              <SectionTitle>User sends</SectionTitle>
-              <Stack spacing={1}>
-                <LabelValue label="Amount" value={sentAmount ?? '—'} />
-                {sentFrom && <LabelAddr label="From user" address={sentFrom} />}
-                {sentTo && <LabelAddr label="To miner" address={sentTo} />}
-              </Stack>
-            </Card>
-            <Card>
-              <SectionTitle>User receives</SectionTitle>
-              <Stack spacing={1}>
-                <LabelValue label="Amount" value={recvAmount ?? '—'} />
-                {recvFrom && (
-                  <LabelAddr label="From miner" address={recvFrom} />
-                )}
-                {recvTo && <LabelAddr label="To user" address={recvTo} />}
-              </Stack>
-            </Card>
+            {(sentAmount || sentFrom || sentTo) && (
+              <Card>
+                <SectionTitle>User sends</SectionTitle>
+                <Stack spacing={1}>
+                  {sentAmount && (
+                    <LabelValue label="Amount" value={sentAmount} />
+                  )}
+                  {sentFrom && (
+                    <LabelAddr label="From user" address={sentFrom} />
+                  )}
+                  {sentTo && <LabelAddr label="To miner" address={sentTo} />}
+                </Stack>
+              </Card>
+            )}
+            {(recvAmount || recvFrom || recvTo) && (
+              <Card>
+                <SectionTitle>User receives</SectionTitle>
+                <Stack spacing={1}>
+                  {recvAmount && (
+                    <LabelValue label="Amount" value={recvAmount} />
+                  )}
+                  {recvFrom && (
+                    <LabelAddr label="From miner" address={recvFrom} />
+                  )}
+                  {recvTo && <LabelAddr label="To user" address={recvTo} />}
+                </Stack>
+              </Card>
+            )}
           </>
         );
       })()}
@@ -523,8 +549,12 @@ const SwapDetailPage: React.FC = () => {
                     fontSize: '0.6rem',
                     height: 20,
                     borderRadius: 0,
-                    minWidth: 120,
+                    width: 220,
                     borderColor: theme.palette.border.light,
+                    '& .MuiChip-label': {
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    },
                   }}
                 />
                 <Typography
@@ -545,6 +575,18 @@ const SwapDetailPage: React.FC = () => {
                     }}
                   >
                     {parseFloat(event.taoAmount).toFixed(4)} TAO
+                  </Typography>
+                )}
+                {event.voteType && (
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.65rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {event.voteType}
+                    {event.voteCount !== null ? ` (${event.voteCount})` : ''}
                   </Typography>
                 )}
                 {event.txHash && (

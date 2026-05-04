@@ -28,6 +28,19 @@ export const trimTrailingZeros = (value: string): string => {
   return value.replace(/0+$/, '').replace(/\.$/, '');
 };
 
+// Trims trailing fractional zeros while guaranteeing at least `minDecimals`
+// digits past the point — so "0.20000" → "0.20" but "0.001" stays "0.001".
+const trimToMinDecimals = (value: string, minDecimals: number): string => {
+  if (!value.includes('.')) return `${value}.${'0'.repeat(minDecimals)}`;
+  const [intPart, fracPart] = value.split('.');
+  const stripped = fracPart.replace(/0+$/, '');
+  const padded =
+    stripped.length >= minDecimals
+      ? stripped
+      : stripped.padEnd(minDecimals, '0');
+  return padded ? `${intPart}.${padded}` : intPart;
+};
+
 const CHAIN_DECIMALS: Record<
   string,
   { exp: number; digits: number; symbol: string }
@@ -36,16 +49,21 @@ const CHAIN_DECIMALS: Record<
   tao: { exp: 1e9, digits: 4, symbol: 'TAO' },
 };
 
+// Min display precision so a clean "0.2 TAO" renders as "0.20 TAO" rather
+// than dropping the trailing zero entirely.
+const AMOUNT_MIN_DECIMALS = 2;
+
 export const formatAmount = (raw: string | number, chain: string): string => {
   const config = CHAIN_DECIMALS[chain.toLowerCase()];
   if (!config) return String(raw);
   const val = typeof raw === 'string' ? parseInt(raw, 10) : raw;
-  return `${(val / config.exp).toFixed(config.digits)} ${config.symbol}`;
+  const fixed = (val / config.exp).toFixed(config.digits);
+  return `${trimToMinDecimals(fixed, AMOUNT_MIN_DECIMALS)} ${config.symbol}`;
 };
 
 // Contract stores gross to_amount; the user actually receives gross * (1 - 1/feeDivisor)
 // after the protocol fee is taken on completion. Apply on the destination side
-// when rendering "you receive" totals.
+// when rendering net-receive totals.
 export const applyFee = (
   raw: string | number | null | undefined,
   feeDivisor: number | undefined,

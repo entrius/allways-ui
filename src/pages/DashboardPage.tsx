@@ -50,20 +50,6 @@ const DashboardPage: React.FC = () => {
         </Stack>
 
         <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
-          <Grid item xs={12}>
-            <Stack
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 2.5 },
-                maxHeight: { xs: 'none', md: 480 },
-                borderRadius: 0,
-                backgroundColor: 'surface.light',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <ReservationsTracker />
-            </Stack>
-          </Grid>
           <Grid item xs={12} sm={6}>
             <Stack
               sx={{
@@ -90,6 +76,19 @@ const DashboardPage: React.FC = () => {
               }}
             >
               <OrderbookDepth />
+            </Stack>
+          </Grid>
+          <Grid item xs={12}>
+            <Stack
+              sx={{
+                p: { xs: 1.5, sm: 2, md: 2.5 },
+                borderRadius: 0,
+                backgroundColor: 'surface.light',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <ReservationsTracker />
             </Stack>
           </Grid>
           <Grid item xs={12} sm={5} md={4}>

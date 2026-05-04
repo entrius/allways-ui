@@ -19,7 +19,7 @@ const STEPS: Step[] = [
   {
     num: '02',
     title: 'Initiate',
-    body: 'You commit a transaction on-chain. Allways collateral locks. No custodian, no wrapped asset.',
+    body: 'User commits a transaction on-chain. Allways collateral locks. No custodian, no wrapped asset.',
   },
   {
     num: '03',

@@ -61,7 +61,7 @@ const AgentTeaser: React.FC = () => {
                   lineHeight: 1.05,
                 }}
               >
-                One click to teach your agent Allways.
+                One click to teach an agent Allways.
               </Typography>
               <Typography
                 sx={{
