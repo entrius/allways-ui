@@ -18,6 +18,7 @@ const shortAddr = (a: string | null) =>
 
 export const deriveSwapExtensionStatus = (
   s: {
+    status: string;
     pendingTimeoutExtensionTarget: string | null;
     pendingTimeoutExtensionProposedBlock: string | null;
     pendingTimeoutExtensionProposedBy: string | null;
@@ -26,7 +27,11 @@ export const deriveSwapExtensionStatus = (
   constants: ProtocolConstants | undefined,
 ): ExtensionStatus => {
   if (!constants) return { kind: 'none' };
+  // Pending proposal is only meaningful while the swap can still extend;
+  // once it's COMPLETED/TIMED_OUT the field is historical.
+  const canExtend = s.status === 'ACTIVE' || s.status === 'FULFILLED';
   if (
+    canExtend &&
     s.pendingTimeoutExtensionTarget &&
     s.pendingTimeoutExtensionProposedBlock
   ) {
