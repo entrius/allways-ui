@@ -49,6 +49,7 @@ export const deriveSwapExtensionStatus = (
 
 export const deriveReservationExtensionStatus = (
   r: {
+    status: string;
     pendingExtensionTarget: string | null;
     pendingExtensionProposedBlock: string | null;
     pendingExtensionProposedBy: string | null;
@@ -57,7 +58,14 @@ export const deriveReservationExtensionStatus = (
   constants: ProtocolConstants | undefined,
 ): ExtensionStatus => {
   if (!constants) return { kind: 'none' };
-  if (r.pendingExtensionTarget && r.pendingExtensionProposedBlock) {
+  // A pending proposal is only meaningful while the reservation can still
+  // accept extensions; once it's INITIATED/EXPIRED/CANCELLED the field is
+  // historical and should collapse to the applied count.
+  if (
+    r.status === 'ACTIVE' &&
+    r.pendingExtensionTarget &&
+    r.pendingExtensionProposedBlock
+  ) {
     const proposed = parseInt(r.pendingExtensionProposedBlock, 10);
     return {
       kind: 'pending',
