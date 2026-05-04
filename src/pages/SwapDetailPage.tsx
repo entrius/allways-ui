@@ -485,21 +485,15 @@ const SwapDetailPage: React.FC = () => {
         const recvTo = taoSource
           ? swap.userDestAddress
           : (swap.userDestAddress ?? swap.userAddress);
-        // Source/dest amounts are populated by the watcher async; the TAO leg
-        // is always present via taoAmount, so fall back to that when the
-        // chain-specific column hasn't been backfilled yet.
         const sentAmount =
           swap.sourceAmount && swap.sourceChain
             ? formatAmount(swap.sourceAmount, swap.sourceChain)
-            : taoSource && swap.taoAmount
-              ? formatAmount(swap.taoAmount, 'tao')
-              : null;
-        const grossRecv =
-          swap.destAmount ?? (!taoSource ? swap.taoAmount : null);
-        const recvChain = swap.destChain ?? (!taoSource ? 'tao' : null);
-        const netRecv = applyFee(grossRecv, protocol?.feeDivisor);
+            : null;
+        const netRecv = applyFee(swap.destAmount, protocol?.feeDivisor);
         const recvAmount =
-          netRecv && recvChain ? formatAmount(netRecv, recvChain) : null;
+          netRecv && swap.destChain
+            ? formatAmount(netRecv, swap.destChain)
+            : null;
         return (
           <>
             {(sentAmount || sentFrom || sentTo) && (
