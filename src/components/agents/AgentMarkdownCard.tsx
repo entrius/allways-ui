@@ -53,7 +53,7 @@ const AgentMarkdownCard: React.FC = () => {
               letterSpacing: '-0.01em',
             }}
           >
-            Hand this to your agent and it can use Allways.
+            Hand this to an agent and it can use Allways.
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1.25}>

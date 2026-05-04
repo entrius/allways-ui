@@ -237,8 +237,8 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              If you haven't sent yet, send <strong>{sourceLine}</strong> from
-              your address to the miner before block{' '}
+              If not yet sent, send <strong>{sourceLine}</strong> from the
+              source address to the miner before block{' '}
               <strong>#{r.reservedUntilBlock}</strong>
               {currentBlock > 0 && (
                 <>
@@ -289,7 +289,7 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              Validators detected your source transaction.
+              Validators detected the source transaction.
             </Typography>
             <Typography
               sx={{
@@ -344,7 +344,7 @@ const ReservationDetailPage: React.FC = () => {
             }}
           >
             Reservation expired before funds were sent. The miner is now free
-            for other users — start a new reservation if you still want to swap.
+            for other users — start a new reservation to swap.
           </Typography>
         )}
 

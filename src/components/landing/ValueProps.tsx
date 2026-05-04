@@ -23,7 +23,7 @@ const PROPS: Prop[] = [
   {
     Icon: TrendingUpOutlinedIcon,
     title: 'Best rate',
-    body: 'Dynamic pricing. Allways continuously updates rates every block to ensure you get the best quote.',
+    body: 'Dynamic pricing. Allways continuously updates rates every block to surface the best quote.',
   },
   {
     Icon: HubOutlinedIcon,

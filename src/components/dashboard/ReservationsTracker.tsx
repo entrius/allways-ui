@@ -90,7 +90,7 @@ const ReservationsTracker: React.FC = () => {
           <TextField
             value={searchAddr}
             onChange={(e) => setSearchAddr(e.target.value)}
-            placeholder="Filter by your source address"
+            placeholder="Filter by source address"
             size="small"
             fullWidth
             InputProps={{

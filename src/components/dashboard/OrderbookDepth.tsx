@@ -241,9 +241,9 @@ const OrderbookDepth: React.FC = () => {
                   across all active miners at various exchange rates.
                 </Typography>
                 <Typography variant="body2">
-                  The background bars form a volume profile: you can identify
-                  the market equilibrium point where the left and right profiles
-                  match in width.
+                  The background bars form a volume profile: the market
+                  equilibrium point is where the left and right profiles match
+                  in width.
                 </Typography>
               </Stack>
             }
@@ -328,7 +328,7 @@ const OrderbookDepth: React.FC = () => {
               </TableCell>
               <TableCell sx={headerSx} align="right">
                 <Tooltip
-                  title={`How much ${getAssetSymbol() || 'Asset'} you could convert to TAO.`}
+                  title={`Available ${getAssetSymbol() || 'Asset'} → TAO conversion volume.`}
                   arrow
                   placement="top"
                 >
@@ -346,7 +346,7 @@ const OrderbookDepth: React.FC = () => {
               </TableCell>
               <TableCell sx={headerSx} align="right">
                 <Tooltip
-                  title={`How much TAO you could convert to ${getAssetSymbol() || 'Asset'}.`}
+                  title={`Available TAO → ${getAssetSymbol() || 'Asset'} conversion volume.`}
                   arrow
                   placement="top"
                 >

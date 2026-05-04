@@ -70,7 +70,7 @@ const SnapshotDownload: React.FC = () => {
             }}
           >
             Stats, miners, active swaps, and recent events in one file. Skip
-            four API calls in your agent's bootstrap.
+            four API calls in an agent's bootstrap.
           </Typography>
         </Stack>
         <Box>
