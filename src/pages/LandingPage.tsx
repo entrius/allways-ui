@@ -15,7 +15,7 @@ const LandingPage: React.FC = () => {
     <Page>
       <SEO
         title="Allways"
-        description="Universal transaction layer. Trustless peer to peer swaps on Bittensor Subnet 7."
+        description="Trustless peer to peer transactions on Bittensor Subnet 7."
       />
       <Stack sx={{ width: '100%' }}>
         <Hero />
