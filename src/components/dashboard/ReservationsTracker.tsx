@@ -45,6 +45,14 @@ const ReservationsTracker: React.FC = () => {
   const currentBlock = chainState?.currentBlock ?? 0;
 
   const [searchAddr, setSearchAddr] = useState('');
+  const trimmed = searchAddr.trim().toLowerCase();
+  const filtered = trimmed
+    ? reservations.filter((r: Reservation) =>
+        r.userFromAddress?.toLowerCase().includes(trimmed),
+      )
+    : reservations;
+  const visible = filtered.slice(0, 3);
+  const hiddenCount = filtered.length - visible.length;
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +90,7 @@ const ReservationsTracker: React.FC = () => {
           <TextField
             value={searchAddr}
             onChange={(e) => setSearchAddr(e.target.value)}
-            placeholder="Lookup your reservations by your source address"
+            placeholder="Filter by your source address"
             size="small"
             fullWidth
             InputProps={{
@@ -113,7 +121,7 @@ const ReservationsTracker: React.FC = () => {
               mt: 0.5,
             }}
           >
-            Press enter to view all reservations from that address.
+            Filters live as you type. Press enter to see all matches.
           </Typography>
         </Box>
       </Stack>
@@ -130,7 +138,7 @@ const ReservationsTracker: React.FC = () => {
         </Typography>
       )}
 
-      {!isLoading && reservations.length === 0 && (
+      {!isLoading && filtered.length === 0 && (
         <Typography
           sx={{
             fontFamily: FONTS.mono,
@@ -138,12 +146,14 @@ const ReservationsTracker: React.FC = () => {
             color: 'text.secondary',
           }}
         >
-          No reservations yet.
+          {trimmed
+            ? 'No reservations match that address.'
+            : 'No reservations yet.'}
         </Typography>
       )}
 
-      <Stack spacing={0.75} sx={{ overflowY: 'auto', pr: 0.5 }}>
-        {reservations.map((r: Reservation) => {
+      <Stack spacing={0.75}>
+        {visible.map((r: Reservation) => {
           const statusColor = colors[r.status] ?? colors.ACTIVE;
           const sendLabel =
             r.fromAmount && r.fromChain
@@ -226,6 +236,23 @@ const ReservationsTracker: React.FC = () => {
             </Box>
           );
         })}
+        {hiddenCount > 0 && trimmed && (
+          <Typography
+            component={RouterLink}
+            to={`/reservations/by-source/${searchAddr.trim()}`}
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.65rem',
+              color: 'text.secondary',
+              textDecoration: 'none',
+              alignSelf: 'flex-start',
+              mt: 0.25,
+              '&:hover': { color: 'primary.main' },
+            }}
+          >
+            +{hiddenCount} more →
+          </Typography>
+        )}
       </Stack>
     </Stack>
   );
