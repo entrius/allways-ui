@@ -14,12 +14,12 @@ const STEPS: Step[] = [
   {
     num: '01',
     title: 'Quote',
-    body: 'Allways publishes live BTC↔TAO rates backed by on-chain collateral. The orderbook is fully on-chain.',
+    body: 'Allways miners publish live BTC↔TAO rates backed by on-chain collateral. The orderbook is fully on-chain.',
   },
   {
     num: '02',
     title: 'Initiate',
-    body: 'User commits a transaction on-chain. Allways collateral locks. No custodian, no wrapped asset.',
+    body: 'User commits a transaction on-chain. Supporting miner has collateral locked. No custodian, no wrapped asset.',
   },
   {
     num: '03',

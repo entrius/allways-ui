@@ -63,6 +63,19 @@ const AgentsPage: React.FC = () => {
             Everything an LLM needs to quote rates, swap, and watch live state
             on Bittensor SN7. Copy. Paste. Ship.
           </Typography>
+          <Typography
+            sx={{
+              fontFamily: FONTS.body,
+              fontSize: { xs: '0.9rem', md: '1rem' },
+              color: 'text.secondary',
+              maxWidth: 640,
+              lineHeight: 1.55,
+              mt: 1,
+            }}
+          >
+            Hand it to your agent so it can swap natively between digital assets
+            on its own — no human in the loop, no custodian in the middle.
+          </Typography>
         </Stack>
 
         <Stack spacing={4}>
