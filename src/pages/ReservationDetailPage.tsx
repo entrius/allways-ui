@@ -298,8 +298,9 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.secondary',
               }}
             >
-              Awaiting quorum to initiate the swap on-chain — usually a block or
-              two.
+              Awaiting source-tx confirmations to verify legitimacy before
+              initiating the swap. The reservation may extend up to 2× while
+              validators wait for chain finality.
             </Typography>
           </Stack>
         )}
@@ -384,18 +385,43 @@ const ReservationDetailPage: React.FC = () => {
             }
           />
           {(extensionStatus.kind !== 'none' || r.extensionsUsed > 0) && (
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.7rem',
-                  color: 'text.secondary',
-                  minWidth: 80,
-                }}
-              >
-                Extensions
-              </Typography>
-              <ExtensionChip status={extensionStatus} />
+            <Stack spacing={0.75}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.7rem',
+                    color: 'text.secondary',
+                    minWidth: 80,
+                  }}
+                >
+                  Extensions
+                </Typography>
+                <ExtensionChip status={extensionStatus} />
+              </Stack>
+              {extensionStatus.kind === 'pending' && (
+                <>
+                  <LabelValue
+                    label="Proposed"
+                    value={`+${extensionStatus.target - parseInt(r.reservedUntilBlock, 10)} blocks → Block #${extensionStatus.target}`}
+                  />
+                  <LabelValue
+                    label="Finalizes"
+                    value={
+                      currentBlock > 0
+                        ? `Block #${extensionStatus.finalizableAt} (~${formatTimeUntilBlock(extensionStatus.finalizableAt, currentBlock)}) if uncontested`
+                        : `Block #${extensionStatus.finalizableAt} if uncontested`
+                    }
+                  />
+                  {extensionStatus.proposedBy && (
+                    <LabelValue
+                      label="Proposed by"
+                      value={extensionStatus.proposedBy}
+                      copyable
+                    />
+                  )}
+                </>
+              )}
             </Stack>
           )}
         </Stack>
