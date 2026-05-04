@@ -14,7 +14,14 @@ export function useSSE() {
     es.addEventListener('event', () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['chainState'] });
+    });
+
+    es.addEventListener('block', (e) => {
+      const { block } = JSON.parse((e as MessageEvent).data);
+      queryClient.setQueryData(
+        ['chainState', '/protocol/chain-state', undefined],
+        { currentBlock: block },
+      );
     });
 
     es.addEventListener('miner', () => {
