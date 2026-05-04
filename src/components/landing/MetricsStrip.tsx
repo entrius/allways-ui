@@ -8,9 +8,10 @@ interface MetricProps {
   label: string;
   value: string;
   loading?: boolean;
+  unit?: string;
 }
 
-const Metric: React.FC<MetricProps> = ({ label, value, loading }) => (
+const Metric: React.FC<MetricProps> = ({ label, value, loading, unit }) => (
   <Stack
     sx={{
       p: { xs: 2.5, md: 3 },
@@ -39,6 +40,9 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading }) => (
         lineHeight: 1,
         color: 'text.primary',
         minHeight: '1em',
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: 0.5,
       }}
     >
       {loading ? (
@@ -49,7 +53,21 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading }) => (
           sx={{ bgcolor: 'action.hover' }}
         />
       ) : (
-        <CountUpValue value={value} />
+        <>
+          <CountUpValue value={value} />
+          {unit && (
+            <Box
+              component="span"
+              sx={{
+                fontSize: { xs: '1.5rem', md: '2rem' },
+                color: 'text.secondary',
+                fontWeight: 500,
+              }}
+            >
+              {unit}
+            </Box>
+          )}
+        </>
       )}
     </Box>
   </Stack>
@@ -78,7 +96,12 @@ const MetricsStrip: React.FC = () => {
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Metric label="Volume (TAO)" value={volume} loading={isLoading} />
+            <Metric
+              label="Volume"
+              value={volume}
+              unit="τ"
+              loading={isLoading}
+            />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <Metric

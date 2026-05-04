@@ -23,12 +23,12 @@ const PROPS: Prop[] = [
   {
     Icon: TrendingUpOutlinedIcon,
     title: 'Best rate',
-    body: 'Dynamic pricing. Allways continuously updates rates every block to surface the best quote.',
+    body: 'Rates are continuously updated, so the orderbook always surfaces the best quote.',
   },
   {
     Icon: HubOutlinedIcon,
-    title: 'Subnet-native',
-    body: 'Built on Bittensor SN7. Settle in TAO, earn in TAO, watch the network in real time.',
+    title: 'Native settlement',
+    body: 'Real BTC, real TAO. No bridges, no IOUs, no wrapped tokens — funds settle natively on each chain.',
   },
   {
     Icon: CodeOutlinedIcon,

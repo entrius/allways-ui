@@ -147,15 +147,6 @@ const Footer: React.FC = () => {
                 >
                   Discord
                 </Box>
-                <Box
-                  component="a"
-                  href={LINKS.status}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={linkSx}
-                >
-                  Status
-                </Box>
               </Stack>
             </Stack>
           </Grid>
