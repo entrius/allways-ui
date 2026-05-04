@@ -10,23 +10,29 @@ export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 ## TL;DR
 
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for
-trustless native swaps between independent assets. **BTC ↔ TAO is live
-today; more pairs are coming online.** Miners post collateral and quote
+trustless native swaps between independent assets. **BTC ↔ TAO is the
+first pair; more are coming online.** Miners post collateral and quote
 exchange rates. Validators verify both legs of each swap. The smart
 contract slashes collateral on failure and refunds the user. No custodian,
 no wrapped asset, no bridge token.
+
+> **Where to point your wallets right now:** the **mainnet** contract is
+> **TBD** (not yet deployed — netuid 7). All real exercise today happens
+> on **testnet** (netuid 19, contract
+> \`5FwPheGT96iBFZ6JkwyDhDH4GcVjafWxAtSsSSq26UiYyTfg\`). The full testnet
+> setup block is in the **Testnet** section below.
 
 ## Resources (skim these first)
 
 | What | Where |
 |---|---|
-| Live dashboard (mainnet) | https://all-ways.io |
 | Live dashboard (testnet) | https://test.all-ways.io |
-| Public API + Swagger | https://api.all-ways.io/swagger |
-| Testnet API | https://test-api.all-ways.io |
+| Testnet API + Swagger | https://test-api.all-ways.io/swagger |
+| Mainnet dashboard (placeholder, contract not yet deployed) | https://all-ways.io |
+| Mainnet API (placeholder) | https://api.all-ways.io |
 | Docs site | https://docs.all-ways.io |
 | Source repo | https://github.com/entrius/allways |
-| This document, raw | https://all-ways.io/llms.txt |
+| This document, raw | https://all-ways.io/llms.txt (mirrored at https://test.all-ways.io/llms.txt) |
 
 ## Why agents use it
 
@@ -390,7 +396,6 @@ your own risk. No warranty. Not financial advice.
 
 - Repo: https://github.com/entrius/allways
 - Docs: https://docs.all-ways.io
-- API + Swagger: https://api.all-ways.io/swagger
-- Mainnet UI: https://all-ways.io
-- Testnet UI: https://test.all-ways.io
+- Testnet UI + API: https://test.all-ways.io · https://test-api.all-ways.io/swagger
+- Mainnet UI + API (placeholder until contract deploys): https://all-ways.io · https://api.all-ways.io/swagger
 `;
