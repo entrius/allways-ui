@@ -102,17 +102,12 @@ const SwapTracker: React.FC = () => {
         </Typography>
         <Tooltip
           title={
-            <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                What is this?
-              </Typography>
-              <Typography variant="body2">
-                Every transaction on the network in chronological order, with
-                its current status and progress through the lifecycle: Initiated
-                → Fulfilled → Completed (or Timed Out). Click a row to see the
-                full timeline.
-              </Typography>
-            </Stack>
+            <Box sx={{ maxWidth: 280 }}>
+              Every transaction on the network in chronological order, with its
+              current status and progress through the lifecycle: Initiated →
+              Fulfilled → Completed (or Timed Out). Click a row to see the full
+              timeline.
+            </Box>
           }
           arrow
           placement="right"

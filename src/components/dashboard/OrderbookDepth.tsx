@@ -232,19 +232,16 @@ const OrderbookDepth: React.FC = () => {
           </Typography>
           <Tooltip
             title={
-              <Stack spacing={0.5} sx={{ maxWidth: 250 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                  What is this?
-                </Typography>
-                <Typography variant="body2">
+              <Stack spacing={1} sx={{ maxWidth: 280 }}>
+                <Box>
                   This orderbook visualizes the cumulative liquidity available
                   across all active miners at various exchange rates.
-                </Typography>
-                <Typography variant="body2">
+                </Box>
+                <Box>
                   The background bars form a volume profile: the market
                   equilibrium point is where the left and right profiles match
                   in width.
-                </Typography>
+                </Box>
               </Stack>
             }
             arrow

@@ -40,6 +40,9 @@ type TimelineStep = {
   failed: boolean;
 };
 
+const fmtBlock = (b: string | number): string =>
+  Number(b).toLocaleString('en-US');
+
 const getStatusColor = (
   status: string,
   palette: { status: Record<string, string> },
@@ -191,58 +194,79 @@ const SwapDetailPage: React.FC = () => {
         </Typography>
       )}
 
-      <Card>
+      {/* Trade summary — the lead, not a card */}
+      {(() => {
+        const sourceLine =
+          swap.sourceAmount && swap.sourceChain
+            ? formatAmount(swap.sourceAmount, swap.sourceChain)
+            : null;
+        const net = applyFee(swap.destAmount, protocol?.feeDivisor);
+        const destLine =
+          net && swap.destChain ? formatAmount(net, swap.destChain) : null;
+        const rate = formatRateLine(
+          swap.sourceAmount,
+          swap.sourceChain,
+          swap.destAmount,
+          swap.destChain,
+        );
+        // One-sided headlines look awkward; only render when both legs known.
+        // Single amounts still appear per-leg in the Flow card below.
+        if (!sourceLine || !destLine) return null;
+        return (
+          <Stack spacing={0.5} sx={{ mb: 3 }}>
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '1.4rem',
+                fontWeight: 600,
+                color: 'text.primary',
+                letterSpacing: '-0.5px',
+              }}
+            >
+              {sourceLine}{' '}
+              <Box
+                component="span"
+                sx={{ color: 'text.secondary', mx: 0.5, fontWeight: 400 }}
+              >
+                →
+              </Box>{' '}
+              {destLine}
+            </Typography>
+            {rate && (
+              <Typography
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.8rem',
+                  color: 'text.secondary',
+                }}
+              >
+                {rate}
+              </Typography>
+            )}
+          </Stack>
+        );
+      })()}
+
+      {/* Status helper — skip COMPLETED (chip already says it) */}
+      {swap.status !== 'COMPLETED' && (
         <Typography
           sx={{
             fontFamily: FONTS.mono,
             fontSize: '0.8rem',
-            color: 'text.primary',
+            color: 'text.secondary',
+            mb: 3,
+            lineHeight: 1.5,
           }}
         >
           {swap.status === 'ACTIVE' &&
             "Awaiting miner fulfillment — they're sending the destination funds now. Validators will mark it FULFILLED once the destination tx confirms."}
           {swap.status === 'FULFILLED' &&
             'Miner delivered the destination funds. Validators are voting to confirm on-chain — once quorum lands, the swap completes.'}
-          {swap.status === 'COMPLETED' && 'Exchange completed.'}
           {swap.status === 'TIMED_OUT' &&
             (refundPending
               ? 'Miner did not deliver in time. Slash is pending — user must claim the refund on-chain with `alw claim`.'
               : "Miner did not deliver in time. The slashed collateral was paid directly to the user's address.")}
         </Typography>
-      </Card>
-
-      {/* Summary */}
-      {swap.sourceChain && swap.destChain && (
-        <Card>
-          <Stack direction="row" spacing={3} flexWrap="wrap">
-            {swap.sourceAmount && swap.sourceChain && (
-              <LabelValue
-                label="User sends"
-                value={formatAmount(swap.sourceAmount, swap.sourceChain)}
-              />
-            )}
-            {swap.destAmount &&
-              swap.destChain &&
-              (() => {
-                const net = applyFee(swap.destAmount, protocol?.feeDivisor);
-                return net ? (
-                  <LabelValue
-                    label="User receives"
-                    value={formatAmount(net, swap.destChain)}
-                  />
-                ) : null;
-              })()}
-            {(() => {
-              const rate = formatRateLine(
-                swap.sourceAmount,
-                swap.sourceChain,
-                swap.destAmount,
-                swap.destChain,
-              );
-              return rate ? <LabelValue label="Rate" value={rate} /> : null;
-            })()}
-          </Stack>
-        </Card>
       )}
 
       {/* Timeline */}
@@ -290,7 +314,7 @@ const SwapDetailPage: React.FC = () => {
                     color: step.done ? stepColor : 'text.secondary',
                   }}
                 >
-                  {step.block ? `Block #${step.block}` : '\u2014'}
+                  {step.block ? `Block ${fmtBlock(step.block)}` : '\u2014'}
                 </Typography>
               </Stack>
             );
@@ -321,7 +345,7 @@ const SwapDetailPage: React.FC = () => {
                   color: 'text.secondary',
                 }}
               >
-                Block #{swap.timeoutBlock}
+                Block {fmtBlock(swap.timeoutBlock)}
                 {!isTimedOut &&
                   swap.status !== 'COMPLETED' &&
                   currentBlock > 0 && (
@@ -452,26 +476,7 @@ const SwapDetailPage: React.FC = () => {
         </Card>
       )}
 
-      {/* Transactions */}
-      {(swap.sourceTxHash || swap.destTxHash) && (
-        <Card>
-          <SectionTitle>Transactions</SectionTitle>
-          <Stack spacing={1}>
-            <LabelValue
-              label="Source TX"
-              value={swap.sourceTxHash || '\u2014'}
-              copyable={!!swap.sourceTxHash}
-            />
-            <LabelValue
-              label="Dest TX"
-              value={swap.destTxHash || '\u2014'}
-              copyable={!!swap.destTxHash}
-            />
-          </Stack>
-        </Card>
-      )}
-
-      {/* Transaction flow */}
+      {/* Flow \u2014 sends and receives in one card, each with its own tx hash */}
       {(() => {
         // Resolve "from" / "to" addresses for each leg from the user's POV.
         // sourceChain === 'tao': user sends TAO from their hotkey → miner hotkey;
@@ -494,37 +499,54 @@ const SwapDetailPage: React.FC = () => {
           netRecv && swap.destChain
             ? formatAmount(netRecv, swap.destChain)
             : null;
+        const hasSend = !!(sentAmount || sentFrom || sentTo || swap.sourceTxHash);
+        const hasRecv = !!(recvAmount || recvFrom || recvTo || swap.destTxHash);
+        if (!hasSend && !hasRecv) return null;
         return (
-          <>
-            {(sentAmount || sentFrom || sentTo) && (
-              <Card>
-                <SectionTitle>User sends</SectionTitle>
+          <Card>
+            <Stack spacing={2.5}>
+              {hasSend && (
                 <Stack spacing={1}>
+                  <SectionTitle>
+                    Sends
+                    {swap.sourceChain
+                      ? ` · ${swap.sourceChain.toUpperCase()}`
+                      : ''}
+                  </SectionTitle>
                   {sentAmount && (
                     <LabelValue label="Amount" value={sentAmount} />
                   )}
-                  {sentFrom && (
-                    <LabelAddr label="From user" address={sentFrom} />
+                  {sentFrom && <LabelAddr label="From" address={sentFrom} />}
+                  {sentTo && <LabelAddr label="To" address={sentTo} />}
+                  {swap.sourceTxHash && (
+                    <LabelValue
+                      label="Tx"
+                      value={swap.sourceTxHash}
+                      copyable
+                    />
                   )}
-                  {sentTo && <LabelAddr label="To miner" address={sentTo} />}
                 </Stack>
-              </Card>
-            )}
-            {(recvAmount || recvFrom || recvTo) && (
-              <Card>
-                <SectionTitle>User receives</SectionTitle>
+              )}
+              {hasRecv && (
                 <Stack spacing={1}>
+                  <SectionTitle>
+                    Receives
+                    {swap.destChain
+                      ? ` · ${swap.destChain.toUpperCase()}`
+                      : ''}
+                  </SectionTitle>
                   {recvAmount && (
                     <LabelValue label="Amount" value={recvAmount} />
                   )}
-                  {recvFrom && (
-                    <LabelAddr label="From miner" address={recvFrom} />
+                  {recvFrom && <LabelAddr label="From" address={recvFrom} />}
+                  {recvTo && <LabelAddr label="To" address={recvTo} />}
+                  {swap.destTxHash && (
+                    <LabelValue label="Tx" value={swap.destTxHash} copyable />
                   )}
-                  {recvTo && <LabelAddr label="To user" address={recvTo} />}
                 </Stack>
-              </Card>
-            )}
-          </>
+              )}
+            </Stack>
+          </Card>
         );
       })()}
 
@@ -564,7 +586,7 @@ const SwapDetailPage: React.FC = () => {
                     color: 'text.secondary',
                   }}
                 >
-                  #{event.blockNumber}
+                  {fmtBlock(event.blockNumber)}
                 </Typography>
                 {event.taoAmount && (
                   <Typography

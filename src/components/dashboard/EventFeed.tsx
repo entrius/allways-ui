@@ -90,17 +90,12 @@ const EventFeed: React.FC = () => {
         </Typography>
         <Tooltip
           title={
-            <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                What is this?
-              </Typography>
-              <Typography variant="body2">
-                A real-time stream of events emitted by the smart contract and
-                the underlying chain — exchange lifecycle, network collateral
-                changes, validator votes, and reservations. Newest events appear
-                at the top.
-              </Typography>
-            </Stack>
+            <Box sx={{ maxWidth: 280 }}>
+              A real-time stream of events emitted by the smart contract and
+              the underlying chain — exchange lifecycle, network collateral
+              changes, validator votes, and reservations. Newest events appear
+              at the top.
+            </Box>
           }
           arrow
           placement="right"

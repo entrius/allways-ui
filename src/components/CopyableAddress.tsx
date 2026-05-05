@@ -18,14 +18,33 @@ const CopyableAddress: React.FC<CopyableAddressProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    // Prevent enclosing <a> / RouterLink from navigating when the address is
+    // nested inside a clickable card.
+    e.preventDefault();
+    e.stopPropagation();
     navigator.clipboard.writeText(address);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
 
   return (
-    <Tooltip title={copied ? 'Copied!' : address} arrow placement="top">
+    <Tooltip
+      title={copied ? 'Copied!' : address}
+      arrow
+      placement="top"
+      slotProps={{
+        tooltip: {
+          sx: {
+            // Address-specific overrides on top of the global tooltip theme:
+            // never wrap a single address across lines.
+            fontFamily: FONTS.mono,
+            whiteSpace: 'nowrap',
+            maxWidth: 'none',
+          },
+        },
+      }}
+    >
       <Typography
         component="span"
         onClick={handleClick}
