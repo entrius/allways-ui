@@ -165,10 +165,7 @@ const OrderbookDepth: React.FC = () => {
       if (s !== asset || d !== 'tao') return;
       const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
       if (isNaN(capacityTao) || capacityTao <= 0) return;
-      const raw =
-        selected.direction === 'forward'
-          ? m.rate
-          : m.counterRate;
+      const raw = selected.direction === 'forward' ? m.rate : m.counterRate;
       const r = raw ? parseFloat(raw) : 0;
       if (!isFinite(r) || r <= 0) return;
       const key = r.toFixed(2);
@@ -334,13 +331,11 @@ const OrderbookDepth: React.FC = () => {
                   >
                     {selected?.direction === 'reverse' ? (
                       <>
-                        <TaoIcon /> {'→'}{' '}
-                        <AssetIcon asset={selected.asset} />
+                        <TaoIcon /> {'→'} <AssetIcon asset={selected.asset} />
                       </>
                     ) : selected ? (
                       <>
-                        <AssetIcon asset={selected.asset} /> {'→'}{' '}
-                        <TaoIcon />
+                        <AssetIcon asset={selected.asset} /> {'→'} <TaoIcon />
                       </>
                     ) : (
                       <span>Cumulative</span>
@@ -358,9 +353,7 @@ const OrderbookDepth: React.FC = () => {
                 ? BTC_COLOR
                 : theme.palette.primary.main;
               const fillColor =
-                selected?.direction === 'forward'
-                  ? assetThemeColor
-                  : TAO_COLOR;
+                selected?.direction === 'forward' ? assetThemeColor : TAO_COLOR;
               const gradColor = `color-mix(in srgb, ${fillColor} 14%, transparent)`;
 
               return (
@@ -383,10 +376,7 @@ const OrderbookDepth: React.FC = () => {
                   >
                     {row.capacity.toFixed(2)}
                   </TableCell>
-                  <TableCell
-                    sx={{ ...cellSx, color: fillColor }}
-                    align="right"
-                  >
+                  <TableCell sx={{ ...cellSx, color: fillColor }} align="right">
                     {row.cumCapacity.toFixed(2)}
                   </TableCell>
                 </TableRow>
