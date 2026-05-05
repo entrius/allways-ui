@@ -398,8 +398,10 @@ const MinerRatesTable: React.FC = () => {
           sx={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'flex-end',
             gap: 1.5,
             flexWrap: 'wrap',
+            ml: 'auto',
           }}
         >
           <ToggleButtonGroup
@@ -451,6 +453,7 @@ const MinerRatesTable: React.FC = () => {
             }}
             sx={{
               width: 200,
+              ml: 'auto',
               '& .MuiOutlinedInput-root': {
                 fontFamily: FONTS.mono,
                 fontSize: '0.75rem',
