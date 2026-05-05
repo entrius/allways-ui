@@ -83,8 +83,6 @@ const OrderbookDepth: React.FC = () => {
     );
   };
 
-  // Match Active Rates' table rhythm: tighter horizontal padding than
-  // MUI default (16px → 8px) so cells breathe before content wraps.
   const headerSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.65rem',
@@ -93,120 +91,107 @@ const OrderbookDepth: React.FC = () => {
     backgroundColor: theme.palette.background.default,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
-    px: 1,
   };
 
   const cellSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.75rem',
     borderBottom: `1px solid ${theme.palette.divider}`,
-    px: 1,
   };
 
   const { data: miners, isLoading } = useMiners();
-  const [selectedPair, setSelectedPair] = useState<string>('');
+  type Direction = 'forward' | 'reverse';
+  type DirectionOption = {
+    asset: string;
+    direction: Direction;
+    key: string;
+    label: string;
+  };
+  const [selectedKey, setSelectedKey] = useState<string>('');
 
-  const uniqueAssets = useMemo(() => {
-    const assets = new Set<string>();
+  const directionOptions = useMemo<DirectionOption[]>(() => {
+    const seen = new Map<string, DirectionOption>();
     miners?.forEach((m) => {
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
-      if (!s || !d) return;
-      // After canonicalization from the scraper, TAO is always destChain when present,
-      // so the asset side is always sourceChain. Keeping the tao→asset branch as a
-      // defensive fallback in case pre-migration rows are still in flight.
-      if (d === 'tao') assets.add(s.toUpperCase());
-      else if (s === 'tao') assets.add(d.toUpperCase());
+      if (!s || d !== 'tao' || s === 'tao') return;
+      const asset = s.toUpperCase();
+      const fwd = m.rate ? parseFloat(m.rate) : 0;
+      const rev = m.counterRate ? parseFloat(m.counterRate) : 0;
+      if (fwd > 0) {
+        const key = `${asset}>forward`;
+        if (!seen.has(key))
+          seen.set(key, {
+            asset,
+            direction: 'forward',
+            key,
+            label: `${asset} → TAO`,
+          });
+      }
+      if (rev > 0) {
+        const key = `${asset}>reverse`;
+        if (!seen.has(key))
+          seen.set(key, {
+            asset,
+            direction: 'reverse',
+            key,
+            label: `TAO → ${asset}`,
+          });
+      }
     });
-    return Array.from(assets).sort();
+    return Array.from(seen.values()).sort((a, b) =>
+      a.label.localeCompare(b.label),
+    );
   }, [miners]);
 
   useEffect(() => {
-    if (!selectedPair && uniqueAssets.length > 0) {
-      setSelectedPair(uniqueAssets[0]);
-    } else if (
-      uniqueAssets.length > 0 &&
-      !uniqueAssets.includes(selectedPair)
-    ) {
-      setSelectedPair(uniqueAssets[0]);
+    if (directionOptions.length === 0) return;
+    if (!directionOptions.find((o) => o.key === selectedKey)) {
+      setSelectedKey(directionOptions[0].key);
     }
-  }, [uniqueAssets, selectedPair]);
+  }, [directionOptions, selectedKey]);
+
+  const selected = directionOptions.find((o) => o.key === selectedKey) ?? null;
 
   const depthData = useMemo(() => {
-    if (!miners?.length || !selectedPair) {
-      return [];
-    }
-
-    const asset = selectedPair.toLowerCase();
-    // Two independent rate ladders — the forward (asset→TAO) and reverse (TAO→asset)
-    // quotes are now distinct per miner, so they each get their own aggregation.
-    const forwardGroups: Record<string, number> = {}; // key = rate, val = capacity TAO
-    const reverseGroups: Record<string, number> = {}; // key = counterRate, val = capacity TAO
+    if (!miners?.length || !selected) return [];
+    const asset = selected.asset.toLowerCase();
+    const groups: Record<string, number> = {}; // key = rate, val = collateral TAO
 
     miners.forEach((m) => {
       if (!m.collateralRao) return;
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
-      // Canonical order: asset is source, tao is dest. rate = asset→TAO, counterRate = TAO→asset.
       if (s !== asset || d !== 'tao') return;
-
       const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
       if (isNaN(capacityTao) || capacityTao <= 0) return;
-
-      const forward = m.rate ? parseFloat(m.rate) : 0;
-      if (!isNaN(forward) && forward > 0) {
-        const key = forward.toFixed(2);
-        forwardGroups[key] = (forwardGroups[key] || 0) + capacityTao;
-      }
-
-      const reverse = m.counterRate ? parseFloat(m.counterRate) : 0;
-      if (!isNaN(reverse) && reverse > 0) {
-        const key = reverse.toFixed(2);
-        reverseGroups[key] = (reverseGroups[key] || 0) + capacityTao;
-      }
+      const raw = selected.direction === 'forward' ? m.rate : m.counterRate;
+      const r = raw ? parseFloat(raw) : 0;
+      if (!isFinite(r) || r <= 0) return;
+      const key = r.toFixed(2);
+      groups[key] = (groups[key] || 0) + capacityTao;
     });
 
-    // Union the rate axis so both ladders render against the same rows.
-    const allRates = Array.from(
-      new Set([...Object.keys(forwardGroups), ...Object.keys(reverseGroups)]),
-    ).sort((a, b) => parseFloat(b) - parseFloat(a));
+    // Best rate first: forward wants highest TAO/asset, reverse wants lowest.
+    const rates = Object.keys(groups).sort((a, b) =>
+      selected.direction === 'forward'
+        ? parseFloat(b) - parseFloat(a)
+        : parseFloat(a) - parseFloat(b),
+    );
 
-    // Forward book cumulates top-down (best asset→TAO rate first = highest TAO per asset).
-    let cumAssetToTao = 0;
-    const forwardCum: number[] = [];
-    for (const key of allRates) {
-      cumAssetToTao += forwardGroups[key] || 0;
-      forwardCum.push(cumAssetToTao);
-    }
+    let cum = 0;
+    return rates.map((key) => {
+      const capacity = groups[key];
+      cum += capacity;
+      return { rate: key, capacity, cumCapacity: cum };
+    });
+  }, [miners, selected]);
 
-    // Reverse book cumulates bottom-up (best TAO→asset rate = lowest TAO per asset).
-    let cumTaoToAsset = 0;
-    const reverseCum = new Array<number>(allRates.length);
-    for (let i = allRates.length - 1; i >= 0; i--) {
-      cumTaoToAsset += reverseGroups[allRates[i]] || 0;
-      reverseCum[i] = cumTaoToAsset;
-    }
-
-    return allRates.map((key, i) => ({
-      rate: key,
-      forwardCapacity: forwardGroups[key] || 0,
-      reverseCapacity: reverseGroups[key] || 0,
-      cumAssetToTao: forwardCum[i],
-      cumTaoToAsset: reverseCum[i],
-    }));
-  }, [miners, selectedPair]);
-
-  const maxCum = useMemo(() => {
-    if (depthData.length === 0) return 1;
-    let m = 0;
-    for (const row of depthData) {
-      if (row.cumAssetToTao > m) m = row.cumAssetToTao;
-      if (row.cumTaoToAsset > m) m = row.cumTaoToAsset;
-    }
-    return m > 0 ? m : 1;
-  }, [depthData]);
-  const getAssetSymbol = () =>
-    selectedPair ? selectedPair.replace('/TAO', '').trim() : '';
+  const maxCum = useMemo(
+    () =>
+      depthData.reduce((m, r) => (r.cumCapacity > m ? r.cumCapacity : m), 1),
+    [depthData],
+  );
 
   return isLoading || !miners ? (
     <OrderbookDepthSkeleton />
@@ -236,16 +221,19 @@ const OrderbookDepth: React.FC = () => {
           </Typography>
           <Tooltip
             title={
-              <Stack spacing={1} sx={{ maxWidth: 280 }}>
-                <Box>
+              <Stack spacing={0.5} sx={{ maxWidth: 250 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                  What is this?
+                </Typography>
+                <Typography variant="body2">
                   This orderbook visualizes the cumulative liquidity available
                   across all active miners at various exchange rates.
-                </Box>
-                <Box>
+                </Typography>
+                <Typography variant="body2">
                   The background bars form a volume profile: the market
                   equilibrium point is where the left and right profiles match
                   in width.
-                </Box>
+                </Typography>
               </Stack>
             }
             arrow
@@ -257,13 +245,13 @@ const OrderbookDepth: React.FC = () => {
           </Tooltip>
         </Box>
 
-        {uniqueAssets.length > 0 && (
+        {directionOptions.length > 0 && (
           <Select
             size="small"
-            value={selectedPair}
-            onChange={(e) => setSelectedPair(e.target.value as string)}
+            value={selectedKey}
+            onChange={(e) => setSelectedKey(e.target.value as string)}
             sx={{
-              width: 140,
+              width: 160,
               height: 32,
               fontFamily: FONTS.mono,
               fontSize: '0.75rem',
@@ -278,13 +266,13 @@ const OrderbookDepth: React.FC = () => {
               },
             }}
           >
-            {uniqueAssets.map((asset) => (
+            {directionOptions.map((opt) => (
               <MenuItem
-                key={asset}
-                value={asset}
+                key={opt.key}
+                value={opt.key}
                 sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem' }}
               >
-                {`${asset} / TAO`}
+                {opt.label}
               </MenuItem>
             ))}
           </Select>
@@ -307,29 +295,29 @@ const OrderbookDepth: React.FC = () => {
             <TableRow>
               <TableCell sx={headerSx}>
                 <Tooltip
-                  title={`The specific exchange rate for ${getAssetSymbol() || 'Asset'}/TAO.`}
+                  title={`Quoted rate for ${selected?.label ?? 'this direction'} (TAO per 1 ${selected?.asset ?? 'asset'}).`}
                   arrow
                   placement="top"
                 >
-                  <span style={{ borderBottom: '1px dotted' }}>
+                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>
                     Rate (TAO)
                   </span>
                 </Tooltip>
               </TableCell>
               <TableCell sx={headerSx} align="right">
                 <Tooltip
-                  title="Total capacity available at this exact rate."
+                  title="Capacity at this exact rate, denominated in TAO collateral."
                   arrow
                   placement="top"
                 >
-                  <span style={{ borderBottom: '1px dotted' }}>
-                    Capacity
+                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>
+                    Capacity (TAO)
                   </span>
                 </Tooltip>
               </TableCell>
               <TableCell sx={headerSx} align="right">
                 <Tooltip
-                  title={`Available ${getAssetSymbol() || 'Asset'} → TAO conversion volume.`}
+                  title="Cumulative capacity walking from the best rate down."
                   arrow
                   placement="top"
                 >
@@ -338,26 +326,20 @@ const OrderbookDepth: React.FC = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 0.75,
+                      cursor: 'help',
                     }}
                   >
-                    <AssetIcon asset={getAssetSymbol()} /> → <TaoIcon />
-                  </Box>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={headerSx} align="right">
-                <Tooltip
-                  title={`Available TAO → ${getAssetSymbol() || 'Asset'} conversion volume.`}
-                  arrow
-                  placement="top"
-                >
-                  <Box
-                    sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 0.75,
-                    }}
-                  >
-                    <TaoIcon /> → <AssetIcon asset={getAssetSymbol()} />
+                    {selected?.direction === 'reverse' ? (
+                      <>
+                        <TaoIcon /> {'→'} <AssetIcon asset={selected.asset} />
+                      </>
+                    ) : selected ? (
+                      <>
+                        <AssetIcon asset={selected.asset} /> {'→'} <TaoIcon />
+                      </>
+                    ) : (
+                      <span>Cumulative</span>
+                    )}
                   </Box>
                 </Tooltip>
               </TableCell>
@@ -365,34 +347,21 @@ const OrderbookDepth: React.FC = () => {
           </TableHead>
           <TableBody>
             {depthData.map((row) => {
-              const pctAssetToTao = (row.cumAssetToTao / maxCum) * 100;
-              const pctTaoToAsset = (row.cumTaoToAsset / maxCum) * 100;
-
-              const isBtc = getAssetSymbol().toUpperCase() === 'BTC';
-
+              const pct = (row.cumCapacity / maxCum) * 100;
+              const isBtc = selected?.asset.toUpperCase() === 'BTC';
               const assetThemeColor = isBtc
                 ? BTC_COLOR
                 : theme.palette.primary.main;
-              const taoThemeColor = TAO_COLOR;
-
-              // Lighter wash than the previous 10%/8% so rows read like
-              // Active Rates' clean rows; bars still suggest volume but
-              // don't visually dominate the cell content.
-              const leftGradColor = `color-mix(in srgb, ${assetThemeColor} 6%, transparent)`;
-              const rightGradColor =
-                theme.palette.mode === 'dark'
-                  ? 'color-mix(in srgb, var(--color-white) 6%, transparent)'
-                  : 'color-mix(in srgb, var(--color-woodsmoke) 5%, transparent)';
+              const fillColor =
+                selected?.direction === 'forward' ? assetThemeColor : TAO_COLOR;
+              const gradColor = `color-mix(in srgb, ${fillColor} 14%, transparent)`;
 
               return (
                 <TableRow
                   key={row.rate}
                   sx={{
                     backgroundColor: 'transparent',
-                    backgroundImage: `
-                      linear-gradient(to left, ${leftGradColor} ${pctAssetToTao}%, transparent ${pctAssetToTao}%),
-                      linear-gradient(to left, ${rightGradColor} ${pctTaoToAsset}%, transparent ${pctTaoToAsset}%)
-                    `,
+                    backgroundImage: `linear-gradient(to left, ${gradColor} ${pct}%, transparent ${pct}%)`,
                     '&:hover': {
                       backgroundColor: 'action.hover',
                     },
@@ -405,23 +374,10 @@ const OrderbookDepth: React.FC = () => {
                     sx={{ ...cellSx, color: 'text.primary' }}
                     align="right"
                   >
-                    {(row.forwardCapacity + row.reverseCapacity).toFixed(2)}
+                    {row.capacity.toFixed(2)}
                   </TableCell>
-                  <TableCell
-                    sx={{ ...cellSx, color: assetThemeColor }}
-                    align="right"
-                  >
-                    {row.cumAssetToTao > 0
-                      ? (row.cumAssetToTao / parseFloat(row.rate)).toFixed(6)
-                      : '\u2014'}
-                  </TableCell>
-                  <TableCell
-                    sx={{ ...cellSx, color: taoThemeColor }}
-                    align="right"
-                  >
-                    {row.cumTaoToAsset > 0
-                      ? row.cumTaoToAsset.toFixed(2)
-                      : '\u2014'}
+                  <TableCell sx={{ ...cellSx, color: fillColor }} align="right">
+                    {row.cumCapacity.toFixed(2)}
                   </TableCell>
                 </TableRow>
               );
@@ -430,7 +386,7 @@ const OrderbookDepth: React.FC = () => {
             {depthData.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={4}
+                  colSpan={3}
                   sx={{
                     textAlign: 'center',
                     borderBottom: 'none',
