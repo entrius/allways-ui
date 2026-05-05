@@ -11,7 +11,7 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useAllSwaps } from '../../api';
+import { useAllSwaps, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
@@ -63,17 +63,24 @@ const SwapTracker: React.FC = () => {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: swaps, isLoading } = useAllSwaps({
-    search: debouncedSearch || undefined,
-    limit,
-  });
+  const idMatch = debouncedSearch.trim().match(/^#?(\d+)$/);
+  const exactSwapId = idMatch?.[1] ?? '';
+
+  const { data: detail, isLoading: detailLoading } = useSwapDetail(exactSwapId);
+  const { data: fuzzy, isLoading: fuzzyLoading } = useAllSwaps(
+    { search: debouncedSearch || undefined, limit },
+    !exactSwapId,
+  );
+
+  const swaps = exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy;
+  const isLoading = exactSwapId ? detailLoading : fuzzyLoading;
 
   // Reset limit when search changes
   React.useEffect(() => {
     setLimit(PAGE_SIZE);
   }, [debouncedSearch]);
 
-  const hasMore = swaps?.length === limit;
+  const hasMore = !exactSwapId && swaps?.length === limit;
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
@@ -122,7 +129,7 @@ const SwapTracker: React.FC = () => {
 
       <TextField
         size="small"
-        placeholder="Search by transaction ID or address..."
+        placeholder="Search by transaction ID (#N) or address..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         sx={{

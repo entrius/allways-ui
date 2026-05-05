@@ -5,16 +5,20 @@ import { type ActiveSwap, type SwapDetail } from './models';
 export const useActiveSwaps = () =>
   useApiQuery<ActiveSwap[]>('swaps', '/swaps/active', SSE_FALLBACK_INTERVAL);
 
-export const useAllSwaps = (params?: {
-  search?: string;
-  limit?: number;
-  offset?: number;
-}) =>
+export const useAllSwaps = (
+  params?: {
+    search?: string;
+    limit?: number;
+    offset?: number;
+  },
+  enabled?: boolean,
+) =>
   useApiQuery<ActiveSwap[]>(
     'allSwaps',
     '/swaps',
     SSE_FALLBACK_INTERVAL,
     params,
+    enabled,
   );
 
 export const useSwapDetail = (swapId: string) =>
