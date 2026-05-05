@@ -356,16 +356,7 @@ const MinerRatesTable: React.FC = () => {
         minHeight: 0,
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          mb: 2,
-          gap: 2,
-          flexWrap: 'wrap',
-        }}
-      >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography
             variant="h6"
@@ -403,10 +394,9 @@ const MinerRatesTable: React.FC = () => {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
             gap: 1.5,
             flexWrap: 'wrap',
-            ml: 'auto',
           }}
         >
           <ToggleButtonGroup
@@ -457,8 +447,7 @@ const MinerRatesTable: React.FC = () => {
               ),
             }}
             sx={{
-              width: 200,
-              ml: 'auto',
+              width: 220,
               '& .MuiOutlinedInput-root': {
                 fontFamily: FONTS.mono,
                 fontSize: '0.75rem',
