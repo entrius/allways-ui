@@ -373,7 +373,9 @@ const MinerRatesTable: React.FC = () => {
                   (BTC→TAO and TAO→BTC) are shown when quoted, with the spread
                   between them being the network's margin.
                 </Box>
-                <Box>Sort by rate or capacity to find the best counterparty.</Box>
+                <Box>
+                  Sort by rate or capacity to find the best counterparty.
+                </Box>
               </Stack>
             }
             arrow

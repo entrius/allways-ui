@@ -33,7 +33,6 @@ import ExtensionChip, {
   deriveReservationExtensionStatus,
 } from '../components/ExtensionChip';
 
-
 const minerSendToAddress = (
   fromChain: string | null,
   miner: Miner | undefined,
@@ -219,8 +218,7 @@ const ReservationDetailPage: React.FC = () => {
               '&:hover': { textDecoration: 'underline' },
             }}
           >
-            Funded · Swap #{r.swapId}{' '}
-            <ArrowForwardIcon sx={{ fontSize: 14 }} />
+            Funded · Swap #{r.swapId} <ArrowForwardIcon sx={{ fontSize: 14 }} />
           </Typography>
         ) : (
           <Typography

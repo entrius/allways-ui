@@ -309,7 +309,9 @@ const SwapDetailPage: React.FC = () => {
                     isTerminalCompleted ? 'var(--color-success)' : undefined
                   }
                   label={step.label}
-                  detail={step.block ? `Block ${fmtBlock(step.block)}` : '\u2014'}
+                  detail={
+                    step.block ? `Block ${fmtBlock(step.block)}` : '\u2014'
+                  }
                 />
               );
             })}
@@ -474,7 +476,12 @@ const SwapDetailPage: React.FC = () => {
           netRecv && swap.destChain
             ? formatAmount(netRecv, swap.destChain)
             : null;
-        const hasSend = !!(sentAmount || sentFrom || sentTo || swap.sourceTxHash);
+        const hasSend = !!(
+          sentAmount ||
+          sentFrom ||
+          sentTo ||
+          swap.sourceTxHash
+        );
         const hasRecv = !!(recvAmount || recvFrom || recvTo || swap.destTxHash);
         if (!hasSend && !hasRecv) return null;
         return (
@@ -494,11 +501,7 @@ const SwapDetailPage: React.FC = () => {
                   {sentFrom && <LabelAddr label="From" address={sentFrom} />}
                   {sentTo && <LabelAddr label="To" address={sentTo} />}
                   {swap.sourceTxHash && (
-                    <LabelValue
-                      label="Tx"
-                      value={swap.sourceTxHash}
-                      copyable
-                    />
+                    <LabelValue label="Tx" value={swap.sourceTxHash} copyable />
                   )}
                 </Stack>
               )}
@@ -506,9 +509,7 @@ const SwapDetailPage: React.FC = () => {
                 <Stack spacing={1}>
                   <SectionTitle>
                     Receives
-                    {swap.destChain
-                      ? ` · ${swap.destChain.toUpperCase()}`
-                      : ''}
+                    {swap.destChain ? ` · ${swap.destChain.toUpperCase()}` : ''}
                   </SectionTitle>
                   {recvAmount && (
                     <LabelValue label="Amount" value={recvAmount} />

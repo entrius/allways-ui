@@ -91,10 +91,10 @@ const EventFeed: React.FC = () => {
         <Tooltip
           title={
             <Box sx={{ maxWidth: 280 }}>
-              A real-time stream of events emitted by the smart contract and
-              the underlying chain — exchange lifecycle, network collateral
-              changes, validator votes, and reservations. Newest events appear
-              at the top.
+              A real-time stream of events emitted by the smart contract and the
+              underlying chain — exchange lifecycle, network collateral changes,
+              validator votes, and reservations. Newest events appear at the
+              top.
             </Box>
           }
           arrow
