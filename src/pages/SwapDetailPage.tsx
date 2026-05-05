@@ -17,7 +17,15 @@ import {
 } from '../api';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
-import { BlockIndicator, Card, LabelValue, PageWrapper } from '../components';
+import {
+  BlockIndicator,
+  Card,
+  LabelValue,
+  PageWrapper,
+  SectionTitle,
+  TimelineStep,
+  type TimelineStepState,
+} from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   applyFee,
@@ -32,7 +40,7 @@ import ExtensionChip, {
   deriveSwapExtensionStatus,
 } from '../components/ExtensionChip';
 
-type TimelineStep = {
+type SwapStep = {
   label: string;
   block: string | null;
   timestamp: string | null;
@@ -47,11 +55,13 @@ const getStatusColor = (
   status: string,
   palette: { status: Record<string, string> },
 ): string => {
+  // Terminal states pop with semantic color — completion green / timeout red.
+  // In-flight states keep their muted blue tints.
   const map: Record<string, string> = {
     ACTIVE: palette.status.active,
     FULFILLED: palette.status.fulfilled,
-    COMPLETED: palette.status.completed,
-    TIMED_OUT: palette.status.timedOut,
+    COMPLETED: 'var(--color-success)',
+    TIMED_OUT: 'var(--color-danger)',
   };
   return map[status] ?? palette.status.active;
 };
@@ -96,7 +106,7 @@ const SwapDetailPage: React.FC = () => {
     : undefined;
   const refundPending = refundEvent?.eventType === 'SlashPending';
 
-  const steps: TimelineStep[] = [
+  const steps: SwapStep[] = [
     {
       label: 'Initiated',
       block: swap.initiatedBlock,
@@ -273,82 +283,46 @@ const SwapDetailPage: React.FC = () => {
       <Card>
         <SectionTitle>Timeline</SectionTitle>
         <Stack spacing={1.5}>
-          {steps.map((step) => {
-            const stepColor = step.done
-              ? 'var(--color-status-completed)'
-              : step.failed
-                ? 'var(--color-status-timed-out)'
-                : 'text.secondary';
-            return (
-              <Stack
-                key={step.label}
-                direction="row"
-                alignItems="center"
-                spacing={1.5}
-              >
-                <Typography
-                  sx={{
-                    fontSize: '0.9rem',
-                    width: 16,
-                    textAlign: 'center',
-                    color: stepColor,
-                  }}
-                >
-                  {step.done ? '\u25CF' : step.failed ? '\u2717' : '\u25CB'}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.75rem',
-                    color: stepColor,
-                    fontWeight: step.done ? 600 : 400,
-                    minWidth: 80,
-                  }}
-                >
-                  {step.label}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.7rem',
-                    color: step.done ? stepColor : 'text.secondary',
-                  }}
-                >
-                  {step.block ? `Block ${fmtBlock(step.block)}` : '\u2014'}
-                </Typography>
-              </Stack>
-            );
-          })}
-          {/* Timeout line */}
-          {swap.timeoutBlock && (
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Typography
-                sx={{ fontSize: '0.9rem', width: 16, textAlign: 'center' }}
-              >
-                {isTimedOut ? '\u23F1' : '\u23F1'}
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.75rem',
-                  color: isTimedOut ? 'error.main' : 'text.secondary',
-                  fontWeight: isTimedOut ? 600 : 400,
-                  minWidth: 80,
-                }}
-              >
-                Timeout
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.7rem',
-                  color: 'text.secondary',
-                }}
-              >
-                Block {fmtBlock(swap.timeoutBlock)}
-                {!isTimedOut &&
-                  swap.status !== 'COMPLETED' &&
-                  currentBlock > 0 && (
+          {/* Hide Completed row on timed-out swaps \u2014 it never completed.
+              Hide Timeout row on completed swaps \u2014 it never fired. */}
+          {/* Hide Completed row on timed-out swaps \u2014 it never completed.
+              Hide Timeout row on completed swaps \u2014 it never fired.
+              Only the terminal row that actually fired carries semantic
+              color (green \u2713 for success, red \u2717 for timeout); other
+              "done" rows stay neutral so the eye lands on finality. */}
+          {steps
+            .filter((s) => !(isTimedOut && s.label === 'Completed'))
+            .map((step) => {
+              const stepState: TimelineStepState = step.done
+                ? 'done'
+                : step.failed
+                  ? 'failed'
+                  : 'pending';
+              const isTerminalCompleted =
+                step.label === 'Completed' && step.done;
+              return (
+                <TimelineStep
+                  key={step.label}
+                  state={stepState}
+                  glyph={isTerminalCompleted ? '\u2713' : undefined}
+                  color={
+                    isTerminalCompleted ? 'var(--color-success)' : undefined
+                  }
+                  label={step.label}
+                  detail={step.block ? `Block ${fmtBlock(step.block)}` : '\u2014'}
+                />
+              );
+            })}
+          {swap.timeoutBlock && swap.status !== 'COMPLETED' && (
+            <TimelineStep
+              state={isTimedOut ? 'failed' : 'pending'}
+              glyph={isTimedOut ? undefined : '\u23F1'}
+              color={isTimedOut ? 'var(--color-danger)' : undefined}
+              label="Timeout"
+              detail={
+                <>
+                  Block {fmtBlock(swap.timeoutBlock)}
+                  {!isTimedOut && currentBlock > 0 && (
                     <>
                       {' '}
                       (
@@ -359,8 +333,9 @@ const SwapDetailPage: React.FC = () => {
                       remaining)
                     </>
                   )}
-              </Typography>
-            </Stack>
+                </>
+              }
+            />
           )}
           {swap.timeoutBlock && !isTimedOut && swap.status !== 'COMPLETED' && (
             <Typography
@@ -655,25 +630,7 @@ const SwapDetailPage: React.FC = () => {
   );
 };
 
-/* ---- Shared sub-components ---- */
-
-const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => (
-  <Typography
-    sx={{
-      fontFamily: FONTS.mono,
-      fontSize: '0.7rem',
-      fontWeight: 600,
-      color: 'text.secondary',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px',
-      mb: 1.5,
-    }}
-  >
-    {children}
-  </Typography>
-);
+/* ---- Page-local sub-components ---- */
 
 const LabelAddr: React.FC<{ label: string; address: string }> = ({
   label,

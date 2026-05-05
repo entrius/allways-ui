@@ -13,7 +13,7 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
     sx={{
       p: 2.5,
       borderRadius: 0,
-      backgroundColor: 'background.paper',
+      backgroundColor: 'surface.light',
       border: '1px solid',
       borderColor: 'divider',
       textAlign: 'center',

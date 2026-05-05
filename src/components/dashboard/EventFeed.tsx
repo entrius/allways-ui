@@ -128,7 +128,7 @@ const EventFeed: React.FC = () => {
                 sx={{
                   p: 1.5,
                   borderRadius: 0,
-                  backgroundColor: 'background.paper',
+                  backgroundColor: 'surface.light',
                   border: '1px solid',
                   borderColor: 'divider',
                   transition: 'border-color 0.2s',

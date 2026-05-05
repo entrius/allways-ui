@@ -5,6 +5,8 @@ export { default as Card } from './Card';
 export { default as HoverCard } from './HoverCard';
 export { default as LabelValue } from './LabelValue';
 export { default as PageWrapper } from './PageWrapper';
+export { TimelineStep, SectionTitle } from './Timeline';
+export type { TimelineStepState } from './Timeline';
 export { SEO } from './SEO';
 export type { SEOProps } from './SEO';
 export * from './dashboard';

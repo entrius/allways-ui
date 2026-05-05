@@ -14,7 +14,7 @@ import { FONTS } from '../../theme';
 
 const cardBorder = {
   borderRadius: 0,
-  backgroundColor: 'background.paper',
+  backgroundColor: 'surface.light',
   border: '1px solid',
   borderColor: 'divider',
 };
@@ -202,6 +202,65 @@ export const EventFeedSkeleton: React.FC = () => (
           <Skeleton
             variant="text"
             width={50}
+            height={12}
+            sx={{ borderRadius: 0 }}
+          />
+        </Stack>
+      ))}
+    </Stack>
+  </Stack>
+);
+
+export const ReservationsTrackerSkeleton: React.FC = () => (
+  <Stack spacing={1.5}>
+    <Stack
+      direction={{ xs: 'column', sm: 'row' }}
+      spacing={{ xs: 1, sm: 2 }}
+      alignItems={{ xs: 'stretch', sm: 'center' }}
+      justifyContent="space-between"
+    >
+      <Skeleton
+        variant="text"
+        width={110}
+        height={14}
+        sx={{ borderRadius: 0 }}
+      />
+      <Skeleton
+        variant="rectangular"
+        width={420}
+        height={36}
+        sx={{ borderRadius: 0, maxWidth: '100%' }}
+      />
+    </Stack>
+    <Stack spacing={0.75}>
+      {[0, 1, 2].map((i) => (
+        <Stack
+          key={i}
+          spacing={0.5}
+          sx={{
+            p: 1.25,
+            borderRadius: 0,
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Stack direction="row" justifyContent="space-between">
+            <Skeleton
+              variant="text"
+              width={220}
+              height={14}
+              sx={{ borderRadius: 0 }}
+            />
+            <Skeleton
+              variant="text"
+              width={60}
+              height={12}
+              sx={{ borderRadius: 0 }}
+            />
+          </Stack>
+          <Skeleton
+            variant="text"
+            width={180}
             height={12}
             sx={{ borderRadius: 0 }}
           />

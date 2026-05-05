@@ -307,7 +307,7 @@ const OrderbookDepth: React.FC = () => {
                   arrow
                   placement="top"
                 >
-                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>
+                  <span style={{ borderBottom: '1px dotted' }}>
                     Rate (TAO)
                   </span>
                 </Tooltip>
@@ -318,7 +318,7 @@ const OrderbookDepth: React.FC = () => {
                   arrow
                   placement="top"
                 >
-                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>
+                  <span style={{ borderBottom: '1px dotted' }}>
                     Capacity
                   </span>
                 </Tooltip>
@@ -334,7 +334,6 @@ const OrderbookDepth: React.FC = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 0.75,
-                      cursor: 'help',
                     }}
                   >
                     <AssetIcon asset={getAssetSymbol()} /> → <TaoIcon />
@@ -352,7 +351,6 @@ const OrderbookDepth: React.FC = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 0.75,
-                      cursor: 'help',
                     }}
                   >
                     <TaoIcon /> → <AssetIcon asset={getAssetSymbol()} />

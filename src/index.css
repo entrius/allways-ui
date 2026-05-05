@@ -10,8 +10,10 @@
   /* ── Semantic / theme-aware tokens (light defaults) ── */
   --color-bg: var(--color-offwhite);
   --color-surface: var(--color-white);
-  --color-surface-light: var(--color-gray);
-  --color-surface-elevated: var(--color-gray);
+  /* Card surfaces sit between bg (#fbfbfb) and gray (#eef0f3) — light enough
+     to feel clean against the page, still distinct from pure white. */
+  --color-surface-light: #f4f6f8;
+  --color-surface-elevated: #f4f6f8;
   --color-text-primary: var(--color-woodsmoke);
   --color-text-secondary: color-mix(
     in srgb,
@@ -46,6 +48,15 @@
   );
   --color-status-completed: var(--color-text-secondary);
   --color-status-timed-out: var(--color-text-muted);
+  /* Final-finality semantic colors — applied only on the swap detail
+     timeline's terminal Completed/Timeout rows and on the dashboard
+     transaction list's terminal status text. Intentionally not wired into
+     `--color-status-completed`/`--color-status-timed-out` so reservation
+     timelines and other "done" states stay neutral.
+     Tuned to read as semantic green/red without being shouty against
+     small uppercase mono text. */
+  --color-success: #15803d;
+  --color-danger: #b91c1c;
   --color-status-collateral: color-mix(
     in srgb,
     var(--color-secondary) 75%,
@@ -78,14 +89,17 @@
 [data-theme='dark'] {
   --color-bg: var(--color-woodsmoke);
   --color-surface: var(--color-woodsmoke);
+  /* Pull surfaces closer to bg so cards feel integrated with the page,
+     not stamped on top — borders carry the structure. Mirrors the
+     light-mode move from BRAND.gray (#eef0f3) to a softer #f4f6f8. */
   --color-surface-light: color-mix(
     in srgb,
-    var(--color-woodsmoke) 92%,
+    var(--color-woodsmoke) 96%,
     var(--color-white)
   );
   --color-surface-elevated: color-mix(
     in srgb,
-    var(--color-woodsmoke) 86%,
+    var(--color-woodsmoke) 92%,
     var(--color-white)
   );
   --color-text-primary: var(--color-white);

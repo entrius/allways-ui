@@ -24,8 +24,10 @@ const lightPalette = {
   primary: BRAND.primary,
   bg: BRAND.offwhite,
   surface: BRAND.white,
-  surfaceLight: BRAND.gray,
-  surfaceElevated: BRAND.gray,
+  // Mirror of --color-surface-light / --color-surface-elevated in index.css.
+  // Lighter than BRAND.gray so card surfaces don't share the border tone.
+  surfaceLight: '#f4f6f8',
+  surfaceElevated: '#f4f6f8',
   textPrimary: BRAND.woodsmoke,
   textSecondary: 'rgba(9, 11, 13, 0.6)',
   textMuted: 'rgba(9, 11, 13, 0.4)',
@@ -45,13 +47,13 @@ const lightPalette = {
 
 // Dark surface tints are pre-computed equivalents of the index.css color-mix()
 // expressions so theme.palette.surface.* and var(--color-surface-*) resolve to
-// the same color: 92% woodsmoke + 8% white = #1d1f20, 86% + 14% = #2b2d2f.
+// the same color: 96% woodsmoke + 4% white = #131517, 92% + 8% = #1d1f20.
 const darkPalette = {
   ...lightPalette,
   bg: BRAND.woodsmoke,
   surface: BRAND.woodsmoke,
-  surfaceLight: '#1d1f20',
-  surfaceElevated: '#2b2d2f',
+  surfaceLight: '#131517',
+  surfaceElevated: '#1d1f20',
   textPrimary: BRAND.white,
   textSecondary: 'rgba(255, 255, 255, 0.6)',
   textMuted: 'rgba(255, 255, 255, 0.4)',

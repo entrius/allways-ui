@@ -10,10 +10,6 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
-import CancelIcon from '@mui/icons-material/Cancel';
 import {
   useChainState,
   useMinerByHotkey,
@@ -29,12 +25,14 @@ import {
   CopyableAddress,
   LabelValue,
   PageWrapper,
+  SectionTitle,
+  TimelineStep,
+  type TimelineStepState,
 } from '../components';
 import ExtensionChip, {
   deriveReservationExtensionStatus,
 } from '../components/ExtensionChip';
 
-type StageState = 'done' | 'current' | 'awaiting' | 'pending' | 'failed';
 
 const minerSendToAddress = (
   fromChain: string | null,
@@ -106,18 +104,17 @@ const ReservationDetailPage: React.FC = () => {
   const isInitiated = r.status === 'INITIATED';
   const isTerminal = r.status === 'EXPIRED' || r.status === 'CANCELLED';
 
-  const reservedStage: StageState = isTerminal ? 'failed' : 'done';
+  const reservedStage: TimelineStepState = isTerminal ? 'failed' : 'done';
   // Funds + confirmation collapse into one step: send → detect → confirm.
-  // 'awaiting' = user owes the send; 'current' = detected, waiting on conf
-  // blocks; 'done' = confirmed (which is what INITIATED requires).
-  const sendConfirmStage: StageState = isTerminal
+  // 'active' covers both "user still needs to send" and "send detected,
+  // awaiting confirmations" — the visual signal is identical and the
+  // step `detail` text disambiguates.
+  const sendConfirmStage: TimelineStepState = isTerminal
     ? 'failed'
     : isInitiated
       ? 'done'
-      : fundsSeen
-        ? 'current'
-        : 'awaiting';
-  const initiatedStage: StageState = isTerminal
+      : 'active';
+  const initiatedStage: TimelineStepState = isTerminal
     ? 'failed'
     : isInitiated
       ? 'done'
@@ -252,13 +249,16 @@ const ReservationDetailPage: React.FC = () => {
 
       {/* Lifecycle stepper */}
       <Card>
-        <Stack spacing={1.25}>
-          <Stage
+        <SectionTitle>Timeline</SectionTitle>
+        <Stack spacing={1.5}>
+          <TimelineStep
+            labelMinWidth={120}
             state={reservedStage}
             label="Reserved"
             detail={`Block ${fmtBlock(r.reservedAtBlock)} · ${relativeTime(r.createdAt)}`}
           />
-          <Stage
+          <TimelineStep
+            labelMinWidth={120}
             state={sendConfirmStage}
             label="Funds received"
             detail={
@@ -273,7 +273,8 @@ const ReservationDetailPage: React.FC = () => {
                     : 'send funds to the miner — usually within a block'
             }
           />
-          <Stage
+          <TimelineStep
+            labelMinWidth={120}
             state={initiatedStage}
             label="Swap initiated"
             detail={
@@ -439,68 +440,6 @@ const ReservationDetailPage: React.FC = () => {
         </Stack>
       </Card>
     </PageWrapper>
-  );
-};
-
-const Stage: React.FC<{
-  state: StageState;
-  label: string;
-  detail: string;
-}> = ({ state, label, detail }) => {
-  const theme = useTheme();
-  const Icon =
-    state === 'done'
-      ? CheckCircleIcon
-      : state === 'current'
-        ? HourglassEmptyIcon
-        : state === 'failed'
-          ? CancelIcon
-          : RadioButtonUncheckedIcon;
-  const color =
-    state === 'done'
-      ? theme.palette.status.completed
-      : state === 'current'
-        ? theme.palette.status.active
-        : state === 'awaiting'
-          ? theme.palette.status.active
-          : state === 'failed'
-            ? theme.palette.status.timedOut
-            : theme.palette.text.disabled;
-  const labelColor =
-    state === 'pending'
-      ? theme.palette.text.secondary
-      : theme.palette.text.primary;
-  return (
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      alignItems={{ xs: 'flex-start', sm: 'center' }}
-      spacing={{ xs: 0.25, sm: 1.5 }}
-    >
-      <Stack direction="row" alignItems="center" spacing={1.5}>
-        <Icon sx={{ fontSize: 18, color }} />
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.8rem',
-            color: labelColor,
-            fontWeight: state === 'current' || state === 'awaiting' ? 600 : 400,
-            minWidth: { sm: 180 },
-          }}
-        >
-          {label}
-        </Typography>
-      </Stack>
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.7rem',
-          color: 'text.secondary',
-          pl: { xs: 4, sm: 0 },
-        }}
-      >
-        {detail}
-      </Typography>
-    </Stack>
   );
 };
 
