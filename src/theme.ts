@@ -31,8 +31,11 @@ const lightPalette = {
   textPrimary: BRAND.woodsmoke,
   textSecondary: 'rgba(9, 11, 13, 0.6)',
   textMuted: 'rgba(9, 11, 13, 0.4)',
-  border: BRAND.gray,
-  borderLight: BRAND.gray,
+  // Mirror of --color-border / --color-border-light in index.css.
+  // Matches MUI's default outlined-input border weight so cards
+  // and the search field read at the same visual weight.
+  border: '#d1d5db',
+  borderLight: '#d1d5db',
   borderMedium: 'rgba(9, 11, 13, 0.25)',
   statusActive: 'var(--color-status-active)',
   statusFulfilled: 'var(--color-status-fulfilled)',

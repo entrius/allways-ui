@@ -25,8 +25,12 @@
     var(--color-woodsmoke) 40%,
     transparent
   );
-  --color-border: var(--color-gray);
-  --color-border-light: var(--color-gray);
+  /* Borders match MUI's default outlined-input edge weight (≈
+     rgba(0,0,0,0.23)) so cards read at the same visual weight as
+     the dashboard search box — light enough to feel quiet, dark
+     enough to define the card. */
+  --color-border: #d1d5db;
+  --color-border-light: #d1d5db;
   --color-border-medium: color-mix(
     in srgb,
     var(--color-woodsmoke) 25%,

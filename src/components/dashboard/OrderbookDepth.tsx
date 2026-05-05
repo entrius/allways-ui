@@ -83,6 +83,8 @@ const OrderbookDepth: React.FC = () => {
     );
   };
 
+  // Match Active Rates' table rhythm: tighter horizontal padding than
+  // MUI default (16px → 8px) so cells breathe before content wraps.
   const headerSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.65rem',
@@ -91,12 +93,14 @@ const OrderbookDepth: React.FC = () => {
     backgroundColor: theme.palette.background.default,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
+    px: 1,
   };
 
   const cellSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.75rem',
     borderBottom: `1px solid ${theme.palette.divider}`,
+    px: 1,
   };
 
   const { data: miners, isLoading } = useMiners();
@@ -371,11 +375,14 @@ const OrderbookDepth: React.FC = () => {
                 : theme.palette.primary.main;
               const taoThemeColor = TAO_COLOR;
 
-              const leftGradColor = `color-mix(in srgb, ${assetThemeColor} 10%, transparent)`;
+              // Lighter wash than the previous 10%/8% so rows read like
+              // Active Rates' clean rows; bars still suggest volume but
+              // don't visually dominate the cell content.
+              const leftGradColor = `color-mix(in srgb, ${assetThemeColor} 6%, transparent)`;
               const rightGradColor =
                 theme.palette.mode === 'dark'
-                  ? 'color-mix(in srgb, var(--color-white) 10%, transparent)'
-                  : 'color-mix(in srgb, var(--color-woodsmoke) 8%, transparent)';
+                  ? 'color-mix(in srgb, var(--color-white) 6%, transparent)'
+                  : 'color-mix(in srgb, var(--color-woodsmoke) 5%, transparent)';
 
               return (
                 <TableRow
