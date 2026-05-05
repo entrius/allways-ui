@@ -167,20 +167,19 @@ Config persists at `~/.allways/config.json`.
 
 ### 4. (BTC-side only) BTC sending
 
-For BTC→TAO swaps, the CLI can broadcast BTC for you if you supply a WIF private key via env. **Two paths, both work — pick whichever fits your shell:**
+For BTC→TAO swaps, the CLI can broadcast BTC for you if you supply a WIF private key via env. The CLI loads env vars from three places, in precedence order — first hit wins:
 
-1. Drop a `.env` in the directory you'll run `alw` from. The CLI calls `dotenv` on the CWD only — *not* `~/.allways/`, *not* the install path, *not* a parent directory. If you `cd` elsewhere before running `alw`, the `.env` won't be picked up.
-2. Or just `export` them in your current shell before invoking `alw` — equivalent and CWD-agnostic.
+1. Your shell env (`export BTC_PRIVATE_KEY=...`).
+2. A project `.env` walked up from your CWD (CWD, then each parent, until one is found).
+3. A persistent `~/.allways/.env` (set-once, works from any directory).
 
-The variables either way:
+The variables, however you supply them:
 
     BTC_MODE=lightweight
     BTC_NETWORK=mainnet
     BTC_PRIVATE_KEY=<your_WIF_key>
 
 `lightweight` mode talks to public Esplora-compatible APIs (Blockstream as primary, with a Mempool.space fallback if Blockstream is unreachable) — no Bitcoin node required.
-
-If you see `BTC_MODE=lightweight requires BTC_PRIVATE_KEY env var`, the variable isn't reaching the process — either you ran `alw` from a directory without a `.env`, your `.env` is missing the key, or you didn't `export`. Confirm with `env | grep BTC_PRIVATE_KEY` before re-running.
 
 If `BTC_PRIVATE_KEY` is unset, BTC→TAO falls back to a manual flow: the CLI prints the miner's address + exact amount, you broadcast from your own wallet, **then run `alw swap post-tx <tx-hash>` *within the reservation TTL window* (run `alw view contract` for the current value)**. Miss the window and the reservation expires before you can confirm.
 

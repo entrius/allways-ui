@@ -169,7 +169,13 @@ Config persists at \`~/.allways/config.json\`.
 
 ### 4. (BTC-side only) BTC sending
 
-For BTC→TAO swaps, the CLI can broadcast BTC for you if you put a WIF private key in a \`.env\` file in your **current working directory** when you run \`alw\` (the CLI loads \`.env\` from CWD, not \`~/.allways/\` and not the install path):
+For BTC→TAO swaps, the CLI can broadcast BTC for you if you supply a WIF private key via env. The CLI loads env vars from three places, in precedence order — first hit wins:
+
+1. Your shell env (\`export BTC_PRIVATE_KEY=...\`).
+2. A project \`.env\` walked up from your CWD (CWD, then each parent, until one is found).
+3. A persistent \`~/.allways/.env\` (set-once, works from any directory).
+
+The variables, however you supply them:
 
     BTC_MODE=lightweight
     BTC_NETWORK=mainnet
