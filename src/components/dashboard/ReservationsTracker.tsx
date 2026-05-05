@@ -6,9 +6,11 @@ import {
   InputAdornment,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import {
   useChainState,
@@ -76,17 +78,34 @@ const ReservationsTracker: React.FC = () => {
         alignItems={{ xs: 'stretch', sm: 'center' }}
         justifyContent="space-between"
       >
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            color: 'text.secondary',
-          }}
-        >
-          Reservations
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.7rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'text.secondary',
+            }}
+          >
+            Reservations
+          </Typography>
+          <Tooltip
+            title={
+              <Box sx={{ maxWidth: 260 }}>
+                A short hold a user places on a miner's quoted rate before
+                sending funds. The reservation locks the rate and prevents other
+                users from claiming the same miner mid-swap.
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
         <Box
           component="form"
           onSubmit={submitSearch}

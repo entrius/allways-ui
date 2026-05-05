@@ -299,7 +299,9 @@ const OrderbookDepth: React.FC = () => {
                   arrow
                   placement="top"
                 >
-                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>
+                  <span
+                    style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
+                  >
                     Rate (TAO)
                   </span>
                 </Tooltip>
@@ -310,7 +312,9 @@ const OrderbookDepth: React.FC = () => {
                   arrow
                   placement="top"
                 >
-                  <span style={{ cursor: 'help', borderBottom: '1px dotted' }}>
+                  <span
+                    style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
+                  >
                     Capacity (TAO)
                   </span>
                 </Tooltip>
@@ -326,7 +330,7 @@ const OrderbookDepth: React.FC = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 0.75,
-                      cursor: 'help',
+                      cursor: 'pointer',
                     }}
                   >
                     {selected?.direction === 'reverse' ? (
