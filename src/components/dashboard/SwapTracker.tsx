@@ -37,11 +37,13 @@ const getStatusColor = (
     };
   },
 ): string => {
+  // Terminal states pop with semantic color — completion green / timeout red.
+  // In-flight states keep their muted blue tints.
   const map: Record<string, string> = {
     ACTIVE: palette.status.active,
     FULFILLED: palette.status.fulfilled,
-    COMPLETED: palette.status.completed,
-    TIMED_OUT: palette.status.timedOut,
+    COMPLETED: 'var(--color-success)',
+    TIMED_OUT: 'var(--color-danger)',
   };
   return map[status] ?? palette.status.active;
 };
@@ -102,17 +104,12 @@ const SwapTracker: React.FC = () => {
         </Typography>
         <Tooltip
           title={
-            <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                What is this?
-              </Typography>
-              <Typography variant="body2">
-                Every transaction on the network in chronological order, with
-                its current status and progress through the lifecycle: Initiated
-                → Fulfilled → Completed (or Timed Out). Click a row to see the
-                full timeline.
-              </Typography>
-            </Stack>
+            <Box sx={{ maxWidth: 280 }}>
+              Every transaction on the network in chronological order, with its
+              current status and progress through the lifecycle: Initiated →
+              Fulfilled → Completed (or Timed Out). Click a row to see the full
+              timeline.
+            </Box>
           }
           arrow
           placement="right"
@@ -145,7 +142,7 @@ const SwapTracker: React.FC = () => {
             p: 4,
             textAlign: 'center',
             borderRadius: 0,
-            backgroundColor: 'background.paper',
+            backgroundColor: 'surface.light',
             border: '1px solid',
             borderColor: 'divider',
           }}
@@ -187,7 +184,7 @@ const SwapTracker: React.FC = () => {
                   sx={{
                     p: 2,
                     borderRadius: 0,
-                    backgroundColor: 'background.paper',
+                    backgroundColor: 'surface.light',
                     border: '1px solid',
                     borderColor: 'divider',
                     textDecoration: 'none',
@@ -250,7 +247,9 @@ const SwapTracker: React.FC = () => {
                       borderRadius: 0,
                       backgroundColor: theme.palette.border.light,
                       '& .MuiLinearProgress-bar': {
-                        backgroundColor: color,
+                        // Bar fill stays neutral regardless of status;
+                        // status text carries the green/red signal.
+                        backgroundColor: theme.palette.border.medium,
                         borderRadius: 0,
                       },
                     }}

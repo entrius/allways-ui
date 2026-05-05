@@ -366,19 +366,16 @@ const MinerRatesTable: React.FC = () => {
           </Typography>
           <Tooltip
             title={
-              <Stack spacing={0.5} sx={{ maxWidth: 280 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                  What is this?
-                </Typography>
-                <Typography variant="body2">
+              <Stack spacing={1} sx={{ maxWidth: 280 }}>
+                <Box>
                   Live exchange rates quoted across the Allways network. Each
                   row represents an active network node; both directions
                   (BTC→TAO and TAO→BTC) are shown when quoted, with the spread
                   between them being the network's margin.
-                </Typography>
-                <Typography variant="body2">
+                </Box>
+                <Box>
                   Sort by rate or capacity to find the best counterparty.
-                </Typography>
+                </Box>
               </Stack>
             }
             arrow

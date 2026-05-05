@@ -23,6 +23,7 @@ import {
   formatAmount,
   formatTimeUntilBlock,
 } from '../../utils/format';
+import { ReservationsTrackerSkeleton } from './Skeletons';
 
 const STATUS_COLORS = (palette: {
   status: { active: string; fulfilled: string; timedOut: string };
@@ -40,11 +41,15 @@ const ReservationsTracker: React.FC = () => {
   const { data: miners } = useMiners();
   const { data: chainState } = useChainState();
   const { data: protocol } = useProtocolConstants();
+  const [searchAddr, setSearchAddr] = useState('');
   const reservations = data ?? [];
   const colors = STATUS_COLORS(theme.palette);
   const currentBlock = chainState?.currentBlock ?? 0;
 
-  const [searchAddr, setSearchAddr] = useState('');
+  if (isLoading && !data) {
+    return <ReservationsTrackerSkeleton />;
+  }
+
   const trimmed = searchAddr.trim().toLowerCase();
   const filtered = trimmed
     ? reservations.filter((r: Reservation) =>
@@ -126,19 +131,7 @@ const ReservationsTracker: React.FC = () => {
         </Box>
       </Stack>
 
-      {isLoading && (
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.75rem',
-            color: 'text.secondary',
-          }}
-        >
-          Loading…
-        </Typography>
-      )}
-
-      {!isLoading && filtered.length === 0 && (
+      {filtered.length === 0 && (
         <Typography
           sx={{
             fontFamily: FONTS.mono,
