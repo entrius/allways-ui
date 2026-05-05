@@ -55,7 +55,8 @@ no wrapped asset, no bridge token.
   - `Min/Max Collateral` — what miners must lock; affects who can fulfill.
   - `Extension Challenge Window` / `Max Extension Length` / `Max Extensions per Reservation|Swap` — control how long swap deadlines can be auto-extended while you're awaiting confirmations.
   - `Consensus` — validator quorum required to advance a swap.
-- **BTC fees gate the whole flow — underprice them and you lose your send.** For BTC-source swaps, validators only extend your reservation once the source tx has ≥1 confirmation (tier-1 extension is gated on `confirmations >= 1`). Set the fee too low and the tx sits in mempool: no confirmation → no extension → the reservation eventually times out *while your BTC is still in flight*. When it finally mines, it lands in the miner's address with no on-chain swap to credit it against, and the funds are gone. The CLI's auto-estimated `--btc-fee-rate` is intended to be a safe default — only override it if you've checked current mempool conditions (e.g. https://mempool.space), and never set it below a next-block tier. Same rule if you broadcast from your own wallet: validators cannot wait all day for a confirmation, so frugal fees = lost send.
+- **Reservations auto-extend for BTC source — don't panic at the timer.** `alw view reservation` and `alw view swap --watch` show a TTL countdown that, on BTC-source swaps, will dip toward zero while you wait for confirmations. That's expected: validators run an optimistic propose/challenge/finalize loop that extends the reservation up to `Max Extensions / Reservation` times (see `alw view contract`) without any user action — tier-0 is granted on first ask, tier-1+ require `confirmations >= 1` on your source tx. If you've broadcast with a sane fee rate, sit tight; the timer recovers when the next extension finalizes.
+- **BTC fees gate the whole flow — underprice them and you lose your send.** For BTC-source swaps, validators only extend your reservation past tier-0 once the source tx has ≥1 confirmation (tier-1 extension is gated on `confirmations >= 1`). Set the fee too low and the tx sits in mempool: no confirmation → no further extensions → the reservation eventually times out *while your BTC is still in flight*. When it finally mines, it lands in the miner's address with no on-chain swap to credit it against, and the funds are gone. The CLI's auto-estimated `--btc-fee-rate` is intended to be a safe default — only override it if you've checked current mempool conditions (e.g. https://mempool.space), and never set it below a next-block tier. Same rule if you broadcast from your own wallet: validators cannot wait all day for a confirmation, so frugal fees = lost send.
 - **Slash payouts are always TAO.** Even on BTC-side swaps you need a Bittensor wallet — that's where any timeout refund lands.
 - **Sender verification.** Validators reject any source tx whose on-chain sender does not match the address you proved at reserve time. Don't broadcast from any wallet other than the one tied to your reservation.
 
@@ -166,13 +167,20 @@ Config persists at `~/.allways/config.json`.
 
 ### 4. (BTC-side only) BTC sending
 
-For BTC→TAO swaps, the CLI can broadcast BTC for you if you put a WIF private key in a `.env` file in your **current working directory** when you run `alw` (the CLI loads `.env` from CWD, not `~/.allways/` and not the install path):
+For BTC→TAO swaps, the CLI can broadcast BTC for you if you supply a WIF private key via env. **Two paths, both work — pick whichever fits your shell:**
+
+1. Drop a `.env` in the directory you'll run `alw` from. The CLI calls `dotenv` on the CWD only — *not* `~/.allways/`, *not* the install path, *not* a parent directory. If you `cd` elsewhere before running `alw`, the `.env` won't be picked up.
+2. Or just `export` them in your current shell before invoking `alw` — equivalent and CWD-agnostic.
+
+The variables either way:
 
     BTC_MODE=lightweight
     BTC_NETWORK=mainnet
     BTC_PRIVATE_KEY=<your_WIF_key>
 
 `lightweight` mode talks to public Esplora-compatible APIs (Blockstream as primary, with a Mempool.space fallback if Blockstream is unreachable) — no Bitcoin node required.
+
+If you see `BTC_MODE=lightweight requires BTC_PRIVATE_KEY env var`, the variable isn't reaching the process — either you ran `alw` from a directory without a `.env`, your `.env` is missing the key, or you didn't `export`. Confirm with `env | grep BTC_PRIVATE_KEY` before re-running.
 
 If `BTC_PRIVATE_KEY` is unset, BTC→TAO falls back to a manual flow: the CLI prints the miner's address + exact amount, you broadcast from your own wallet, **then run `alw swap post-tx <tx-hash>` *within the reservation TTL window* (run `alw view contract` for the current value)**. Miss the window and the reservation expires before you can confirm.
 
