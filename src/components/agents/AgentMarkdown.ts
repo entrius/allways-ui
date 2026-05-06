@@ -16,11 +16,12 @@ exchange rates. Validators verify both legs of each swap. The smart
 contract slashes collateral on failure and refunds the user. No custodian,
 no wrapped asset, no bridge token.
 
-> **Where to point your wallets right now:** the **mainnet** contract is
-> **TBD** (not yet deployed — netuid 7). All real exercise today happens
-> on **testnet** (netuid 19, contract
-> \`5FwPheGT96iBFZ6JkwyDhDH4GcVjafWxAtSsSSq26UiYyTfg\`). The full testnet
-> setup block is in the **Testnet** section below.
+> **Where to point your wallets right now:** **mainnet** is live on
+> netuid 7 — contract \`5DjJmTpcHZvF3aZZEafKBdo3ksmdUSZ8bBBUSFhW3Ce3xf1J\`.
+> **Testnet** is also live on netuid 19 — contract
+> \`5FwPheGT96iBFZ6JkwyDhDH4GcVjafWxAtSsSSq26UiYyTfg\` — and is the
+> recommended place to dry-run before exercising mainnet. Full setup
+> blocks for both are below.
 
 ## Resources (skim these first)
 
@@ -28,7 +29,7 @@ no wrapped asset, no bridge token.
 |---|---|
 | Live dashboard (testnet) | https://test.all-ways.io |
 | Testnet API + Swagger | https://test-api.all-ways.io/swagger |
-| Mainnet dashboard (placeholder, contract not yet deployed) | https://all-ways.io |
+| Mainnet dashboard | https://all-ways.io |
 | Mainnet API (placeholder) | https://api.all-ways.io |
 | Docs site | https://docs.all-ways.io |
 | Source repo | https://github.com/entrius/allways |
@@ -155,15 +156,15 @@ The WIF (without \`p2wpkh:\`) is what you put in \`BTC_PRIVATE_KEY\`; the \`bc1q
 
 ### 3. Configure the CLI
 
-**Mainnet (TBD — not yet deployed):** the mainnet contract has not landed yet. Until it does, default to **testnet** for any real exercise of the system. The mainnet config shape will be:
+**Mainnet (live — netuid 7):**
 
     alw config set wallet  <coldkey-name>
     alw config set hotkey  <hotkey-name>
     alw config set network finney
     alw config set netuid  7
-    # contract-address: TBD — bundled in code on release
+    alw config set contract-address 5DjJmTpcHZvF3aZZEafKBdo3ksmdUSZ8bBBUSFhW3Ce3xf1J
 
-**Testnet (live today):** see the Testnet section below for the full block including the testnet contract address and BTC env. For now most agents should target testnet.
+**Testnet:** see the Testnet section below for the full block including the testnet contract address and BTC env. Testnet is recommended for dry-running before exercising mainnet.
 
 Config persists at \`~/.allways/config.json\`.
 
@@ -362,9 +363,9 @@ live state instead of polling, and don't hammer it.
 - **BTC tx stuck unconfirmed → reservation timed out → BTC sent but no swap** — you broadcast with too low a fee rate for current mempool conditions, the source tx never reached 1 confirmation, validators stopped extending, and the reservation expired. When the tx eventually mines, the BTC lands in the miner's wallet with no on-chain swap to credit it against — the funds are unrecoverable. Prevention: omit \`--btc-fee-rate\` (let the CLI auto-estimate), or check next-block tiers on https://mempool.space before overriding. If you're already stuck pre-confirmation, RBF (replace-by-fee) up to a next-block rate immediately — recovery is only possible while the tx is still in mempool.
 - **Miner timed out — where's my refund?** — slashed collateral is paid in TAO to your registered swap user (coldkey for TAO source) automatically. If the on-chain transfer fails, the slash goes to a pending-claims map — run \`alw claim <swap-id>\` (signed by your hotkey) to release it. Funds always end up at your registered user address regardless of who signs the claim.
 
-## Testnet (the default, until mainnet ships)
+## Testnet
 
-> Mainnet is **not yet live** — until it is, all real exercise of Allways happens on testnet. Use real-fund tone (proper sender verification, fee estimation, etc.) so the muscle memory transfers, but the assets themselves are test-TAO and test-BTC.
+> Testnet runs alongside mainnet and is the recommended place to dry-run swaps before exercising mainnet. Use real-fund tone (proper sender verification, fee estimation, etc.) so the muscle memory transfers, but the assets themselves are test-TAO and test-BTC.
 
 Configure the CLI for testnet:
 
@@ -403,5 +404,5 @@ your own risk. No warranty. Not financial advice.
 - Repo: https://github.com/entrius/allways
 - Docs: https://docs.all-ways.io
 - Testnet UI + API: https://test.all-ways.io · https://test-api.all-ways.io/swagger
-- Mainnet UI + API (placeholder until contract deploys): https://all-ways.io · https://api.all-ways.io/swagger
+- Mainnet UI + API: https://all-ways.io · https://api.all-ways.io/swagger
 `;
