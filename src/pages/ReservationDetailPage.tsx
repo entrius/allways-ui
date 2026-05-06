@@ -245,6 +245,23 @@ const ReservationDetailPage: React.FC = () => {
         )}
       </Stack>
 
+      {/* Status helper — mirrors SwapDetailPage so reservation/swap pages read consistently */}
+      {r.status === 'ACTIVE' && fundsSeen && (
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.8rem',
+            color: 'text.secondary',
+            mb: 3,
+            lineHeight: 1.5,
+          }}
+        >
+          Awaiting source-tx confirmations to verify legitimacy before
+          initiating the swap. The reservation may extend up to 2× while
+          validators wait for chain finality.
+        </Typography>
+      )}
+
       {/* Lifecycle stepper */}
       <Card>
         <SectionTitle>Timeline</SectionTitle>
@@ -268,7 +285,7 @@ const ReservationDetailPage: React.FC = () => {
                     ? r.status === 'EXPIRED'
                       ? 'window closed before send'
                       : 'cancelled before send'
-                    : 'send funds to the miner — usually within a block'
+                    : 'send funds to the miner'
             }
           />
           <TimelineStep
@@ -322,26 +339,9 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.secondary',
               }}
             >
-              Validators usually pick up the send within a block. The sender
-              address must match — mismatched txs are rejected.
+              Validators confirm within a few minutes.
             </Typography>
           </Stack>
-        </Card>
-      )}
-
-      {r.status === 'ACTIVE' && fundsSeen && (
-        <Card>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              color: 'text.secondary',
-            }}
-          >
-            Awaiting source-tx confirmations to verify legitimacy before
-            initiating the swap. The reservation may extend up to 2× while
-            validators wait for chain finality.
-          </Typography>
         </Card>
       )}
 
