@@ -78,6 +78,18 @@ This is what actually happens between "I want to swap" and "funds in my wallet":
 
 Throughout, you can poll the live state — pre-initiate via `alw view reservation` or `GET /reservations/by-source/{address}` (look up by your source address), and post-initiate via `alw view swap <id> --watch` or `GET /swaps/{id}`. Reservations carry their own request hash, so once you have one you can also fetch `GET /reservations/{requestHash}` directly.
 
+### Resolving a "resolved" swap (terminal outcome lookup)
+
+Once a swap reaches a terminal state, the contract **prunes** it to keep on-chain storage bounded — `get_swap(id)` starts returning `None`. That's why `alw view swap <id>` falls back to `resolved (completed or timed out)` for older IDs: the CLI's primary source has nothing left to read. **The terminal outcome itself is not lost** — it's persisted in two places agents can query directly:
+
+1. **Event log (authoritative).** `GET /events?swapId=<id>` returns the lifecycle events ingested from the contract's emissions, including the terminal one:
+   - `SwapCompleted` → swap reached `COMPLETED` (miner delivered, you got your destination funds, miner kept their collateral, 1% fee booked).
+   - `SwapTimedOut` → swap reached `TIMED_OUT` (miner failed to deliver, miner's collateral was slashed, you were paid out in TAO; if on-chain payout failed, run `alw claim <id>`).
+   - The presence of either event is dispositive — if neither is in the log, the swap hasn't terminated yet (or the indexer is behind).
+2. **Destination wallet (independent confirmation).** Cross-check the events answer against the actual on-chain effect: query your destination wallet (the receive address you used at reserve time) for an incoming tx of `~user_receives` units around the swap's `FULFILLED` block. Got it → `COMPLETED`. Didn't → check your TAO coldkey for the slash payout (or call `alw claim <id>` if it's still pending).
+
+The events API persists outcomes indefinitely from the indexer's perspective, so this works even days or weeks after pruning. Don't infer the outcome from CLI output alone for resolved swaps — query the events.
+
 ## Setup (shell-first)
 
 > A pure-HTTP flow (run swaps via API only, no local CLI) is on the roadmap. For now, agents need shell access and a Python ≥ 3.10 environment.
@@ -263,7 +275,8 @@ If something interrupts the flow before swap initiation:
 
     alw view reservation                                       # check on-chain reservation state
     alw swap resume-reservation                                # resume pre-initiate (interactive)
-    alw swap resume-reservation --from-tx-hash <hash> --yes    # non-interactive resume
+    alw swap resume-reservation --from-tx-hash <hash> --yes    # non-interactive resume (you broadcast the tx yourself)
+    alw swap resume-reservation --send --yes                   # non-interactive resume + auto-broadcast source funds (TAO via wallet, BTC via BTC_PRIVATE_KEY)
 
 ### Interactive
 
@@ -285,7 +298,7 @@ If something interrupts the flow before swap initiation:
 | `alw swap now [...flags]` | Run a swap — interactive by default, fully scriptable with flags |
 | `alw swap quote --from <c> --to <c> --amount <n>` | Preview rate + receive amount |
 | `alw swap post-tx <tx-hash>` | Submit your source tx hash for a pending reservation |
-| `alw swap resume-reservation [--from-tx-hash <h>] [--yes]` | Resume an interrupted pre-initiate flow |
+| `alw swap resume-reservation [--from-tx-hash <h>] [--send] [--yes]` | Resume an interrupted pre-initiate flow; `--send` auto-broadcasts source funds for fully non-interactive resume |
 | `alw claim <swap-id> [-y]` | Claim slash payout (TAO) from a TIMED_OUT swap |
 
 Miner-only commands (`alw miner post|status|activate|deactivate|mark-fulfilled`, `alw collateral deposit|withdraw|view`) are documented at https://docs.all-ways.io/cli.
