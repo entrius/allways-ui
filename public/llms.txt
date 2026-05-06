@@ -27,7 +27,7 @@ no wrapped asset, no bridge token.
 | Live dashboard (testnet) | https://test.all-ways.io |
 | Testnet API + Swagger | https://test-api.all-ways.io/swagger |
 | Mainnet dashboard | https://all-ways.io |
-| Mainnet API (placeholder) | https://api.all-ways.io |
+| Mainnet API + Swagger | https://api.all-ways.io/swagger |
 | Docs site | https://docs.all-ways.io |
 | Source repo | https://github.com/entrius/allways |
 | This document, raw | https://all-ways.io/llms.txt (mirrored at https://test.all-ways.io/llms.txt) |
