@@ -21,19 +21,34 @@ import BrandMark from '../BrandMark';
 import SocialLinks from './SocialLinks';
 import { NAV_ITEMS, docsUrl } from './links';
 
+const TOP_NAV_HEIGHT = 64;
+
 const navBtnSx = (active: boolean) => ({
+  display: 'flex',
+  alignItems: 'center',
+  height: `${TOP_NAV_HEIGHT}px`,
+  position: 'relative' as const,
+  boxSizing: 'border-box' as const,
   fontFamily: FONTS.mono,
   fontSize: '0.75rem',
   fontWeight: 500,
+  lineHeight: 1,
   letterSpacing: '0.08em',
   textTransform: 'uppercase' as const,
   color: active ? 'primary.main' : 'text.secondary',
   textDecoration: 'none',
-  py: 0.75,
   px: 0.25,
-  borderBottom: '1px solid',
-  borderColor: active ? 'primary.main' : 'transparent',
-  transition: 'color 120ms, border-color 120ms',
+  transition: 'color 120ms',
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '2px',
+    backgroundColor: active ? 'primary.main' : 'transparent',
+    transition: 'background-color 120ms',
+  },
   '&:hover': {
     color: 'primary.main',
   },
@@ -79,7 +94,8 @@ const TopNav: React.FC = () => {
         position: 'sticky',
         top: 0,
         zIndex: theme.zIndex.appBar,
-        height: { xs: 52, md: 56 },
+        height: { xs: 52, md: `${TOP_NAV_HEIGHT}px` },
+        minHeight: { xs: 52, md: `${TOP_NAV_HEIGHT}px` },
         px: { xs: 1.5, sm: 2, md: 4 },
         backgroundColor: 'background.default',
         borderBottom: '1px solid',
@@ -113,7 +129,12 @@ const TopNav: React.FC = () => {
       <Box sx={{ flex: 1 }} />
 
       {!isMobile && (
-        <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mr: 2 }}>
+        <Stack
+          direction="row"
+          spacing={2.5}
+          alignItems="center"
+          sx={{ mr: 2, height: `${TOP_NAV_HEIGHT}px` }}
+        >
           {NAV_ITEMS.map((item) => (
             <Box
               key={item.label}
