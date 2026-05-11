@@ -22,6 +22,7 @@ import {
   Card,
   LabelValue,
   PageWrapper,
+  QueryError,
   SectionTitle,
   TimelineStep,
   type TimelineStepState,
@@ -70,10 +71,21 @@ const SwapDetailPage: React.FC = () => {
   const { swapId } = useParams<{ swapId: string }>();
   const theme = useTheme();
 
-  const { data, isLoading } = useSwapDetail(swapId ?? '');
+  const { data, isLoading, isError, refetch } = useSwapDetail(swapId ?? '');
   const { data: protocol } = useProtocolConstants();
   const { data: chainState } = useChainState();
   const currentBlock = chainState?.currentBlock ?? 0;
+
+  if (isError && !data) {
+    return (
+      <PageWrapper>
+        <QueryError
+          label={`Couldn't load transaction #${swapId}`}
+          onRetry={refetch}
+        />
+      </PageWrapper>
+    );
+  }
 
   if (isLoading) {
     return (

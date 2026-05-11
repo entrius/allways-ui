@@ -14,6 +14,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useAllSwaps, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
+import QueryError from '../QueryError';
 import { SwapTrackerSkeleton } from './Skeletons';
 import { formatAmount } from '../../utils/format';
 
@@ -66,14 +67,26 @@ const SwapTracker: React.FC = () => {
   const idMatch = debouncedSearch.trim().match(/^#?(\d+)$/);
   const exactSwapId = idMatch?.[1] ?? '';
 
-  const { data: detail, isLoading: detailLoading } = useSwapDetail(exactSwapId);
-  const { data: fuzzy, isLoading: fuzzyLoading } = useAllSwaps(
+  const {
+    data: detail,
+    isLoading: detailLoading,
+    isError: detailError,
+    refetch: refetchDetail,
+  } = useSwapDetail(exactSwapId);
+  const {
+    data: fuzzy,
+    isLoading: fuzzyLoading,
+    isError: fuzzyError,
+    refetch: refetchFuzzy,
+  } = useAllSwaps(
     { search: debouncedSearch || undefined, limit },
     !exactSwapId,
   );
 
   const swaps = exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy;
   const isLoading = exactSwapId ? detailLoading : fuzzyLoading;
+  const isError = exactSwapId ? detailError : fuzzyError;
+  const refetch = exactSwapId ? refetchDetail : refetchFuzzy;
 
   // Reset limit when search changes
   React.useEffect(() => {
@@ -90,6 +103,10 @@ const SwapTracker: React.FC = () => {
       setLimit((prev) => prev + PAGE_SIZE);
     }
   }, [hasMore]);
+
+  if (isError && !swaps) {
+    return <QueryError label="Couldn't load swaps" onRetry={refetch} />;
+  }
 
   return isLoading && !swaps ? (
     <SwapTrackerSkeleton />

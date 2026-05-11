@@ -18,6 +18,7 @@ import {
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners } from '../../api';
 import { FONTS } from '../../theme';
+import QueryError from '../QueryError';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
 const OrderbookDepth: React.FC = () => {
@@ -99,7 +100,7 @@ const OrderbookDepth: React.FC = () => {
     borderBottom: `1px solid ${theme.palette.divider}`,
   };
 
-  const { data: miners, isLoading } = useMiners();
+  const { data: miners, isLoading, isError, refetch } = useMiners();
   type Direction = 'forward' | 'reverse';
   type DirectionOption = {
     asset: string;
@@ -192,6 +193,12 @@ const OrderbookDepth: React.FC = () => {
       depthData.reduce((m, r) => (r.cumCapacity > m ? r.cumCapacity : m), 1),
     [depthData],
   );
+
+  if (isError && !miners) {
+    return (
+      <QueryError label="Couldn't load orderbook depth" onRetry={refetch} />
+    );
+  }
 
   return isLoading || !miners ? (
     <OrderbookDepthSkeleton />

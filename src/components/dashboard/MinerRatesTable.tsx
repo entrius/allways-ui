@@ -23,6 +23,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
+import QueryError from '../QueryError';
 import { MinerRatesTableSkeleton } from './Skeletons';
 import { formatRate } from '../../utils/format';
 
@@ -130,7 +131,7 @@ const MinerRatesTable: React.FC = () => {
     collateral: { textAlign: 'center' },
   };
 
-  const { data: miners, isLoading } = useMiners();
+  const { data: miners, isLoading, isError, refetch } = useMiners();
   const [sortKey, setSortKey] = useState<SortKey>('rate');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [search, setSearch] = useState('');
@@ -344,6 +345,10 @@ const MinerRatesTable: React.FC = () => {
     const hasReverse = parseRate(m.counterRate) > 0;
     return hasForward !== hasReverse;
   };
+
+  if (isError && !miners) {
+    return <QueryError label="Couldn't load miner rates" onRetry={refetch} />;
+  }
 
   return isLoading || !miners ? (
     <MinerRatesTableSkeleton />

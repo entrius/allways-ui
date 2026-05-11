@@ -3,6 +3,7 @@ import { Box, Grid, Typography } from '@mui/material';
 import { useStats } from '../../api';
 import { FONTS } from '../../theme';
 import { RollingValue } from '../animated';
+import QueryError from '../QueryError';
 import { StatsPanelSkeleton } from './Skeletons';
 
 const StatCard: React.FC<{ label: string; value: string }> = ({
@@ -46,7 +47,11 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
 );
 
 const StatsPanel: React.FC = () => {
-  const { data: stats, isLoading } = useStats();
+  const { data: stats, isLoading, isError, refetch } = useStats();
+
+  if (isError && !stats) {
+    return <QueryError label="Couldn't load network stats" onRetry={refetch} />;
+  }
 
   const volume = stats ? parseFloat(stats.totalVolumeTao).toFixed(2) : '0';
 
