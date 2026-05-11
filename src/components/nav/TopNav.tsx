@@ -20,6 +20,7 @@ import { useThemeMode } from '../../ThemeContext';
 import BrandMark from '../BrandMark';
 import SocialLinks from './SocialLinks';
 import { NAV_ITEMS, docsUrl } from './links';
+import { useWallet } from '../../wallet/WalletProvider';
 
 const navBtnSx = (active: boolean) => ({
   fontFamily: FONTS.mono,
@@ -59,6 +60,11 @@ const TopNav: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const docs = docsUrl();
+  const { substrate, bitcoin } = useWallet();
+  const walletConnected = !!substrate || !!bitcoin;
+  const navItems = walletConnected
+    ? [...NAV_ITEMS, { label: 'My Swaps', to: '/my-swaps' }]
+    : NAV_ITEMS;
 
   const isActive = (to: string): boolean => {
     if (to === '/dashboard') {
@@ -114,7 +120,7 @@ const TopNav: React.FC = () => {
 
       {!isMobile && (
         <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mr: 2 }}>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Box
               key={item.label}
               component={NavLink}
@@ -184,7 +190,7 @@ const TopNav: React.FC = () => {
             }}
             MenuListProps={{ sx: { py: 0 } }}
           >
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <MenuItem
                 key={item.label}
                 component={NavLink}

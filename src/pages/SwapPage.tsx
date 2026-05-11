@@ -1,15 +1,79 @@
-import React from 'react';
-import { Box, Button, Link, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Button, Stack } from '@mui/material';
+import { Page, SEO } from '../components';
+import {
+  ClaimSlashedButton,
+  RateChangedDialog,
+  SwapDetails,
+  SwapForm,
+  SwapProgress,
+} from '../components/swap';
+import {
+  ConnectWalletDialog,
+  SubstrateOptionalBanner,
+  useWallet,
+} from '../wallet';
+import { useSwapFlow, type SwapInputs } from '../hooks/useSwapFlow';
+import { useSwapDetail } from '../api/SwapsApi';
 import { FONTS } from '../theme';
-import { Page, SEO, TokenInput } from '../components';
-import { docsUrl } from '../components/nav/links';
+import type { BestMinerResponse } from '../api/SwapApiClient';
 
 const SwapPage: React.FC = () => {
-  const swapGuideUrl = `${docsUrl()}swap-guide`;
+  const { substrate, bitcoin } = useWallet();
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [requireSubstrate, setRequireSubstrate] = useState(false);
+  const [pendingInputs, setPendingInputs] = useState<SwapInputs | null>(null);
+  const flow = useSwapFlow({ substrate, bitcoin });
+
+  // Auto-confirm: once we reach `awaitingSend`, push directly through
+  // sendAndConfirm so the wallet handles the BTC send popup. The state machine
+  // pauses at `sending` if the user rejects in-wallet.
+  useEffect(() => {
+    if (flow.state.phase === 'awaitingSend') {
+      void flow.sendAndConfirm();
+    }
+  }, [flow]);
+
+  const handleSubmit = (input: SwapInputs) => {
+    setPendingInputs(input);
+    void flow.begin(input);
+  };
+
+  const onOpenConnect = (forSubstrate: boolean) => {
+    setRequireSubstrate(forSubstrate);
+    setConnectOpen(true);
+  };
+
+  const handleRateAccept = () => {
+    if (!pendingInputs) return;
+    // Carry forward inputs but with the new live rate the user just accepted.
+    const actual = flow.state.rateChanged?.actual ?? pendingInputs.best.rate;
+    const adjustedBest: BestMinerResponse = {
+      ...pendingInputs.best,
+      rate: actual,
+    };
+    flow.reset();
+    void flow.begin({ ...pendingInputs, best: adjustedBest });
+  };
+
+  const watchSwapId = useMemo(() => {
+    if (flow.state.swapId !== undefined) return String(flow.state.swapId);
+    return '';
+  }, [flow.state.swapId]);
+
+  // Watch the active swap once we know its id — flips phase to `done` on COMPLETED.
+  const swapDetail = useSwapDetail(watchSwapId);
+  useEffect(() => {
+    const status = swapDetail.data?.swap?.status;
+    if (status === 'COMPLETED' && flow.state.phase === 'watching') {
+      flow.markDone();
+    }
+  }, [swapDetail.data, flow]);
+
+  const isTimedOut = swapDetail.data?.swap?.status === 'TIMED_OUT';
+
   return (
-    <Page>
+    <Page title="Exchange">
       <SEO
         title="Exchange"
         description="Exchange BTC ↔ TAO directly through Allways."
@@ -20,172 +84,65 @@ const SwapPage: React.FC = () => {
           maxWidth: 480,
           mx: 'auto',
           px: 2,
-          py: { xs: 6, md: 10 },
+          py: { xs: 4, md: 6 },
           flex: 1,
+          gap: 2,
         }}
       >
-        <Box sx={{ position: 'relative' }}>
-          {/* Card (greyed + blurred, non-interactive) */}
-          <Stack
-            aria-hidden
+        <SubstrateOptionalBanner />
+
+        <SwapForm
+          onSubmit={handleSubmit}
+          disabled={
+            flow.state.phase !== 'idle' &&
+            flow.state.phase !== 'error' &&
+            flow.state.phase !== 'done'
+          }
+          onOpenConnect={onOpenConnect}
+        />
+
+        {flow.state.phase !== 'idle' && (
+          <SwapProgress phase={flow.state.phase} error={flow.state.error} />
+        )}
+
+        <SwapDetails best={pendingInputs?.best} state={flow.state} />
+
+        {isTimedOut && flow.state.swapId !== undefined && (
+          <ClaimSlashedButton swapId={String(flow.state.swapId)} />
+        )}
+
+        {(flow.state.phase === 'done' || flow.state.phase === 'error') && (
+          <Button
+            variant="outlined"
+            onClick={() => {
+              flow.reset();
+              flow.clear();
+              setPendingInputs(null);
+            }}
             sx={{
-              p: { xs: 2, md: 3 },
-              gap: 1.25,
-              border: '1px solid',
-              borderColor: 'divider',
+              fontFamily: FONTS.mono,
+              fontSize: '0.8rem',
               borderRadius: 0,
-              backgroundColor: 'surface.light',
-              opacity: 0.35,
-              filter: 'blur(0.5px)',
-              pointerEvents: 'none',
-              userSelect: 'none',
+              alignSelf: 'flex-start',
             }}
           >
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: 'text.secondary',
-                mb: 0.5,
-              }}
-            >
-              Exchange
-            </Typography>
-
-            <TokenInput label="From" symbol="BTC" balance="0.000" />
-
-            <Box
-              sx={{
-                alignSelf: 'center',
-                p: 0.75,
-                border: '1px solid',
-                borderColor: 'divider',
-                backgroundColor: 'background.default',
-                my: -1,
-                zIndex: 1,
-              }}
-            >
-              <ArrowDownwardIcon sx={{ fontSize: 16 }} />
-            </Box>
-
-            <TokenInput label="To" symbol="TAO" balance="0.000" />
-
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              sx={{ mt: 1 }}
-            >
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.7rem',
-                  color: 'text.secondary',
-                }}
-              >
-                Rate
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.7rem',
-                  color: 'text.secondary',
-                }}
-              >
-                — TAO / BTC
-              </Typography>
-            </Stack>
-
-            <Button
-              fullWidth
-              size="large"
-              variant="contained"
-              disabled
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.85rem',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                py: 1.5,
-                boxShadow: 'none',
-                borderRadius: 0,
-                mt: 1,
-              }}
-            >
-              Exchange
-            </Button>
-          </Stack>
-
-          {/* Coming Soon overlay */}
-          <Stack
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 2,
-              px: 2,
-              textAlign: 'center',
-            }}
-          >
-            <Typography
-              sx={{
-                fontFamily: FONTS.heading,
-                fontWeight: 900,
-                fontSize: '1.1rem',
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                color: 'primary.main',
-                border: '1px solid',
-                borderColor: 'primary.main',
-                px: 2,
-                py: 1,
-                backgroundColor: 'background.default',
-              }}
-            >
-              Coming Soon
-            </Typography>
-            <Typography
-              sx={{
-                fontFamily: FONTS.body,
-                fontSize: '0.9rem',
-                color: 'text.secondary',
-                maxWidth: 360,
-                lineHeight: 1.5,
-                backgroundColor: 'background.default',
-                px: 1,
-              }}
-            >
-              In-browser exchanges land soon. Today, exchange with the{' '}
-              <Link
-                href={swapGuideUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{
-                  color: 'primary.main',
-                  textDecoration: 'underline',
-                  fontWeight: 600,
-                }}
-              >
-                CLI
-              </Link>{' '}
-              or bring an agent —{' '}
-              <Link
-                component={RouterLink}
-                to="/agents"
-                sx={{
-                  color: 'primary.main',
-                  textDecoration: 'underline',
-                  fontWeight: 600,
-                }}
-              >
-                get the agent bundle →
-              </Link>
-            </Typography>
-          </Stack>
-        </Box>
+            New swap
+          </Button>
+        )}
       </Stack>
+
+      <ConnectWalletDialog
+        open={connectOpen}
+        onClose={() => setConnectOpen(false)}
+        requireSubstrate={requireSubstrate}
+      />
+
+      <RateChangedDialog
+        open={!!flow.state.rateChanged}
+        data={flow.state.rateChanged}
+        onAccept={handleRateAccept}
+        onCancel={() => flow.reset()}
+      />
     </Page>
   );
 };
