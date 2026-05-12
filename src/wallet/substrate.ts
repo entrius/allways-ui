@@ -94,33 +94,71 @@ export const getSubstrateApi = async () => {
 };
 
 /**
- * Submit a `claim_slash` extrinsic for the given swap.
+ * Selector for the ink! contract's `claim_slash(swap_id: u64)` message.
+ * Keep in sync with `allways/contract_client.py::CONTRACT_SELECTORS`.
+ */
+const CLAIM_SLASH_SELECTOR = 'cf3c3dd9';
+
+/** Default gas weight for a single contracts.call — generous, refunded if unused. */
+const DEFAULT_GAS = {
+  refTime: 5_000_000_000n,
+  proofSize: 800_000n,
+};
+
+const encodeClaimSlashInput = (swapId: bigint): `0x${string}` => {
+  const buf = new Uint8Array(8);
+  new DataView(buf.buffer).setBigUint64(0, swapId, /* littleEndian */ true);
+  const hex = Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `0x${CLAIM_SLASH_SELECTOR}${hex}`;
+};
+
+/**
+ * Submit a `claim_slash` call to the Allways ink! contract.
  *
- * NOTE: The pallet path / method name may vary by chain spec — the call below
- * targets `allways.claim_slash(swap_id)`. If your spec exposes the method
- * under a different name, adjust here.
+ * Goes through `pallet_contracts::call(dest, value=0, gas, storage=None, data)`
+ * — same path the validator's `contract_client.exec_contract_raw` uses
+ * server-side. The selector + u64-LE encoding matches `claim_slash` in
+ * `contract_client.py`; both must stay in sync.
  */
 export const claimSlash = async (
   conn: SubstrateConnection,
-  swapId: string,
+  swapId: string | number | bigint,
 ): Promise<string> => {
+  const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS as
+    | string
+    | undefined;
+  if (!contractAddress) {
+    throw new Error(
+      'VITE_CONTRACT_ADDRESS is not set — the browser claim flow needs the ink! contract address.',
+    );
+  }
   const dapp = await import('@polkadot/extension-dapp');
   const api = await getSubstrateApi();
   try {
     const injector = await dapp.web3FromSource(conn.source);
-    const allwaysPallet = (
-      api.tx as unknown as Record<string, Record<string, unknown>>
-    ).allways;
-    if (!allwaysPallet || !('claimSlash' in allwaysPallet)) {
-      throw new Error('claim_slash extrinsic not available on this chain');
+    const contractsPallet = (
+      api.tx as unknown as Record<string, Record<string, unknown> | undefined>
+    ).contracts;
+    if (!contractsPallet || !('call' in contractsPallet)) {
+      throw new Error(
+        'pallet_contracts is not available on this chain — claim flow needs a runtime with contracts support.',
+      );
     }
+
+    const data = encodeClaimSlashInput(BigInt(swapId));
     const tx = (
-      allwaysPallet as unknown as {
-        claimSlash: (id: string) => {
+      contractsPallet as unknown as {
+        call: (
+          dest: string,
+          value: number,
+          gasLimit: { refTime: bigint; proofSize: bigint },
+          storageDepositLimit: null,
+          data: string,
+        ) => {
           signAndSend: (...args: unknown[]) => Promise<unknown>;
         };
       }
-    ).claimSlash(swapId);
+    ).call(contractAddress, 0, DEFAULT_GAS, null, data);
 
     return await new Promise<string>((resolve, reject) => {
       tx.signAndSend(
@@ -132,7 +170,14 @@ export const claimSlash = async (
             isFinalized: boolean;
             asInBlock?: { toString: () => string };
           };
+          dispatchError?: {
+            toString: () => string;
+          };
         }) => {
+          if (result.dispatchError) {
+            reject(new Error(result.dispatchError.toString()));
+            return;
+          }
           if (result.status.isInBlock) {
             resolve(result.status.asInBlock?.toString() ?? 'in-block');
           } else if (result.status.isFinalized) {

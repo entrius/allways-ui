@@ -104,8 +104,14 @@ const SwapForm: React.FC<Props> = ({ onSubmit, disabled, onOpenConnect }) => {
   }, [autoToAddress, toAddress]);
 
   const sourceConnected = fromChain === 'btc' ? !!bitcoin : !!substrate;
+  // TAO-source send is not wired in the browser yet — broadcasting reserve
+  // here would burn a miner slot before the user hit the "use the CLI"
+  // dead-end further into the flow. Gate at quote time so they never get
+  // there. See useSwapFlow.sendFunds (TAO branch rejects).
+  const taoSourceBlocked = fromChain === 'tao';
 
   const submitLabel = (() => {
+    if (taoSourceBlocked) return 'Use CLI for TAO → BTC (alw swap now)';
     if (!sourceConnected) {
       return `Connect ${fromSpec.symbol} wallet`;
     }
@@ -118,6 +124,7 @@ const SwapForm: React.FC<Props> = ({ onSubmit, disabled, onOpenConnect }) => {
   })();
 
   const canSubmit =
+    !taoSourceBlocked &&
     sourceConnected &&
     !!toAddress &&
     fromAmount > 0 &&
@@ -125,6 +132,7 @@ const SwapForm: React.FC<Props> = ({ onSubmit, disabled, onOpenConnect }) => {
     !disabled;
 
   const handleSubmit = () => {
+    if (taoSourceBlocked) return;
     if (!sourceConnected) {
       onOpenConnect(fromChain === 'tao');
       return;
@@ -271,9 +279,15 @@ const SwapForm: React.FC<Props> = ({ onSubmit, disabled, onOpenConnect }) => {
         </Typography>
       </Stack>
 
-      {best.isError && (
+      {best.isError && !taoSourceBlocked && (
         <Alert severity="warning" sx={{ borderRadius: 0 }}>
           No miner is currently quoting {fromSpec.symbol} → {toSpec.symbol}.
+        </Alert>
+      )}
+      {taoSourceBlocked && (
+        <Alert severity="info" sx={{ borderRadius: 0 }}>
+          TAO → BTC isn’t supported in the browser yet. Run{' '}
+          <code>alw swap now</code> from the CLI for now.
         </Alert>
       )}
 
@@ -281,7 +295,7 @@ const SwapForm: React.FC<Props> = ({ onSubmit, disabled, onOpenConnect }) => {
         fullWidth
         size="large"
         variant="contained"
-        disabled={!canSubmit && sourceConnected}
+        disabled={taoSourceBlocked || (!canSubmit && sourceConnected)}
         onClick={handleSubmit}
         sx={{
           fontFamily: FONTS.mono,

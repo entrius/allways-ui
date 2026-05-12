@@ -5,11 +5,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import {
-  connectBitcoin,
-  type BitcoinConnection,
-  type BitcoinSource,
-} from './bitcoin';
+import { connectBitcoin, type BitcoinConnection } from './bitcoin';
 import { connectSubstrate, type SubstrateConnection } from './substrate';
 
 interface WalletContextValue {
@@ -18,7 +14,7 @@ interface WalletContextValue {
   /** True after the user has dismissed the "no Substrate wallet" banner. */
   acknowledgedSubstrateOptional: boolean;
   connectSubstrateWallet: () => Promise<SubstrateConnection>;
-  connectBitcoinWallet: (source: BitcoinSource) => Promise<BitcoinConnection>;
+  connectBitcoinWallet: () => Promise<BitcoinConnection>;
   disconnect: () => void;
   acknowledgeSubstrateOptional: () => void;
 }
@@ -38,8 +34,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({
     return conn;
   }, []);
 
-  const connectBitcoinWallet = useCallback(async (source: BitcoinSource) => {
-    const conn = await connectBitcoin(source);
+  const connectBitcoinWallet = useCallback(async () => {
+    const conn = await connectBitcoin();
     setBitcoin(conn);
     return conn;
   }, []);

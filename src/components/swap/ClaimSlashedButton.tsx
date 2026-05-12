@@ -11,9 +11,9 @@ interface Props {
 }
 
 /**
- * Browser-side claim for slashed swaps. Signs the `allways.claim_slash`
- * extrinsic directly via the connected Substrate wallet — swap-api is not
- * involved (spec §5 / §9 "Slashed swap").
+ * Browser-side claim for slashed swaps. Calls the ink! contract's
+ * `claim_slash(swap_id)` via `pallet_contracts::call` — same path the
+ * validator uses server-side. swap-api is not involved (spec §5 / §9).
  */
 const ClaimSlashedButton: React.FC<Props> = ({
   swapId,

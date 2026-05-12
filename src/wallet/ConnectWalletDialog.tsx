@@ -12,7 +12,7 @@ import {
 import { FONTS } from '../theme';
 import { useWallet } from './WalletProvider';
 import { detectSubstrateExtensions } from './substrate';
-import { detectBitcoinExtensions, type BitcoinSource } from './bitcoin';
+import { detectBitcoinExtensions } from './bitcoin';
 
 interface ConnectWalletDialogProps {
   open: boolean;
@@ -27,15 +27,6 @@ const KNOWN_SUBSTRATE: Record<string, string> = {
   'subwallet-js': 'SubWallet',
 };
 
-const KNOWN_BITCOIN: Record<BitcoinSource, string> = {
-  unisat: 'Unisat',
-  xverse: 'Xverse',
-  leather: 'Leather',
-};
-
-// Only Unisat is fully wired in v1 — others are detection-only.
-const FULLY_WIRED: ReadonlyArray<BitcoinSource> = ['unisat'];
-
 const ConnectWalletDialog: React.FC<ConnectWalletDialogProps> = ({
   open,
   onClose,
@@ -44,16 +35,14 @@ const ConnectWalletDialog: React.FC<ConnectWalletDialogProps> = ({
   const { substrate, bitcoin, connectSubstrateWallet, connectBitcoinWallet } =
     useWallet();
   const [substrateExtensions, setSubstrateExtensions] = useState<string[]>([]);
-  const [bitcoinExtensions, setBitcoinExtensions] = useState<BitcoinSource[]>(
-    [],
-  );
+  const [unisatDetected, setUnisatDetected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
       setSubstrateExtensions(detectSubstrateExtensions());
-      setBitcoinExtensions(detectBitcoinExtensions());
+      setUnisatDetected(detectBitcoinExtensions().length > 0);
       setError(null);
     }
   }, [open]);
@@ -70,11 +59,11 @@ const ConnectWalletDialog: React.FC<ConnectWalletDialogProps> = ({
     }
   };
 
-  const handleBitcoin = async (source: BitcoinSource) => {
+  const handleBitcoin = async () => {
     setBusy(true);
     setError(null);
     try {
-      await connectBitcoinWallet(source);
+      await connectBitcoinWallet();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -166,10 +155,10 @@ const ConnectWalletDialog: React.FC<ConnectWalletDialogProps> = ({
             </Typography>
             {bitcoin ? (
               <Typography sx={{ fontFamily: FONTS.mono, fontSize: '0.8rem' }}>
-                Connected: {KNOWN_BITCOIN[bitcoin.source]} —{' '}
-                {bitcoin.address.slice(0, 8)}…{bitcoin.address.slice(-6)}
+                Connected: Unisat — {bitcoin.address.slice(0, 8)}…
+                {bitcoin.address.slice(-6)}
               </Typography>
-            ) : bitcoinExtensions.length === 0 ? (
+            ) : !unisatDetected ? (
               <Typography
                 sx={{
                   fontFamily: FONTS.body,
@@ -177,27 +166,18 @@ const ConnectWalletDialog: React.FC<ConnectWalletDialogProps> = ({
                   color: 'text.secondary',
                 }}
               >
-                No Bitcoin wallet detected. Install Unisat (Xverse / Leather
-                coming soon).
+                Unisat extension not detected. Install Unisat to send BTC from
+                your browser.
               </Typography>
             ) : (
-              <Stack spacing={0.5}>
-                {bitcoinExtensions.map((src) => {
-                  const wired = FULLY_WIRED.includes(src);
-                  return (
-                    <Button
-                      key={src}
-                      variant="outlined"
-                      onClick={() => handleBitcoin(src)}
-                      disabled={busy || !wired}
-                      sx={{ alignSelf: 'flex-start' }}
-                    >
-                      Connect {KNOWN_BITCOIN[src]}
-                      {!wired && ' (coming soon)'}
-                    </Button>
-                  );
-                })}
-              </Stack>
+              <Button
+                variant="outlined"
+                onClick={handleBitcoin}
+                disabled={busy}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Connect Unisat
+              </Button>
             )}
           </Stack>
 
