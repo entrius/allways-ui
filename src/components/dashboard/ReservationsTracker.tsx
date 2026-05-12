@@ -52,12 +52,15 @@ const ReservationsTracker: React.FC = () => {
     return <ReservationsTrackerSkeleton />;
   }
 
+  // Only show reservations that are still holding a miner. INITIATED have
+  // become swaps (visible in Transactions); EXPIRED/CANCELLED are history.
+  const active = reservations.filter((r: Reservation) => r.status === 'ACTIVE');
   const trimmed = searchAddr.trim().toLowerCase();
   const filtered = trimmed
-    ? reservations.filter((r: Reservation) =>
+    ? active.filter((r: Reservation) =>
         r.userFromAddress?.toLowerCase().includes(trimmed),
       )
-    : reservations;
+    : active;
   const visible = filtered.slice(0, 3);
   const hiddenCount = filtered.length - visible.length;
 
@@ -159,8 +162,8 @@ const ReservationsTracker: React.FC = () => {
           }}
         >
           {trimmed
-            ? 'No reservations match that address.'
-            : 'No reservations yet.'}
+            ? 'No active reservations match that address.'
+            : 'No active reservations.'}
         </Typography>
       )}
 
