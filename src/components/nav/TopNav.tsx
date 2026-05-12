@@ -67,6 +67,9 @@ const TopNav: React.FC = () => {
         location.pathname.startsWith('/swap/')
       );
     }
+    if (to === '/miners') {
+      return location.pathname.startsWith('/miners');
+    }
     return location.pathname === to;
   };
 
