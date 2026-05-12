@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { useNetworkOverview } from '../../api';
-import type { Range } from '../../api';
+import { useNetworkOverview, type Range } from '../../api';
 import { FONTS } from '../../theme';
 
 interface Tile {

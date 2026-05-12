@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import { useMinerDiagnostic } from '../../api';
-import type { DiagnosticRow } from '../../api';
+import { useMinerDiagnostic, type DiagnosticRow } from '../../api';
 import { FONTS } from '../../theme';
 
 const SEVERITY_COLOR: Record<DiagnosticRow['severity'], string> = {

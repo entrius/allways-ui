@@ -6,11 +6,12 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { useCrownRateHistory, useMinerRateHistory } from '../../api';
-import type {
-  CrownRateHistoryRow,
-  Direction,
-  MinerRateHistoryRow,
+import {
+  useCrownRateHistory,
+  useMinerRateHistory,
+  type CrownRateHistoryRow,
+  type Direction,
+  type MinerRateHistoryRow,
 } from '../../api';
 import { FONTS } from '../../theme';
 
@@ -48,7 +49,7 @@ const CrownRateChart: React.FC<{
   const { data } = useCrownRateHistory({ direction });
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '', {});
 
-  const points = data ?? [];
+  const points = useMemo(() => data ?? [], [data]);
   const head = points.length ? Math.max(...points.map((p) => p.block)) : 0;
   const lo = Math.max(0, head - blocks + 1);
   const windowPoints = useMemo<CrownRateHistoryRow[]>(

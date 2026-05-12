@@ -11,8 +11,11 @@ import {
   Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useMinerLeaderboard } from '../../api';
-import type { LeaderboardRow, Range } from '../../api';
+import {
+  useMinerLeaderboard,
+  type LeaderboardRow,
+  type Range,
+} from '../../api';
 import CrownIcon from './CrownIcon';
 import { FONTS } from '../../theme';
 

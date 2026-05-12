@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useMinerStats } from '../../api';
-import type { Direction, Range } from '../../api';
+import { useMinerStats, type Direction, type Range } from '../../api';
 import CrownRateChart from './CrownRateChart';
 import MinerSwapHistory from './MinerSwapHistory';
 import { EarningDiagnostic, EarningNowBanner } from './EarningDiagnostic';

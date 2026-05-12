@@ -1,6 +1,7 @@
 import { useApiQuery } from './ApiUtils';
 import { SSE_FALLBACK_INTERVAL } from './constants';
 import type {
+  ActiveSwap,
   CrownHistoryRow,
   CrownRateHistoryRow,
   CurrentCrownMap,
@@ -13,7 +14,6 @@ import type {
   NetworkOverview,
   Range,
 } from './models';
-import type { ActiveSwap } from './models';
 
 const CROWN_REFRESH_MS = 12_000;
 

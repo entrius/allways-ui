@@ -8,8 +8,11 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { useCrownHistory } from '../../api';
-import type { CrownHistoryRow, Direction } from '../../api';
+import {
+  useCrownHistory,
+  type CrownHistoryRow,
+  type Direction,
+} from '../../api';
 import { FONTS } from '../../theme';
 
 const ROW_BLOCKS = 60;
@@ -98,7 +101,7 @@ const CrownHistoryGrid: React.FC<{
     fromBlock: undefined,
   });
 
-  const rows = data ?? [];
+  const rows = useMemo(() => data ?? [], [data]);
   const maxBlock = useMemo(
     () => (rows.length ? Math.max(...rows.map((r) => r.block)) : 0),
     [rows],
