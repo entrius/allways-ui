@@ -159,15 +159,14 @@ const OrderbookDepth: React.FC = () => {
     const groups: Record<string, number> = {}; // key = rate, val = collateral TAO
 
     miners.forEach((m) => {
-      if (!m.collateralRao) return;
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
       if (s !== asset || d !== 'tao') return;
-      const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
-      if (isNaN(capacityTao) || capacityTao <= 0) return;
       const raw = selected.direction === 'forward' ? m.rate : m.counterRate;
       const r = raw ? parseFloat(raw) : 0;
       if (!isFinite(r) || r <= 0) return;
+      const rao = m.collateralRao ? parseInt(m.collateralRao, 10) : 0;
+      const capacityTao = isFinite(rao) && rao > 0 ? rao / 1e9 : 0;
       const key = r.toFixed(2);
       groups[key] = (groups[key] || 0) + capacityTao;
     });
