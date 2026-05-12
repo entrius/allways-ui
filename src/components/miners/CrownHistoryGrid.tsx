@@ -16,12 +16,17 @@ import {
 import { FONTS } from '../../theme';
 
 const ROW_BLOCKS = 60;
-const RANGE_BLOCKS: Record<string, number> = { '1h': 300, '4h': 1200 };
+const RANGE_BLOCKS: Record<string, number> = { '1h': 300, '2h': 600, '4h': 1200 };
+// Subtensor scoring cadence in blocks. The validator sets weights once per
+// SCORING_WINDOW, so the 2h grid snaps to multiples of this value to show
+// "the actual chunk the validator scored on" rather than a rolling trail.
+// Mirrors SCORING_WINDOW_BLOCKS in allways/constants.py.
+const SCORING_WINDOW_BLOCKS = 600;
 const TIER_PALETTE = ['#0052ff', '#4d7dff', '#7f9eff', '#aebeff', '#d2dafe'];
 const OTHER_COLOR = 'rgba(255,255,255,0.18)';
 const EMPTY_COLOR = 'rgba(255,255,255,0.05)';
 
-type CrownRange = '1h' | '4h';
+type CrownRange = '1h' | '2h' | '4h';
 
 type CellState = {
   block: number;
@@ -106,8 +111,19 @@ const CrownHistoryGrid: React.FC<{
     () => (rows.length ? Math.max(...rows.map((r) => r.block)) : 0),
     [rows],
   );
-  const hi = maxBlock - pan;
-  const lo = Math.max(0, hi - span + 1);
+  // 2h snaps to the validator's scoring boundary so the grid renders the
+  // actual chunk weights were set on. 1h and 4h stay as rolling windows.
+  let hi: number;
+  let lo: number;
+  if (range === '2h') {
+    const anchor = Math.floor(maxBlock / SCORING_WINDOW_BLOCKS) * SCORING_WINDOW_BLOCKS;
+    const windowsBack = Math.floor(pan / SCORING_WINDOW_BLOCKS);
+    lo = Math.max(0, anchor - windowsBack * SCORING_WINDOW_BLOCKS);
+    hi = lo + SCORING_WINDOW_BLOCKS - 1;
+  } else {
+    hi = maxBlock - pan;
+    lo = Math.max(0, hi - span + 1);
+  }
   const cells = useMemo(() => buildCells(rows, lo, hi), [rows, lo, hi]);
   const tiers = useMemo(() => buildTiers(cells), [cells]);
 
@@ -175,6 +191,12 @@ const CrownHistoryGrid: React.FC<{
               1h
             </ToggleButton>
             <ToggleButton
+              value="2h"
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
+            >
+              2h
+            </ToggleButton>
+            <ToggleButton
               value="4h"
               sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
             >
@@ -194,20 +216,49 @@ const CrownHistoryGrid: React.FC<{
           color: 'text.disabled',
         }}
       >
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={() => onPanChange(pan + span)}
-          sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem' }}
-        >
-          ← earlier
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() =>
+              onPanChange(pan + (range === '2h' ? SCORING_WINDOW_BLOCKS : span))
+            }
+            sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem' }}
+          >
+            ← earlier
+          </Button>
+          {range === '2h' && pan > 0 && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => onPanChange(0)}
+              sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem' }}
+            >
+              latest →
+            </Button>
+          )}
+        </Stack>
         <Typography
+          component="div"
           variant="mono"
           sx={{ fontSize: '0.7rem', color: 'text.secondary' }}
         >
-          block #{lo.toLocaleString()} — #{hi.toLocaleString()} · last {span}{' '}
-          blocks · {range}
+          {range === '2h' ? (
+            <>
+              scoring window · block #{lo.toLocaleString()} — #
+              {hi.toLocaleString()}
+              {pan === 0 && (
+                <Box component="span" sx={{ color: 'primary.main', ml: 0.5 }}>
+                  · current
+                </Box>
+              )}
+            </>
+          ) : (
+            <>
+              block #{lo.toLocaleString()} — #{hi.toLocaleString()} · last{' '}
+              {span} blocks · {range}
+            </>
+          )}
         </Typography>
         <TextField
           size="small"
@@ -297,6 +348,7 @@ const CrownHistoryGrid: React.FC<{
       </Box>
       {cells.length > 0 && cells.every((c) => c.holderHotkey === null) && (
         <Typography
+          component="div"
           variant="mono"
           sx={{
             fontSize: '0.62rem',
@@ -308,6 +360,7 @@ const CrownHistoryGrid: React.FC<{
         </Typography>
       )}
       <Typography
+        component="div"
         variant="mono"
         sx={{
           fontSize: '0.58rem',

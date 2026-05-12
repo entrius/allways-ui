@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Box, Stack } from '@mui/material';
+import { Stack } from '@mui/material';
 import { useParams, useSearchParams } from 'react-router-dom';
 import {
   CrownHistoryGrid,
@@ -7,8 +7,9 @@ import {
   FilteredMinerSection,
   MinerLeaderboard,
   NetworkOverviewStats,
-  StickyNetworkHeader,
+  Page,
   SEO,
+  StickyNetworkHeader,
 } from '../components';
 import type { Direction, Range } from '../api';
 
@@ -56,7 +57,7 @@ const MinersPage: React.FC = () => {
   );
 
   return (
-    <Box sx={{ backgroundColor: 'background.default', minHeight: '100vh' }}>
+    <Page title="Miners">
       <SEO
         title="Miners"
         description="Public miner dashboard for Allways — crown share, success rate, and diagnostic detail"
@@ -68,6 +69,7 @@ const MinersPage: React.FC = () => {
           py: { xs: 2, sm: 3, md: 4 },
           maxWidth: 1400,
           mx: 'auto',
+          width: '100%',
         }}
       >
         <NetworkOverviewStats range={range} />
@@ -99,7 +101,7 @@ const MinersPage: React.FC = () => {
           />
         )}
       </Stack>
-    </Box>
+    </Page>
   );
 };
 
