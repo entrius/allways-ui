@@ -86,7 +86,7 @@ export const useMinerSwaps = (
 
 export const useMinerRateHistory = (
   hotkey: string,
-  params: { fromBlock?: number; toBlock?: number } = {},
+  params: { fromBlock?: number; toBlock?: number; blocks?: number } = {},
 ) =>
   useApiQuery<MinerRateHistoryRow[]>(
     'miner-rate-history',

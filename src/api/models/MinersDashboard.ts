@@ -35,6 +35,7 @@ export type LeaderboardRow = {
 };
 
 export type MinerStats = {
+  uid: number | null;
   totalSwaps: number;
   completedSwaps: number;
   timedOutSwaps: number;
@@ -46,6 +47,7 @@ export type MinerStats = {
   isActive: boolean;
   collateralRao: string;
   activatedAt: number | null;
+  currentCrownDirections: Direction[];
 };
 
 export type MinerRateHistoryRow = {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -7,6 +7,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
+  alpha,
   useTheme,
 } from '@mui/material';
 import {
@@ -143,13 +144,10 @@ const CrownHistoryGrid: React.FC<{
     x: number;
     y: number;
   } | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
   const span = RANGE_BLOCKS[range];
 
-  const { data } = useCrownHistory({
-    direction,
-    toBlock: pan > 0 ? undefined : undefined,
-    fromBlock: undefined,
-  });
+  const { data } = useCrownHistory({ direction });
 
   const rows = useMemo(() => data ?? [], [data]);
   const maxBlock = useMemo(
@@ -365,12 +363,14 @@ const CrownHistoryGrid: React.FC<{
         />
       </Stack>
       <Box
+        ref={gridRef}
         onMouseLeave={() => setHover(null)}
         sx={{
           display: 'grid',
           gridTemplateColumns: `72px repeat(${ROW_BLOCKS}, 1fr)`,
           gridAutoRows: `${CELL_PX}px`,
           gap: '2px',
+          position: 'relative',
         }}
       >
         {Array.from({ length: rowsCount }).map((_, r) => {
@@ -416,13 +416,11 @@ const CrownHistoryGrid: React.FC<{
                       const rect = (
                         e.currentTarget as HTMLElement
                       ).getBoundingClientRect();
-                      const parent = (
-                        e.currentTarget as HTMLElement
-                      ).parentElement?.parentElement?.getBoundingClientRect();
+                      const gridRect = gridRef.current?.getBoundingClientRect();
                       setHover({
                         cell,
-                        x: rect.left + rect.width / 2 - (parent?.left ?? 0),
-                        y: rect.top - (parent?.top ?? 0),
+                        x: rect.left + rect.width / 2 - (gridRect?.left ?? 0),
+                        y: rect.top - (gridRect?.top ?? 0),
                       });
                     }}
                     sx={{
@@ -462,9 +460,8 @@ const CrownHistoryGrid: React.FC<{
             </React.Fragment>
           );
         })}
+        {hover && <HoverCard hover={hover} isDark={isDark} />}
       </Box>
-
-      {hover && <HoverCard hover={hover} isDark={isDark} />}
 
       {tierLegend.length > 0 && (
         <Stack
@@ -491,28 +488,32 @@ const CrownHistoryGrid: React.FC<{
             const active = search === String(t.uid);
             const showClear =
               chipFilter !== null && chipFilter === String(t.uid);
+            const interactive = t.uid != null;
             return (
               <Box
                 key={t.hotkey}
+                component={interactive ? 'button' : 'div'}
                 onClick={() => toggleLegendUid(t.uid)}
+                aria-pressed={interactive ? active : undefined}
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 0.75,
                   px: 1,
                   py: 0.4,
-                  cursor: t.uid != null ? 'pointer' : 'default',
+                  cursor: interactive ? 'pointer' : 'default',
                   border: '1px solid',
                   borderColor: active ? 'primary.main' : 'divider',
                   backgroundColor: active
-                    ? 'rgba(0,82,255,0.10)'
+                    ? alpha(theme.palette.primary.main, 0.1)
                     : 'transparent',
                   fontFamily: FONTS.mono,
                   fontSize: '0.65rem',
                   color: 'text.secondary',
                   transition: 'background-color 0.15s, border-color 0.15s',
-                  '&:hover':
-                    t.uid != null ? { borderColor: 'text.primary' } : undefined,
+                  '&:hover': interactive
+                    ? { borderColor: 'text.primary' }
+                    : undefined,
                 }}
               >
                 <Box

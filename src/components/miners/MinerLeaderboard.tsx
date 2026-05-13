@@ -10,6 +10,8 @@ import {
   TableRow,
   TextField,
   Typography,
+  alpha,
+  useTheme,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -90,6 +92,17 @@ const SortHeader: React.FC<{
   return (
     <TableCell
       onClick={() => onSort(sortKey)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSort(sortKey);
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-sort={
+        isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
+      }
       sx={{
         cursor: 'pointer',
         userSelect: 'none',
@@ -120,6 +133,7 @@ const MinerLeaderboard: React.FC<{
   onRangeChange: (r: Range) => void;
 }> = ({ range, onRangeChange }) => {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { data, isLoading } = useMinerLeaderboard(range);
   const [sortKey, setSortKey] = useState<SortKey>('crownShare');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -166,19 +180,6 @@ const MinerLeaderboard: React.FC<{
 
   const handleRowClick = (row: LeaderboardRow) => {
     navigate(`/miners/${row.hotkey}`);
-    try {
-      const RAW = localStorage.getItem('allways.recentMiners');
-      const parsed: { uid: number; hotkey: string; viewedAt: number }[] = RAW
-        ? JSON.parse(RAW)
-        : [];
-      const next = [
-        { uid: row.uid, hotkey: row.hotkey, viewedAt: Date.now() },
-        ...parsed.filter((m) => m.hotkey !== row.hotkey),
-      ].slice(0, 5);
-      localStorage.setItem('allways.recentMiners', JSON.stringify(next));
-    } catch {
-      /* ignore — storage disabled */
-    }
   };
 
   return (
@@ -318,15 +319,26 @@ const MinerLeaderboard: React.FC<{
               <TableRow
                 key={row.hotkey}
                 onClick={() => handleRowClick(row)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleRowClick(row);
+                  }
+                }}
+                tabIndex={0}
                 hover
                 sx={{
                   cursor: 'pointer',
                   backgroundColor: matched
-                    ? 'rgba(0,82,255,0.08)'
+                    ? alpha(theme.palette.primary.main, 0.08)
                     : 'transparent',
                   borderLeft: matched ? '2px solid' : '2px solid transparent',
                   borderLeftColor: matched ? 'primary.main' : 'transparent',
                   '&:hover td': { backgroundColor: 'surface.elevated' },
+                  '&:focus-visible': {
+                    outline: `2px solid ${theme.palette.primary.main}`,
+                    outlineOffset: -2,
+                  },
                 }}
               >
                 <TableCell
@@ -345,7 +357,7 @@ const MinerLeaderboard: React.FC<{
                         display: 'inline-block',
                         width: 80,
                         height: 6,
-                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        backgroundColor: 'action.hover',
                       }}
                     >
                       <Box

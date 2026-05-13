@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import React, { useCallback } from 'react';
+import { Box, Button, Stack, Typography, alpha, useTheme } from '@mui/material';
 import {
   Link as RouterLink,
   useParams,
@@ -14,12 +14,7 @@ import {
   SEO,
   StickyNetworkHeader,
 } from '../components';
-import {
-  useMinerLeaderboard,
-  useMinerStats,
-  type MinerStats,
-  type Range,
-} from '../api';
+import { useMinerStats, type MinerStats, type Range } from '../api';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
 
@@ -257,14 +252,10 @@ const MinerDetailPage: React.FC = () => {
     [params, setParams],
   );
 
+  const theme = useTheme();
   const { data: stats } = useMinerStats(hotkey, range);
-  const { data: leaderboard } = useMinerLeaderboard(range);
-  const leaderboardRow = useMemo(
-    () => leaderboard?.find((r) => r.hotkey === hotkey) ?? null,
-    [leaderboard, hotkey],
-  );
-  const uid = leaderboardRow?.uid ?? null;
-  const crownDirections = leaderboardRow?.currentCrownDirections ?? [];
+  const uid = stats?.uid ?? null;
+  const crownDirections = stats?.currentCrownDirections ?? [];
 
   return (
     <Page title={`Miner ${uid ?? ''}`}>
@@ -336,15 +327,15 @@ const MinerDetailPage: React.FC = () => {
                     px: 1,
                     py: 0.4,
                     border: '1px solid',
-                    borderColor: 'rgba(21,128,61,0.4)',
-                    backgroundColor: 'rgba(21,128,61,0.08)',
+                    borderColor: alpha(theme.palette.success.main, 0.4),
+                    backgroundColor: alpha(theme.palette.success.main, 0.08),
                     fontFamily: FONTS.mono,
                     fontSize: '0.7rem',
                     color: 'success.main',
                     letterSpacing: '0.05em',
                   }}
                 >
-                  <CrownIcon size={12} color="#15803d" />
+                  <CrownIcon size={12} color={theme.palette.success.main} />
                   {crownDirections.map((d) => d.replace('-', '→')).join('  ')}
                 </Stack>
               )}
@@ -361,11 +352,11 @@ const MinerDetailPage: React.FC = () => {
                     letterSpacing: '0.05em',
                     color: stats.isActive ? 'status.active' : 'text.disabled',
                     backgroundColor: stats.isActive
-                      ? 'rgba(0,82,255,0.08)'
-                      : 'rgba(255,255,255,0.04)',
+                      ? alpha(theme.palette.primary.main, 0.08)
+                      : 'action.hover',
                     border: '1px solid',
                     borderColor: stats.isActive
-                      ? 'rgba(0,82,255,0.35)'
+                      ? alpha(theme.palette.primary.main, 0.35)
                       : 'divider',
                   }}
                 >

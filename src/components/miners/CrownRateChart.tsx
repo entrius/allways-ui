@@ -389,7 +389,7 @@ const RatePanel: React.FC<PanelProps> = ({
                 cy={mapY(hover.rate)}
                 r="3.5"
                 fill={meta.color}
-                stroke="#fff"
+                stroke={isDark ? '#fff' : '#000'}
                 strokeWidth="1"
               />
             </g>
@@ -497,42 +497,39 @@ const CrownRateChart: React.FC<{
     direction: 'TAO-BTC',
     blocks,
   });
-  const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '', {});
+  const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
 
+  // Use reduce instead of `Math.max(...arr)` to avoid spreading large arrays.
   const head = useMemo(() => {
-    const heads = [
-      btcTao?.length ? Math.max(...btcTao.map((p) => p.block)) : 0,
-      taoBtc?.length ? Math.max(...taoBtc.map((p) => p.block)) : 0,
-    ];
-    return Math.max(...heads, 0);
+    const maxBlock = (arr: { block: number }[] | undefined) =>
+      (arr ?? []).reduce((m, p) => (p.block > m ? p.block : m), 0);
+    return Math.max(maxBlock(btcTao), maxBlock(taoBtc));
   }, [btcTao, taoBtc]);
   const lo = Math.max(0, head - blocks + 1);
 
-  const filterRange = <T extends { block: number }>(arr: T[] | undefined) =>
-    (arr ?? []).filter((p) => p.block >= lo && p.block <= head);
-
-  const minerFor = (direction: Direction): MinerRateHistoryRow[] => {
-    if (!minerHotkey) return [];
-    const from = direction === 'BTC-TAO' ? 'btc' : 'tao';
-    const to = direction === 'BTC-TAO' ? 'tao' : 'btc';
-    return filterRange(minerRates ?? []).filter(
-      (r) => r.fromChain === from && r.toChain === to,
-    );
-  };
-
-  const stripFields = (rows: CrownRateHistoryRow[]): RateRow[] =>
-    rows.map((r) => ({ block: r.block, rate: r.rate }));
-
-  const btcTaoCrown = stripFields(filterRange(btcTao));
-  const taoBtcCrown = stripFields(filterRange(taoBtc));
-  const btcTaoMiner: RateRow[] = minerFor('BTC-TAO').map((r) => ({
-    block: r.block,
-    rate: r.rate,
-  }));
-  const taoBtcMiner: RateRow[] = minerFor('TAO-BTC').map((r) => ({
-    block: r.block,
-    rate: r.rate,
-  }));
+  // One memo over all the per-render data shaping so a hover cursor change
+  // (which lifts state up here) doesn't re-filter the full window every
+  // mouse move.
+  const { btcTaoCrown, taoBtcCrown, btcTaoMiner, taoBtcMiner } = useMemo(() => {
+    const inRange = <T extends { block: number }>(arr: T[] | undefined) =>
+      (arr ?? []).filter((p) => p.block >= lo && p.block <= head);
+    const strip = (rows: CrownRateHistoryRow[]): RateRow[] =>
+      rows.map((r) => ({ block: r.block, rate: r.rate }));
+    const minerFor = (direction: Direction): RateRow[] => {
+      if (!minerHotkey) return [];
+      const from = direction === 'BTC-TAO' ? 'btc' : 'tao';
+      const to = direction === 'BTC-TAO' ? 'tao' : 'btc';
+      return inRange(minerRates ?? [])
+        .filter((r) => r.fromChain === from && r.toChain === to)
+        .map((r) => ({ block: r.block, rate: r.rate }));
+    };
+    return {
+      btcTaoCrown: strip(inRange(btcTao)),
+      taoBtcCrown: strip(inRange(taoBtc)),
+      btcTaoMiner: minerFor('BTC-TAO'),
+      taoBtcMiner: minerFor('TAO-BTC'),
+    };
+  }, [btcTao, taoBtc, minerRates, minerHotkey, lo, head]);
 
   const [cursor, setCursor] = useState<SharedCursor>(null);
 

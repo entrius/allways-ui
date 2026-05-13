@@ -66,7 +66,7 @@ const DirectionBars: React.FC<{ segments: PairMix[] }> = ({ segments }) => {
               sx={{
                 flex: 1,
                 height: 6,
-                backgroundColor: 'rgba(255,255,255,0.06)',
+                backgroundColor: 'action.hover',
                 position: 'relative',
                 overflow: 'hidden',
               }}

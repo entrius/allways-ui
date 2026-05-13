@@ -4,6 +4,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   Typography,
@@ -68,96 +69,99 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
       >
         Swap History
       </Typography>
-      <Table size="small" sx={{ '& th, & td': { borderColor: 'divider' } }}>
-        <TableHead>
-          <TableRow>
-            <TableCell>swap</TableCell>
-            <TableCell>initiated</TableCell>
-            <TableCell>status</TableCell>
-            <TableCell>amount</TableCell>
-            <TableCell>dir</TableCell>
-            <TableCell>dur</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length === 0 && (
+      <TableContainer sx={{ overflowX: 'auto' }}>
+        <Table size="small" sx={{ '& th, & td': { borderColor: 'divider' } }}>
+          <TableHead>
             <TableRow>
-              <TableCell
-                colSpan={6}
-                sx={{ textAlign: 'center', color: 'text.disabled' }}
-              >
-                <Box
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.75rem',
-                    color: 'text.disabled',
-                    p: 1.5,
-                    border: '1px dashed',
-                    borderColor: 'divider',
-                    mt: 1,
-                  }}
-                >
-                  No swaps yet — post a competitive rate to attract them
-                </Box>
-              </TableCell>
+              <TableCell>swap</TableCell>
+              <TableCell>initiated</TableCell>
+              <TableCell>status</TableCell>
+              <TableCell>amount</TableCell>
+              <TableCell>dir</TableCell>
+              <TableCell>dur</TableCell>
             </TableRow>
-          )}
-          {rows.map((row) => {
-            const taoAmount = row.taoAmount
-              ? parseFloat(row.taoAmount).toFixed(4)
-              : '—';
-            return (
-              <TableRow key={row.swapId}>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
+          </TableHead>
+          <TableBody>
+            {rows.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  sx={{ textAlign: 'center', color: 'text.disabled' }}
+                >
                   <Box
-                    component={RouterLink}
-                    to={`/swap/${row.swapId}`}
                     sx={{
-                      color: 'primary.main',
-                      textDecoration: 'none',
-                      '&:hover': { textDecoration: 'underline' },
-                    }}
-                  >
-                    #{row.swapId}
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {fmtBlock(row.initiatedBlock)}
-                </TableCell>
-                <TableCell>
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'inline-block',
-                      px: 1.25,
-                      py: 0.25,
                       fontFamily: FONTS.mono,
-                      fontSize: '0.65rem',
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      border: '1px solid',
-                      borderColor: PILL_BORDER[row.status] ?? 'divider',
-                      color: STATUS_COLOR[row.status] ?? 'text.primary',
+                      fontSize: '0.75rem',
+                      color: 'text.disabled',
+                      p: 1.5,
+                      border: '1px dashed',
+                      borderColor: 'divider',
+                      mt: 1,
                     }}
                   >
-                    {row.status.replace('_', ' ').toLowerCase()}
+                    No swaps yet — post a competitive rate to attract them
                   </Box>
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {taoAmount} τ
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {row.sourceChain?.toUpperCase()}→
-                  {row.destChain?.toUpperCase()}
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {fmtDuration(row.initiatedAt, row.resolvedAt)}
                 </TableCell>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+            )}
+            {rows.map((row) => {
+              const taoAmount = row.taoAmount
+                ? parseFloat(row.taoAmount).toFixed(4)
+                : '—';
+              return (
+                <TableRow key={row.swapId}>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    <Box
+                      component={RouterLink}
+                      to={`/swap/${row.swapId}`}
+                      sx={{
+                        color: 'primary.main',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{row.swapId}
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    {fmtBlock(row.initiatedBlock)}
+                  </TableCell>
+                  <TableCell>
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-block',
+                        px: 1.25,
+                        py: 0.25,
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.65rem',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        border: '1px solid',
+                        borderColor: PILL_BORDER[row.status] ?? 'divider',
+                        color: STATUS_COLOR[row.status] ?? 'text.primary',
+                      }}
+                    >
+                      {row.status.replace('_', ' ').toLowerCase()}
+                    </Box>
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    {taoAmount} τ
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    {row.sourceChain && row.destChain
+                      ? `${row.sourceChain.toUpperCase()}→${row.destChain.toUpperCase()}`
+                      : '—'}
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    {fmtDuration(row.initiatedAt, row.resolvedAt)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 };
