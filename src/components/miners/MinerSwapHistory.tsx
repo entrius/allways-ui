@@ -8,6 +8,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useMinerSwaps } from '../../api';
 import { FONTS } from '../../theme';
 
@@ -23,15 +24,11 @@ const PILL_BORDER: Record<string, string> = {
   TIMED_OUT: 'rgba(185,28,28,0.5)',
 };
 
-const fmtDate = (raw: string | null): string => {
+const fmtBlock = (raw: string | null): string => {
   if (!raw) return '—';
-  const d = new Date(raw);
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return '—';
+  return `#${n.toLocaleString()}`;
 };
 
 const fmtDuration = (
@@ -80,14 +77,13 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
             <TableCell>amount</TableCell>
             <TableCell>dir</TableCell>
             <TableCell>dur</TableCell>
-            <TableCell>ext</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={6}
                 sx={{ textAlign: 'center', color: 'text.disabled' }}
               >
                 <Box
@@ -113,10 +109,20 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
             return (
               <TableRow key={row.swapId}>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  #{row.swapId}
+                  <Box
+                    component={RouterLink}
+                    to={`/swap/${row.swapId}`}
+                    sx={{
+                      color: 'primary.main',
+                      textDecoration: 'none',
+                      '&:hover': { textDecoration: 'underline' },
+                    }}
+                  >
+                    #{row.swapId}
+                  </Box>
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {fmtDate(row.initiatedAt)}
+                  {fmtBlock(row.initiatedBlock)}
                 </TableCell>
                 <TableCell>
                   <Box
@@ -138,7 +144,7 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                   </Box>
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {taoAmount} TAO
+                  {taoAmount} τ
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
                   {row.sourceChain?.toUpperCase()}→
@@ -146,9 +152,6 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
                   {fmtDuration(row.initiatedAt, row.resolvedAt)}
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {row.timeoutExtensionsUsed}
                 </TableCell>
               </TableRow>
             );

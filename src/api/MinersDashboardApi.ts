@@ -5,7 +5,6 @@ import type {
   CrownHistoryRow,
   CrownRateHistoryRow,
   CurrentCrownMap,
-  DiagnosticRow,
   Direction,
   HaltState,
   LeaderboardRow,
@@ -40,6 +39,7 @@ export const useCrownRateHistory = (params: {
   direction: Direction;
   fromBlock?: number;
   toBlock?: number;
+  blocks?: number;
 }) =>
   useApiQuery<CrownRateHistoryRow[]>(
     'crown-rate-history',
@@ -49,6 +49,7 @@ export const useCrownRateHistory = (params: {
       direction: params.direction,
       fromBlock: params.fromBlock,
       toBlock: params.toBlock,
+      blocks: params.blocks,
     },
   );
 
@@ -68,15 +69,6 @@ export const useMinerStats = (hotkey: string, range: Range = '30d') =>
     `/miners/${hotkey}/stats`,
     SSE_FALLBACK_INTERVAL,
     { range },
-    !!hotkey,
-  );
-
-export const useMinerDiagnostic = (hotkey: string) =>
-  useApiQuery<DiagnosticRow[]>(
-    'miner-diagnostic',
-    `/miners/${hotkey}/diagnostic`,
-    SSE_FALLBACK_INTERVAL,
-    undefined,
     !!hotkey,
   );
 

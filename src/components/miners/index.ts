@@ -5,5 +5,3 @@ export { default as MinerLeaderboard } from './MinerLeaderboard';
 export { default as CrownHistoryGrid } from './CrownHistoryGrid';
 export { default as CrownRateChart } from './CrownRateChart';
 export { default as MinerSwapHistory } from './MinerSwapHistory';
-export { default as FilteredMinerSection } from './FilteredMinerSection';
-export { EarningDiagnostic, EarningNowBanner } from './EarningDiagnostic';

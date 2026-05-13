@@ -1,10 +1,9 @@
 import React, { useCallback } from 'react';
 import { Stack } from '@mui/material';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   CrownHistoryGrid,
   CrownRateChart,
-  FilteredMinerSection,
   MinerLeaderboard,
   NetworkOverviewStats,
   Page,
@@ -19,14 +18,13 @@ const isDirection = (v: string | null): v is Direction =>
 const isRange = (v: string | null): v is Range =>
   ['24h', '7d', '30d', '90d', 'all'].includes(v ?? '');
 
-const isCrownRange = (v: string | null): v is '1h' | '4h' =>
-  v === '1h' || v === '4h';
+const isCrownRange = (v: string | null): v is '1h' | '2h' | '4h' =>
+  v === '1h' || v === '2h' || v === '4h';
 
 const isRateRange = (v: string | null): v is '1h' | '4h' | '24h' | '7d' =>
   ['1h', '4h', '24h', '7d'].includes(v ?? '');
 
 const MinersPage: React.FC = () => {
-  const { hotkey } = useParams<{ hotkey?: string }>();
   const [params, setParams] = useSearchParams();
 
   const range: Range = isRange(params.get('range'))
@@ -36,11 +34,11 @@ const MinersPage: React.FC = () => {
     ? (params.get('pair') as Direction)
     : 'BTC-TAO';
   const crownRange = isCrownRange(params.get('crownRange'))
-    ? (params.get('crownRange') as '1h' | '4h')
+    ? (params.get('crownRange') as '1h' | '2h' | '4h')
     : '1h';
   const rateRange = isRateRange(params.get('rateRange'))
     ? (params.get('rateRange') as '1h' | '4h' | '24h' | '7d')
-    : '1h';
+    : '4h';
   const pan = Number(params.get('pan') ?? '0') || 0;
 
   const setParam = useCallback(
@@ -60,7 +58,7 @@ const MinersPage: React.FC = () => {
     <Page title="Miners">
       <SEO
         title="Miners"
-        description="Public miner dashboard for Allways — crown share, success rate, and diagnostic detail"
+        description="Public miner dashboard for Allways — crown share, success rate, and swap history"
       />
       <StickyNetworkHeader />
       <Stack
@@ -74,7 +72,6 @@ const MinersPage: React.FC = () => {
       >
         <NetworkOverviewStats range={range} />
         <MinerLeaderboard
-          activeHotkey={hotkey}
           range={range}
           onRangeChange={(r) => setParam('range', r)}
         />
@@ -87,19 +84,9 @@ const MinersPage: React.FC = () => {
           onPanChange={(p) => setParam('pan', p === 0 ? undefined : String(p))}
         />
         <CrownRateChart
-          direction={direction}
           range={rateRange}
           onRangeChange={(r) => setParam('rateRange', r)}
         />
-        {hotkey && (
-          <FilteredMinerSection
-            hotkey={hotkey}
-            direction={direction}
-            rateRange={rateRange}
-            onRateRangeChange={(r) => setParam('rateRange', r)}
-            range={range}
-          />
-        )}
       </Stack>
     </Page>
   );

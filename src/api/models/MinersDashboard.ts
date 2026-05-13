@@ -15,14 +15,11 @@ export type CrownHistoryRow = {
   hotkey: string;
   uid: number | null;
   rate: number;
-  credit: number;
 };
 
 export type CrownRateHistoryRow = {
   block: number;
   rate: number;
-  holderHotkey: string;
-  holderUid: number | null;
 };
 
 export type LeaderboardRow = {
@@ -38,10 +35,10 @@ export type LeaderboardRow = {
 };
 
 export type MinerStats = {
-  successRate: number;
   totalSwaps: number;
   completedSwaps: number;
   timedOutSwaps: number;
+  successRate: number;
   volumeTao: string;
   avgFulfillSec: number | null;
   avgCompleteSec: number | null;
@@ -49,20 +46,6 @@ export type MinerStats = {
   isActive: boolean;
   collateralRao: string;
   activatedAt: number | null;
-};
-
-export type DiagnosticAction = {
-  kind: 'cli-command' | 'link';
-  label: string;
-  value: string;
-};
-
-export type DiagnosticRow = {
-  severity: 'fail' | 'warn' | 'ok';
-  code: string;
-  headline: string;
-  detail: string;
-  action?: DiagnosticAction;
 };
 
 export type MinerRateHistoryRow = {
@@ -79,7 +62,6 @@ export type NetworkOverview = {
   totalSwaps: number;
   networkSuccessRate: number;
   activeMiners: number;
-  registeredMiners: number;
   pairMix: PairMix[];
 };
 

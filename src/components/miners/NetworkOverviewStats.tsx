@@ -1,13 +1,100 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { useNetworkOverview, type Range } from '../../api';
+import { Box, Stack, Typography } from '@mui/material';
+import { useNetworkOverview, type Range, type PairMix } from '../../api';
 import { FONTS } from '../../theme';
 
 interface Tile {
   label: string;
-  value: string;
-  sub: string;
+  body: React.ReactNode;
 }
+
+const TileValue: React.FC<{ value: string; suffix?: React.ReactNode }> = ({
+  value,
+  suffix,
+}) => (
+  <Stack direction="row" alignItems="baseline" spacing={0.75}>
+    <Typography
+      sx={{
+        fontFamily: FONTS.mono,
+        fontSize: '1.6rem',
+        fontWeight: 500,
+        lineHeight: 1,
+      }}
+    >
+      {value}
+    </Typography>
+    {suffix && (
+      <Box
+        sx={{
+          fontFamily: FONTS.mono,
+          color: 'text.disabled',
+          lineHeight: 1,
+        }}
+      >
+        {suffix}
+      </Box>
+    )}
+  </Stack>
+);
+
+const formatPair = (raw: string): string => raw.replace('-', '→');
+
+const DirectionBars: React.FC<{ segments: PairMix[] }> = ({ segments }) => {
+  const total = segments.reduce((sum, s) => sum + s.pct, 0) || 1;
+  return (
+    <Stack spacing={0.6} sx={{ mt: 0.25 }}>
+      {segments.map((s) => {
+        const pct = (s.pct / total) * 100;
+        return (
+          <Stack
+            key={s.pair}
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
+          >
+            <Box
+              component="span"
+              sx={{
+                color: 'text.secondary',
+                minWidth: 60,
+              }}
+            >
+              {formatPair(s.pair)}
+            </Box>
+            <Box
+              sx={{
+                flex: 1,
+                height: 6,
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: `${pct}%`,
+                  backgroundColor: 'primary.main',
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </Box>
+            <Box
+              component="span"
+              sx={{ color: 'text.primary', minWidth: 28, textAlign: 'right' }}
+            >
+              {Math.round(s.pct)}%
+            </Box>
+          </Stack>
+        );
+      })}
+    </Stack>
+  );
+};
 
 const StatTile: React.FC<{ tile: Tile }> = ({ tile }) => (
   <Box
@@ -29,62 +116,79 @@ const StatTile: React.FC<{ tile: Tile }> = ({ tile }) => (
     >
       {tile.label}
     </Typography>
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '1.6rem',
-        fontWeight: 500,
-        lineHeight: 1,
-      }}
-    >
-      {tile.value}
-    </Typography>
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.72rem',
-        color: 'text.disabled',
-        mt: 0.75,
-      }}
-    >
-      {tile.sub}
-    </Typography>
+    {tile.body}
   </Box>
 );
 
-/**
- * 4-up network stat tiles. Border lines come from each tile's right/bottom
- * border (not a parent-bg-as-divider trick) so a shorter tile never reveals
- * a grey strip beneath the row.
- */
-const NetworkOverviewStats: React.FC<{ range?: Range }> = ({ range = '30d' }) => {
+const NetworkOverviewStats: React.FC<{ range?: Range }> = ({
+  range = '30d',
+}) => {
   const { data } = useNetworkOverview(range);
 
   const volume = data?.volumeTao ? parseFloat(data.volumeTao).toFixed(1) : '—';
-  const swaps = data?.totalSwaps != null ? data.totalSwaps.toLocaleString() : '—';
+  const swaps =
+    data?.totalSwaps != null ? data.totalSwaps.toLocaleString() : '—';
   const successPct =
-    data?.networkSuccessRate != null ? (data.networkSuccessRate * 100).toFixed(1) : '—';
-  const activeMiners = data?.activeMiners != null ? `${data.activeMiners}` : '—';
-  const registeredMiners =
-    data?.registeredMiners != null ? `of ${data.registeredMiners} reg` : '';
+    data?.networkSuccessRate != null
+      ? (data.networkSuccessRate * 100).toFixed(0)
+      : null;
+  const activeMiners =
+    data?.activeMiners != null ? `${data.activeMiners}` : '—';
   const pairMix = data?.pairMix?.slice(0, 2) ?? [];
-  const pairValue = pairMix.length
-    ? pairMix.map((p) => Math.round(p.pct)).join(' / ')
-    : '—';
-  const pairSub = pairMix.length ? pairMix.map((p) => p.pair).join(' / ') : 'BTC→TAO / TAO→BTC';
 
   const tiles: Tile[] = [
-    { label: `Volume ${range}`, value: volume, sub: 'TAO' },
-    { label: `Swaps ${range}`, value: swaps, sub: `${successPct}% success` },
-    { label: 'Active miners', value: activeMiners, sub: registeredMiners },
-    { label: `Pair mix ${range}`, value: pairValue, sub: pairSub },
+    {
+      label: `Volume ${range}`,
+      body: (
+        <TileValue
+          value={volume}
+          suffix={
+            <Box component="span" sx={{ fontSize: '1.1rem', lineHeight: 1 }}>
+              τ
+            </Box>
+          }
+        />
+      ),
+    },
+    {
+      label: `Swaps ${range}`,
+      body: (
+        <TileValue
+          value={swaps}
+          suffix={
+            successPct != null ? (
+              <Box component="span" sx={{ fontSize: '0.72rem' }}>
+                · {successPct}% success
+              </Box>
+            ) : undefined
+          }
+        />
+      ),
+    },
+    {
+      label: 'Active miners',
+      body: <TileValue value={activeMiners} />,
+    },
+    {
+      label: `Swap directions ${range}`,
+      body:
+        pairMix.length > 0 ? (
+          <DirectionBars segments={pairMix} />
+        ) : (
+          <TileValue value="—" />
+        ),
+    },
   ];
 
   return (
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+        gridTemplateColumns: {
+          xs: '1fr',
+          sm: 'repeat(2, 1fr)',
+          md: 'repeat(4, 1fr)',
+        },
         border: '1px solid',
         borderColor: 'divider',
         my: 2,
@@ -93,9 +197,9 @@ const NetworkOverviewStats: React.FC<{ range?: Range }> = ({ range = '30d' }) =>
           borderBottom: { xs: '1px solid', md: 'none' },
           borderColor: 'divider',
         },
-        // last cell in each row should not show a right border; bottom row
-        // shouldn't show a bottom border.
-        '& > *:nth-of-type(2n)': { borderRight: { sm: 'none', md: '1px solid' } },
+        '& > *:nth-of-type(2n)': {
+          borderRight: { sm: 'none', md: '1px solid' },
+        },
         '& > *:nth-of-type(4n)': { borderRight: { md: 'none' } },
         '& > *:last-of-type': { borderBottom: 'none', borderRight: 'none' },
         '& > *:nth-last-of-type(2)': { borderBottom: { md: 'none' } },
