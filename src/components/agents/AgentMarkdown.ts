@@ -338,6 +338,15 @@ live state instead of polling, and don't hammer it.
       updatedAt: string;
     };
 
+> Rate semantics: both \`rate\` (sourceChain→destChain) and \`counterRate\`
+> (destChain→sourceChain) are quoted in **canonical_dest per 1
+> canonical_source** — for a (btc, tao) miner that's **TAO per 1 BTC** for
+> both fields. So picking the best miner *flips* by direction:
+> BTC→TAO wants the **highest** \`rate\` (most TAO out per BTC in); TAO→BTC
+> wants the **lowest** \`counterRate\` (least TAO needed per BTC received).
+> To compute output: BTC→TAO → \`tao_out = btc_in * rate\`; TAO→BTC →
+> \`btc_out = tao_in / counterRate\`.
+
     type ActiveSwap = {
       swapId: string;
       status: 'ACTIVE' | 'FULFILLED' | 'COMPLETED' | 'TIMED_OUT';
