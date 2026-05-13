@@ -14,14 +14,19 @@ import { FONTS } from '../../theme';
 import { useMiners } from '../../api';
 import { useCopy } from '../../hooks';
 import HoverCard from '../HoverCard';
-import { formatRate } from '../../utils/format';
+import { formatRate, trimTrailingZeros } from '../../utils/format';
 
 type Direction = 'BTC->TAO' | 'TAO->BTC';
 
 interface BestQuote {
   uid: number;
   hotkey: string;
-  rate: string;
+  // Raw rate from the API, always expressed as TAO per 1 BTC regardless of
+  // direction (canonical_dest per 1 canonical_source — see Miner model docs).
+  rawRate: string;
+  // Effective rate for the user's chosen direction (destSym per 1 sourceSym).
+  // For BTC->TAO that's `rawRate`; for TAO->BTC it's `1 / rawRate`.
+  effectiveRate: number;
   out: string;
 }
 
@@ -38,30 +43,53 @@ const computeBest = (
   direction: Direction,
   amount: number,
 ): BestQuote | null => {
-  // Canonical ordering: API returns sourceChain='btc', destChain='tao' (lowercase).
-  // `rate` is the BTC->TAO quote; `counterRate` is the TAO->BTC quote when
-  // posted. Filter on a case-insensitive btc/tao match so a future casing
-  // change on the API side doesn't silently zero this out again.
+  // Canonical ordering: API returns sourceChain='btc', destChain='tao'
+  // (lowercase). Both `rate` (BTC->TAO) and `counterRate` (TAO->BTC) are in
+  // the same canonical unit: TAO per 1 BTC. So the "best" deal flips:
+  //   - BTC->TAO: highest rate (most TAO per BTC sold)
+  //   - TAO->BTC: lowest counterRate (least TAO to buy 1 BTC)
+  // Filter case-insensitively so a future casing change on the API doesn't
+  // silently zero this out again.
+  const isForward = direction === 'BTC->TAO';
   const candidates = miners
     .filter((m) => m.isActive)
     .map((m) => {
       const src = (m.sourceChain ?? '').toLowerCase();
       const dst = (m.destChain ?? '').toLowerCase();
       if (src !== 'btc' || dst !== 'tao') return null;
-      const r = direction === 'BTC->TAO' ? m.rate : m.counterRate;
-      if (!r || parseFloat(r) <= 0) return null;
-      return { uid: m.uid, hotkey: m.hotkey, rate: r };
+      const r = isForward ? m.rate : m.counterRate;
+      if (!r) return null;
+      const parsed = parseFloat(r);
+      if (!isFinite(parsed) || parsed <= 0) return null;
+      return { uid: m.uid, hotkey: m.hotkey, rawRate: r, parsed };
     })
     .filter(
-      (x): x is { uid: number; hotkey: string; rate: string } => x !== null,
+      (
+        x,
+      ): x is {
+        uid: number;
+        hotkey: string;
+        rawRate: string;
+        parsed: number;
+      } => x !== null,
     );
 
   if (candidates.length === 0) return null;
   const best = candidates.reduce((a, b) =>
-    parseFloat(a.rate) >= parseFloat(b.rate) ? a : b,
+    isForward ? (a.parsed >= b.parsed ? a : b) : a.parsed <= b.parsed ? a : b,
   );
-  const out = (parseFloat(best.rate) * amount).toFixed(6);
-  return { ...best, out };
+  const effectiveRate = isForward ? best.parsed : 1 / best.parsed;
+  // 8 decimals covers BTC's smallest unit so a small TAO->BTC quote still
+  // renders with usable precision instead of rounding to zero. Trim trailing
+  // zeros so a clean number doesn't display with eight padding digits.
+  const out = trimTrailingZeros((effectiveRate * amount).toFixed(8));
+  return {
+    uid: best.uid,
+    hotkey: best.hotkey,
+    rawRate: best.rawRate,
+    effectiveRate,
+    out,
+  };
 };
 
 interface CopyRowProps {
@@ -146,7 +174,14 @@ const RateQuoteHelper: React.FC = () => {
     ? `alw swap now --auto --yes --from ${fromArg} --to ${toArg} --amount ${amount} --receive-address <your-${destLabel}-address> --from-address <your-${sourceLabel}-address>`
     : `# no active miner quoting ${sourceSym} -> ${destSym} right now`;
 
-  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "btc" and (.destChain | ascii_downcase) == "tao") | {uid, rate: ${direction === 'BTC->TAO' ? '.rate' : '.counterRate'}, hotkey}' | jq -s 'sort_by(-(.rate | tonumber))[0]'`;
+  // Both `rate` (BTC->TAO) and `counterRate` (TAO->BTC) are stored as
+  // TAO per 1 BTC, so the "best" miner flips by direction: forward picks
+  // the highest (most TAO out per BTC in), reverse picks the lowest (least
+  // TAO in per BTC out).
+  const rateField = direction === 'BTC->TAO' ? '.rate' : '.counterRate';
+  const sortExpr =
+    direction === 'BTC->TAO' ? '-(.rate | tonumber)' : '(.rate | tonumber)';
+  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "btc" and (.destChain | ascii_downcase) == "tao") | {uid, rate: ${rateField}, hotkey}' | jq -s 'sort_by(${sortExpr})[0]'`;
 
   return (
     <HoverCard
@@ -248,7 +283,8 @@ const RateQuoteHelper: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              {best ? formatRate(best.rate) : '—'} {destSym}/{sourceSym}
+              {best ? formatRate(best.effectiveRate) : '—'} {destSym}/
+              {sourceSym}
             </Typography>
           </Stack>
           <Stack sx={{ flex: 1 }}>
