@@ -99,7 +99,7 @@ const MinerLeaderboard: React.FC<{
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [query, setQuery] = useState('');
 
-  const baseRows = data ?? [];
+  const baseRows = useMemo(() => data ?? [], [data]);
   const topShare = useMemo(
     () => Math.max(0, ...baseRows.map((r) => r.crownShare)),
     [baseRows],
