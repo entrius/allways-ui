@@ -498,7 +498,7 @@ const CrownHistoryGrid: React.FC<{
                             : 'none',
                           outlineOffset: matchesSearch ? '1px' : 0,
                           boxShadow: matchesSearch
-                            ? `inset 0 0 0 1px rgba(255,255,255,0.85)`
+                            ? 'inset 0 0 0 1px rgba(255,255,255,0.85)'
                             : 'none',
                           transition:
                             'transform 0.06s, box-shadow 0.06s, background-color 0.22s ease, opacity 0.22s ease',

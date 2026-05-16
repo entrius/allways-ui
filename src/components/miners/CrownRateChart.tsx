@@ -12,7 +12,6 @@ import {
   useMinerRateHistory,
   type CrownRateHistoryRow,
   type Direction,
-  type MinerRateHistoryRow,
 } from '../../api';
 import { FONTS } from '../../theme';
 
