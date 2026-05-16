@@ -30,8 +30,29 @@ export type LeaderboardRow = {
   completedSwaps: number;
   timedOutSwaps: number;
   volumeTao: string;
+  collateralRao: string;
   isActive: boolean;
   currentCrownDirections: Direction[];
+};
+
+export type ScoreFactors = {
+  capacityFactor: number;
+  collateralRao: string;
+  maxSwapAmountRao: string;
+
+  volumeFactor: number;
+  volumeShareWindow: number;
+  crownShareWindow: number;
+  volumeTaoWindow: string;
+  networkVolumeTaoWindow: string;
+  previousCrownShareWindow: number;
+  previousVolumeFactor: number;
+
+  closedSwaps: number;
+  credibilityRamp: number;
+  credibilityRampTarget: number;
+  successRate30d: number;
+  successMultiplier: number;
 };
 
 export type MinerStats = {
@@ -48,6 +69,7 @@ export type MinerStats = {
   collateralRao: string;
   activatedAt: number | null;
   currentCrownDirections: Direction[];
+  scoreFactors: ScoreFactors;
 };
 
 export type MinerRateHistoryRow = {
@@ -65,6 +87,8 @@ export type NetworkOverview = {
   networkSuccessRate: number;
   activeMiners: number;
   pairMix: PairMix[];
+  scoringWindowVolumeTao: string;
+  maxSwapAmountRao: string;
 };
 
 export type HaltState = { halted: boolean; asOfBlock: number };

@@ -10,7 +10,6 @@ import {
   TableRow,
   TextField,
   Typography,
-  alpha,
   useTheme,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -21,10 +20,9 @@ import {
 } from '../../api';
 import CrownIcon from './CrownIcon';
 import { FONTS } from '../../theme';
+import { formatTao, shortHotkey } from '../../utils/format';
 
 const RANGES: Range[] = ['24h', '7d', '30d', '90d', 'all'];
-
-const HOTKEY_SHORT = (h: string) => `${h.slice(0, 4)}…${h.slice(-4)}`;
 
 const formatVolume = (raw: string): string => {
   const v = parseFloat(raw);
@@ -51,12 +49,19 @@ const TIER_COLORS = [
   '#d2dafe',
 ];
 
-type SortKey = 'uid' | 'crownShare' | 'success' | 'volume' | 'active';
+type SortKey =
+  | 'uid'
+  | 'crownShare'
+  | 'collateral'
+  | 'success'
+  | 'volume'
+  | 'active';
 type SortDir = 'asc' | 'desc';
 
 const SORT_LABELS: Record<SortKey, string> = {
   uid: 'uid',
   crownShare: 'crown share',
+  collateral: 'collateral',
   success: 'success',
   volume: 'volume',
   active: 'active',
@@ -72,6 +77,8 @@ const compare = (
       return a.uid - b.uid;
     case 'crownShare':
       return a.crownShare - b.crownShare;
+    case 'collateral':
+      return parseFloat(a.collateralRao) - parseFloat(b.collateralRao);
     case 'success':
       return successRatio(a) - successRatio(b);
     case 'volume':
@@ -145,11 +152,6 @@ const MinerLeaderboard: React.FC<{
     [baseRows],
   );
 
-  const sortedRows = useMemo(() => {
-    const sign = sortDir === 'asc' ? 1 : -1;
-    return [...baseRows].sort((a, b) => sign * compare(a, b, sortKey));
-  }, [baseRows, sortKey, sortDir]);
-
   const tierByHotkey = useMemo(() => {
     // Crown-share-desc tier coloring stays stable regardless of active sort —
     // tier is a property of the miner's standing, not the table view order.
@@ -161,19 +163,31 @@ const MinerLeaderboard: React.FC<{
     return map;
   }, [baseRows]);
 
-  const queryNorm = query.trim().toLowerCase();
-  const matches = (row: LeaderboardRow): boolean => {
-    if (!queryNorm) return false;
-    if (String(row.uid) === queryNorm) return true;
-    return row.hotkey.toLowerCase().includes(queryNorm);
-  };
+  // Numeric query → exact uid match (typing "3" shouldn't surface uid 30,
+  // 31, ...). Anything non-numeric falls through to hotkey substring.
+  const queryRaw = query.trim();
+  const queryNorm = queryRaw.toLowerCase();
+  const numericQuery = /^\d+$/.test(queryRaw);
+  const filteredRows = useMemo(() => {
+    if (!queryNorm) return baseRows;
+    if (numericQuery) {
+      return baseRows.filter((row) => String(row.uid) === queryRaw);
+    }
+    return baseRows.filter((row) =>
+      row.hotkey.toLowerCase().includes(queryNorm),
+    );
+  }, [baseRows, queryNorm, queryRaw, numericQuery]);
+
+  const sortedRows = useMemo(() => {
+    const sign = sortDir === 'asc' ? 1 : -1;
+    return [...filteredRows].sort((a, b) => sign * compare(a, b, sortKey));
+  }, [filteredRows, sortKey, sortDir]);
 
   const onSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
     } else {
       setSortKey(key);
-      // Smart default per column: numeric columns default desc, active flag asc
       setSortDir(key === 'active' ? 'asc' : 'desc');
     }
   };
@@ -228,6 +242,19 @@ const MinerLeaderboard: React.FC<{
               '& fieldset': { borderColor: 'divider' },
             }}
           />
+          {queryNorm && (
+            <Typography
+              variant="mono"
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.65rem',
+                color: 'text.disabled',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {filteredRows.length} of {baseRows.length} shown
+            </Typography>
+          )}
           <Stack direction="row" spacing={0.5}>
             {RANGES.map((r) => (
               <Button
@@ -272,6 +299,13 @@ const MinerLeaderboard: React.FC<{
               onSort={onSort}
             />
             <SortHeader
+              label={SORT_LABELS.collateral}
+              sortKey="collateral"
+              active={sortKey}
+              dir={sortDir}
+              onSort={onSort}
+            />
+            <SortHeader
               label={SORT_LABELS.success}
               sortKey="success"
               active={sortKey}
@@ -298,7 +332,7 @@ const MinerLeaderboard: React.FC<{
           {sortedRows.length === 0 && !isLoading && (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={8}
                 sx={{ textAlign: 'center', color: 'text.disabled' }}
               >
                 No miners registered yet
@@ -314,7 +348,6 @@ const MinerLeaderboard: React.FC<{
                 ? 'error.main'
                 : 'text.primary';
             const wearsCrown = row.currentCrownDirections.length > 0;
-            const matched = matches(row);
             return (
               <TableRow
                 key={row.hotkey}
@@ -329,11 +362,6 @@ const MinerLeaderboard: React.FC<{
                 hover
                 sx={{
                   cursor: 'pointer',
-                  backgroundColor: matched
-                    ? alpha(theme.palette.primary.main, 0.08)
-                    : 'transparent',
-                  borderLeft: matched ? '2px solid' : '2px solid transparent',
-                  borderLeftColor: matched ? 'primary.main' : 'transparent',
                   '&:hover td': { backgroundColor: 'surface.elevated' },
                   '&:focus-visible': {
                     outline: `2px solid ${theme.palette.primary.main}`,
@@ -348,7 +376,7 @@ const MinerLeaderboard: React.FC<{
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>{row.uid}</TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {HOTKEY_SHORT(row.hotkey)}
+                  {shortHotkey(row.hotkey)}
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" alignItems="center" spacing={1.25}>
@@ -374,6 +402,9 @@ const MinerLeaderboard: React.FC<{
                       {(row.crownShare * 100).toFixed(0)}%
                     </Typography>
                   </Stack>
+                </TableCell>
+                <TableCell sx={{ fontFamily: FONTS.mono }}>
+                  {formatTao(row.collateralRao)} τ
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono, color: successColor }}>
                   {formatSuccess(row)}

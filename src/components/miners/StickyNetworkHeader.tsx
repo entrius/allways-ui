@@ -42,7 +42,7 @@ const StickyNetworkHeader: React.FC = () => {
               }}
             >
               uid {h.uid}
-              {h.rate != null && <> @ {h.rate}</>}
+              {h.rate != null && <> @ {h.rate.toFixed(2)} τ</>}
             </Typography>
           ) : (
             <Typography

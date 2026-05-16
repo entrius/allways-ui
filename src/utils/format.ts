@@ -1,6 +1,10 @@
 export const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
 
+// SS58 hotkeys are always > 40 chars; format as 4…4 with an ellipsis to
+// match the leaderboard / detail-header convention.
+export const shortHotkey = (h: string) => `${h.slice(0, 4)}…${h.slice(-4)}`;
+
 export const formatTao = (rao: string | number) => {
   const val = typeof rao === 'string' ? parseInt(rao, 10) : rao;
   return (val / 1e9).toFixed(2);

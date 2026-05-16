@@ -37,7 +37,7 @@ const TileValue: React.FC<{ value: string; suffix?: React.ReactNode }> = ({
   </Stack>
 );
 
-const formatPair = (raw: string): string => raw.replace('-', '→');
+const formatPair = (raw: string): string => raw.replaceAll('-', '→');
 
 const DirectionBars: React.FC<{ segments: PairMix[] }> = ({ segments }) => {
   const total = segments.reduce((sum, s) => sum + s.pct, 0) || 1;

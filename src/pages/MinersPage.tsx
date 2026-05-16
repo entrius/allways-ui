@@ -35,7 +35,7 @@ const MinersPage: React.FC = () => {
     : 'BTC-TAO';
   const crownRange = isCrownRange(params.get('crownRange'))
     ? (params.get('crownRange') as '1h' | '2h' | '4h')
-    : '1h';
+    : '2h';
   const rateRange = isRateRange(params.get('rateRange'))
     ? (params.get('rateRange') as '1h' | '4h' | '24h' | '7d')
     : '4h';

@@ -12,6 +12,7 @@ import type {
   MinerStats,
   NetworkOverview,
   Range,
+  ScoreFactors,
 } from './models';
 
 const CROWN_REFRESH_MS = 12_000;
@@ -70,6 +71,20 @@ export const useMinerStats = (hotkey: string, range: Range = '30d') =>
     SSE_FALLBACK_INTERVAL,
     { range },
     !!hotkey,
+  );
+
+export const useScoreFactorsWindow = (
+  hotkey: string,
+  direction: Direction,
+  fromBlock: number | undefined,
+  toBlock: number | undefined,
+) =>
+  useApiQuery<ScoreFactors>(
+    'miner-score-factors-window',
+    `/miners/${hotkey}/score-factors`,
+    SSE_FALLBACK_INTERVAL,
+    { direction, fromBlock, toBlock },
+    !!hotkey && fromBlock != null && toBlock != null && toBlock >= fromBlock,
   );
 
 export const useMinerSwaps = (

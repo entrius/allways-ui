@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
+  CrownHistoryPanel,
   CrownIcon,
   CrownRateChart,
   MinerSwapHistory,
@@ -14,11 +15,16 @@ import {
   SEO,
   StickyNetworkHeader,
 } from '../components';
-import { useMinerStats, type MinerStats, type Range } from '../api';
+import {
+  useMinerStats,
+  useMiners,
+  type Direction,
+  type MinerStats,
+  type Range,
+} from '../api';
 import { FONTS } from '../theme';
+import { formatTao, shortHotkey } from '../utils/format';
 import CopyableAddress from '../components/CopyableAddress';
-
-const HOTKEY_SHORT = (h: string) => `${h.slice(0, 4)}…${h.slice(-4)}`;
 
 const RANGES: Range[] = ['24h', '7d', '30d', '90d', 'all'];
 
@@ -27,6 +33,12 @@ const isRange = (v: string | null): v is Range =>
 
 const isRateRange = (v: string | null): v is '1h' | '4h' | '24h' | '7d' =>
   ['1h', '4h', '24h', '7d'].includes(v ?? '');
+
+const isDirection = (v: string | null): v is Direction =>
+  v === 'BTC-TAO' || v === 'TAO-BTC';
+
+const isCrownRange = (v: string | null): v is '1h' | '2h' | '4h' =>
+  v === '1h' || v === '2h' || v === '4h';
 
 const HeaderField: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
@@ -65,41 +77,44 @@ const fmtDuration = (sec: number | null): string => {
   return `${hrs}h ${mins % 60}m`;
 };
 
-const StatTile: React.FC<{
+const PerformanceMetric: React.FC<{
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
 }> = ({ label, value, sub }) => (
-  <Box sx={{ px: 2, py: 1.75 }}>
+  <Box sx={{ minWidth: 0 }}>
     <Typography
-      variant="monoSmall"
       sx={{
-        fontSize: '0.58rem',
-        letterSpacing: '0.22em',
-        color: 'text.secondary',
-        mb: 0.75,
-      }}
-    >
-      {label}
-    </Typography>
-    <Box
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '1.25rem',
+        fontFamily: FONTS.heading,
+        fontSize: '2rem',
         fontWeight: 500,
         lineHeight: 1,
+        letterSpacing: '-0.02em',
         color: 'text.primary',
       }}
     >
       {value}
-    </Box>
+    </Typography>
+    <Typography
+      variant="monoSmall"
+      sx={{
+        mt: 1,
+        fontSize: '0.58rem',
+        letterSpacing: '0.22em',
+        color: 'text.disabled',
+        textTransform: 'uppercase',
+      }}
+    >
+      {label}
+    </Typography>
     {sub && (
       <Typography
         sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.65rem',
-          color: 'text.disabled',
           mt: 0.5,
+          fontFamily: FONTS.body,
+          fontSize: '0.7rem',
+          color: 'text.secondary',
+          minHeight: '1.1em',
         }}
       >
         {sub}
@@ -108,11 +123,39 @@ const StatTile: React.FC<{
   </Box>
 );
 
-const MinerStatsStrip: React.FC<{
-  stats: MinerStats | undefined;
+const RangeChips: React.FC<{
   range: Range;
   onRangeChange: (r: Range) => void;
-}> = ({ stats, range, onRangeChange }) => {
+}> = ({ range, onRangeChange }) => (
+  <Stack direction="row" spacing={0.5}>
+    {RANGES.map((r) => (
+      <Button
+        key={r}
+        size="small"
+        variant="text"
+        onClick={() => onRangeChange(r)}
+        sx={{
+          minWidth: 0,
+          px: 1.25,
+          py: 0.3,
+          fontFamily: FONTS.mono,
+          fontSize: '0.62rem',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: r === range ? 'primary.main' : 'text.disabled',
+          fontWeight: r === range ? 600 : 400,
+          '&:hover': { backgroundColor: 'transparent', color: 'text.primary' },
+        }}
+      >
+        {r}
+      </Button>
+    ))}
+  </Stack>
+);
+
+const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
+  stats,
+}) => {
   const volume = stats?.volumeTao
     ? parseFloat(stats.volumeTao).toFixed(2)
     : '—';
@@ -120,113 +163,44 @@ const MinerStatsStrip: React.FC<{
     stats && stats.totalSwaps > 0
       ? `${(stats.successRate * 100).toFixed(0)}%`
       : '—';
-  const crownPct =
-    stats != null ? `${(stats.crownShare * 100).toFixed(0)}%` : '—';
   const swaps = stats != null ? stats.totalSwaps.toLocaleString() : '—';
   const completedSub = stats
-    ? `${stats.completedSwaps} ok · ${stats.timedOutSwaps} out`
+    ? `${stats.completedSwaps} ok · ${stats.timedOutSwaps} failed`
     : undefined;
 
   return (
     <Box
       sx={{
-        backgroundColor: 'surface.light',
-        border: '1px solid',
-        borderColor: 'divider',
-        mb: 3,
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: 'repeat(2, 1fr)',
+          sm: 'repeat(2, 1fr)',
+          md: 'repeat(4, 1fr)',
+        },
+        rowGap: 3,
+        columnGap: { xs: 2, md: 4 },
       }}
     >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{
-          px: 2,
-          pt: 1.5,
-          pb: 0.5,
-        }}
-      >
-        <Typography
-          variant="monoSmall"
-          sx={{
-            fontSize: '0.6rem',
-            letterSpacing: '0.22em',
-            color: 'text.disabled',
-          }}
-        >
-          Last
-        </Typography>
-        <Stack direction="row" spacing={0.5}>
-          {RANGES.map((r) => (
-            <Button
-              key={r}
-              size="small"
-              variant={r === range ? 'contained' : 'outlined'}
-              onClick={() => onRangeChange(r)}
-              sx={{
-                minWidth: 0,
-                px: 1.25,
-                py: 0.4,
-                fontFamily: FONTS.mono,
-                fontSize: '0.6rem',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                borderColor: 'divider',
-              }}
+      <PerformanceMetric label="Swaps" value={swaps} sub={completedSub} />
+      <PerformanceMetric label="Success" value={successPct} />
+      <PerformanceMetric
+        label="Volume"
+        value={
+          <>
+            {volume}
+            <Box
+              component="span"
+              sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
             >
-              {r}
-            </Button>
-          ))}
-        </Stack>
-      </Stack>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: 'repeat(2, 1fr)',
-            sm: 'repeat(3, 1fr)',
-            md: 'repeat(5, 1fr)',
-          },
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          '& > *': {
-            borderRight: '1px solid',
-            borderColor: 'divider',
-          },
-          '& > *:last-of-type': { borderRight: 'none' },
-          '@media (max-width: 899px)': {
-            '& > *:nth-of-type(3n)': { borderRight: 'none' },
-            '& > *:nth-of-type(n + 4)': {
-              borderTop: '1px solid',
-              borderColor: 'divider',
-            },
-          },
-        }}
-      >
-        <StatTile label="Swaps" value={swaps} sub={completedSub} />
-        <StatTile label="Success" value={successPct} />
-        <StatTile
-          label="Volume"
-          value={
-            <>
-              {volume}
-              <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                τ
-              </Box>
-            </>
-          }
-        />
-        <StatTile label="Crown share" value={crownPct} />
-        <StatTile
-          label="Avg fulfill"
-          value={fmtDuration(stats?.avgFulfillSec ?? null)}
-          sub={
-            stats?.avgCompleteSec != null
-              ? `complete ${fmtDuration(stats.avgCompleteSec)}`
-              : undefined
-          }
-        />
-      </Box>
+              τ
+            </Box>
+          </>
+        }
+      />
+      <PerformanceMetric
+        label="Avg fulfill"
+        value={fmtDuration(stats?.avgFulfillSec ?? null)}
+      />
     </Box>
   );
 };
@@ -241,27 +215,62 @@ const MinerDetailPage: React.FC = () => {
   const rateRange = isRateRange(params.get('rateRange'))
     ? (params.get('rateRange') as '1h' | '4h' | '24h' | '7d')
     : '4h';
+  const crownDirection: Direction = isDirection(params.get('crownDir'))
+    ? (params.get('crownDir') as Direction)
+    : 'BTC-TAO';
+  const crownGridRange: '1h' | '2h' | '4h' = isCrownRange(
+    params.get('crownGridRange'),
+  )
+    ? (params.get('crownGridRange') as '1h' | '2h' | '4h')
+    : '2h';
+  const crownGridPan = parseInt(params.get('crownPan') ?? '600', 10) || 0;
+  const parseBlockParam = (v: string | null): number | null => {
+    if (v == null || v === '') return null;
+    const n = Number(v);
+    return Number.isInteger(n) && n >= 0 ? n : null;
+  };
+  const crownFrom = parseBlockParam(params.get('crownFrom'));
+  const crownTo = parseBlockParam(params.get('crownTo'));
 
-  const setParam = useCallback(
-    (key: string, value: string | undefined) => {
+  const updateParams = useCallback(
+    (updates: Record<string, string | undefined>) => {
       const next = new URLSearchParams(params);
-      if (value === undefined || value === '') next.delete(key);
-      else next.set(key, value);
+      for (const [k, v] of Object.entries(updates)) {
+        if (v === undefined || v === '') next.delete(k);
+        else next.set(k, v);
+      }
       setParams(next, { replace: true });
     },
     [params, setParams],
   );
+  const setParam = (key: string, value: string | undefined) =>
+    updateParams({ [key]: value });
 
   const theme = useTheme();
   const { data: stats } = useMinerStats(hotkey, range);
+  const { data: miners } = useMiners();
+  const liveMiner = miners?.find((m) => m.hotkey === hotkey) ?? null;
   const uid = stats?.uid ?? null;
   const crownDirections = stats?.currentCrownDirections ?? [];
+  // The on-chain commitment is canonicalized so TAO is always destChain (see
+  // Miners.ts). `rate` is source→dest (BTC→TAO when sourceChain='btc'),
+  // `counterRate` is dest→source (TAO→BTC).
+  const fwdRate = parseFloat(liveMiner?.rate ?? '0');
+  const revRate = parseFloat(liveMiner?.counterRate ?? '0');
+  const fwdLabel =
+    liveMiner?.sourceChain && liveMiner?.destChain
+      ? `${liveMiner.sourceChain.toUpperCase()} → ${liveMiner.destChain.toUpperCase()}`
+      : null;
+  const revLabel =
+    liveMiner?.sourceChain && liveMiner?.destChain
+      ? `${liveMiner.destChain.toUpperCase()} → ${liveMiner.sourceChain.toUpperCase()}`
+      : null;
 
   return (
     <Page title={`Miner ${uid ?? ''}`}>
       <SEO
-        title={`Miner ${uid ?? HOTKEY_SHORT(hotkey)}`}
-        description={`Allways miner detail · uid ${uid ?? '?'} · ${HOTKEY_SHORT(hotkey)}`}
+        title={`Miner ${uid ?? shortHotkey(hotkey)}`}
+        description={`Allways miner detail · uid ${uid ?? '?'} · ${shortHotkey(hotkey)}`}
       />
       <StickyNetworkHeader />
       <Stack
@@ -391,7 +400,7 @@ const MinerDetailPage: React.FC = () => {
               </HeaderField>
               {stats?.collateralRao && (
                 <HeaderField label="collateral">
-                  {(Number(stats.collateralRao) / 1e9).toFixed(2)}
+                  {formatTao(stats.collateralRao)}
                   <Box
                     component="span"
                     sx={{ color: 'text.disabled', ml: 0.4 }}
@@ -405,15 +414,87 @@ const MinerDetailPage: React.FC = () => {
                   {stats.activatedAt.toLocaleString()}
                 </HeaderField>
               )}
+              {fwdRate > 0 && fwdLabel && (
+                <HeaderField label={`quote · ${fwdLabel}`}>
+                  {fwdRate.toFixed(2)}
+                  <Box
+                    component="span"
+                    sx={{ color: 'text.disabled', ml: 0.4 }}
+                  >
+                    τ
+                  </Box>
+                </HeaderField>
+              )}
+              {revRate > 0 && revLabel && (
+                <HeaderField label={`quote · ${revLabel}`}>
+                  {revRate.toFixed(2)}
+                  <Box
+                    component="span"
+                    sx={{ color: 'text.disabled', ml: 0.4 }}
+                  >
+                    τ
+                  </Box>
+                </HeaderField>
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                pt: 2.5,
+                mt: 0.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Stack
+                direction="row"
+                alignItems="baseline"
+                justifyContent="space-between"
+                sx={{ mb: 2 }}
+              >
+                <Typography
+                  variant="monoSmall"
+                  sx={{
+                    fontSize: '0.6rem',
+                    letterSpacing: '0.22em',
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Performance · last {range}
+                </Typography>
+                <RangeChips
+                  range={range}
+                  onRangeChange={(r) => setParam('range', r)}
+                />
+              </Stack>
+              <PerformanceGrid stats={stats} />
             </Box>
           </Stack>
         </Box>
 
-        <MinerStatsStrip
-          stats={stats}
-          range={range}
-          onRangeChange={(r) => setParam('range', r)}
-        />
+        {uid != null && (
+          <CrownHistoryPanel
+            hotkey={hotkey}
+            lockedUid={uid}
+            direction={crownDirection}
+            onDirectionChange={(d) => setParam('crownDir', d)}
+            range={crownGridRange}
+            onRangeChange={(r) => setParam('crownGridRange', r)}
+            pan={crownGridPan}
+            onPanChange={(p) =>
+              setParam('crownPan', p === 0 ? undefined : String(p))
+            }
+            customFrom={crownFrom}
+            customTo={crownTo}
+            onCustomRangeChange={(from, to) =>
+              updateParams({
+                crownFrom: from == null ? undefined : String(from),
+                crownTo: to == null ? undefined : String(to),
+              })
+            }
+          />
+        )}
 
         <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
