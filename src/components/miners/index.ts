@@ -4,6 +4,7 @@ export { default as NetworkOverviewStats } from './NetworkOverviewStats';
 export { default as MinerLeaderboard } from './MinerLeaderboard';
 export { default as CrownHistoryGrid } from './CrownHistoryGrid';
 export { default as CrownHistoryPanel } from './CrownHistoryPanel';
+export { default as MinerDetailHeader } from './MinerDetailHeader';
 export { default as CrownRateChart } from './CrownRateChart';
 export { default as MinerSwapHistory } from './MinerSwapHistory';
 export { default as ScoreFactorsStrip } from './ScoreFactorsStrip';

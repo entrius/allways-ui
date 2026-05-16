@@ -10,13 +10,11 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import {
-  useCrownHistory,
-  type CrownHistoryRow,
-  type Direction,
-} from '../../api';
+import { useCrownHistory, type Direction } from '../../api';
 import { FONTS } from '../../theme';
-import CrownIcon from './CrownIcon';
+import CrownGridHoverCard from './CrownGridHoverCard';
+import CrownGridRangeInputs from './CrownGridRangeInputs';
+import { buildCells, buildTiers, type CellState } from './crownGridCells';
 
 // Mirrors SCORING_WINDOW_BLOCKS in allways/constants.py — validator sets
 // weights once per cadence, so the 2h grid snaps to multiples and the
@@ -29,99 +27,8 @@ const RANGE_BLOCKS: Record<string, number> = {
   '2h': SCORING_WINDOW_BLOCKS,
   '4h': 2 * SCORING_WINDOW_BLOCKS,
 };
-const TIER_PALETTE = ['#0052ff', '#4d7dff', '#7f9eff', '#aebeff', '#d2dafe'];
 
 type CrownRange = '1h' | '2h' | '4h';
-
-type CellState = {
-  block: number;
-  holderHotkey: string | null;
-  holderUid: number | null;
-  rate: number;
-  isTie: boolean;
-  isCurrent: boolean;
-  color: string | null;
-};
-
-const buildCells = (
-  rows: CrownHistoryRow[],
-  lo: number,
-  hi: number,
-  maxBlock: number,
-  tiers: Map<string, string>,
-  otherColor: string,
-  subjectUid: number | null = null,
-  subjectColor: string | null = null,
-): CellState[] => {
-  const byBlock = new Map<number, CrownHistoryRow[]>();
-  for (const row of rows) {
-    const arr = byBlock.get(row.block) ?? [];
-    arr.push(row);
-    byBlock.set(row.block, arr);
-  }
-  const cells: CellState[] = [];
-  for (let b = lo; b <= hi; b++) {
-    const here = byBlock.get(b) ?? [];
-    here.sort((a, c) => a.hotkey.localeCompare(c.hotkey));
-    if (subjectUid != null) {
-      const mine = here.find((r) => r.uid === subjectUid);
-      cells.push({
-        block: b,
-        holderHotkey: mine?.hotkey ?? null,
-        holderUid: mine?.uid ?? null,
-        rate: mine?.rate ?? 0,
-        isTie: mine != null && here.length > 1,
-        isCurrent: b === maxBlock,
-        color: mine ? subjectColor : null,
-      });
-      continue;
-    }
-    const winner = here[0];
-    cells.push({
-      block: b,
-      holderHotkey: winner?.hotkey ?? null,
-      holderUid: winner?.uid ?? null,
-      rate: winner?.rate ?? 0,
-      isTie: here.length > 1,
-      isCurrent: b === maxBlock,
-      color: winner?.hotkey ? (tiers.get(winner.hotkey) ?? otherColor) : null,
-    });
-  }
-  return cells;
-};
-
-const buildTiers = (
-  rows: CrownHistoryRow[],
-  lo: number,
-  hi: number,
-): {
-  color: Map<string, string>;
-  ordered: {
-    hotkey: string;
-    uid: number | null;
-    count: number;
-    color: string;
-  }[];
-} => {
-  const counts = new Map<string, { uid: number | null; count: number }>();
-  for (const row of rows) {
-    if (row.block < lo || row.block > hi) continue;
-    const entry = counts.get(row.hotkey);
-    if (entry) entry.count += 1;
-    else counts.set(row.hotkey, { uid: row.uid ?? null, count: 1 });
-  }
-  const sorted = Array.from(counts.entries())
-    .sort((a, b) => b[1].count - a[1].count)
-    .map(([hotkey, { uid, count }], idx) => ({
-      hotkey,
-      uid,
-      count,
-      color: TIER_PALETTE[idx] ?? '#6b7280',
-    }));
-  const colorMap = new Map<string, string>();
-  for (const { hotkey, color } of sorted) colorMap.set(hotkey, color);
-  return { color: colorMap, ordered: sorted };
-};
 
 const CrownHistoryGrid: React.FC<{
   direction: Direction;
@@ -173,41 +80,6 @@ const CrownHistoryGrid: React.FC<{
     customFrom >= 0 &&
     customTo > customFrom &&
     customTo - customFrom <= SCORING_WINDOW_BLOCKS;
-  // Local "draft" state for the from/to inputs; syncs back when the URL-
-  // driven prop changes (e.g. browser back-button).
-  const [customFromInput, setCustomFromInput] = useState(
-    customFrom != null ? String(customFrom) : '',
-  );
-  const [customToInput, setCustomToInput] = useState(
-    customTo != null ? String(customTo) : '',
-  );
-  useEffect(() => {
-    setCustomFromInput(customFrom != null ? String(customFrom) : '');
-  }, [customFrom]);
-  useEffect(() => {
-    setCustomToInput(customTo != null ? String(customTo) : '');
-  }, [customTo]);
-  const customInputError = useMemo(() => {
-    if (!customFromInput && !customToInput) return null;
-    if (!customFromInput || !customToInput) return 'set both ends';
-    const f = Number(customFromInput);
-    const t = Number(customToInput);
-    if (!Number.isInteger(f) || !Number.isInteger(t) || f < 0 || t < 0)
-      return 'block #s must be non-negative integers';
-    if (t <= f) return 'to must be > from';
-    if (t - f > SCORING_WINDOW_BLOCKS)
-      return `range > ${SCORING_WINDOW_BLOCKS} blocks`;
-    return null;
-  }, [customFromInput, customToInput]);
-  const submitCustomRange = () => {
-    if (customInputError || !customFromInput || !customToInput) return;
-    onCustomRangeChange?.(Number(customFromInput), Number(customToInput));
-  };
-  const clearCustomRange = () => {
-    setCustomFromInput('');
-    setCustomToInput('');
-    onCustomRangeChange?.(null, null);
-  };
   const [uidSearch, setUidSearch] = useState('');
   // Track whether the active filter came from clicking a legend chip vs.
   // typing in the search box. Only chip-driven filters surface a clear (×)
@@ -507,92 +379,13 @@ const CrownHistoryGrid: React.FC<{
         )}
       </Stack>
       {onCustomRangeChange && (
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-          <Typography
-            variant="mono"
-            sx={{
-              fontSize: '0.6rem',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: 'text.disabled',
-              mr: 0.5,
-            }}
-          >
-            range
-          </Typography>
-          <TextField
-            size="small"
-            placeholder="from #"
-            value={customFromInput}
-            onChange={(e) =>
-              setCustomFromInput(e.target.value.replace(/[^0-9]/g, ''))
-            }
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitCustomRange();
-            }}
-            inputProps={{
-              style: {
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                padding: '5px 9px',
-              },
-            }}
-            sx={{ width: 110 }}
-          />
-          <Typography
-            variant="mono"
-            sx={{ fontSize: '0.7rem', color: 'text.disabled' }}
-          >
-            →
-          </Typography>
-          <TextField
-            size="small"
-            placeholder="to #"
-            value={customToInput}
-            onChange={(e) =>
-              setCustomToInput(e.target.value.replace(/[^0-9]/g, ''))
-            }
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitCustomRange();
-            }}
-            inputProps={{
-              style: {
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                padding: '5px 9px',
-              },
-            }}
-            sx={{ width: 110 }}
-          />
-          {customActive && (
-            <Button
-              variant="text"
-              size="small"
-              onClick={clearCustomRange}
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem' }}
-            >
-              × clear range
-            </Button>
-          )}
-          {customInputError ? (
-            <Typography
-              variant="mono"
-              sx={{ fontSize: '0.6rem', color: 'error.main' }}
-            >
-              {customInputError}
-            </Typography>
-          ) : (
-            (customFromInput || customToInput) &&
-            !customActive && (
-              <Typography
-                variant="mono"
-                sx={{ fontSize: '0.6rem', color: 'text.disabled' }}
-              >
-                press enter to apply
-              </Typography>
-            )
-          )}
-        </Stack>
+        <CrownGridRangeInputs
+          customFrom={customFrom}
+          customTo={customTo}
+          customActive={customActive}
+          maxSpan={SCORING_WINDOW_BLOCKS}
+          onChange={onCustomRangeChange}
+        />
       )}
       <Box sx={{ position: 'relative' }}>
         <Box
@@ -724,7 +517,7 @@ const CrownHistoryGrid: React.FC<{
               );
             })}
           </Box>
-          {hover && <HoverCard hover={hover} isDark={isDark} />}
+          {hover && <CrownGridHoverCard hover={hover} isDark={isDark} />}
         </Box>
         {subjectAbsent && (
           <Stack
@@ -919,136 +712,5 @@ const CrownHistoryGrid: React.FC<{
     </Box>
   );
 };
-
-const HoverCard: React.FC<{
-  hover: { cell: CellState; x: number; y: number };
-  isDark: boolean;
-}> = ({ hover, isDark }) => {
-  const { cell, x, y } = hover;
-  const bg = isDark ? 'rgba(8,10,14,0.97)' : 'rgba(255,255,255,0.98)';
-  const border = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(9,11,13,0.18)';
-  const shadow = isDark
-    ? '0 12px 28px -8px rgba(0,0,0,0.7)'
-    : '0 12px 28px -8px rgba(9,11,13,0.25)';
-  const dotBg =
-    cell.color ?? (isDark ? 'rgba(255,255,255,0.18)' : 'rgba(9,11,13,0.22)');
-  return (
-    <Box
-      sx={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        transform: 'translate(-50%, calc(-100% - 10px))',
-        pointerEvents: 'none',
-        zIndex: 10,
-        minWidth: 168,
-        backgroundColor: bg,
-        border: '1px solid',
-        borderColor: border,
-        borderRadius: '4px',
-        boxShadow: shadow,
-        backdropFilter: 'blur(10px)',
-        px: 1.5,
-        py: 1.25,
-        fontFamily: FONTS.mono,
-        fontSize: '0.78rem',
-        color: 'text.primary',
-        animation: 'crownHoverIn 0.12s cubic-bezier(0.16, 1, 0.3, 1)',
-        '@keyframes crownHoverIn': {
-          from: { opacity: 0, transform: 'translate(-50%, calc(-100% - 4px))' },
-          to: { opacity: 1, transform: 'translate(-50%, calc(-100% - 10px))' },
-        },
-      }}
-    >
-      <Stack spacing={0.6}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          {cell.holderHotkey ? (
-            <Box
-              sx={{
-                width: 10,
-                height: 10,
-                backgroundColor: dotBg,
-                border: '1px solid',
-                borderColor: 'divider',
-                flexShrink: 0,
-              }}
-            />
-          ) : (
-            <Box sx={{ width: 10, height: 10, flexShrink: 0 }} />
-          )}
-          {cell.holderHotkey ? (
-            <Box
-              component="span"
-              sx={{ fontWeight: 600, color: 'primary.main' }}
-            >
-              uid {cell.holderUid ?? '?'}
-            </Box>
-          ) : (
-            <Box component="span" sx={{ color: 'text.disabled' }}>
-              no holder
-            </Box>
-          )}
-          {cell.holderHotkey && (
-            <Box
-              component="span"
-              sx={{
-                ml: 'auto',
-                fontSize: '0.65rem',
-                color: 'text.disabled',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-              }}
-            >
-              <CrownIcon size={11} sx={{ color: dotBg, mr: 0 }} />
-              crown
-            </Box>
-          )}
-        </Stack>
-        <HoverLine label="block" value={`#${cell.block.toLocaleString()}`} />
-        {cell.holderHotkey && (
-          <HoverLine label="rate" value={cell.rate.toFixed(2)} />
-        )}
-        {cell.isTie && (
-          <HoverLine
-            label="status"
-            valueColor={isDark ? '#ffcf66' : '#b45309'}
-            value="tied"
-          />
-        )}
-        {cell.isCurrent && (
-          <HoverLine
-            label="status"
-            valueColor="text.secondary"
-            value="pending"
-          />
-        )}
-      </Stack>
-    </Box>
-  );
-};
-
-const HoverLine: React.FC<{
-  label: string;
-  value: React.ReactNode;
-  valueColor?: string;
-}> = ({ label, value, valueColor }) => (
-  <Stack direction="row" spacing={1.5} alignItems="baseline">
-    <Box
-      sx={{
-        width: 38,
-        color: 'text.secondary',
-        fontSize: '0.6rem',
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
-      }}
-    >
-      {label}
-    </Box>
-    <Box sx={{ color: valueColor ?? 'text.primary', fontWeight: 500 }}>
-      {value}
-    </Box>
-  </Stack>
-);
 
 export default CrownHistoryGrid;

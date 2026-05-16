@@ -10,34 +10,30 @@ import {
   SEO,
   StickyNetworkHeader,
 } from '../components';
-import type { Direction, Range } from '../api';
-
-const isDirection = (v: string | null): v is Direction =>
-  v === 'BTC-TAO' || v === 'TAO-BTC';
-
-const isRange = (v: string | null): v is Range =>
-  ['24h', '7d', '30d', '90d', 'all'].includes(v ?? '');
-
-const isCrownRange = (v: string | null): v is '1h' | '2h' | '4h' =>
-  v === '1h' || v === '2h' || v === '4h';
-
-const isRateRange = (v: string | null): v is '1h' | '4h' | '24h' | '7d' =>
-  ['1h', '4h', '24h', '7d'].includes(v ?? '');
+import {
+  isCrownRange,
+  isDirection,
+  isRange,
+  isRateRange,
+  type CrownRange,
+  type Range,
+  type RateRange,
+} from '../api';
 
 const MinersPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
 
-  const range: Range = isRange(params.get('range'))
-    ? (params.get('range') as Range)
-    : '30d';
-  const direction: Direction = isDirection(params.get('pair'))
-    ? (params.get('pair') as Direction)
-    : 'BTC-TAO';
-  const crownRange = isCrownRange(params.get('crownRange'))
-    ? (params.get('crownRange') as '1h' | '2h' | '4h')
+  const rangeParam = params.get('range');
+  const range: Range = isRange(rangeParam) ? rangeParam : '30d';
+  const pairParam = params.get('pair');
+  const direction = isDirection(pairParam) ? pairParam : 'BTC-TAO';
+  const crownRangeParam = params.get('crownRange');
+  const crownRange: CrownRange = isCrownRange(crownRangeParam)
+    ? crownRangeParam
     : '2h';
-  const rateRange = isRateRange(params.get('rateRange'))
-    ? (params.get('rateRange') as '1h' | '4h' | '24h' | '7d')
+  const rateRangeParam = params.get('rateRange');
+  const rateRange: RateRange = isRateRange(rateRangeParam)
+    ? rateRangeParam
     : '4h';
   const pan = Number(params.get('pan') ?? '0') || 0;
 

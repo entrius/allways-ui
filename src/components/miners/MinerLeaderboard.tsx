@@ -19,6 +19,7 @@ import {
   type Range,
 } from '../../api';
 import CrownIcon from './CrownIcon';
+import SortHeader, { type SortDir } from './SortHeader';
 import { FONTS } from '../../theme';
 import { formatTao, shortHotkey } from '../../utils/format';
 
@@ -56,7 +57,6 @@ type SortKey =
   | 'success'
   | 'volume'
   | 'active';
-type SortDir = 'asc' | 'desc';
 
 const SORT_LABELS: Record<SortKey, string> = {
   uid: 'uid',
@@ -86,53 +86,6 @@ const compare = (
     case 'active':
       return Number(a.isActive) - Number(b.isActive);
   }
-};
-
-const SortHeader: React.FC<{
-  label: string;
-  sortKey: SortKey;
-  active: SortKey;
-  dir: SortDir;
-  onSort: (k: SortKey) => void;
-}> = ({ label, sortKey, active, dir, onSort }) => {
-  const isActive = active === sortKey;
-  return (
-    <TableCell
-      onClick={() => onSort(sortKey)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSort(sortKey);
-        }
-      }}
-      tabIndex={0}
-      role="button"
-      aria-sort={
-        isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
-      }
-      sx={{
-        cursor: 'pointer',
-        userSelect: 'none',
-        color: isActive ? 'text.primary' : undefined,
-        '&:hover': { color: 'text.primary' },
-      }}
-    >
-      <Stack direction="row" alignItems="center" spacing={0.5}>
-        <span>{label}</span>
-        <Box
-          component="span"
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.65rem',
-            color: isActive ? 'primary.main' : 'text.disabled',
-            opacity: isActive ? 1 : 0.4,
-          }}
-        >
-          {isActive ? (dir === 'asc' ? '↑' : '↓') : '↕'}
-        </Box>
-      </Stack>
-    </TableCell>
-  );
 };
 
 const MinerLeaderboard: React.FC<{
