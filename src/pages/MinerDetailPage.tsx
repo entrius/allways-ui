@@ -67,7 +67,10 @@ const MinerDetailPage: React.FC = () => {
   const { data: stats } = useMinerStats(hotkey, range);
   const { data: miners } = useMiners();
   const liveMiner = miners?.find((m) => m.hotkey === hotkey) ?? null;
-  const uid = stats?.uid ?? null;
+  // Prefer stats.uid; fall back to the live-miners list (always populated)
+  // so the page header doesn't render "uid ?" while stats is loading or on
+  // an older API that doesn't include uid in the stats response.
+  const uid = stats?.uid ?? liveMiner?.uid ?? null;
 
   return (
     <Page title={`Miner ${uid ?? ''}`}>
