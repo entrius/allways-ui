@@ -10,7 +10,7 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { useCrownHistory, type Direction } from '../../api';
+import { useCrownHistory, useHaltState, type Direction } from '../../api';
 import { FONTS } from '../../theme';
 import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
@@ -93,13 +93,12 @@ const CrownHistoryGrid: React.FC<{
   const gridRef = useRef<HTMLDivElement | null>(null);
   const span = RANGE_BLOCKS[range];
 
-  const { data } = useCrownHistory({ direction });
+  // Anchor pan/snap math on the actual chain head, not on the fetched-data
+  // tip — otherwise panning backward shows an empty grid because
+  // useCrownHistory only fetched the most-recent default window.
+  const { data: halt } = useHaltState();
+  const headBlock = halt?.asOfBlock ?? 0;
 
-  const rows = useMemo(() => data ?? [], [data]);
-  const maxBlock = useMemo(
-    () => (rows.length ? Math.max(...rows.map((r) => r.block)) : 0),
-    [rows],
-  );
   let hi: number;
   let lo: number;
   if (customActive) {
@@ -107,18 +106,28 @@ const CrownHistoryGrid: React.FC<{
     hi = customTo as number;
   } else if (range === '2h') {
     const anchor =
-      Math.floor(maxBlock / SCORING_WINDOW_BLOCKS) * SCORING_WINDOW_BLOCKS;
+      Math.floor(headBlock / SCORING_WINDOW_BLOCKS) * SCORING_WINDOW_BLOCKS;
     const windowsBack = Math.floor(pan / SCORING_WINDOW_BLOCKS);
     lo = Math.max(0, anchor - windowsBack * SCORING_WINDOW_BLOCKS);
     hi = lo + SCORING_WINDOW_BLOCKS - 1;
   } else {
-    hi = maxBlock - pan;
+    hi = headBlock - pan;
     lo = Math.max(0, hi - span + 1);
   }
   const atEarliest = lo <= 0;
   useEffect(() => {
-    if (maxBlock > 0) onWindowChange?.(lo, hi);
-  }, [lo, hi, maxBlock, onWindowChange]);
+    if (headBlock > 0) onWindowChange?.(lo, hi);
+  }, [lo, hi, headBlock, onWindowChange]);
+
+  // Fetch the exact window we're rendering — without this the grid asked for
+  // the API's default range and showed empty cells whenever the user panned
+  // backward past the default.
+  const { data } = useCrownHistory({
+    direction,
+    fromBlock: headBlock > 0 ? lo : undefined,
+    toBlock: headBlock > 0 ? hi : undefined,
+  });
+  const rows = useMemo(() => data ?? [], [data]);
   const isLocked = lockedUid != null;
   const subjectColor = theme.palette.primary.main;
   const { color: tierColors, ordered: tierLegend } = useMemo(
@@ -132,7 +141,7 @@ const CrownHistoryGrid: React.FC<{
         rows,
         lo,
         hi,
-        maxBlock,
+        headBlock,
         tierColors,
         otherColor,
         isLocked ? lockedUid : null,
@@ -142,7 +151,7 @@ const CrownHistoryGrid: React.FC<{
       rows,
       lo,
       hi,
-      maxBlock,
+      headBlock,
       tierColors,
       otherColor,
       isLocked,
@@ -706,7 +715,7 @@ const CrownHistoryGrid: React.FC<{
           mt: 2,
         }}
       >
-        as of #{maxBlock.toLocaleString()} · each cell = 1 block (12s) · each
+        as of #{headBlock.toLocaleString()} · each cell = 1 block (12s) · each
         row = 60 blocks (12m)
       </Typography>
     </Box>
