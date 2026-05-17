@@ -159,6 +159,11 @@ const OrderbookDepth: React.FC = () => {
     const groups: Record<string, number> = {}; // key = rate, val = collateral TAO
 
     miners.forEach((m) => {
+      // Inactive miners aren't tradeable depth — they still have a quote
+      // stored on-chain but no one can hit it. Including them produces
+      // ghost rows (dust collateral at extreme rates) that stretch the
+      // rate axis and contradict this panel's "active miners" framing.
+      if (!m.isActive) return;
       if (!m.collateralRao) return;
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();

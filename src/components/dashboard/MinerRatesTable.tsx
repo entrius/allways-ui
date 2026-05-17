@@ -49,21 +49,39 @@ const pairStr = (m: Miner) =>
 const statusRank = (m: Miner) =>
   !m.isActive ? 3 : m.hasActiveSwap ? 2 : m.isReserved ? 1 : 0;
 
-// Sort by the stronger of the two rates so bidirectional miners aren't penalized
-// by a low counter side, and one-way miners still sort by their single quote.
-const maxRate = (m: Miner) =>
-  Math.max(parseRate(m.rate), parseRate(m.counterRate));
+// Forward (BTC→TAO) and reverse (TAO→BTC) are both quoted as TAO per 1 BTC, but
+// "good" runs in opposite directions: higher forward = customer receives more TAO,
+// lower reverse = customer pays less TAO. A naive max() of the two treats a
+// quote-rejecting reverse value (e.g. 1,000,000 τ) as "the best rate" and sorts
+// the miner to the top. Score by whichever side matches the active direction
+// filter so sort desc always means "most attractive counterparty first."
+const rateScore = (m: Miner, filter: DirectionFilter): number => {
+  const fwd = parseRate(m.rate);
+  const rev = parseRate(m.counterRate);
+  switch (filter) {
+    case 'reverse':
+      return rev > 0 ? -rev : -Infinity;
+    case 'both':
+      return fwd > 0 && rev > 0 ? -(rev - fwd) : -Infinity;
+    case 'forward':
+    case 'all':
+    default:
+      return fwd > 0 ? fwd : -Infinity;
+  }
+};
 
-const getSortValue = (m: Miner, key: SortKey): string | number => {
+const getSortValue = (
+  m: Miner,
+  key: SortKey,
+  filter: DirectionFilter,
+): string | number => {
   switch (key) {
     case 'uid':
       return m.uid;
     case 'pair':
       return pairStr(m);
-    case 'rate': {
-      const v = maxRate(m);
-      return v > 0 ? v : -1;
-    }
+    case 'rate':
+      return rateScore(m, filter);
     case 'collateral':
       return parseInt(m.collateralRao, 10) || 0;
     case 'status':
@@ -163,8 +181,13 @@ const MinerRatesTable: React.FC = () => {
       }
     });
     const sorted = [...directionFiltered].sort((a, b) => {
-      const av = getSortValue(a, sortKey);
-      const bv = getSortValue(b, sortKey);
+      // Status is always the primary key so the dashboard reads top-to-bottom
+      // as "who can I trade with right now": Available → Reserved → Exchanging
+      // → Inactive. The user's chosen column orders within each group.
+      const statusCmp = statusRank(a) - statusRank(b);
+      if (statusCmp !== 0) return statusCmp;
+      const av = getSortValue(a, sortKey, direction);
+      const bv = getSortValue(b, sortKey, direction);
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
       return sortDir === 'asc' ? cmp : -cmp;
     });
