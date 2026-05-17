@@ -15,4 +15,5 @@ export * from './nav';
 export * from './animated';
 export * from './landing';
 export * from './agents';
+export * from './miners';
 export * from './swap';

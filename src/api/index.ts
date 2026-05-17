@@ -1,6 +1,7 @@
 export * from './ApiUtils';
 export * from './EventsApi';
 export * from './MinersApi';
+export * from './MinersDashboardApi';
 export * from './ProtocolApi';
 export * from './ReservationsApi';
 export * from './StatsApi';

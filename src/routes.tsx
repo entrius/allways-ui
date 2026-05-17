@@ -8,6 +8,8 @@ export type AppRoute = Omit<PathRouteProps, 'path'> & {
 
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const MinersPage = React.lazy(() => import('./pages/MinersPage'));
+const MinerDetailPage = React.lazy(() => import('./pages/MinerDetailPage'));
 const SwapPage = React.lazy(() => import('./pages/SwapPage'));
 const SwapDetailPage = React.lazy(() => import('./pages/SwapDetailPage'));
 const ReservationDetailPage = React.lazy(
@@ -22,6 +24,12 @@ const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 const routesArray: AppRoute[] = [
   { name: 'landing', path: '/', element: <LandingPage /> },
   { name: 'dashboard', path: '/dashboard', element: <DashboardPage /> },
+  { name: 'miners', path: '/miners', element: <MinersPage /> },
+  {
+    name: 'miner-detail',
+    path: '/miners/:hotkey',
+    element: <MinerDetailPage />,
+  },
   { name: 'swap', path: '/swap', element: <SwapPage /> },
   { name: 'swap-detail', path: '/swap/:swapId', element: <SwapDetailPage /> },
   {

@@ -18,6 +18,7 @@ export const docsUrl = (): string =>
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard' },
+  { label: 'Miners', to: '/miners' },
   { label: 'Exchange', to: '/swap' },
   { label: 'Agents', to: '/agents' },
 ];
