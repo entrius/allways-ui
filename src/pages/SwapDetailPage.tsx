@@ -456,25 +456,30 @@ const SwapDetailPage: React.FC = () => {
       {/* Flow \u2014 sends and receives in one card, each with its own tx hash */}
       {(() => {
         // Resolve "from" / "to" addresses for each leg from the user's POV.
-        // sourceChain === 'tao': user sends TAO from their hotkey → miner hotkey;
-        //                       miner sends BTC from minerSourceAddress → user's BTC addr.
-        // sourceChain === 'btc': user sends BTC from userSourceAddress → minerSourceAddress;
-        //                       miner sends TAO from miner hotkey → user's TAO hotkey.
-        const taoSource = swap.sourceChain?.toLowerCase() === 'tao';
-        const sentFrom = taoSource ? swap.userAddress : swap.userSourceAddress;
-        const sentTo = taoSource ? swap.minerHotkey : swap.minerSourceAddress;
-        const recvFrom = taoSource ? swap.minerSourceAddress : swap.minerHotkey;
-        const recvTo = taoSource
-          ? swap.userDestAddress
-          : (swap.userDestAddress ?? swap.userAddress);
+        // Every leg uses an address pinned on-chain at initiation, so the
+        // resolution is direction-independent and provably correct:
+        //   user sends source funds  → miner's source-chain address (deposit)
+        //   miner sends dest funds    → user's dest-chain address
+        // The miner hotkey is the subnet identity, never a funds address (TAO
+        // settles from the miner's coldkey), so it is not used here.
+        const sentFrom = swap.userSourceAddress ?? swap.userAddress;
+        const sentTo = swap.minerSourceAddress;
+        const recvFrom = swap.minerDestAddress;
+        const recvTo = swap.userDestAddress ?? swap.userAddress;
         const sentAmount =
           swap.sourceAmount && swap.sourceChain
             ? formatAmount(swap.sourceAmount, swap.sourceChain)
             : null;
+        // Promised destination obligation (top of the Receives card); the
+        // amount the miner actually delivered is shown alongside it below.
         const netRecv = applyFee(swap.destAmount, protocol?.feeDivisor);
         const recvAmount =
           netRecv && swap.destChain
             ? formatAmount(netRecv, swap.destChain)
+            : null;
+        const deliveredAmount =
+          swap.deliveredAmount && swap.destChain
+            ? formatAmount(swap.deliveredAmount, swap.destChain)
             : null;
         const hasSend = !!(
           sentAmount ||
@@ -482,7 +487,13 @@ const SwapDetailPage: React.FC = () => {
           sentTo ||
           swap.sourceTxHash
         );
-        const hasRecv = !!(recvAmount || recvFrom || recvTo || swap.destTxHash);
+        const hasRecv = !!(
+          recvAmount ||
+          deliveredAmount ||
+          recvFrom ||
+          recvTo ||
+          swap.destTxHash
+        );
         if (!hasSend && !hasRecv) return null;
         return (
           <Card>
@@ -512,7 +523,10 @@ const SwapDetailPage: React.FC = () => {
                     {swap.destChain ? ` · ${swap.destChain.toUpperCase()}` : ''}
                   </SectionTitle>
                   {recvAmount && (
-                    <LabelValue label="Amount" value={recvAmount} />
+                    <LabelValue label="Promised" value={recvAmount} />
+                  )}
+                  {deliveredAmount && (
+                    <LabelValue label="Delivered" value={deliveredAmount} />
                   )}
                   {recvFrom && <LabelAddr label="From" address={recvFrom} />}
                   {recvTo && <LabelAddr label="To" address={recvTo} />}

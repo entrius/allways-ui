@@ -8,10 +8,12 @@ export type ActiveSwap = {
   destChain: string | null;
   sourceAmount: string | null;
   destAmount: string | null;
+  deliveredAmount: string | null;
   rate: string | null;
   userSourceAddress: string | null;
   userDestAddress: string | null;
   minerSourceAddress: string | null;
+  minerDestAddress: string | null;
   sourceTxHash: string | null;
   destTxHash: string | null;
   timeoutBlock: string | null;
