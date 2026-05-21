@@ -387,6 +387,26 @@ const ReservationDetailPage: React.FC = () => {
               color="text.primary"
             />
           </Stack>
+          {r.fromChain && r.toChain && (
+            <LabelValue
+              label="Route"
+              value={`${r.fromChain.toUpperCase()} → ${r.toChain.toUpperCase()}`}
+            />
+          )}
+          <LabelValue label="Amount in" value={sourceLine} />
+          <LabelValue label="Amount out" value={destLine} />
+          <LabelValue label="Send from" value={r.userFromAddress} copyable />
+          {sendToAddr && (
+            <LabelValue label="Send to" value={sendToAddr} copyable />
+          )}
+          {r.pendingExtensionFromTxHash && (
+            <LabelValue
+              label="Source tx"
+              value={r.pendingExtensionFromTxHash}
+              copyable
+            />
+          )}
+          <LabelValue label="Request" value={r.requestHash} copyable />
           <LabelValue
             label="Window"
             value={
