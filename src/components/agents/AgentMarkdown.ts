@@ -387,15 +387,15 @@ Configure the CLI for testnet:
 For BTC-side testnet swaps, use a testnet \`.env\` (CWD when invoking \`alw\`):
 
     BTC_MODE=lightweight
-    BTC_NETWORK=testnet
+    BTC_NETWORK=testnet4
     BTC_PRIVATE_KEY=<your_testnet_WIF_key>
 
-Lightweight mode auto-selects Blockstream's testnet endpoint when \`BTC_NETWORK=testnet\`. Source addresses are \`tb1q…\` (testnet SegWit). Inspect state via the testnet API at \`https://test-api.all-ways.io\` and the dashboard at \`https://test.all-ways.io\`.
+Lightweight mode auto-selects mempool.space's testnet4 endpoint when \`BTC_NETWORK=testnet4\` (Blockstream serves no testnet4 API). Source addresses are \`tb1q…\` (testnet SegWit). Inspect state via the testnet API at \`https://test-api.all-ways.io\` and the dashboard at \`https://test.all-ways.io\`.
 
 Faucets:
 
 - Test-TAO: try the community faucet at \`https://taoswap.org/testnet-faucet\`. Bittensor's docs (https://docs.bittensor.com) cover the in-CLI path, but the official \`btcli\` faucet is intermittently disabled on testnet, so a web faucet or a peer transfer is often the only path.
-- Test-BTC: any public testnet3 faucet works (e.g. \`https://coinfaucet.eu/en/btc-testnet/\`, \`https://bitcoinfaucet.uo1.net/\`). Send to the \`tb1q…\` address from your testnet Electrum wallet.
+- Test-BTC: use a testnet4 faucet (e.g. \`https://mempool.space/testnet4/faucet\`, \`https://faucet.testnet4.dev/\`). Testnet3 faucets won't fund testnet4 addresses. Send to the \`tb1q…\` address from your testnet wallet.
 
 If you can't get either faucet working, ask the operator to seed your wallets — that's normal on testnet.
 
