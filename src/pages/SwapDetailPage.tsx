@@ -12,6 +12,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   displayEventType,
   useChainState,
+  useMinerByHotkey,
   useProtocolConstants,
   useSwapDetail,
 } from '../api';
@@ -73,6 +74,7 @@ const SwapDetailPage: React.FC = () => {
   const { data, isLoading } = useSwapDetail(swapId ?? '');
   const { data: protocol } = useProtocolConstants();
   const { data: chainState } = useChainState();
+  const { data: miner } = useMinerByHotkey(data?.swap?.minerHotkey ?? '');
   const currentBlock = chainState?.currentBlock ?? 0;
 
   if (isLoading) {
@@ -202,6 +204,43 @@ const SwapDetailPage: React.FC = () => {
         >
           ← View original reservation
         </Typography>
+      )}
+
+      {/* Miner identity — UID + hotkey, mirrors the reservation page */}
+      {swap.minerHotkey && (
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="baseline"
+          sx={{ mb: 3, flexWrap: 'wrap' }}
+        >
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.7rem',
+              color: 'text.secondary',
+              minWidth: 80,
+            }}
+          >
+            Miner
+          </Typography>
+          {miner?.uid !== undefined && (
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.75rem',
+                color: 'text.primary',
+              }}
+            >
+              UID {miner.uid} ·
+            </Typography>
+          )}
+          <CopyableAddress
+            address={swap.minerHotkey}
+            fontSize="0.75rem"
+            color="text.primary"
+          />
+        </Stack>
       )}
 
       {/* Trade summary — the lead, not a card */}
