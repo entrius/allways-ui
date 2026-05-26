@@ -146,3 +146,25 @@ export const explorerExtrinsicUrl = (
     '{idx}',
     String(extrinsicIndex).padStart(4, '0'),
   );
+
+// BTC tx hashes are bare hex; the reservation-extension event types its hash as
+// a Hash, so it arrives 0x-prefixed and a mempool link built from it 404s.
+// Normalize for display and linking. VITE_EXPLORER_BTC_TX_URL can override
+// (e.g. a testnet4 explorer) with any template containing {hash}.
+const BTC_TX_URL_TEMPLATE =
+  (import.meta.env.VITE_EXPLORER_BTC_TX_URL as string | undefined) ??
+  'https://mempool.space/tx/{hash}';
+
+export const normalizeTxHash = (
+  chain: string | null | undefined,
+  hash: string,
+): string =>
+  (chain ?? '').toLowerCase() === 'btc' ? hash.replace(/^0x/i, '') : hash;
+
+export const explorerTxUrl = (
+  chain: string | null | undefined,
+  hash: string,
+): string | null =>
+  hash && (chain ?? '').toLowerCase() === 'btc'
+    ? BTC_TX_URL_TEMPLATE.replace('{hash}', hash.replace(/^0x/i, ''))
+    : null;
