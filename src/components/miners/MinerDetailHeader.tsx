@@ -328,6 +328,24 @@ const MinerDetailHeader: React.FC<{
               </Box>
             </HeaderField>
           )}
+          {liveMiner?.sourceChain && liveMiner?.sourceAddress && (
+            <HeaderField label={`${liveMiner.sourceChain} address`}>
+              <CopyableAddress
+                address={liveMiner.sourceAddress}
+                fontSize="0.85rem"
+                color="text.primary"
+              />
+            </HeaderField>
+          )}
+          {liveMiner?.destChain && liveMiner?.destAddress && (
+            <HeaderField label={`${liveMiner.destChain} address`}>
+              <CopyableAddress
+                address={liveMiner.destAddress}
+                fontSize="0.85rem"
+                color="text.primary"
+              />
+            </HeaderField>
+          )}
         </Box>
 
         <Box
