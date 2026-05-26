@@ -520,6 +520,17 @@ const SwapDetailPage: React.FC = () => {
           swap.deliveredAmount && swap.destChain
             ? formatAmount(swap.deliveredAmount, swap.destChain)
             : null;
+        // Slippage the user accepted: how far the delivered fill fell below the promised quote.
+        const slippagePct =
+          netRecv && swap.deliveredAmount
+            ? ((parseInt(netRecv, 10) - parseInt(swap.deliveredAmount, 10)) /
+                parseInt(netRecv, 10)) *
+              100
+            : null;
+        const slippageLabel =
+          slippagePct !== null && slippagePct > 0.01
+            ? `${slippagePct.toFixed(2)}%`
+            : null;
         const hasSend = !!(
           sentAmount ||
           sentFrom ||
@@ -566,6 +577,9 @@ const SwapDetailPage: React.FC = () => {
                   )}
                   {deliveredAmount && (
                     <LabelValue label="Delivered" value={deliveredAmount} />
+                  )}
+                  {slippageLabel && (
+                    <LabelValue label="Slippage" value={slippageLabel} />
                   )}
                   {recvFrom && <LabelAddr label="From" address={recvFrom} />}
                   {recvTo && <LabelAddr label="To" address={recvTo} />}
