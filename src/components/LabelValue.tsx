@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stack, Typography } from '@mui/material';
+import { Link, Stack, Typography } from '@mui/material';
 import { FONTS } from '../theme';
 import CopyableAddress from './CopyableAddress';
 
@@ -7,7 +7,8 @@ const LabelValue: React.FC<{
   label: string;
   value: string;
   copyable?: boolean;
-}> = ({ label, value, copyable }) => (
+  href?: string;
+}> = ({ label, value, copyable, href }) => (
   <Stack direction="row" spacing={1} alignItems="baseline">
     <Typography
       sx={{
@@ -19,7 +20,16 @@ const LabelValue: React.FC<{
     >
       {label}
     </Typography>
-    {copyable ? (
+    {href ? (
+      <Link
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem' }}
+      >
+        {value}
+      </Link>
+    ) : copyable ? (
       <CopyableAddress address={value} fontSize="0.75rem" />
     ) : (
       <Typography

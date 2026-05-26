@@ -18,7 +18,13 @@ import {
 } from '../api';
 import type { Miner } from '../api/models';
 import { FONTS } from '../theme';
-import { applyFee, formatAmount, formatTimeUntilBlock } from '../utils/format';
+import {
+  applyFee,
+  explorerTxUrl,
+  formatAmount,
+  formatTimeUntilBlock,
+  normalizeTxHash,
+} from '../utils/format';
 import {
   BlockIndicator,
   Card,
@@ -402,7 +408,11 @@ const ReservationDetailPage: React.FC = () => {
           {r.pendingExtensionFromTxHash && (
             <LabelValue
               label="Source tx"
-              value={r.pendingExtensionFromTxHash}
+              value={normalizeTxHash(r.fromChain, r.pendingExtensionFromTxHash)}
+              href={
+                explorerTxUrl(r.fromChain, r.pendingExtensionFromTxHash) ??
+                undefined
+              }
               copyable
             />
           )}
