@@ -14,6 +14,7 @@ import {
   type Direction,
 } from '../../api';
 import { FONTS } from '../../theme';
+import CrownRoundFillNote from './CrownRoundFillNote';
 
 const PANEL_W = 800;
 const PANEL_H = 140;
@@ -665,6 +666,11 @@ const CrownRateChart: React.FC<{
         )}
         <Box>#{head.toLocaleString()}</Box>
       </Stack>
+      <CrownRoundFillNote
+        headBlock={head}
+        subject="rate history"
+        sx={{ mt: 1 }}
+      />
     </Box>
   );
 };

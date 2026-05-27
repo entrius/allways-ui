@@ -14,6 +14,7 @@ import { useCrownHistory, useHaltState, type Direction } from '../../api';
 import { FONTS } from '../../theme';
 import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
+import CrownRoundFillNote from './CrownRoundFillNote';
 import { buildCells, buildTiers, type CellState } from './crownGridCells';
 
 // Mirrors SCORING_WINDOW_BLOCKS in allways/constants.py — validator sets
@@ -718,6 +719,11 @@ const CrownHistoryGrid: React.FC<{
         as of #{headBlock.toLocaleString()} · each cell = 1 block (12s) · each
         row = 60 blocks (12m)
       </Typography>
+      <CrownRoundFillNote
+        headBlock={headBlock}
+        subject="crown grid"
+        sx={{ mt: 0.5 }}
+      />
     </Box>
   );
 };
