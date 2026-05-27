@@ -5,9 +5,24 @@ import { useCurrentCrown, useHaltState } from '../../api';
 import CrownIcon from './CrownIcon';
 import { FONTS } from '../../theme';
 
+// Mirrors allways/constants.py SCORING_WINDOW_BLOCKS — the validator
+// flushes crown_holders / rate_history once per round, so most panels
+// only refresh at that cadence. The top-right indicator surfaces the
+// math (last/next) so we don't need to label every panel individually.
+const SCORING_WINDOW_BLOCKS = 600;
+
 const StickyNetworkHeader: React.FC = () => {
   const { data: crown } = useCurrentCrown();
   const { data: halt } = useHaltState();
+  const head = halt?.asOfBlock ?? 0;
+  const lastRefresh =
+    head > 0
+      ? Math.floor(head / SCORING_WINDOW_BLOCKS) * SCORING_WINDOW_BLOCKS
+      : null;
+  const blocksUntilRefresh =
+    lastRefresh != null
+      ? Math.max(0, lastRefresh + SCORING_WINDOW_BLOCKS - head)
+      : null;
 
   const segments: React.ReactNode[] = [];
   if (crown) {
@@ -90,7 +105,7 @@ const StickyNetworkHeader: React.FC = () => {
         <Stack direction="row" spacing={3} alignItems="center" sx={{ flex: 1 }}>
           {segments}
         </Stack>
-        <Stack direction="row" spacing={0.5} alignItems="center">
+        <Stack direction="row" spacing={0.75} alignItems="center">
           <Box
             sx={{
               width: 6,
@@ -99,9 +114,40 @@ const StickyNetworkHeader: React.FC = () => {
               backgroundColor: halted ? 'error.main' : 'status.active',
             }}
           />
-          <Typography variant="mono" sx={{ fontSize: '0.72rem' }}>
-            {halted ? 'halted' : 'healthy'}
-          </Typography>
+          {halted ? (
+            <Typography
+              variant="mono"
+              sx={{
+                fontSize: '0.72rem',
+                color: 'error.main',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+              }}
+            >
+              paused
+            </Typography>
+          ) : lastRefresh != null ? (
+            <Typography
+              variant="mono"
+              sx={{
+                fontSize: '0.72rem',
+                color: 'text.secondary',
+              }}
+            >
+              last refresh #{lastRefresh.toLocaleString()}
+              <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
+                ·
+              </Box>
+              next ~{blocksUntilRefresh} blocks
+            </Typography>
+          ) : (
+            <Typography
+              variant="mono"
+              sx={{ fontSize: '0.72rem', color: 'text.secondary' }}
+            >
+              healthy
+            </Typography>
+          )}
         </Stack>
       </Stack>
     </Box>

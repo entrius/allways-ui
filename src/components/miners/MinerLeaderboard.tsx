@@ -14,13 +14,11 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
-  useHaltState,
   useMinerLeaderboard,
   type LeaderboardRow,
   type Range,
 } from '../../api';
 import CrownIcon from './CrownIcon';
-import CrownRoundFillNote from './CrownRoundFillNote';
 import SortHeader, { type SortDir } from './SortHeader';
 import { FONTS } from '../../theme';
 import { formatTao, shortHotkey } from '../../utils/format';
@@ -97,8 +95,6 @@ const MinerLeaderboard: React.FC<{
   const navigate = useNavigate();
   const theme = useTheme();
   const { data, isLoading } = useMinerLeaderboard(range);
-  const { data: halt } = useHaltState();
-  const headBlock = halt?.asOfBlock ?? 0;
   const [sortKey, setSortKey] = useState<SortKey>('crownShare');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [query, setQuery] = useState('');
@@ -387,11 +383,6 @@ const MinerLeaderboard: React.FC<{
           })}
         </TableBody>
       </Table>
-      <CrownRoundFillNote
-        headBlock={headBlock}
-        subject="crown share"
-        sx={{ mt: 2 }}
-      />
     </Box>
   );
 };
