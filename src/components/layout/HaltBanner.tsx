@@ -35,8 +35,9 @@ const HaltBanner: React.FC = () => {
           textAlign: 'center',
         }}
       >
-        SWAP CONTRACT HALTED — emissions are recycling, no miner is currently
-        earning. Rate posts still accepted; scoring resumes on unhalt.
+        System is paused for maintenance. Swaps are not being initiated.
+        Emissions are recycling. Scoring will resume when the system is
+        unpaused.
         {halt.asOfBlock != null && (
           <Box component="span" sx={{ ml: 1, fontWeight: 400, opacity: 0.85 }}>
             (as of block #{halt.asOfBlock.toLocaleString()})
