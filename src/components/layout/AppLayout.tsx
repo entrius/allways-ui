@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom';
 import { useOnNavigate, useSSE } from '../../hooks';
 import LoadingPage from '../../pages/LoadingPage';
 import { TopNav, Footer } from '../nav';
+import HaltBanner from './HaltBanner';
 
 const AppLayout: React.FC = () => {
   // Single SSE subscription for the whole app — every routed page
@@ -22,6 +23,7 @@ const AppLayout: React.FC = () => {
       }}
     >
       <TopNav />
+      <HaltBanner />
       <Stack
         ref={mainRef}
         component="main"
