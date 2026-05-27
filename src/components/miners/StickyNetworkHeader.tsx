@@ -111,7 +111,7 @@ const StickyNetworkHeader: React.FC = () => {
               width: 6,
               height: 6,
               borderRadius: '50%',
-              backgroundColor: halted ? 'error.main' : 'status.active',
+              backgroundColor: halted ? 'warning.main' : 'status.active',
             }}
           />
           {halted ? (
@@ -119,7 +119,7 @@ const StickyNetworkHeader: React.FC = () => {
               variant="mono"
               sx={{
                 fontSize: '0.72rem',
-                color: 'error.main',
+                color: 'warning.main',
                 fontWeight: 600,
                 letterSpacing: '0.04em',
               }}

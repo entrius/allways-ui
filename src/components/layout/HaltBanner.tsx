@@ -17,12 +17,12 @@ const HaltBanner: React.FC = () => {
       role="alert"
       sx={{
         width: '100%',
-        backgroundColor: 'error.main',
-        color: 'error.contrastText',
+        backgroundColor: 'warning.main',
+        color: 'warning.contrastText',
         py: 1,
         px: { xs: 2, md: 4 },
         borderBottom: '1px solid',
-        borderColor: 'error.dark',
+        borderColor: 'warning.dark',
       }}
     >
       <Typography
