@@ -45,8 +45,8 @@ const MinerDetailPage: React.FC = () => {
   const crownGridRangeParam = params.get('crownGridRange');
   const crownGridRange: CrownRange = isCrownRange(crownGridRangeParam)
     ? crownGridRangeParam
-    : '2h';
-  const crownGridPan = parseInt(params.get('crownPan') ?? '600', 10) || 0;
+    : '1h';
+  const crownGridPan = parseInt(params.get('crownPan') ?? '300', 10) || 0;
   const crownFrom = parseBlockParam(params.get('crownFrom'));
   const crownTo = parseBlockParam(params.get('crownTo'));
 
