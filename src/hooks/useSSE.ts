@@ -48,6 +48,10 @@ export function useSSE() {
       queryClient.invalidateQueries({ queryKey: ['reservationsBySource'] });
     });
 
+    es.addEventListener('error', (e) => {
+      console.error('SSE connection error:', e);
+    });
+
     return () => {
       es.close();
       eventSourceRef.current = null;
