@@ -10,12 +10,6 @@ export const formatTao = (rao: string | number) => {
   return (val / 1e9).toFixed(2);
 };
 
-export const formatNumber = (n: number, decimals = 2) =>
-  n.toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-
 // Mirror of allways.constants.RATE_SIG_FIGS — keep in lockstep.
 export const RATE_SIG_FIGS = 5;
 
