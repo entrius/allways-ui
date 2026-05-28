@@ -10,22 +10,22 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { useCrownHistory, useHaltState, type Direction } from '../../api';
+import { useCrownHistory, useScoringState, type Direction } from '../../api';
 import { FONTS } from '../../theme';
 import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
 import { buildCells, buildTiers, type CellState } from './crownGridCells';
 
-// Mirrors SCORING_WINDOW_BLOCKS in allways/constants.py — validator sets
-// weights once per cadence, so the 2h grid snaps to multiples and the
-// custom-range input caps at the same span.
-const SCORING_WINDOW_BLOCKS = 600;
+// Mirrors SCORING_WINDOW_BLOCKS in allways/constants.py — one scoring round
+// (~1h at 12s/block). The 1h grid snaps to round boundaries; the custom-range
+// input caps at the same span.
+const SCORING_WINDOW_BLOCKS = 300;
 const ROW_BLOCKS = 60;
 const CELL_PX = 14;
 const RANGE_BLOCKS: Record<string, number> = {
-  '1h': 300,
-  '2h': SCORING_WINDOW_BLOCKS,
-  '4h': 2 * SCORING_WINDOW_BLOCKS,
+  '1h': SCORING_WINDOW_BLOCKS,
+  '2h': 2 * SCORING_WINDOW_BLOCKS,
+  '4h': 4 * SCORING_WINDOW_BLOCKS,
 };
 
 type CrownRange = '1h' | '2h' | '4h';
@@ -93,18 +93,19 @@ const CrownHistoryGrid: React.FC<{
   const gridRef = useRef<HTMLDivElement | null>(null);
   const span = RANGE_BLOCKS[range];
 
-  // Anchor pan/snap math on the actual chain head, not on the fetched-data
-  // tip — otherwise panning backward shows an empty grid because
-  // useCrownHistory only fetched the most-recent default window.
-  const { data: halt } = useHaltState();
-  const headBlock = halt?.asOfBlock ?? 0;
+  // Anchor head (window snap, "as of", pending stripe) on the crown_holders
+  // watermark, not the event head — an asOfBlock anchor strands the stripe on a
+  // finalized interior cell. lastScoredBlock is finalized; +1 is the live tip.
+  const { data: scoring } = useScoringState();
+  const scoredBlock = scoring?.lastScoredBlock ?? 0;
+  const headBlock = scoredBlock > 0 ? scoredBlock + 1 : 0;
 
   let hi: number;
   let lo: number;
   if (customActive) {
     lo = customFrom as number;
     hi = customTo as number;
-  } else if (range === '2h') {
+  } else if (range === '1h') {
     const anchor =
       Math.floor(headBlock / SCORING_WINDOW_BLOCKS) * SCORING_WINDOW_BLOCKS;
     const windowsBack = Math.floor(pan / SCORING_WINDOW_BLOCKS);
@@ -296,7 +297,7 @@ const CrownHistoryGrid: React.FC<{
             size="small"
             disabled={customActive || atEarliest}
             onClick={() =>
-              onPanChange(pan + (range === '2h' ? SCORING_WINDOW_BLOCKS : span))
+              onPanChange(pan + (range === '1h' ? SCORING_WINDOW_BLOCKS : span))
             }
             sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem' }}
           >
@@ -326,7 +327,7 @@ const CrownHistoryGrid: React.FC<{
           variant="mono"
           sx={{ fontSize: '0.7rem', color: 'text.secondary' }}
         >
-          {range === '2h' ? (
+          {range === '1h' ? (
             <>
               scoring window · block #{lo.toLocaleString()} — #
               {hi.toLocaleString()}

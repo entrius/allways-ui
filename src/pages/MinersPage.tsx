@@ -30,7 +30,7 @@ const MinersPage: React.FC = () => {
   const crownRangeParam = params.get('crownRange');
   const crownRange: CrownRange = isCrownRange(crownRangeParam)
     ? crownRangeParam
-    : '2h';
+    : '1h';
   const rateRangeParam = params.get('rateRange');
   const rateRange: RateRange = isRateRange(rateRangeParam)
     ? rateRangeParam

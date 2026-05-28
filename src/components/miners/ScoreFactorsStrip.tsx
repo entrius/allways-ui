@@ -29,7 +29,7 @@ const buildCards = (sf: ScoreFactors): Card[] => {
       window: 'previous round',
       headline: fmtPct(sf.crownShareWindow),
       fill: sf.crownShareWindow,
-      description: 'your slice of the crown over that 2-hour window',
+      description: 'your slice of the crown over that 1-hour window',
       delta: {
         value: sf.crownShareWindow - sf.previousCrownShareWindow,
         format: 'pct',
