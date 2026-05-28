@@ -92,3 +92,11 @@ export type NetworkOverview = {
 };
 
 export type HaltState = { halted: boolean; asOfBlock: number };
+
+// Validator's last crown/rate flush. lastScoredBlock is the block scored
+// through; updatedAt is the wall-clock time of that flush (advances only on a
+// real flush, ~every scoring window), or null before the first flush.
+export type ScoringState = {
+  lastScoredBlock: number;
+  updatedAt: string | null;
+};

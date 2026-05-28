@@ -13,6 +13,7 @@ import type {
   NetworkOverview,
   Range,
   ScoreFactors,
+  ScoringState,
 } from './models';
 
 const CROWN_REFRESH_MS = 12_000;
@@ -125,5 +126,12 @@ export const useHaltState = () =>
   useApiQuery<HaltState>(
     'network-halt-state',
     '/network/halt-state',
+    CROWN_REFRESH_MS,
+  );
+
+export const useScoringState = () =>
+  useApiQuery<ScoringState>(
+    'network-scoring-state',
+    '/network/scoring-state',
     CROWN_REFRESH_MS,
   );
