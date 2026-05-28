@@ -1,28 +1,56 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { BlockIndicator } from '../index';
-import { useCurrentCrown, useHaltState } from '../../api';
+import { useCurrentCrown, useHaltState, useScoringState } from '../../api';
 import CrownIcon from './CrownIcon';
 import { FONTS } from '../../theme';
 
-// Mirrors allways/constants.py SCORING_WINDOW_BLOCKS — the validator
-// flushes crown_holders / rate_history once per round, so most panels
-// only refresh at that cadence. The top-right indicator surfaces the
-// math (last/next) so we don't need to label every panel individually.
-const SCORING_WINDOW_BLOCKS = 600;
+// Live "time since the validator last flushed crown/rate data". The validator
+// advances the scoring-state watermark only on a real flush (~every scoring
+// window), so this counts up from that timestamp until the next flush snaps
+// it back. Block-aligned math was wrong here: the flush is gated on the
+// validator's forward-step counter, not on absolute block height.
+const formatAgo = (updatedAtMs: number, nowMs: number): string => {
+  const totalMin = Math.floor(Math.max(0, nowMs - updatedAtMs) / 60_000);
+  if (totalMin < 1) return 'just now';
+  if (totalMin < 60) return `~${totalMin}m ago`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m > 0 ? `~${h}h ${m}m ago` : `~${h}h ago`;
+};
+
+const RefreshIndicator: React.FC<{ block: number; updatedAt: string }> = ({
+  block,
+  updatedAt,
+}) => {
+  const updatedAtMs = React.useMemo(
+    () => new Date(updatedAt).getTime(),
+    [updatedAt],
+  );
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <Typography
+      variant="mono"
+      sx={{ fontSize: '0.72rem', color: 'text.secondary' }}
+    >
+      last refresh #{block.toLocaleString()}
+      <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
+        ·
+      </Box>
+      {formatAgo(updatedAtMs, nowMs)}
+    </Typography>
+  );
+};
 
 const StickyNetworkHeader: React.FC = () => {
   const { data: crown } = useCurrentCrown();
   const { data: halt } = useHaltState();
-  const head = halt?.asOfBlock ?? 0;
-  const lastRefresh =
-    head > 0
-      ? Math.floor(head / SCORING_WINDOW_BLOCKS) * SCORING_WINDOW_BLOCKS
-      : null;
-  const blocksUntilRefresh =
-    lastRefresh != null
-      ? Math.max(0, lastRefresh + SCORING_WINDOW_BLOCKS - head)
-      : null;
+  const { data: scoring } = useScoringState();
 
   const segments: React.ReactNode[] = [];
   if (crown) {
@@ -126,20 +154,11 @@ const StickyNetworkHeader: React.FC = () => {
             >
               paused
             </Typography>
-          ) : lastRefresh != null ? (
-            <Typography
-              variant="mono"
-              sx={{
-                fontSize: '0.72rem',
-                color: 'text.secondary',
-              }}
-            >
-              last refresh #{lastRefresh.toLocaleString()}
-              <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
-                ·
-              </Box>
-              next ~{blocksUntilRefresh} blocks
-            </Typography>
+          ) : scoring?.updatedAt != null && scoring.lastScoredBlock > 0 ? (
+            <RefreshIndicator
+              block={scoring.lastScoredBlock}
+              updatedAt={scoring.updatedAt}
+            />
           ) : (
             <Typography
               variant="mono"
