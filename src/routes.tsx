@@ -19,6 +19,7 @@ const ReservationsBySourcePage = React.lazy(
   () => import('./pages/ReservationsBySourcePage'),
 );
 const AgentsPage = React.lazy(() => import('./pages/AgentsPage'));
+const MySwapsPage = React.lazy(() => import('./pages/MySwapsPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 const routesArray: AppRoute[] = [
@@ -43,6 +44,7 @@ const routesArray: AppRoute[] = [
     element: <ReservationDetailPage />,
   },
   { name: 'agents', path: '/agents', element: <AgentsPage /> },
+  { name: 'my-swaps', path: '/my-swaps', element: <MySwapsPage /> },
 
   // 404 catch-all route (must be last)
   {

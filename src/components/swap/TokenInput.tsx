@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stack, TextField, Typography } from '@mui/material';
+import { Stack, TextField, Typography, MenuItem, Select } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { FONTS } from '../../theme';
 
@@ -9,6 +9,9 @@ export interface TokenInputProps {
   balance: string;
   amount?: string;
   readOnly?: boolean;
+  onAmountChange?: (value: string) => void;
+  symbolOptions?: string[];
+  onSymbolChange?: (next: string) => void;
 }
 
 const TokenInput: React.FC<TokenInputProps> = ({
@@ -17,6 +20,9 @@ const TokenInput: React.FC<TokenInputProps> = ({
   balance,
   amount = '0.0',
   readOnly = true,
+  onAmountChange,
+  symbolOptions,
+  onSymbolChange,
 }) => (
   <Stack
     sx={{
@@ -43,6 +49,9 @@ const TokenInput: React.FC<TokenInputProps> = ({
     <Stack direction="row" alignItems="center" spacing={1.5}>
       <TextField
         value={amount}
+        onChange={
+          onAmountChange ? (e) => onAmountChange(e.target.value) : undefined
+        }
         variant="standard"
         InputProps={{
           disableUnderline: true,
@@ -55,29 +64,55 @@ const TokenInput: React.FC<TokenInputProps> = ({
         }}
         sx={{ flex: 1 }}
       />
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={0.5}
-        sx={{
-          px: 1.25,
-          py: 0.75,
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Typography
+      {symbolOptions && onSymbolChange ? (
+        <Select
+          value={symbol}
+          variant="standard"
+          disableUnderline
+          onChange={(e) => onSymbolChange(String(e.target.value))}
           sx={{
+            px: 1.25,
+            py: 0.25,
+            border: '1px solid',
+            borderColor: 'divider',
             fontFamily: FONTS.mono,
             fontWeight: 700,
             fontSize: '0.85rem',
             letterSpacing: '0.05em',
+            '& .MuiSelect-select': { paddingRight: '24px !important' },
           }}
         >
-          {symbol}
-        </Typography>
-        <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
-      </Stack>
+          {symbolOptions.map((opt) => (
+            <MenuItem key={opt} value={opt} sx={{ fontFamily: FONTS.mono }}>
+              {opt}
+            </MenuItem>
+          ))}
+        </Select>
+      ) : (
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={0.5}
+          sx={{
+            px: 1.25,
+            py: 0.75,
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              letterSpacing: '0.05em',
+            }}
+          >
+            {symbol}
+          </Typography>
+          <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
+        </Stack>
+      )}
     </Stack>
   </Stack>
 );

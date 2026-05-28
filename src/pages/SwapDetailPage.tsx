@@ -40,6 +40,7 @@ import { type ContractEvent } from '../api/models';
 import ExtensionChip, {
   deriveSwapExtensionStatus,
 } from '../components/ExtensionChip';
+import { ClaimSlashedButton } from '../components/swap';
 
 type SwapStep = {
   label: string;
@@ -413,6 +414,19 @@ const SwapDetailPage: React.FC = () => {
           })()}
         </Stack>
       </Card>
+
+      {/* In-browser claim for slashed swaps — only shown for TIMED_OUT swaps
+          where the claim is still pending. Requires Substrate wallet; falls
+          back to a CLI hint otherwise (spec §5 / §9). */}
+      {isTimedOut && refundPending && (
+        <Card>
+          <SectionTitle>Claim</SectionTitle>
+          <ClaimSlashedButton
+            swapId={swap.swapId}
+            expectedUserAddress={swap.userAddress}
+          />
+        </Card>
+      )}
 
       {/* Refund (timed-out slash) */}
       {refundEvent && (
