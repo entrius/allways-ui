@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   IconButton,
@@ -47,14 +47,11 @@ const parseRate = (raw: string | null): number => {
 const statusRank = (m: Miner) =>
   !m.isActive ? 3 : m.hasActiveSwap ? 2 : m.isReserved ? 1 : 0;
 
-// Score by the active direction so sort-desc always means "most attractive
-// counterparty first": forward wants the highest TAO/asset, reverse the lowest.
-const rateScore = (m: Miner, filter: DirectionFilter): number => {
-  const fwd = parseRate(m.rate);
-  const rev = parseRate(m.counterRate);
-  if (filter === 'reverse') return rev > 0 ? -rev : -Infinity;
-  return fwd > 0 ? fwd : -Infinity;
-};
+// The quoted rate for the active direction (TAO per 1 BTC either way). Sorting
+// on the raw value lets the sort arrow read naturally — desc = highest first
+// for BTC→TAO (best), asc = lowest first for TAO→BTC (best).
+const directionRate = (m: Miner, filter: DirectionFilter): number =>
+  filter === 'reverse' ? parseRate(m.counterRate) : parseRate(m.rate);
 
 const getSortValue = (
   m: Miner,
@@ -65,7 +62,7 @@ const getSortValue = (
     case 'uid':
       return m.uid;
     case 'rate':
-      return rateScore(m, filter);
+      return directionRate(m, filter);
     case 'collateral':
       return parseInt(m.collateralRao, 10) || 0;
     case 'status':
@@ -124,6 +121,14 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
 
+  // When the EMA chart's direction flips, re-default the table to the most
+  // advantageous rate first: BTC→TAO highest first (desc), TAO→BTC lowest
+  // first (asc). A manual re-sort persists until the next flip.
+  useEffect(() => {
+    setSortKey('rate');
+    setSortDir(syncDirection === 'TAO-BTC' ? 'asc' : 'desc');
+  }, [syncDirection]);
+
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -147,14 +152,14 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       return true; // 'active' — any non-inactive node
     });
     const sorted = [...base].sort((a, b) => {
-      // Status is the primary key so the table reads top-to-bottom as "who can
-      // I trade with right now": Available → Reserved → Exchanging → Inactive.
-      const statusCmp = statusRank(a) - statusRank(b);
-      if (statusCmp !== 0) return statusCmp;
+      // Primary sort is the chosen column (default: rate, most-advantageous
+      // first for the active direction). Ties break toward the most tradeable
+      // node (Available → Reserved → Exchanging → Inactive).
       const av = getSortValue(a, sortKey, directionFilter);
       const bv = getSortValue(b, sortKey, directionFilter);
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-      return sortDir === 'asc' ? cmp : -cmp;
+      if (cmp !== 0) return sortDir === 'asc' ? cmp : -cmp;
+      return statusRank(a) - statusRank(b);
     });
     if (!q) return sorted.map((m) => ({ miner: m, match: false }));
     return sorted.map((m) => ({
