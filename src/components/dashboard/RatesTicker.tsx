@@ -90,7 +90,7 @@ const RatesTicker: React.FC = () => {
                     component="span"
                     sx={{ fontSize: '0.72rem', color: 'text.disabled' }}
                   >
-                    market rate
+                    EMA
                   </Box>
                   <Box
                     component="span"

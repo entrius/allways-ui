@@ -215,7 +215,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
             title={
               <Box sx={{ maxWidth: 280 }}>
                 Live exchange rates quoted by active network nodes for the
-                selected direction (set by the Market Rate toggle). Sort by rate
+                selected direction (set by the EMA panel's toggle). Sort by rate
                 or capacity to find the best counterparty.
               </Box>
             }

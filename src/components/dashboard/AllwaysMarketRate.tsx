@@ -50,7 +50,7 @@ const AllwaysMarketRate: React.FC<{
               color: 'text.secondary',
             }}
           >
-            Market Rate
+            EMA
           </Typography>
           <Tooltip
             title={
