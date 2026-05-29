@@ -23,6 +23,7 @@ import { FONTS } from '../../theme';
 import {
   applyFee,
   formatAmount,
+  formatRateLine,
   formatTimeUntilBlock,
 } from '../../utils/format';
 import { ReservationsTrackerSkeleton } from './Skeletons';
@@ -191,6 +192,13 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
             const netRecv = applyFee(r.toAmount, protocol?.feeDivisor);
             const recvLabel =
               netRecv && r.toChain ? formatAmount(netRecv, r.toChain) : '—';
+            // Locked rate from the on-chain amounts (gross), quoted in TAO.
+            const rateLine = formatRateLine(
+              r.fromAmount,
+              r.fromChain,
+              r.toAmount,
+              r.toChain,
+            );
             const uid = minerUid(r.minerHotkey);
             const minerLabel =
               uid !== undefined
@@ -255,6 +263,18 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                     {r.status}
                   </Typography>
                 </Stack>
+                {rateLine && (
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: { xs: '0.6rem', sm: '0.68rem' },
+                      color: 'text.primary',
+                      mt: 0.25,
+                    }}
+                  >
+                    {rateLine}
+                  </Typography>
+                )}
                 <Typography
                   sx={{
                     fontFamily: FONTS.mono,
