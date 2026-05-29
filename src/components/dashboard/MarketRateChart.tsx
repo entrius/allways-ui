@@ -115,7 +115,8 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
               { left: 48, right: 14, top: 8, height: '60%' },
               { left: 48, right: 14, top: '74%', bottom: 22 },
             ]
-          : [{ left: 48, right: 14, top: 8, bottom: 22 }],
+          : // Mobile: tighter gutters so the plot fills the narrow width.
+            [{ left: 34, right: 8, top: 6, bottom: 18 }],
         axisPointer: { link: [{ xAxisIndex: 'all' }] },
         tooltip: {
           trigger: 'axis',
