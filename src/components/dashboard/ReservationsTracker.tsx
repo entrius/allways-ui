@@ -231,11 +231,14 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
-                      fontSize: '0.75rem',
+                      fontSize: { xs: '0.68rem', sm: '0.75rem' },
                       color: 'text.primary',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      // Wrap on mobile (it's full-width there) so the amounts
+                      // stay legible instead of spilling past the card.
+                      width: { xs: '100%', sm: 'auto' },
+                      whiteSpace: { xs: 'normal', sm: 'nowrap' },
+                      overflow: { sm: 'hidden' },
+                      textOverflow: { sm: 'ellipsis' },
                     }}
                   >
                     Send {sendLabel} → Receive {recvLabel}
@@ -243,7 +246,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
-                      fontSize: '0.65rem',
+                      fontSize: { xs: '0.58rem', sm: '0.65rem' },
                       fontWeight: 600,
                       color: statusColor,
                       flexShrink: 0,
@@ -255,7 +258,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                 <Typography
                   sx={{
                     fontFamily: FONTS.mono,
-                    fontSize: '0.65rem',
+                    fontSize: { xs: '0.58rem', sm: '0.65rem' },
                     color: 'text.secondary',
                     mt: 0.25,
                   }}

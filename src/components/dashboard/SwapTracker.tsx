@@ -192,7 +192,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                   to={`/swap/${swap.swapId}`}
                   sx={{
                     px: 1,
-                    py: 1.25,
+                    py: { xs: 1.75, sm: 1.25 },
                     borderRadius: 0,
                     borderBottom: '1px solid',
                     borderColor: 'divider',
@@ -208,6 +208,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
+                    spacing={1}
                   >
                     <Typography
                       sx={{
@@ -215,35 +216,23 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         fontSize: { xs: '0.72rem', sm: '0.8rem' },
                         fontWeight: 600,
                         color: 'text.primary',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       Transaction #{swap.swapId}
                     </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {swap.sourceChain && swap.destChain && (
-                        <Typography
-                          sx={{
-                            fontFamily: FONTS.mono,
-                            fontSize: { xs: '0.58rem', sm: '0.65rem' },
-                            color: 'text.secondary',
-                          }}
-                        >
-                          {swap.sourceChain.toUpperCase()} &rarr;{' '}
-                          {swap.destChain.toUpperCase()}
-                        </Typography>
-                      )}
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.58rem', sm: '0.65rem' },
-                          color,
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {swap.status.replace('_', ' ')}
-                      </Typography>
-                    </Stack>
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: { xs: '0.58rem', sm: '0.65rem' },
+                        color,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {swap.status.replace('_', ' ')}
+                    </Typography>
                   </Stack>
 
                   <LinearProgress
@@ -264,7 +253,25 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     }}
                   />
 
-                  <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                  <Stack
+                    direction="row"
+                    spacing={{ xs: 1.25, sm: 2 }}
+                    flexWrap="wrap"
+                    useFlexGap
+                  >
+                    {swap.sourceChain && swap.destChain && (
+                      <Typography
+                        sx={{
+                          fontFamily: FONTS.mono,
+                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
+                          color: 'text.secondary',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {swap.sourceChain.toUpperCase()} &rarr;{' '}
+                        {swap.destChain.toUpperCase()}
+                      </Typography>
+                    )}
                     {swap.sourceAmount && swap.sourceChain && (
                       <Typography
                         sx={{
