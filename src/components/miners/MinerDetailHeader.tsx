@@ -7,7 +7,10 @@ import { formatTao } from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
 
-const RANGES: Range[] = ['24h', '7d', '30d', '90d', 'all'];
+// 30d is the deepest window; the API clamps everything to ~30d
+// (MAX_LOOKBACK_BLOCKS) so crown_holders stays prunable, which made the old
+// 90d/all chips return identical data to 30d.
+const RANGES: Range[] = ['24h', '7d', '30d'];
 
 const HeaderField: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
