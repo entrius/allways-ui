@@ -139,7 +139,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
           width: '100%',
           '& .MuiInputBase-root': {
             fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
+            fontSize: { xs: '0.62rem', sm: '0.7rem' },
             borderRadius: 0,
           },
         }}
@@ -160,7 +160,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
             sx={{
               color: 'text.secondary',
               fontFamily: FONTS.mono,
-              fontSize: '0.8rem',
+              fontSize: { xs: '0.72rem', sm: '0.8rem' },
             }}
           >
             {search ? 'No matching transactions' : 'No transactions yet'}
@@ -212,7 +212,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     <Typography
                       sx={{
                         fontFamily: FONTS.mono,
-                        fontSize: '0.8rem',
+                        fontSize: { xs: '0.72rem', sm: '0.8rem' },
                         fontWeight: 600,
                         color: 'text.primary',
                       }}
@@ -224,7 +224,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         <Typography
                           sx={{
                             fontFamily: FONTS.mono,
-                            fontSize: '0.65rem',
+                            fontSize: { xs: '0.58rem', sm: '0.65rem' },
                             color: 'text.secondary',
                           }}
                         >
@@ -235,7 +235,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                       <Typography
                         sx={{
                           fontFamily: FONTS.mono,
-                          fontSize: '0.65rem',
+                          fontSize: { xs: '0.58rem', sm: '0.65rem' },
                           color,
                           fontWeight: 600,
                           textTransform: 'uppercase',
@@ -269,7 +269,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                       <Typography
                         sx={{
                           fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
+                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
                           color: 'text.primary',
                         }}
                       >
@@ -280,7 +280,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                       <Typography
                         sx={{
                           fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
+                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
                           color: 'text.primary',
                         }}
                       >
@@ -293,7 +293,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         sx={{
                           fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
+                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
                           color: 'text.secondary',
                         }}
                       >
@@ -306,7 +306,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         sx={{
                           fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
+                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
                           color: 'text.secondary',
                         }}
                       >

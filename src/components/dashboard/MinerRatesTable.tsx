@@ -16,6 +16,7 @@ import {
   ToggleButtonGroup,
   Tooltip,
   Typography,
+  useMediaQuery,
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -82,6 +83,12 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
 }) => {
   const theme = useTheme();
   const disabled = theme.palette.text.disabled || theme.palette.text.secondary;
+  // On phones drop the hotkey + Status column so the table stays compact and
+  // never needs to scroll horizontally.
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const visibleColumns = isMobile
+    ? columns.filter((c) => c.key !== 'status')
+    : columns;
 
   // Direction is driven by the page's Market Rate toggle — no local toggle.
   const directionFilter: DirectionFilter =
@@ -98,20 +105,20 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
 
   const headerSx = {
     fontFamily: FONTS.mono,
-    fontSize: '0.65rem',
+    fontSize: { xs: '0.58rem', sm: '0.65rem' },
     color: theme.palette.text.secondary,
     borderBottom: `1px solid ${theme.palette.divider}`,
     backgroundColor: theme.palette.background.default,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
-    px: 1,
+    px: { xs: 0.75, sm: 1 },
   };
 
   const cellSx = {
     fontFamily: FONTS.mono,
-    fontSize: '0.75rem',
+    fontSize: { xs: '0.68rem', sm: '0.75rem' },
     borderBottom: `1px solid ${theme.palette.divider}`,
-    px: 1,
+    px: { xs: 0.75, sm: 1 },
     fontVariantNumeric: 'tabular-nums' as const,
   };
 
@@ -329,7 +336,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              {columns.map((col) => (
+              {visibleColumns.map((col) => (
                 <TableCell key={col.key} align={col.align} sx={headerSx}>
                   <TableSortLabel
                     active={sortKey === col.key}
@@ -369,18 +376,21 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                     opacity: dimmed ? 0.3 : 1,
                   }}
                 >
-                  {/* UID with the hotkey folded underneath. */}
-                  <TableCell sx={{ ...cellSx, minWidth: 92 }}>
+                  {/* UID with the hotkey folded underneath (hotkey hidden on
+                      mobile to keep the table compact). */}
+                  <TableCell sx={{ ...cellSx, minWidth: { xs: 0, sm: 92 } }}>
                     <Stack spacing={0.25}>
                       <Box component="span" sx={{ color: 'text.primary' }}>
                         {miner.uid}
                       </Box>
-                      <Box
-                        component="span"
-                        sx={{ fontSize: '0.62rem', color: 'text.secondary' }}
-                      >
-                        <CopyableAddress address={miner.hotkey} />
-                      </Box>
+                      {!isMobile && (
+                        <Box
+                          component="span"
+                          sx={{ fontSize: '0.62rem', color: 'text.secondary' }}
+                        >
+                          <CopyableAddress address={miner.hotkey} />
+                        </Box>
+                      )}
                     </Stack>
                   </TableCell>
 
@@ -420,30 +430,36 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                     </Tooltip>
                   </TableCell>
 
-                  <TableCell sx={cellSx}>
-                    <Box
-                      sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}
-                    >
+                  {!isMobile && (
+                    <TableCell sx={cellSx}>
                       <Box
                         sx={{
-                          width: 8,
-                          height: 8,
-                          backgroundColor: status.color,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
-                          color: 'text.secondary',
-                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.75,
                         }}
                       >
-                        {status.label}
-                      </Typography>
-                    </Box>
-                  </TableCell>
+                        <Box
+                          sx={{
+                            width: 8,
+                            height: 8,
+                            backgroundColor: status.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography
+                          sx={{
+                            fontFamily: FONTS.mono,
+                            fontSize: '0.7rem',
+                            color: 'text.secondary',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {status.label}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
@@ -451,7 +467,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={visibleColumns.length}
                   sx={{
                     textAlign: 'center',
                     borderBottom: 'none',
