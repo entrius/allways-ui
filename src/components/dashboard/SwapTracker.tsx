@@ -17,7 +17,7 @@ import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
 import { formatAmount } from '../../utils/format';
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 25;
 
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
@@ -57,7 +57,7 @@ const useDebounce = (value: string, delay: number) => {
   return debounced;
 };
 
-const SwapTracker: React.FC = () => {
+const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -102,30 +102,32 @@ const SwapTracker: React.FC = () => {
         minHeight: 0,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-        <Typography
-          variant="h6"
-          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-        >
-          Transactions
-        </Typography>
-        <Tooltip
-          title={
-            <Box sx={{ maxWidth: 280 }}>
-              Every transaction on the network in chronological order, with its
-              current status and progress through the lifecycle: Initiated →
-              Fulfilled → Completed (or Timed Out). Click a row to see the full
-              timeline.
-            </Box>
-          }
-          arrow
-          placement="right"
-        >
-          <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
-            <InfoOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      {!embedded && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+          >
+            Transactions
+          </Typography>
+          <Tooltip
+            title={
+              <Box sx={{ maxWidth: 280 }}>
+                Every transaction on the network in chronological order, with
+                its current status and progress through the lifecycle: Initiated
+                → Fulfilled → Completed (or Timed Out). Click a row to see the
+                full timeline.
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
 
       <TextField
         size="small"
@@ -179,7 +181,7 @@ const SwapTracker: React.FC = () => {
             },
           }}
         >
-          <Stack spacing={1.5}>
+          <Stack spacing={0}>
             {swaps.map((swap) => {
               const color = getStatusColor(swap.status, theme.palette);
               const progress = STATUS_PROGRESS[swap.status] || 0;
@@ -189,17 +191,17 @@ const SwapTracker: React.FC = () => {
                   component={RouterLink}
                   to={`/swap/${swap.swapId}`}
                   sx={{
-                    p: 2,
+                    px: 1,
+                    py: 1.25,
                     borderRadius: 0,
-                    backgroundColor: 'surface.light',
-                    border: '1px solid',
+                    borderBottom: '1px solid',
                     borderColor: 'divider',
                     textDecoration: 'none',
                     color: 'inherit',
                     display: 'block',
                     cursor: 'pointer',
-                    transition: 'border-color 0.2s',
-                    '&:hover': { borderColor: 'primary.main' },
+                    transition: 'background-color 0.15s',
+                    '&:hover': { backgroundColor: 'action.hover' },
                   }}
                 >
                   <Stack
@@ -248,9 +250,9 @@ const SwapTracker: React.FC = () => {
                     variant="determinate"
                     value={progress}
                     sx={{
-                      mt: 1,
-                      mb: 1.5,
-                      height: 3,
+                      mt: 0.75,
+                      mb: 0.75,
+                      height: 2,
                       borderRadius: 0,
                       backgroundColor: theme.palette.border.light,
                       '& .MuiLinearProgress-bar': {

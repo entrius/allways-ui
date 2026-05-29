@@ -20,7 +20,7 @@ import { useMiners } from '../../api';
 import { FONTS } from '../../theme';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
-const OrderbookDepth: React.FC = () => {
+const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const theme = useTheme();
 
   const TAO_COLOR = theme.palette.asset.tao;
@@ -214,42 +214,44 @@ const OrderbookDepth: React.FC = () => {
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: embedded ? 'flex-end' : 'space-between',
           mb: 2,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography
-            variant="h6"
-            sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-          >
-            Depth of Market
-          </Typography>
-          <Tooltip
-            title={
-              <Stack spacing={0.5} sx={{ maxWidth: 250 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                  What is this?
-                </Typography>
-                <Typography variant="body2">
-                  This orderbook visualizes the cumulative liquidity available
-                  across all active miners at various exchange rates.
-                </Typography>
-                <Typography variant="body2">
-                  The background bars form a volume profile: the market
-                  equilibrium point is where the left and right profiles match
-                  in width.
-                </Typography>
-              </Stack>
-            }
-            arrow
-            placement="right"
-          >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
-              <InfoOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        {!embedded && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="h6"
+              sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+            >
+              Depth of Market
+            </Typography>
+            <Tooltip
+              title={
+                <Stack spacing={0.5} sx={{ maxWidth: 250 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                    What is this?
+                  </Typography>
+                  <Typography variant="body2">
+                    This orderbook visualizes the cumulative liquidity available
+                    across all active miners at various exchange rates.
+                  </Typography>
+                  <Typography variant="body2">
+                    The background bars form a volume profile: the market
+                    equilibrium point is where the left and right profiles match
+                    in width.
+                  </Typography>
+                </Stack>
+              }
+              arrow
+              placement="right"
+            >
+              <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+                <InfoOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
 
         {directionOptions.length > 0 && (
           <Select

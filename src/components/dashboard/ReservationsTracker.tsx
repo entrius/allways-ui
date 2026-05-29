@@ -36,7 +36,9 @@ const STATUS_COLORS = (palette: {
   CANCELLED: palette.status.timedOut,
 });
 
-const ReservationsTracker: React.FC = () => {
+const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
+  embedded,
+}) => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { data, isLoading } = useReservations();
@@ -61,8 +63,6 @@ const ReservationsTracker: React.FC = () => {
         r.userFromAddress?.toLowerCase().includes(trimmed),
       )
     : active;
-  const visible = filtered.slice(0, 3);
-  const hiddenCount = filtered.length - visible.length;
 
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,38 +81,40 @@ const ReservationsTracker: React.FC = () => {
         alignItems={{ xs: 'stretch', sm: 'center' }}
         justifyContent="space-between"
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
-            Reservations
-          </Typography>
-          <Tooltip
-            title={
-              <Box sx={{ maxWidth: 260 }}>
-                A short hold a user places on a miner's quoted rate before
-                sending funds. The reservation locks the rate and prevents other
-                users from claiming the same miner mid-swap.
-              </Box>
-            }
-            arrow
-            placement="right"
-          >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
-              <InfoOutlinedIcon sx={{ fontSize: 14 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        {!embedded && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.7rem',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'text.secondary',
+              }}
+            >
+              Reservations
+            </Typography>
+            <Tooltip
+              title={
+                <Box sx={{ maxWidth: 260 }}>
+                  A short hold a user places on a miner's quoted rate before
+                  sending funds. The reservation locks the rate and prevents
+                  other users from claiming the same miner mid-swap.
+                </Box>
+              }
+              arrow
+              placement="right"
+            >
+              <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+                <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
         <Box
           component="form"
           onSubmit={submitSearch}
-          sx={{ width: { xs: '100%', sm: 420 } }}
+          sx={{ width: embedded ? '100%' : { xs: '100%', sm: 420 } }}
         >
           <TextField
             value={searchAddr}
@@ -167,108 +169,106 @@ const ReservationsTracker: React.FC = () => {
         </Typography>
       )}
 
-      <Stack spacing={0.75}>
-        {visible.map((r: Reservation) => {
-          const statusColor = colors[r.status] ?? colors.ACTIVE;
-          const sendLabel =
-            r.fromAmount && r.fromChain
-              ? formatAmount(r.fromAmount, r.fromChain)
-              : '—';
-          const netRecv = applyFee(r.toAmount, protocol?.feeDivisor);
-          const recvLabel =
-            netRecv && r.toChain ? formatAmount(netRecv, r.toChain) : '—';
-          const uid = minerUid(r.minerHotkey);
-          const minerLabel =
-            uid !== undefined ? `UID ${uid}` : `${r.minerHotkey.slice(0, 6)}…`;
-          const remaining =
-            r.status === 'ACTIVE' && currentBlock > 0
-              ? formatTimeUntilBlock(
-                  parseInt(r.reservedUntilBlock, 10),
-                  currentBlock,
-                )
-              : null;
-          return (
-            <Box
-              key={r.id}
-              component={RouterLink}
-              to={`/reservations/${r.requestHash}`}
-              sx={{
-                p: 1.25,
-                borderRadius: 0,
-                border: '1px solid',
-                borderColor: 'divider',
-                textDecoration: 'none',
-                display: 'block',
-                transition: 'border-color 0.15s, background-color 0.15s',
-                '&:hover': {
-                  borderColor: 'primary.main',
-                  backgroundColor: 'background.paper',
-                },
-              }}
-            >
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
-                justifyContent="space-between"
-                spacing={{ xs: 0.25, sm: 1 }}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-thumb': {
+            background: theme.palette.border.light,
+            borderRadius: 0,
+          },
+        }}
+      >
+        <Stack spacing={0.75}>
+          {filtered.map((r: Reservation) => {
+            const statusColor = colors[r.status] ?? colors.ACTIVE;
+            const sendLabel =
+              r.fromAmount && r.fromChain
+                ? formatAmount(r.fromAmount, r.fromChain)
+                : '—';
+            const netRecv = applyFee(r.toAmount, protocol?.feeDivisor);
+            const recvLabel =
+              netRecv && r.toChain ? formatAmount(netRecv, r.toChain) : '—';
+            const uid = minerUid(r.minerHotkey);
+            const minerLabel =
+              uid !== undefined
+                ? `UID ${uid}`
+                : `${r.minerHotkey.slice(0, 6)}…`;
+            const remaining =
+              r.status === 'ACTIVE' && currentBlock > 0
+                ? formatTimeUntilBlock(
+                    parseInt(r.reservedUntilBlock, 10),
+                    currentBlock,
+                  )
+                : null;
+            return (
+              <Box
+                key={r.id}
+                component={RouterLink}
+                to={`/reservations/${r.requestHash}`}
+                sx={{
+                  p: 1.25,
+                  borderRadius: 0,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  textDecoration: 'none',
+                  display: 'block',
+                  transition: 'border-color 0.15s, background-color 0.15s',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'background.paper',
+                  },
+                }}
               >
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.75rem',
-                    color: 'text.primary',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  alignItems={{ xs: 'flex-start', sm: 'center' }}
+                  justifyContent="space-between"
+                  spacing={{ xs: 0.25, sm: 1 }}
                 >
-                  Send {sendLabel} → Receive {recvLabel}
-                </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.75rem',
+                      color: 'text.primary',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Send {sendLabel} → Receive {recvLabel}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      color: statusColor,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {r.status}
+                  </Typography>
+                </Stack>
                 <Typography
                   sx={{
                     fontFamily: FONTS.mono,
                     fontSize: '0.65rem',
-                    fontWeight: 600,
-                    color: statusColor,
-                    flexShrink: 0,
+                    color: 'text.secondary',
+                    mt: 0.25,
                   }}
                 >
-                  {r.status}
+                  miner {minerLabel} · until #{r.reservedUntilBlock}
+                  {remaining ? ` (${remaining} left)` : ''}
+                  {r.swapId ? ` · swap #${r.swapId}` : ''}
                 </Typography>
-              </Stack>
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.65rem',
-                  color: 'text.secondary',
-                  mt: 0.25,
-                }}
-              >
-                miner {minerLabel} · until #{r.reservedUntilBlock}
-                {remaining ? ` (${remaining} left)` : ''}
-                {r.swapId ? ` · swap #${r.swapId}` : ''}
-              </Typography>
-            </Box>
-          );
-        })}
-        {hiddenCount > 0 && trimmed && (
-          <Typography
-            component={RouterLink}
-            to={`/reservations/by-source/${searchAddr.trim()}`}
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.65rem',
-              color: 'text.secondary',
-              textDecoration: 'none',
-              alignSelf: 'flex-start',
-              mt: 0.25,
-              '&:hover': { color: 'primary.main' },
-            }}
-          >
-            +{hiddenCount} more →
-          </Typography>
-        )}
-      </Stack>
+              </Box>
+            );
+          })}
+        </Stack>
+      </Box>
     </Stack>
   );
 };

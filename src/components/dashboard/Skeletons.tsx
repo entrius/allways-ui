@@ -54,48 +54,101 @@ const tableHeaderSx = {
 };
 
 export const MinerRatesTableSkeleton: React.FC = () => (
-  <Stack>
+  <Stack sx={{ height: '100%' }}>
+    {/* Eyebrow heading */}
     <Skeleton
       variant="text"
-      width={180}
-      height={28}
-      sx={{ mb: 2, borderRadius: 0 }}
+      width={90}
+      height={14}
+      sx={{ mb: 1.25, borderRadius: 0 }}
     />
-    <Skeleton
-      variant="rectangular"
-      width="100%"
-      height={36}
-      sx={{ mb: 1.5, borderRadius: 0 }}
-    />
+    {/* Search + Open/Active/All filter */}
+    <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+      <Skeleton
+        variant="rectangular"
+        height={32}
+        sx={{ flex: 1, borderRadius: 0 }}
+      />
+      <Skeleton
+        variant="rectangular"
+        width={130}
+        height={32}
+        sx={{ borderRadius: 0 }}
+      />
+    </Stack>
     <TableContainer>
       <Table size="small">
         <TableHead>
           <TableRow>
-            {['UID', 'Pair', 'Rate', 'Capacity', 'Status', 'Hotkey'].map(
-              (h) => (
-                <TableCell key={h} sx={tableHeaderSx}>
-                  {h}
-                </TableCell>
-              ),
-            )}
+            {['UID', 'Rate', 'Capacity', 'Status'].map((h) => (
+              <TableCell key={h} sx={tableHeaderSx}>
+                {h}
+              </TableCell>
+            ))}
           </TableRow>
         </TableHead>
         <TableBody>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
             <TableRow key={i}>
-              {[30, 60, 50, 50, 70, 80].map((w, j) => (
-                <TableCell
-                  key={j}
-                  sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
-                >
+              {/* UID + folded hotkey (two lines) */}
+              <TableCell
+                sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+              >
+                <Stack spacing={0.25}>
                   <Skeleton
                     variant="text"
-                    width={w}
-                    height={16}
+                    width={24}
+                    height={14}
                     sx={{ borderRadius: 0 }}
                   />
-                </TableCell>
-              ))}
+                  <Skeleton
+                    variant="text"
+                    width={64}
+                    height={10}
+                    sx={{ borderRadius: 0 }}
+                  />
+                </Stack>
+              </TableCell>
+              <TableCell
+                sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+              >
+                <Skeleton
+                  variant="text"
+                  width={56}
+                  height={14}
+                  sx={{ borderRadius: 0 }}
+                />
+              </TableCell>
+              <TableCell
+                align="right"
+                sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+              >
+                <Skeleton
+                  variant="text"
+                  width={44}
+                  height={14}
+                  sx={{ ml: 'auto', borderRadius: 0 }}
+                />
+              </TableCell>
+              {/* Status: dot + word */}
+              <TableCell
+                sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
+              >
+                <Stack direction="row" alignItems="center" spacing={0.75}>
+                  <Skeleton
+                    variant="rectangular"
+                    width={8}
+                    height={8}
+                    sx={{ borderRadius: 0 }}
+                  />
+                  <Skeleton
+                    variant="text"
+                    width={58}
+                    height={12}
+                    sx={{ borderRadius: 0 }}
+                  />
+                </Stack>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -163,15 +216,9 @@ export const OrderbookDepthSkeleton: React.FC = () => (
 );
 
 export const EventFeedSkeleton: React.FC = () => (
-  <Stack>
-    <Skeleton
-      variant="text"
-      width={120}
-      height={28}
-      sx={{ mb: 2, borderRadius: 0 }}
-    />
+  <Stack sx={{ height: '100%' }}>
     <Stack spacing={1}>
-      {[0, 1, 2, 3, 4, 5].map((i) => (
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
         <Stack
           key={i}
           direction="row"
@@ -212,28 +259,16 @@ export const EventFeedSkeleton: React.FC = () => (
 );
 
 export const ReservationsTrackerSkeleton: React.FC = () => (
-  <Stack spacing={1.5}>
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      spacing={{ xs: 1, sm: 2 }}
-      alignItems={{ xs: 'stretch', sm: 'center' }}
-      justifyContent="space-between"
-    >
-      <Skeleton
-        variant="text"
-        width={110}
-        height={14}
-        sx={{ borderRadius: 0 }}
-      />
-      <Skeleton
-        variant="rectangular"
-        width={420}
-        height={36}
-        sx={{ borderRadius: 0, maxWidth: '100%' }}
-      />
-    </Stack>
+  <Stack spacing={1.5} sx={{ height: '100%' }}>
+    {/* Filter field (heading is provided by the tab) */}
+    <Skeleton
+      variant="rectangular"
+      width="100%"
+      height={36}
+      sx={{ borderRadius: 0 }}
+    />
     <Stack spacing={0.75}>
-      {[0, 1, 2].map((i) => (
+      {[0, 1, 2, 3, 4].map((i) => (
         <Stack
           key={i}
           spacing={0.5}
@@ -271,57 +306,51 @@ export const ReservationsTrackerSkeleton: React.FC = () => (
 );
 
 export const SwapTrackerSkeleton: React.FC = () => (
-  <Stack>
+  <Stack sx={{ height: '100%' }}>
+    {/* Search field (heading is provided by the tab) */}
     <Skeleton
-      variant="text"
-      width={120}
-      height={28}
-      sx={{ mb: 2, borderRadius: 0 }}
+      variant="rectangular"
+      height={36}
+      sx={{ mb: 1.5, borderRadius: 0 }}
     />
-    <Stack spacing={1.5}>
-      {[0, 1, 2, 3].map((i) => (
+    <Stack spacing={0}>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
         <Stack
           key={i}
+          spacing={0.75}
           sx={{
-            p: 2,
-            ...cardBorder,
+            px: 1,
+            py: 1.25,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
           }}
-          spacing={1}
         >
           <Stack direction="row" justifyContent="space-between">
             <Skeleton
               variant="text"
-              width={80}
-              height={16}
+              width={110}
+              height={14}
               sx={{ borderRadius: 0 }}
             />
             <Skeleton
-              variant="rectangular"
-              width={70}
-              height={20}
+              variant="text"
+              width={64}
+              height={12}
               sx={{ borderRadius: 0 }}
             />
           </Stack>
           <Skeleton
             variant="rectangular"
             width="100%"
-            height={6}
+            height={2}
             sx={{ borderRadius: 0 }}
           />
-          <Stack direction="row" spacing={2}>
-            <Skeleton
-              variant="text"
-              width={100}
-              height={12}
-              sx={{ borderRadius: 0 }}
-            />
-            <Skeleton
-              variant="text"
-              width={100}
-              height={12}
-              sx={{ borderRadius: 0 }}
-            />
-          </Stack>
+          <Skeleton
+            variant="text"
+            width={170}
+            height={12}
+            sx={{ borderRadius: 0 }}
+          />
         </Stack>
       ))}
     </Stack>

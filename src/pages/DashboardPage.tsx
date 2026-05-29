@@ -1,18 +1,33 @@
-import React from 'react';
-import { Grid, Stack, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Stack } from '@mui/material';
 import {
-  BlockIndicator,
+  AllwaysMarketRate,
   EventFeed,
   MinerRatesTable,
-  OrderbookDepth,
+  RatesTicker,
   ReservationsTracker,
   SwapTracker,
+  TabbedPanel,
   Page,
   SEO,
 } from '../components';
-import { FONTS } from '../theme';
+import type { Direction } from '../api/models/MinersDashboard';
+
+// Card-less column: no surface/border box (cohesive taostats-style); columns
+// are separated by thin dividers + padding instead. Flex column so children
+// that size to `height: 100%` fill and scroll internally, never the page.
+const colSx = {
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
+  minWidth: 0,
+} as const;
 
 const DashboardPage: React.FC = () => {
+  // Shared trade direction — the Market Rate toggle drives both the chart and
+  // the Active Rates table filter.
+  const [direction, setDirection] = useState<Direction>('BTC-TAO');
+
   return (
     <Page>
       <SEO
@@ -22,104 +37,92 @@ const DashboardPage: React.FC = () => {
       <Stack
         sx={{
           backgroundColor: 'background.default',
-          px: { xs: 1.5, sm: 2, md: 4 },
-          py: { xs: 2, sm: 3, md: 4 },
+          px: { xs: 1.5, sm: 2, md: 3 },
+          // No top padding so the eyebrow sits flush like the miners page; the
+          // ticker provides its own top breathing room.
+          pt: 0,
+          pb: { xs: 2, md: 2 },
           width: '100%',
-          maxWidth: 1400,
-          mx: 'auto',
+          // Fill the viewport below the 56px top nav so the terminal is a
+          // single screen; panels scroll internally. Auto height on mobile —
+          // that layout gets its own pass.
+          height: { xs: 'auto', md: 'calc(100dvh - 56px)' },
+          minHeight: 0,
+          overflow: { md: 'hidden' },
         }}
       >
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ mb: 2, gap: 2 }}
-        >
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
-            Network Activity
-          </Typography>
-          <BlockIndicator />
-        </Stack>
+        <RatesTicker />
 
-        <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
-          <Grid item xs={12} sm={6}>
-            <Stack
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: { xs: 'auto', md: 520 },
-                borderRadius: 0,
-                backgroundColor: 'surface.light',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <MinerRatesTable />
-            </Stack>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Stack
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: { xs: 'auto', md: 520 },
-                borderRadius: 0,
-                backgroundColor: 'surface.light',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <OrderbookDepth />
-            </Stack>
-          </Grid>
-          <Grid item xs={12}>
-            <Stack
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 2.5 },
-                borderRadius: 0,
-                backgroundColor: 'surface.light',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <ReservationsTracker />
-            </Stack>
-          </Grid>
-          <Grid item xs={12} sm={5} md={4}>
-            <Stack
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: { xs: 'auto', md: 600 },
-                borderRadius: 0,
-                backgroundColor: 'surface.light',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <EventFeed />
-            </Stack>
-          </Grid>
-          <Grid item xs={12} sm={7} md={8}>
-            <Stack
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 2.5 },
-                height: { xs: 'auto', md: 600 },
-                borderRadius: 0,
-                backgroundColor: 'surface.light',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <SwapTracker />
-            </Stack>
-          </Grid>
-        </Grid>
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: 'grid',
+            // Separate columns with whitespace, not hard dividers (cohesive
+            // taostats look) — tight enough to avoid dead space.
+            gap: { xs: 3, md: 2.5 },
+            gridTemplateColumns: { xs: '1fr', md: '0.82fr 2fr 0.8fr' },
+            gridTemplateRows: { md: '1fr' },
+          }}
+        >
+          {/* Left column: the live rates table. */}
+          <Box sx={{ ...colSx, minHeight: { xs: 340, md: 0 } }}>
+            <MinerRatesTable syncDirection={direction} />
+          </Box>
+
+          {/* Middle column (focus): the market-rate chart with a direction
+              toggle that also filters the Active Rates table. */}
+          <Box sx={{ ...colSx, minHeight: { xs: 440, md: 0 } }}>
+            <AllwaysMarketRate
+              direction={direction}
+              onDirectionChange={setDirection}
+            />
+          </Box>
+
+          {/* Right column: transactions, reservations, and the live event tape. */}
+          <Box sx={{ ...colSx, minHeight: { xs: 440, md: 0 } }}>
+            <TabbedPanel
+              tabs={[
+                {
+                  key: 'tx',
+                  label: 'Transactions',
+                  info: (
+                    <Box sx={{ maxWidth: 280 }}>
+                      Every transaction in chronological order with its
+                      lifecycle progress: Initiated → Fulfilled → Completed (or
+                      Timed Out). Click a row for the full timeline.
+                    </Box>
+                  ),
+                  node: <SwapTracker embedded />,
+                },
+                {
+                  key: 'reservations',
+                  label: 'Reservations',
+                  info: (
+                    <Box sx={{ maxWidth: 260 }}>
+                      Short holds a user places on a miner's quoted rate before
+                      sending funds — locks the rate and prevents others from
+                      claiming the same miner mid-swap.
+                    </Box>
+                  ),
+                  node: <ReservationsTracker embedded />,
+                },
+                {
+                  key: 'events',
+                  label: 'Events',
+                  info: (
+                    <Box sx={{ maxWidth: 280 }}>
+                      Real-time stream of contract and chain events — swap
+                      lifecycle, collateral changes, votes, reservations. Newest
+                      first.
+                    </Box>
+                  ),
+                  node: <EventFeed embedded />,
+                },
+              ]}
+            />
+          </Box>
+        </Box>
       </Stack>
     </Page>
   );
