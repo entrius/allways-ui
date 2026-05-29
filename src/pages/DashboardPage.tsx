@@ -70,12 +70,13 @@ const DashboardPage: React.FC = () => {
             gridTemplateRows: { md: '1fr' },
           }}
         >
-          {/* Left column (desktop) / last (mobile): the live rates table. */}
+          {/* Left column (desktop) / second on mobile: the live rates table.
+              Kept above the unbounded transactions list on mobile. */}
           <Box
             sx={{
               ...colSx,
               minHeight: { xs: 340, md: 0 },
-              order: { xs: 3, md: 0 },
+              order: { xs: 2, md: 0 },
             }}
           >
             <MinerRatesTable syncDirection={direction} />
@@ -96,13 +97,13 @@ const DashboardPage: React.FC = () => {
             />
           </Box>
 
-          {/* Right column; second on mobile: transactions, reservations, and
-              (desktop only) the live event tape. */}
+          {/* Right column; last on mobile (its list is unbounded):
+              transactions, reservations, and (desktop only) the event tape. */}
           <Box
             sx={{
               ...colSx,
               minHeight: { xs: 440, md: 0 },
-              order: { xs: 2, md: 0 },
+              order: { xs: 3, md: 0 },
             }}
           >
             <TabbedPanel
