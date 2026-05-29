@@ -3,11 +3,11 @@ import type { Direction, Range } from './MinersDashboard';
 // Crown-grid window mode lives only on the URL — not on any API contract —
 // so the type lives here next to the search-param guards that read it.
 export type CrownRange = '1h' | '2h' | '4h';
-export type RateRange = '1h' | '4h' | '24h' | '7d';
+export type RateRange = '1h' | '4h' | '24h' | '4d';
 
 const RANGES: readonly Range[] = ['24h', '7d', '30d', '90d', 'all'];
 const CROWN_RANGES: readonly CrownRange[] = ['1h', '2h', '4h'];
-const RATE_RANGES: readonly RateRange[] = ['1h', '4h', '24h', '7d'];
+const RATE_RANGES: readonly RateRange[] = ['1h', '4h', '24h', '4d'];
 
 export const isRange = (v: string | null): v is Range =>
   RANGES.includes((v ?? '') as Range);

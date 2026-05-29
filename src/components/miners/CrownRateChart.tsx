@@ -24,13 +24,15 @@ const MB = 22;
 const INNER_W = PANEL_W - ML - MR;
 const INNER_H = PANEL_H - MT - MB;
 
-type CrownRange = '1h' | '4h' | '24h' | '7d';
+type CrownRange = '1h' | '4h' | '24h' | '4d';
 
 const RANGE_BLOCKS: Record<CrownRange, number> = {
   '1h': 300,
   '4h': 1200,
   '24h': 7200,
-  '7d': 50_400,
+  // Matches the API's RATE_MAX_BLOCKS cap — the crown rate line reads
+  // crown_holders, which alw-utils prunes, so the widest chip stops at ~4d.
+  '4d': 28_800,
 };
 
 const DIRECTION_META: Record<
