@@ -7,7 +7,7 @@ import {
   MarkLineComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
 import type { Direction } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
@@ -35,6 +35,8 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
   fill,
 }) => {
   const theme = useTheme();
+  // Drop the volume sub-chart on small/stacked screens — too cramped on mobile.
+  const showVolume = !useMediaQuery(theme.breakpoints.down('md'));
   const { data: swaps } = useAllSwaps({ limit: 600 });
   const { data: crown } = useCurrentCrown();
   const crownRate = crown?.[direction]?.rate ?? null;
@@ -92,14 +94,28 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
         ? { min: xMin - xPad, max: xMax + xPad }
         : {};
 
+    // Block-height axis labels. One decimal of "k" so a ~2k-block window
+    // doesn't collapse every tick to the same "8291k"; e.g. 8,291,200 →
+    // "8291.2k". Shown on the volume axis when present, else on the price axis.
+    const blockAxisLabel = {
+      color: axisColor,
+      fontFamily: FONTS.mono,
+      fontSize: 9,
+      formatter: (v: number) => `${(v / 1000).toFixed(1)}k`,
+      hideOverlap: true,
+    };
+
     chart.setOption(
       {
         animation: false,
-        // Price grid on top, volume grid below — the standard trading layout.
-        grid: [
-          { left: 48, right: 14, top: 8, height: '60%' },
-          { left: 48, right: 14, top: '74%', bottom: 22 },
-        ],
+        // Price grid on top, volume grid below (desktop). On mobile the volume
+        // grid is dropped and price fills the full height.
+        grid: showVolume
+          ? [
+              { left: 48, right: 14, top: 8, height: '60%' },
+              { left: 48, right: 14, top: '74%', bottom: 22 },
+            ]
+          : [{ left: 48, right: 14, top: 8, bottom: 22 }],
         axisPointer: { link: [{ xAxisIndex: 'all' }] },
         tooltip: {
           trigger: 'axis',
@@ -129,62 +145,85 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
             return `blk #${Number(block).toLocaleString()}<br/>${lines}`;
           },
         },
-        xAxis: [
-          {
-            type: 'value',
-            scale: true,
-            gridIndex: 0,
-            ...xBounds,
-            axisLabel: { show: false },
-            axisLine: { lineStyle: { color: gridColor } },
-            axisTick: { show: false },
-            splitLine: { show: false },
-          },
-          {
-            type: 'value',
-            scale: true,
-            gridIndex: 1,
-            ...xBounds,
-            axisLabel: {
-              color: axisColor,
-              fontFamily: FONTS.mono,
-              fontSize: 9,
-              // One decimal of "k" so a ~2k-block window doesn't collapse every
-              // tick to the same "8291k"; e.g. 8,291,200 → "8291.2k".
-              formatter: (v: number) => `${(v / 1000).toFixed(1)}k`,
-              hideOverlap: true,
-            },
-            axisLine: { lineStyle: { color: gridColor } },
-            axisTick: { show: false },
-            splitLine: { show: false },
-          },
-        ],
-        yAxis: [
-          {
-            type: 'value',
-            scale: true,
-            gridIndex: 0,
-            ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
-            axisLabel: {
-              color: axisColor,
-              fontFamily: FONTS.mono,
-              fontSize: 9,
-              formatter: (v: number) => v.toFixed(0),
-            },
-            axisLine: { show: false },
-            axisTick: { show: false },
-            splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
-          },
-          {
-            type: 'value',
-            gridIndex: 1,
-            min: 0,
-            axisLabel: { show: false },
-            axisLine: { show: false },
-            axisTick: { show: false },
-            splitLine: { show: false },
-          },
-        ],
+        xAxis: showVolume
+          ? [
+              {
+                type: 'value',
+                scale: true,
+                gridIndex: 0,
+                ...xBounds,
+                axisLabel: { show: false },
+                axisLine: { lineStyle: { color: gridColor } },
+                axisTick: { show: false },
+                splitLine: { show: false },
+              },
+              {
+                type: 'value',
+                scale: true,
+                gridIndex: 1,
+                ...xBounds,
+                axisLabel: blockAxisLabel,
+                axisLine: { lineStyle: { color: gridColor } },
+                axisTick: { show: false },
+                splitLine: { show: false },
+              },
+            ]
+          : [
+              {
+                type: 'value',
+                scale: true,
+                gridIndex: 0,
+                ...xBounds,
+                axisLabel: blockAxisLabel,
+                axisLine: { lineStyle: { color: gridColor } },
+                axisTick: { show: false },
+                splitLine: { show: false },
+              },
+            ],
+        yAxis: showVolume
+          ? [
+              {
+                type: 'value',
+                scale: true,
+                gridIndex: 0,
+                ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
+                axisLabel: {
+                  color: axisColor,
+                  fontFamily: FONTS.mono,
+                  fontSize: 9,
+                  formatter: (v: number) => v.toFixed(0),
+                },
+                axisLine: { show: false },
+                axisTick: { show: false },
+                splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
+              },
+              {
+                type: 'value',
+                gridIndex: 1,
+                min: 0,
+                axisLabel: { show: false },
+                axisLine: { show: false },
+                axisTick: { show: false },
+                splitLine: { show: false },
+              },
+            ]
+          : [
+              {
+                type: 'value',
+                scale: true,
+                gridIndex: 0,
+                ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
+                axisLabel: {
+                  color: axisColor,
+                  fontFamily: FONTS.mono,
+                  fontSize: 9,
+                  formatter: (v: number) => v.toFixed(0),
+                },
+                axisLine: { show: false },
+                axisTick: { show: false },
+                splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
+              },
+            ],
         series: [
           {
             name: 'Rate',
@@ -233,20 +272,24 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
                   }
                 : undefined,
           },
-          {
-            name: 'Volume',
-            type: 'bar',
-            xAxisIndex: 1,
-            yAxisIndex: 1,
-            data: vol.map((b) => [b.block, b.vol]),
-            itemStyle: { color: accent, opacity: 0.32 },
-            barWidth: 5,
-          },
+          ...(showVolume
+            ? [
+                {
+                  name: 'Volume',
+                  type: 'bar',
+                  xAxisIndex: 1,
+                  yAxisIndex: 1,
+                  data: vol.map((b) => [b.block, b.vol]),
+                  itemStyle: { color: accent, opacity: 0.32 },
+                  barWidth: 5,
+                },
+              ]
+            : []),
         ],
       },
       true,
     );
-  }, [clean, direction, theme, crownRate]);
+  }, [clean, direction, theme, crownRate, showVolume]);
 
   return (
     <Box

@@ -18,28 +18,29 @@ const RatesTicker: React.FC = () => {
 
   return (
     <Stack
-      direction="row"
-      spacing={3}
-      alignItems="center"
+      direction={{ xs: 'column', sm: 'row' }}
+      spacing={{ xs: 0.5, sm: 3 }}
+      alignItems={{ xs: 'flex-start', sm: 'center' }}
       sx={{
         fontFamily: FONTS.mono,
-        fontSize: '0.72rem',
+        fontSize: { xs: '0.6rem', sm: '0.72rem' },
         color: 'text.secondary',
         flexWrap: 'wrap',
-        gap: 2,
-        pt: 1.5,
-        pb: 1.5,
-        mb: 2,
+        gap: { xs: 0.5, sm: 2 },
+        rowGap: { xs: 0.5, sm: 1 },
+        pt: { xs: 1, sm: 1.5 },
+        pb: { xs: 1, sm: 1.5 },
+        mb: { xs: 1.5, sm: 2 },
         borderBottom: '1px solid',
         borderColor: 'divider',
       }}
     >
       <BlockIndicator />
       <Stack
-        direction="row"
-        spacing={3}
-        alignItems="center"
-        sx={{ flexWrap: 'wrap', gap: { xs: 1.5, md: 3 } }}
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 0.5, sm: 3 }}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        sx={{ flexWrap: 'wrap', gap: { xs: 0.5, md: 3 } }}
       >
         {DIRECTIONS.map((dir) => {
           const h = crown?.[dir];
@@ -54,7 +55,10 @@ const RatesTicker: React.FC = () => {
               sx={{ color: 'text.secondary' }}
             >
               <CrownIcon />
-              <Typography variant="mono" sx={{ fontSize: '0.72rem' }}>
+              <Typography
+                variant="mono"
+                sx={{ fontSize: { xs: '0.6rem', sm: '0.72rem' } }}
+              >
                 {from}
                 <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
                   →
@@ -64,14 +68,22 @@ const RatesTicker: React.FC = () => {
               {h?.uid != null ? (
                 <Typography
                   variant="mono"
-                  sx={{ fontSize: '0.72rem', color: 'text.primary', ml: 0.5 }}
+                  sx={{
+                    fontSize: { xs: '0.6rem', sm: '0.72rem' },
+                    color: 'text.primary',
+                    ml: 0.5,
+                  }}
                 >
                   uid {h.uid}
                 </Typography>
               ) : (
                 <Typography
                   variant="mono"
-                  sx={{ fontSize: '0.72rem', color: 'text.disabled', ml: 0.5 }}
+                  sx={{
+                    fontSize: { xs: '0.6rem', sm: '0.72rem' },
+                    color: 'text.disabled',
+                    ml: 0.5,
+                  }}
                 >
                   no crown
                 </Typography>
@@ -84,18 +96,21 @@ const RatesTicker: React.FC = () => {
                   >
                     ·
                   </Box>
-                  {/* Same 0.72rem mono as the rest of the segment — emphasis is
+                  {/* Same size as the rest of the segment — emphasis is
                       color/weight only, never a different size or font. */}
                   <Box
                     component="span"
-                    sx={{ fontSize: '0.72rem', color: 'text.disabled' }}
+                    sx={{
+                      fontSize: { xs: '0.6rem', sm: '0.72rem' },
+                      color: 'text.disabled',
+                    }}
                   >
                     EMA
                   </Box>
                   <Box
                     component="span"
                     sx={{
-                      fontSize: '0.72rem',
+                      fontSize: { xs: '0.6rem', sm: '0.72rem' },
                       fontWeight: 500,
                       color: 'text.primary',
                       ml: 0.5,

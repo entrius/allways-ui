@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, useMediaQuery, useTheme } from '@mui/material';
 import {
   AllwaysMarketRate,
   EventFeed,
@@ -27,6 +27,11 @@ const DashboardPage: React.FC = () => {
   // Shared trade direction — the Market Rate toggle drives both the chart and
   // the Active Rates table filter.
   const [direction, setDirection] = useState<Direction>('BTC-TAO');
+
+  // Below md the layout stacks into one column — treat as "mobile": lead with
+  // the chart and drop the Events tab.
+  const theme = useTheme();
+  const isStacked = useMediaQuery(theme.breakpoints.down('md'));
 
   return (
     <Page>
@@ -65,22 +70,41 @@ const DashboardPage: React.FC = () => {
             gridTemplateRows: { md: '1fr' },
           }}
         >
-          {/* Left column: the live rates table. */}
-          <Box sx={{ ...colSx, minHeight: { xs: 340, md: 0 } }}>
+          {/* Left column (desktop) / last (mobile): the live rates table. */}
+          <Box
+            sx={{
+              ...colSx,
+              minHeight: { xs: 340, md: 0 },
+              order: { xs: 3, md: 0 },
+            }}
+          >
             <MinerRatesTable syncDirection={direction} />
           </Box>
 
-          {/* Middle column (focus): the market-rate chart with a direction
-              toggle that also filters the Active Rates table. */}
-          <Box sx={{ ...colSx, minHeight: { xs: 440, md: 0 } }}>
+          {/* Middle column (focus); first on mobile: the market-rate chart with
+              a direction toggle that also filters the Active Rates table. */}
+          <Box
+            sx={{
+              ...colSx,
+              minHeight: { xs: 440, md: 0 },
+              order: { xs: 1, md: 0 },
+            }}
+          >
             <AllwaysMarketRate
               direction={direction}
               onDirectionChange={setDirection}
             />
           </Box>
 
-          {/* Right column: transactions, reservations, and the live event tape. */}
-          <Box sx={{ ...colSx, minHeight: { xs: 440, md: 0 } }}>
+          {/* Right column; second on mobile: transactions, reservations, and
+              (desktop only) the live event tape. */}
+          <Box
+            sx={{
+              ...colSx,
+              minHeight: { xs: 440, md: 0 },
+              order: { xs: 2, md: 0 },
+            }}
+          >
             <TabbedPanel
               tabs={[
                 {
@@ -107,18 +131,23 @@ const DashboardPage: React.FC = () => {
                   ),
                   node: <ReservationsTracker embedded />,
                 },
-                {
-                  key: 'events',
-                  label: 'Events',
-                  info: (
-                    <Box sx={{ maxWidth: 280 }}>
-                      Real-time stream of contract and chain events — swap
-                      lifecycle, collateral changes, votes, reservations. Newest
-                      first.
-                    </Box>
-                  ),
-                  node: <EventFeed embedded />,
-                },
+                // Events tape is desktop-only — too much for the mobile view.
+                ...(isStacked
+                  ? []
+                  : [
+                      {
+                        key: 'events',
+                        label: 'Events',
+                        info: (
+                          <Box sx={{ maxWidth: 280 }}>
+                            Real-time stream of contract and chain events — swap
+                            lifecycle, collateral changes, votes, reservations.
+                            Newest first.
+                          </Box>
+                        ),
+                        node: <EventFeed embedded />,
+                      },
+                    ]),
               ]}
             />
           </Box>
