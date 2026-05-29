@@ -8,7 +8,8 @@ export const useApiQuery = <TResponse = void, TSelect = TResponse>(
   queryParams?: Record<string, string | number | undefined>,
   enabled?: boolean,
 ) => {
-  const baseUrl = import.meta.env.VITE_REACT_APP_BASE_URL;
+  const rawBase = import.meta.env.VITE_REACT_APP_BASE_URL;
+  const baseUrl = typeof rawBase === 'string' ? rawBase.trim() : '';
 
   return useQuery<TResponse, AxiosError, TSelect>({
     queryKey: [queryName, url, queryParams],

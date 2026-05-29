@@ -1,7 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-const SSE_URL = `${import.meta.env.VITE_REACT_APP_BASE_URL}/sse`;
+const sseBase =
+  typeof import.meta.env.VITE_REACT_APP_BASE_URL === 'string'
+    ? import.meta.env.VITE_REACT_APP_BASE_URL.trim()
+    : '';
+const SSE_URL = `${sseBase}/sse`;
 
 export function useSSE() {
   const queryClient = useQueryClient();
