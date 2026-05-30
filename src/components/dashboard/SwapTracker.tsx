@@ -11,13 +11,12 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useAllSwaps, useSwapDetail } from '../../api';
+import { useAllSwaps, useMiners, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
-import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
 import { formatAmount } from '../../utils/format';
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 25;
 
 const STATUS_PROGRESS: Record<string, number> = {
   ACTIVE: 33,
@@ -57,7 +56,7 @@ const useDebounce = (value: string, delay: number) => {
   return debounced;
 };
 
-const SwapTracker: React.FC = () => {
+const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -71,6 +70,9 @@ const SwapTracker: React.FC = () => {
     { search: debouncedSearch || undefined, limit },
     !exactSwapId,
   );
+  const { data: miners } = useMiners();
+  const minerUid = (hotkey: string | null): number | undefined =>
+    hotkey ? miners?.find((m) => m.hotkey === hotkey)?.uid : undefined;
 
   const swaps = exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy;
   const isLoading = exactSwapId ? detailLoading : fuzzyLoading;
@@ -102,30 +104,32 @@ const SwapTracker: React.FC = () => {
         minHeight: 0,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-        <Typography
-          variant="h6"
-          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-        >
-          Transactions
-        </Typography>
-        <Tooltip
-          title={
-            <Box sx={{ maxWidth: 280 }}>
-              Every transaction on the network in chronological order, with its
-              current status and progress through the lifecycle: Initiated →
-              Fulfilled → Completed (or Timed Out). Click a row to see the full
-              timeline.
-            </Box>
-          }
-          arrow
-          placement="right"
-        >
-          <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
-            <InfoOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      {!embedded && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+          >
+            Transactions
+          </Typography>
+          <Tooltip
+            title={
+              <Box sx={{ maxWidth: 280 }}>
+                Every transaction on the network in chronological order, with
+                its current status and progress through the lifecycle: Initiated
+                → Fulfilled → Completed (or Timed Out). Click a row to see the
+                full timeline.
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
 
       <TextField
         size="small"
@@ -137,7 +141,7 @@ const SwapTracker: React.FC = () => {
           width: '100%',
           '& .MuiInputBase-root': {
             fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
+            fontSize: { xs: '0.62rem', sm: '0.7rem' },
             borderRadius: 0,
           },
         }}
@@ -158,7 +162,7 @@ const SwapTracker: React.FC = () => {
             sx={{
               color: 'text.secondary',
               fontFamily: FONTS.mono,
-              fontSize: '0.8rem',
+              fontSize: { xs: '0.72rem', sm: '0.8rem' },
             }}
           >
             {search ? 'No matching transactions' : 'No transactions yet'}
@@ -179,78 +183,94 @@ const SwapTracker: React.FC = () => {
             },
           }}
         >
-          <Stack spacing={1.5}>
+          <Stack spacing={0}>
             {swaps.map((swap) => {
               const color = getStatusColor(swap.status, theme.palette);
               const progress = STATUS_PROGRESS[swap.status] || 0;
+              const sentLine =
+                swap.sourceAmount && swap.sourceChain
+                  ? formatAmount(swap.sourceAmount, swap.sourceChain)
+                  : swap.taoAmount
+                    ? `${parseFloat(swap.taoAmount).toFixed(4)} TAO`
+                    : null;
+              const recvLine =
+                swap.destAmount && swap.destChain
+                  ? formatAmount(swap.destAmount, swap.destChain)
+                  : null;
+              const uid = minerUid(swap.minerHotkey);
               return (
                 <Box
                   key={swap.swapId}
                   component={RouterLink}
                   to={`/swap/${swap.swapId}`}
                   sx={{
-                    p: 2,
+                    px: 1,
+                    py: { xs: 1.75, sm: 1.25 },
                     borderRadius: 0,
-                    backgroundColor: 'surface.light',
-                    border: '1px solid',
+                    borderBottom: '1px solid',
                     borderColor: 'divider',
                     textDecoration: 'none',
                     color: 'inherit',
                     display: 'block',
                     cursor: 'pointer',
-                    transition: 'border-color 0.2s',
-                    '&:hover': { borderColor: 'primary.main' },
+                    transition: 'background-color 0.15s',
+                    '&:hover': { backgroundColor: 'action.hover' },
                   }}
                 >
                   <Stack
                     direction="row"
                     justifyContent="space-between"
-                    alignItems="center"
+                    alignItems="baseline"
+                    spacing={1}
                   >
+                    {/* The amount conversion is the headline. */}
                     <Typography
                       sx={{
                         fontFamily: FONTS.mono,
-                        fontSize: '0.8rem',
+                        fontSize: { xs: '0.72rem', sm: '0.8rem' },
                         fontWeight: 600,
                         color: 'text.primary',
                       }}
                     >
-                      Transaction #{swap.swapId}
-                    </Typography>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {swap.sourceChain && swap.destChain && (
-                        <Typography
-                          sx={{
-                            fontFamily: FONTS.mono,
-                            fontSize: '0.65rem',
-                            color: 'text.secondary',
-                          }}
-                        >
-                          {swap.sourceChain.toUpperCase()} &rarr;{' '}
-                          {swap.destChain.toUpperCase()}
-                        </Typography>
+                      {sentLine ?? `#${swap.swapId}`}
+                      {sentLine && recvLine && (
+                        <>
+                          <Box
+                            component="span"
+                            sx={{
+                              color: 'text.secondary',
+                              mx: 0.5,
+                              fontWeight: 400,
+                            }}
+                          >
+                            →
+                          </Box>
+                          {recvLine}
+                        </>
                       )}
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: '0.65rem',
-                          color,
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {swap.status.replace('_', ' ')}
-                      </Typography>
-                    </Stack>
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: { xs: '0.58rem', sm: '0.65rem' },
+                        color,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {swap.status.replace('_', ' ')}
+                    </Typography>
                   </Stack>
 
                   <LinearProgress
                     variant="determinate"
                     value={progress}
                     sx={{
-                      mt: 1,
-                      mb: 1.5,
-                      height: 3,
+                      mt: 0.75,
+                      mb: 0.75,
+                      height: 2,
                       borderRadius: 0,
                       backgroundColor: theme.palette.border.light,
                       '& .MuiLinearProgress-bar': {
@@ -262,56 +282,17 @@ const SwapTracker: React.FC = () => {
                     }}
                   />
 
-                  <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-                    {swap.sourceAmount && swap.sourceChain && (
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
-                          color: 'text.primary',
-                        }}
-                      >
-                        {formatAmount(swap.sourceAmount, swap.sourceChain)}
-                      </Typography>
-                    )}
-                    {swap.taoAmount && !swap.sourceAmount && (
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
-                          color: 'text.primary',
-                        }}
-                      >
-                        {parseFloat(swap.taoAmount).toFixed(4)} TAO
-                      </Typography>
-                    )}
-                    {swap.userAddress && (
-                      <Typography
-                        component="span"
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
-                          color: 'text.secondary',
-                        }}
-                      >
-                        User: <CopyableAddress address={swap.userAddress} />
-                      </Typography>
-                    )}
-                    {swap.minerHotkey && (
-                      <Typography
-                        component="span"
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: '0.7rem',
-                          color: 'text.secondary',
-                        }}
-                      >
-                        Miner: <CopyableAddress address={swap.minerHotkey} />
-                      </Typography>
-                    )}
-                  </Stack>
+                  {/* Tx id + miner uid, de-emphasized. */}
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: { xs: '0.58rem', sm: '0.65rem' },
+                      color: 'text.secondary',
+                    }}
+                  >
+                    #{swap.swapId}
+                    {uid != null && ` · uid ${uid}`}
+                  </Typography>
                 </Box>
               );
             })}

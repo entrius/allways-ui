@@ -36,7 +36,10 @@ const RefreshIndicator: React.FC<{ block: number; updatedAt: string }> = ({
   return (
     <Typography
       variant="mono"
-      sx={{ fontSize: '0.72rem', color: 'text.secondary' }}
+      sx={{
+        fontSize: { xs: '0.6rem', sm: '0.72rem' },
+        color: 'text.secondary',
+      }}
     >
       last refresh #{block.toLocaleString()}
       <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
@@ -67,7 +70,10 @@ const StickyNetworkHeader: React.FC = () => {
           sx={{ color: 'text.secondary' }}
         >
           <CrownIcon />
-          <Typography variant="mono" sx={{ fontSize: '0.72rem' }}>
+          <Typography
+            variant="mono"
+            sx={{ fontSize: { xs: '0.6rem', sm: '0.72rem' } }}
+          >
             {from}
             <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
               →
@@ -78,7 +84,7 @@ const StickyNetworkHeader: React.FC = () => {
             <Typography
               variant="mono"
               sx={{
-                fontSize: '0.72rem',
+                fontSize: { xs: '0.6rem', sm: '0.72rem' },
                 color: 'text.primary',
                 ml: 0.5,
                 fontWeight: 500,
@@ -90,7 +96,11 @@ const StickyNetworkHeader: React.FC = () => {
           ) : (
             <Typography
               variant="mono"
-              sx={{ fontSize: '0.72rem', color: 'text.disabled', ml: 0.5 }}
+              sx={{
+                fontSize: { xs: '0.6rem', sm: '0.72rem' },
+                color: 'text.disabled',
+                ml: 0.5,
+              }}
             >
               none
             </Typography>
@@ -116,21 +126,27 @@ const StickyNetworkHeader: React.FC = () => {
       }}
     >
       <Stack
-        direction="row"
-        spacing={3}
-        alignItems="center"
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 0.5, sm: 3 }}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
         sx={{
           maxWidth: 1400,
           mx: 'auto',
           fontFamily: FONTS.mono,
-          fontSize: '0.72rem',
+          fontSize: { xs: '0.6rem', sm: '0.72rem' },
           color: 'text.secondary',
           flexWrap: 'wrap',
-          gap: 2,
+          gap: { xs: 0.5, sm: 2 },
+          rowGap: { xs: 0.5, sm: 1 },
         }}
       >
         <BlockIndicator />
-        <Stack direction="row" spacing={3} alignItems="center" sx={{ flex: 1 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 0.5, sm: 3 }}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          sx={{ flexWrap: 'wrap', gap: { xs: 0.5, sm: 3 }, flex: { sm: 1 } }}
+        >
           {segments}
         </Stack>
         <Stack direction="row" spacing={0.75} alignItems="center">
@@ -146,7 +162,7 @@ const StickyNetworkHeader: React.FC = () => {
             <Typography
               variant="mono"
               sx={{
-                fontSize: '0.72rem',
+                fontSize: { xs: '0.6rem', sm: '0.72rem' },
                 color: 'warning.main',
                 fontWeight: 600,
                 letterSpacing: '0.04em',
@@ -162,7 +178,10 @@ const StickyNetworkHeader: React.FC = () => {
           ) : (
             <Typography
               variant="mono"
-              sx={{ fontSize: '0.72rem', color: 'text.secondary' }}
+              sx={{
+                fontSize: { xs: '0.6rem', sm: '0.72rem' },
+                color: 'text.secondary',
+              }}
             >
               healthy
             </Typography>

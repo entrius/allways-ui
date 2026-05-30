@@ -10,3 +10,4 @@ yarn.lock
 *.log
 *.tsbuildinfo
 .wrangler
+.claude

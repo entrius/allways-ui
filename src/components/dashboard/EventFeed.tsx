@@ -54,7 +54,7 @@ const getEventColor = (
   return map[eventType] ?? palette.status.active;
 };
 
-const EventFeed: React.FC = () => {
+const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const theme = useTheme();
   const { data: events, isLoading } = useLatestEvents();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -81,30 +81,32 @@ const EventFeed: React.FC = () => {
         minHeight: 0,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Typography
-          variant="h6"
-          sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-        >
-          Live Events
-        </Typography>
-        <Tooltip
-          title={
-            <Box sx={{ maxWidth: 280 }}>
-              A real-time stream of events emitted by the smart contract and the
-              underlying chain — exchange lifecycle, network collateral changes,
-              validator votes, and reservations. Newest events appear at the
-              top.
-            </Box>
-          }
-          arrow
-          placement="right"
-        >
-          <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
-            <InfoOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      {!embedded && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Typography
+            variant="h6"
+            sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
+          >
+            Live Events
+          </Typography>
+          <Tooltip
+            title={
+              <Box sx={{ maxWidth: 280 }}>
+                A real-time stream of events emitted by the smart contract and
+                the underlying chain — exchange lifecycle, network collateral
+                changes, validator votes, and reservations. Newest events appear
+                at the top.
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
       <Box
         ref={scrollRef}
         onScroll={handleScroll}
@@ -119,20 +121,20 @@ const EventFeed: React.FC = () => {
           },
         }}
       >
-        <Stack spacing={1}>
+        <Stack spacing={0}>
           {events?.map((event) => {
             const label = displayEventType(event);
             return (
               <Box
                 key={event.id}
                 sx={{
-                  p: 1.5,
+                  px: 1,
+                  py: { xs: 1.75, sm: 1.25 },
                   borderRadius: 0,
-                  backgroundColor: 'surface.light',
-                  border: '1px solid',
+                  borderBottom: '1px solid',
                   borderColor: 'divider',
-                  transition: 'border-color 0.2s',
-                  '&:hover': { borderColor: theme.palette.border.light },
+                  transition: 'background-color 0.15s',
+                  '&:hover': { backgroundColor: 'action.hover' },
                 }}
               >
                 <Stack
