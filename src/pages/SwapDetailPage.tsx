@@ -173,13 +173,13 @@ const SwapDetailPage: React.FC = () => {
         alignItems="center"
         justifyContent="space-between"
         spacing={2}
-        sx={{ mb: 3 }}
+        sx={{ mb: 3, flexWrap: 'wrap', rowGap: 0.5 }}
       >
         <Typography
           sx={{
             fontFamily: FONTS.heading,
             fontWeight: 900,
-            fontSize: '1.5rem',
+            fontSize: { xs: '1.15rem', sm: '1.5rem' },
             color: 'text.primary',
           }}
         >
@@ -266,7 +266,7 @@ const SwapDetailPage: React.FC = () => {
             <Typography
               sx={{
                 fontFamily: FONTS.mono,
-                fontSize: '1.4rem',
+                fontSize: { xs: '1.05rem', sm: '1.4rem' },
                 fontWeight: 600,
                 color: 'text.primary',
                 letterSpacing: '-0.5px',
@@ -602,8 +602,11 @@ const SwapDetailPage: React.FC = () => {
               <Stack
                 key={event.id}
                 direction="row"
-                spacing={1.5}
+                spacing={{ xs: 1, sm: 1.5 }}
+                rowGap={0.5}
                 alignItems="center"
+                flexWrap={{ xs: 'wrap', sm: 'nowrap' }}
+                useFlexGap
               >
                 <Chip
                   label={displayEventType(event)}
@@ -614,7 +617,7 @@ const SwapDetailPage: React.FC = () => {
                     fontSize: '0.6rem',
                     height: 20,
                     borderRadius: 0,
-                    width: 220,
+                    width: { xs: 150, sm: 220 },
                     borderColor: theme.palette.border.light,
                     '& .MuiChip-label': {
                       overflow: 'hidden',
@@ -660,6 +663,7 @@ const SwapDetailPage: React.FC = () => {
                       fontFamily: FONTS.mono,
                       fontSize: '0.65rem',
                       color: 'text.secondary',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     tx: {event.txHash.slice(0, 10)}...
@@ -682,6 +686,7 @@ const SwapDetailPage: React.FC = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 0.25,
+                      whiteSpace: 'nowrap',
                       '&:hover': { textDecoration: 'underline' },
                     }}
                   >

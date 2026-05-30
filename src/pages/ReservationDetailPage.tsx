@@ -174,13 +174,13 @@ const ReservationDetailPage: React.FC = () => {
         alignItems="center"
         justifyContent="space-between"
         spacing={2}
-        sx={{ mb: 1 }}
+        sx={{ mb: 1, flexWrap: 'wrap', rowGap: 0.5 }}
       >
         <Typography
           sx={{
             fontFamily: FONTS.heading,
             fontWeight: 900,
-            fontSize: '1.5rem',
+            fontSize: { xs: '1.15rem', sm: '1.5rem' },
             color: 'text.primary',
           }}
         >
@@ -194,7 +194,7 @@ const ReservationDetailPage: React.FC = () => {
         <Typography
           sx={{
             fontFamily: FONTS.mono,
-            fontSize: '1.4rem',
+            fontSize: { xs: '1.05rem', sm: '1.4rem' },
             fontWeight: 600,
             color: 'text.primary',
             letterSpacing: '-0.5px',
