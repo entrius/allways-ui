@@ -182,7 +182,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
           },
         }}
       >
-        <Stack spacing={0.75}>
+        <Stack spacing={0}>
           {filtered.map((r: Reservation) => {
             const statusColor = colors[r.status] ?? colors.ACTIVE;
             const sendLabel =
@@ -217,17 +217,17 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                 component={RouterLink}
                 to={`/reservations/${r.requestHash}`}
                 sx={{
-                  p: 1.25,
+                  px: 1,
+                  py: { xs: 1.75, sm: 1.25 },
                   borderRadius: 0,
-                  border: '1px solid',
+                  borderBottom: '1px solid',
                   borderColor: 'divider',
                   textDecoration: 'none',
+                  color: 'inherit',
                   display: 'block',
-                  transition: 'border-color 0.15s, background-color 0.15s',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    backgroundColor: 'background.paper',
-                  },
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s',
+                  '&:hover': { backgroundColor: 'action.hover' },
                 }}
               >
                 <Stack
@@ -239,7 +239,8 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
-                      fontSize: { xs: '0.68rem', sm: '0.75rem' },
+                      fontSize: { xs: '0.72rem', sm: '0.8rem' },
+                      fontWeight: 600,
                       color: 'text.primary',
                       // Wrap on mobile (it's full-width there) so the amounts
                       // stay legible instead of spilling past the card.

@@ -121,20 +121,20 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
           },
         }}
       >
-        <Stack spacing={1}>
+        <Stack spacing={0}>
           {events?.map((event) => {
             const label = displayEventType(event);
             return (
               <Box
                 key={event.id}
                 sx={{
-                  p: 1.5,
+                  px: 1,
+                  py: { xs: 1.75, sm: 1.25 },
                   borderRadius: 0,
-                  backgroundColor: 'surface.light',
-                  border: '1px solid',
+                  borderBottom: '1px solid',
                   borderColor: 'divider',
-                  transition: 'border-color 0.2s',
-                  '&:hover': { borderColor: theme.palette.border.light },
+                  transition: 'background-color 0.15s',
+                  '&:hover': { backgroundColor: 'action.hover' },
                 }}
               >
                 <Stack
