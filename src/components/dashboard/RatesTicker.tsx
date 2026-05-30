@@ -10,8 +10,8 @@ import { latestEmaRate } from './marketRate';
 const DIRECTIONS: Direction[] = ['BTC-TAO', 'TAO-BTC'];
 
 // Mirrors the miners-page StickyNetworkHeader eyebrow — block height plus the
-// current crown holder per direction — and adds the live EMA rate for each
-// direction. No last-refresh / health segment.
+// current crown holder and its live rate per direction (uid N @ rate τ), then
+// the smoothed EMA market rate. No last-refresh / health segment.
 const RatesTicker: React.FC = () => {
   const { data: crown } = useCurrentCrown();
   const { data: swaps } = useAllSwaps({ limit: 600 });
@@ -72,9 +72,11 @@ const RatesTicker: React.FC = () => {
                     fontSize: { xs: '0.6rem', sm: '0.72rem' },
                     color: 'text.primary',
                     ml: 0.5,
+                    fontWeight: 500,
                   }}
                 >
                   uid {h.uid}
+                  {h.rate != null && <> @ {h.rate.toFixed(2)} τ</>}
                 </Typography>
               ) : (
                 <Typography

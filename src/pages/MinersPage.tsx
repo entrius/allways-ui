@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Stack } from '@mui/material';
+import { Stack, useMediaQuery, useTheme } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import {
   CrownHistoryGrid,
@@ -22,6 +22,11 @@ import {
 
 const MinersPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
+  const theme = useTheme();
+  // Crown History and the rate chart are dense, wide panels that are noisy and
+  // unusable on a phone — skip them entirely below md so the page is just the
+  // KPIs and the leaderboard.
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const rangeParam = params.get('range');
   const range: Range = isRange(rangeParam) ? rangeParam : '30d';
@@ -71,18 +76,24 @@ const MinersPage: React.FC = () => {
           range={range}
           onRangeChange={(r) => setParam('range', r)}
         />
-        <CrownHistoryGrid
-          direction={direction}
-          onDirectionChange={(d) => setParam('pair', d)}
-          range={crownRange}
-          onRangeChange={(r) => setParam('crownRange', r)}
-          pan={pan}
-          onPanChange={(p) => setParam('pan', p === 0 ? undefined : String(p))}
-        />
-        <CrownRateChart
-          range={rateRange}
-          onRangeChange={(r) => setParam('rateRange', r)}
-        />
+        {!isMobile && (
+          <>
+            <CrownHistoryGrid
+              direction={direction}
+              onDirectionChange={(d) => setParam('pair', d)}
+              range={crownRange}
+              onRangeChange={(r) => setParam('crownRange', r)}
+              pan={pan}
+              onPanChange={(p) =>
+                setParam('pan', p === 0 ? undefined : String(p))
+              }
+            />
+            <CrownRateChart
+              range={rateRange}
+              onRangeChange={(r) => setParam('rateRange', r)}
+            />
+          </>
+        )}
       </Stack>
     </Page>
   );

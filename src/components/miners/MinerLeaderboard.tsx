@@ -158,14 +158,14 @@ const MinerLeaderboard: React.FC<{
         backgroundColor: 'surface.light',
         border: '1px solid',
         borderColor: 'divider',
-        p: 2.5,
+        p: { xs: 1.5, md: 2.5 },
         mb: 4,
       }}
     >
       <Stack
-        direction="row"
+        direction={{ xs: 'column', sm: 'row' }}
         justifyContent="space-between"
-        alignItems="center"
+        alignItems={{ xs: 'stretch', sm: 'center' }}
         spacing={1.5}
         sx={{ mb: 1.5 }}
       >
@@ -193,7 +193,7 @@ const MinerLeaderboard: React.FC<{
               },
             }}
             sx={{
-              width: 200,
+              width: { xs: '100%', sm: 200 },
               '& .MuiOutlinedInput-root': { backgroundColor: 'surface.main' },
               '& fieldset': { borderColor: 'divider' },
             }}
@@ -235,157 +235,186 @@ const MinerLeaderboard: React.FC<{
           </Stack>
         </Stack>
       </Stack>
-      <Table size="small" sx={{ '& th, & td': { borderColor: 'divider' } }}>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ width: 22, p: 0, pl: 1.5 }} />
-            <SortHeader
-              label={SORT_LABELS.uid}
-              sortKey="uid"
-              active={sortKey}
-              dir={sortDir}
-              onSort={onSort}
-            />
-            <TableCell>hotkey</TableCell>
-            <SortHeader
-              label={SORT_LABELS.crownShare}
-              sortKey="crownShare"
-              active={sortKey}
-              dir={sortDir}
-              onSort={onSort}
-            />
-            <SortHeader
-              label={SORT_LABELS.collateral}
-              sortKey="collateral"
-              active={sortKey}
-              dir={sortDir}
-              onSort={onSort}
-            />
-            <SortHeader
-              label={SORT_LABELS.success}
-              sortKey="success"
-              active={sortKey}
-              dir={sortDir}
-              onSort={onSort}
-            />
-            <SortHeader
-              label={SORT_LABELS.volume}
-              sortKey="volume"
-              active={sortKey}
-              dir={sortDir}
-              onSort={onSort}
-            />
-            <SortHeader
-              label={SORT_LABELS.active}
-              sortKey="active"
-              active={sortKey}
-              dir={sortDir}
-              onSort={onSort}
-            />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {sortedRows.length === 0 && !isLoading && (
+      <Box sx={{ overflowX: 'auto', mx: { xs: -1.5, md: 0 } }}>
+        <Table
+          size="small"
+          sx={{
+            minWidth: { xs: 480, md: 0 },
+            '& th, & td': {
+              borderColor: 'divider',
+              fontSize: { xs: '0.7rem', sm: '0.76rem', md: '0.8rem' },
+              px: { xs: 1, md: 2 },
+              whiteSpace: 'nowrap',
+            },
+          }}
+        >
+          <TableHead>
             <TableRow>
-              <TableCell
-                colSpan={8}
-                sx={{ textAlign: 'center', color: 'text.disabled' }}
-              >
-                No miners registered yet
+              <TableCell sx={{ width: 22, p: 0, pl: 1.5 }} />
+              <SortHeader
+                label={SORT_LABELS.uid}
+                sortKey="uid"
+                active={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+              />
+              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                hotkey
               </TableCell>
+              <SortHeader
+                label={SORT_LABELS.crownShare}
+                sortKey="crownShare"
+                active={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+              />
+              <SortHeader
+                label={SORT_LABELS.collateral}
+                sortKey="collateral"
+                active={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+              />
+              <SortHeader
+                label={SORT_LABELS.success}
+                sortKey="success"
+                active={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+              />
+              <SortHeader
+                label={SORT_LABELS.volume}
+                sortKey="volume"
+                active={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+              />
+              <SortHeader
+                label={SORT_LABELS.active}
+                sortKey="active"
+                active={sortKey}
+                dir={sortDir}
+                onSort={onSort}
+              />
             </TableRow>
-          )}
-          {sortedRows.map((row) => {
-            const sharePct =
-              topShare > 0 ? Math.round((row.crownShare / topShare) * 100) : 0;
-            const tierColor = tierByHotkey.get(row.hotkey) ?? TIER_COLORS[4];
-            const successColor =
-              row.completedSwaps === 0 && row.timedOutSwaps > 0
-                ? 'error.main'
-                : 'text.primary';
-            const wearsCrown = row.currentCrownDirections.length > 0;
-            return (
-              <TableRow
-                key={row.hotkey}
-                onClick={() => handleRowClick(row)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleRowClick(row);
-                  }
-                }}
-                tabIndex={0}
-                hover
-                sx={{
-                  cursor: 'pointer',
-                  '&:hover td': { backgroundColor: 'surface.elevated' },
-                  '&:focus-visible': {
-                    outline: `2px solid ${theme.palette.primary.main}`,
-                    outlineOffset: -2,
-                  },
-                }}
-              >
+          </TableHead>
+          <TableBody>
+            {sortedRows.length === 0 && !isLoading && (
+              <TableRow>
                 <TableCell
-                  sx={{ width: 22, p: 0, pl: 1.5, textAlign: 'center' }}
+                  colSpan={8}
+                  sx={{ textAlign: 'center', color: 'text.disabled' }}
                 >
-                  {wearsCrown && <CrownIcon />}
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>{row.uid}</TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {shortHotkey(row.hotkey)}
-                </TableCell>
-                <TableCell>
-                  <Stack direction="row" alignItems="center" spacing={1.25}>
-                    <Box
-                      sx={{
-                        display: 'inline-block',
-                        width: 80,
-                        height: 6,
-                        backgroundColor: 'action.hover',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          height: '100%',
-                          width: `${sharePct}%`,
-                          backgroundColor: tierColor,
-                        }}
-                      />
-                    </Box>
-                    <Typography
-                      sx={{ fontFamily: FONTS.mono, fontSize: '0.85rem' }}
-                    >
-                      {(row.crownShare * 100).toFixed(0)}%
-                    </Typography>
-                  </Stack>
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {formatTao(row.collateralRao)} τ
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono, color: successColor }}>
-                  {formatSuccess(row)}
-                </TableCell>
-                <TableCell sx={{ fontFamily: FONTS.mono }}>
-                  {formatVolume(row.volumeTao)} τ
-                </TableCell>
-                <TableCell>
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: row.isActive
-                        ? 'status.active'
-                        : 'text.disabled',
-                      display: 'inline-block',
-                    }}
-                  />
+                  No miners registered yet
                 </TableCell>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+            )}
+            {sortedRows.map((row) => {
+              const sharePct =
+                topShare > 0
+                  ? Math.round((row.crownShare / topShare) * 100)
+                  : 0;
+              const tierColor = tierByHotkey.get(row.hotkey) ?? TIER_COLORS[4];
+              const successColor =
+                row.completedSwaps === 0 && row.timedOutSwaps > 0
+                  ? 'error.main'
+                  : 'text.primary';
+              const wearsCrown = row.currentCrownDirections.length > 0;
+              return (
+                <TableRow
+                  key={row.hotkey}
+                  onClick={() => handleRowClick(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleRowClick(row);
+                    }
+                  }}
+                  tabIndex={0}
+                  hover
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover td': { backgroundColor: 'surface.elevated' },
+                    '&:focus-visible': {
+                      outline: `2px solid ${theme.palette.primary.main}`,
+                      outlineOffset: -2,
+                    },
+                  }}
+                >
+                  <TableCell
+                    sx={{ width: 22, p: 0, pl: 1.5, textAlign: 'center' }}
+                  >
+                    {wearsCrown && <CrownIcon />}
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    {row.uid}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      display: { xs: 'none', md: 'table-cell' },
+                    }}
+                  >
+                    {shortHotkey(row.hotkey)}
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" spacing={1.25}>
+                      <Box
+                        sx={{
+                          display: 'inline-block',
+                          width: 80,
+                          height: 6,
+                          backgroundColor: 'action.hover',
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            height: '100%',
+                            width: `${sharePct}%`,
+                            backgroundColor: tierColor,
+                          }}
+                        />
+                      </Box>
+                      <Typography
+                        sx={{
+                          fontFamily: FONTS.mono,
+                          fontSize: { xs: '0.72rem', md: '0.85rem' },
+                        }}
+                      >
+                        {(row.crownShare * 100).toFixed(0)}%
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    {formatTao(row.collateralRao)} τ
+                  </TableCell>
+                  <TableCell
+                    sx={{ fontFamily: FONTS.mono, color: successColor }}
+                  >
+                    {formatSuccess(row)}
+                  </TableCell>
+                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                    {formatVolume(row.volumeTao)} τ
+                  </TableCell>
+                  <TableCell>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        backgroundColor: row.isActive
+                          ? 'status.active'
+                          : 'text.disabled',
+                        display: 'inline-block',
+                      }}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Box>
     </Box>
   );
 };
