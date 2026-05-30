@@ -112,7 +112,8 @@ export const robustYRange = (
   return { min: min - pad, max: max + pad };
 };
 
-// Latest EMA rate for a direction — what the ticker shows as the "live" rate.
+// Latest EMA rate for a direction — the smoothed recent-market rate the ticker
+// shows next to the live crown rate.
 export const latestEmaRate = (
   swaps: ActiveSwap[] | undefined,
   dir: Direction,

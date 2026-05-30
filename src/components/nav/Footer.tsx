@@ -41,7 +41,9 @@ const Footer: React.FC = () => {
         py: { xs: 4, md: 6 },
       }}
     >
-      <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
+      {/* Full-bleed: footer content spans the viewport (minus the outer px
+          padding) to match TopNav and the dashboard, which carry no maxWidth. */}
+      <Box>
         <Grid container spacing={4}>
           <Grid item xs={12} md={6}>
             <Stack direction="row" alignItems="center" spacing={1.25}>

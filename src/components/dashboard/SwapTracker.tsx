@@ -3,6 +3,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   IconButton,
+  InputAdornment,
   LinearProgress,
   Stack,
   TextField,
@@ -11,6 +12,7 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import SearchIcon from '@mui/icons-material/Search';
 import { useAllSwaps, useMiners, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
@@ -136,13 +138,25 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
         placeholder="Search by transaction ID (#N) or address..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+            </InputAdornment>
+          ),
+        }}
         sx={{
           mb: 1.5,
           width: '100%',
-          '& .MuiInputBase-root': {
+          '& .MuiOutlinedInput-root': {
             fontFamily: FONTS.mono,
-            fontSize: { xs: '0.62rem', sm: '0.7rem' },
+            fontSize: '0.75rem',
+            color: 'text.primary',
             borderRadius: 0,
+            height: 32,
+            '& fieldset': { borderColor: 'divider' },
+            '&:hover fieldset': { borderColor: theme.palette.border.light },
+            '&.Mui-focused fieldset': { borderColor: 'primary.main' },
           },
         }}
       />

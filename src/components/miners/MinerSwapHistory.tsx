@@ -55,7 +55,7 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
         backgroundColor: 'surface.light',
         border: '1px solid',
         borderColor: 'divider',
-        p: 2.5,
+        p: { xs: 1.5, md: 2.5 },
       }}
     >
       <Typography
@@ -70,15 +70,29 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
         Swap History
       </Typography>
       <TableContainer sx={{ overflowX: 'auto' }}>
-        <Table size="small" sx={{ '& th, & td': { borderColor: 'divider' } }}>
+        <Table
+          size="small"
+          sx={{
+            '& th, & td': {
+              borderColor: 'divider',
+              fontSize: { xs: '0.7rem', sm: '0.76rem', md: '0.8rem' },
+              px: { xs: 1, md: 2 },
+              whiteSpace: 'nowrap',
+            },
+          }}
+        >
           <TableHead>
             <TableRow>
               <TableCell>swap</TableCell>
-              <TableCell>initiated</TableCell>
+              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                initiated
+              </TableCell>
               <TableCell>status</TableCell>
               <TableCell>amount</TableCell>
               <TableCell>dir</TableCell>
-              <TableCell>dur</TableCell>
+              <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                dur
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -123,7 +137,12 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                       #{row.swapId}
                     </Box>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      display: { xs: 'none', md: 'table-cell' },
+                    }}
+                  >
                     {fmtBlock(row.initiatedBlock)}
                   </TableCell>
                   <TableCell>
@@ -153,7 +172,12 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                       ? `${row.sourceChain.toUpperCase()}→${row.destChain.toUpperCase()}`
                       : '—'}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      display: { xs: 'none', md: 'table-cell' },
+                    }}
+                  >
                     {fmtDuration(row.initiatedAt, row.resolvedAt)}
                   </TableCell>
                 </TableRow>

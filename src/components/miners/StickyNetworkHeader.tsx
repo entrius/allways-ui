@@ -115,9 +115,6 @@ const StickyNetworkHeader: React.FC = () => {
   return (
     <Box
       sx={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 20,
         backgroundColor: 'background.default',
         borderBottom: '1px solid',
         borderColor: 'divider',

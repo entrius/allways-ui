@@ -120,39 +120,29 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
           <TextField
             value={searchAddr}
             onChange={(e) => setSearchAddr(e.target.value)}
-            placeholder="Filter by source address"
+            placeholder="Search by source address"
             size="small"
             fullWidth
             InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    type="submit"
-                    size="small"
-                    aria-label="search"
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    <SearchIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                 </InputAdornment>
               ),
-              sx: {
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
                 fontFamily: FONTS.mono,
                 fontSize: '0.75rem',
+                color: 'text.primary',
                 borderRadius: 0,
+                height: 32,
+                '& fieldset': { borderColor: 'divider' },
+                '&:hover fieldset': { borderColor: theme.palette.border.light },
+                '&.Mui-focused fieldset': { borderColor: 'primary.main' },
               },
             }}
           />
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.65rem',
-              color: 'text.secondary',
-              mt: 0.5,
-            }}
-          >
-            Filters live as you type. Press enter to see all matches.
-          </Typography>
         </Box>
       </Stack>
 

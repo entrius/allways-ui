@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 import {
   Link as RouterLink,
   useParams,
@@ -33,6 +33,10 @@ import { shortHotkey } from '../utils/format';
 const MinerDetailPage: React.FC = () => {
   const { hotkey = '' } = useParams<{ hotkey: string }>();
   const [params, setParams] = useSearchParams();
+  const theme = useTheme();
+  // The crown-history grid and the rate chart are dense, wide panels — skip
+  // them below md so the phone view is just the header and swap history.
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const rangeParam = params.get('range');
   const range: Range = isRange(rangeParam) ? rangeParam : '30d';
@@ -116,7 +120,7 @@ const MinerDetailPage: React.FC = () => {
           onRangeChange={(r) => setParam('range', r)}
         />
 
-        {uid != null && (
+        {uid != null && !isMobile && (
           <CrownHistoryPanel
             hotkey={hotkey}
             lockedUid={uid}
@@ -140,13 +144,15 @@ const MinerDetailPage: React.FC = () => {
         )}
 
         <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <CrownRateChart
-              range={rateRange}
-              onRangeChange={(r) => setParam('rateRange', r)}
-              minerHotkey={hotkey}
-            />
-          </Box>
+          {!isMobile && (
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <CrownRateChart
+                range={rateRange}
+                onRangeChange={(r) => setParam('rateRange', r)}
+                minerHotkey={hotkey}
+              />
+            </Box>
+          )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <MinerSwapHistory hotkey={hotkey} />
           </Box>
