@@ -13,9 +13,10 @@ const LabelValue: React.FC<{
     <Typography
       sx={{
         fontFamily: FONTS.mono,
-        fontSize: '0.7rem',
+        fontSize: { xs: '0.62rem', sm: '0.7rem' },
         color: 'text.secondary',
-        minWidth: 80,
+        minWidth: { xs: 62, sm: 80 },
+        flexShrink: 0,
       }}
     >
       {label}
@@ -25,7 +26,10 @@ const LabelValue: React.FC<{
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem' }}
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: { xs: '0.68rem', sm: '0.75rem' },
+        }}
       >
         {value}
       </Link>
@@ -35,7 +39,7 @@ const LabelValue: React.FC<{
       <Typography
         sx={{
           fontFamily: FONTS.mono,
-          fontSize: '0.75rem',
+          fontSize: { xs: '0.68rem', sm: '0.75rem' },
           color: 'text.primary',
         }}
       >

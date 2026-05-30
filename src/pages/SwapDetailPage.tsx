@@ -713,9 +713,10 @@ const LabelAddr: React.FC<{ label: string; address: string }> = ({
     <Typography
       sx={{
         fontFamily: FONTS.mono,
-        fontSize: '0.7rem',
+        fontSize: { xs: '0.62rem', sm: '0.7rem' },
         color: 'text.secondary',
-        minWidth: 80,
+        minWidth: { xs: 62, sm: 80 },
+        flexShrink: 0,
       }}
     >
       {label}
