@@ -250,7 +250,14 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                       textOverflow: { sm: 'ellipsis' },
                     }}
                   >
-                    Send {sendLabel} → Receive {recvLabel}
+                    {sendLabel}
+                    <Box
+                      component="span"
+                      sx={{ color: 'text.secondary', mx: 0.5, fontWeight: 400 }}
+                    >
+                      →
+                    </Box>
+                    {recvLabel}
                   </Typography>
                   <Typography
                     sx={{
@@ -284,7 +291,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                     mt: 0.25,
                   }}
                 >
-                  miner {minerLabel} · until #{r.reservedUntilBlock}
+                  {minerLabel} · until #{r.reservedUntilBlock}
                   {remaining ? ` (${remaining} left)` : ''}
                   {r.swapId ? ` · swap #${r.swapId}` : ''}
                 </Typography>

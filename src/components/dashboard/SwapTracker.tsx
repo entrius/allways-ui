@@ -11,9 +11,8 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useAllSwaps, useSwapDetail } from '../../api';
+import { useAllSwaps, useMiners, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
-import CopyableAddress from '../CopyableAddress';
 import { SwapTrackerSkeleton } from './Skeletons';
 import { formatAmount } from '../../utils/format';
 
@@ -71,6 +70,9 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
     { search: debouncedSearch || undefined, limit },
     !exactSwapId,
   );
+  const { data: miners } = useMiners();
+  const minerUid = (hotkey: string | null): number | undefined =>
+    hotkey ? miners?.find((m) => m.hotkey === hotkey)?.uid : undefined;
 
   const swaps = exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy;
   const isLoading = exactSwapId ? detailLoading : fuzzyLoading;
@@ -185,6 +187,17 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
             {swaps.map((swap) => {
               const color = getStatusColor(swap.status, theme.palette);
               const progress = STATUS_PROGRESS[swap.status] || 0;
+              const sentLine =
+                swap.sourceAmount && swap.sourceChain
+                  ? formatAmount(swap.sourceAmount, swap.sourceChain)
+                  : swap.taoAmount
+                    ? `${parseFloat(swap.taoAmount).toFixed(4)} TAO`
+                    : null;
+              const recvLine =
+                swap.destAmount && swap.destChain
+                  ? formatAmount(swap.destAmount, swap.destChain)
+                  : null;
+              const uid = minerUid(swap.minerHotkey);
               return (
                 <Box
                   key={swap.swapId}
@@ -207,19 +220,34 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                   <Stack
                     direction="row"
                     justifyContent="space-between"
-                    alignItems="center"
+                    alignItems="baseline"
                     spacing={1}
                   >
+                    {/* The amount conversion is the headline. */}
                     <Typography
                       sx={{
                         fontFamily: FONTS.mono,
                         fontSize: { xs: '0.72rem', sm: '0.8rem' },
                         fontWeight: 600,
                         color: 'text.primary',
-                        whiteSpace: 'nowrap',
                       }}
                     >
-                      Transaction #{swap.swapId}
+                      {sentLine ?? `#${swap.swapId}`}
+                      {sentLine && recvLine && (
+                        <>
+                          <Box
+                            component="span"
+                            sx={{
+                              color: 'text.secondary',
+                              mx: 0.5,
+                              fontWeight: 400,
+                            }}
+                          >
+                            →
+                          </Box>
+                          {recvLine}
+                        </>
+                      )}
                     </Typography>
                     <Typography
                       sx={{
@@ -229,6 +257,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         fontWeight: 600,
                         textTransform: 'uppercase',
                         whiteSpace: 'nowrap',
+                        flexShrink: 0,
                       }}
                     >
                       {swap.status.replace('_', ' ')}
@@ -253,74 +282,17 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     }}
                   />
 
-                  <Stack
-                    direction="row"
-                    spacing={{ xs: 1.25, sm: 2 }}
-                    flexWrap="wrap"
-                    useFlexGap
+                  {/* Tx id + miner uid, de-emphasized. */}
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: { xs: '0.58rem', sm: '0.65rem' },
+                      color: 'text.secondary',
+                    }}
                   >
-                    {swap.sourceChain && swap.destChain && (
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
-                          color: 'text.secondary',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {swap.sourceChain.toUpperCase()} &rarr;{' '}
-                        {swap.destChain.toUpperCase()}
-                      </Typography>
-                    )}
-                    {swap.sourceAmount && swap.sourceChain && (
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
-                          color: 'text.primary',
-                        }}
-                      >
-                        {formatAmount(swap.sourceAmount, swap.sourceChain)}
-                      </Typography>
-                    )}
-                    {swap.taoAmount && !swap.sourceAmount && (
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
-                          color: 'text.primary',
-                        }}
-                      >
-                        {parseFloat(swap.taoAmount).toFixed(4)} TAO
-                      </Typography>
-                    )}
-                    {swap.userAddress && (
-                      <Typography
-                        component="span"
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
-                          color: 'text.secondary',
-                        }}
-                      >
-                        User: <CopyableAddress address={swap.userAddress} />
-                      </Typography>
-                    )}
-                    {swap.minerHotkey && (
-                      <Typography
-                        component="span"
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.62rem', sm: '0.7rem' },
-                          color: 'text.secondary',
-                        }}
-                      >
-                        Miner: <CopyableAddress address={swap.minerHotkey} />
-                      </Typography>
-                    )}
-                  </Stack>
+                    #{swap.swapId}
+                    {uid != null && ` · uid ${uid}`}
+                  </Typography>
                 </Box>
               );
             })}
