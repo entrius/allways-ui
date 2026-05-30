@@ -1,5 +1,12 @@
 import React from 'react';
-import { Box, Stack, Tooltip, Typography, alpha, useTheme } from '@mui/material';
+import {
+  Box,
+  Stack,
+  Tooltip,
+  Typography,
+  alpha,
+  useTheme,
+} from '@mui/material';
 import type { ScoreFactors } from '../../api';
 import { FONTS } from '../../theme';
 import { formatTao } from '../../utils/format';
