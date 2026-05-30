@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography, alpha, useTheme } from '@mui/material';
+import { Box, Stack, Tooltip, Typography, alpha, useTheme } from '@mui/material';
 import type { ScoreFactors } from '../../api';
 import { FONTS } from '../../theme';
 import { formatTao } from '../../utils/format';
@@ -19,10 +19,17 @@ type Card = {
   description: string;
   delta?: Delta;
   weak?: boolean;
+  tooltip?: string;
 };
+
+// Mirrors CREDIBILITY_MAX_TIMEOUTS in allways/das-allways — used for display copy
+// only; the zeroing itself is computed server-side.
+const CREDIBILITY_MAX_TIMEOUTS = 3;
 
 const buildCards = (sf: ScoreFactors): Card[] => {
   const credibilityRamped = sf.closedSwaps >= sf.credibilityRampTarget;
+  // Ramp forced to 0 while closed swaps exist = the timeout hard-floor tripped.
+  const zeroedByTimeouts = sf.closedSwaps > 0 && sf.credibilityRamp === 0;
   return [
     {
       label: 'Crown share',
@@ -72,14 +79,21 @@ const buildCards = (sf: ScoreFactors): Card[] => {
     {
       label: 'Credibility',
       window: 'last 30d',
-      headline: credibilityRamped
-        ? fmtMultiplier(1.0)
-        : fmtMultiplier(sf.credibilityRamp),
+      headline: zeroedByTimeouts
+        ? fmtMultiplier(0)
+        : credibilityRamped
+          ? fmtMultiplier(1.0)
+          : fmtMultiplier(sf.credibilityRamp),
       fill: sf.credibilityRamp,
-      description: credibilityRamped
-        ? `fully ramped · ${sf.closedSwaps} of ${sf.credibilityRampTarget} closed`
-        : `${sf.closedSwaps} / ${sf.credibilityRampTarget} closed · resets if you fall below`,
-      weak: !credibilityRamped,
+      description: zeroedByTimeouts
+        ? `auto-zeroed · ${sf.credibilityTimedOut} timeouts (limit ${CREDIBILITY_MAX_TIMEOUTS})`
+        : credibilityRamped
+          ? `fully ramped · ${sf.closedSwaps} of ${sf.credibilityRampTarget} closed`
+          : `${sf.closedSwaps} / ${sf.credibilityRampTarget} closed · resets if you fall below`,
+      tooltip: zeroedByTimeouts
+        ? `More than ${CREDIBILITY_MAX_TIMEOUTS} timed-out swaps in the 30-day window zero your credibility — and with it your whole reward. It recovers as old timeouts age out of the window.`
+        : undefined,
+      weak: zeroedByTimeouts || !credibilityRamped,
     },
   ];
 };
@@ -169,7 +183,7 @@ const FactorCard: React.FC<{ card: Card }> = ({ card }) => {
     : theme.palette.primary.main;
   const headlineColor = card.weak ? 'text.secondary' : 'text.primary';
 
-  return (
+  const body = (
     <Box sx={{ px: 2.25, py: 2, minWidth: 0 }}>
       <Typography
         variant="monoSmall"
@@ -239,6 +253,13 @@ const FactorCard: React.FC<{ card: Card }> = ({ card }) => {
         {card.description}
       </Typography>
     </Box>
+  );
+
+  if (!card.tooltip) return body;
+  return (
+    <Tooltip title={card.tooltip} arrow placement="top">
+      {body}
+    </Tooltip>
   );
 };
 
