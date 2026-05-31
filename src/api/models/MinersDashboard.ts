@@ -51,6 +51,8 @@ export type ScoreFactors = {
   closedSwaps: number;
   credibilityRamp: number;
   credibilityRampTarget: number;
+  // Timed-out swaps in the credibility window — used to explain a hard-zeroed ramp.
+  credibilityTimedOut: number;
   successRate30d: number;
   successMultiplier: number;
 };
