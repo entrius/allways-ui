@@ -31,7 +31,7 @@ type Card = {
 
 // Mirrors CREDIBILITY_MAX_TIMEOUTS in allways/das-allways — used for display copy
 // only; the zeroing itself is computed server-side.
-const CREDIBILITY_MAX_TIMEOUTS = 3;
+const CREDIBILITY_MAX_TIMEOUTS = 2;
 
 const buildCards = (sf: ScoreFactors): Card[] => {
   const credibilityRamped = sf.closedSwaps >= sf.credibilityRampTarget;
