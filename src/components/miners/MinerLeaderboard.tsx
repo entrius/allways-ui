@@ -180,7 +180,11 @@ const MinerLeaderboard: React.FC<{
         >
           Miner Leaderboard
         </Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+        >
           <TextField
             size="small"
             placeholder="search uid or hotkey…"
@@ -212,7 +216,11 @@ const MinerLeaderboard: React.FC<{
               {filteredRows.length} of {baseRows.length} shown
             </Typography>
           )}
-          <Stack direction="row" spacing={0.5}>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
+          >
             {RANGES.map((r) => (
               <Button
                 key={r}
@@ -220,6 +228,8 @@ const MinerLeaderboard: React.FC<{
                 variant={r === range ? 'contained' : 'outlined'}
                 onClick={() => onRangeChange(r)}
                 sx={{
+                  // Fill the row evenly on mobile (own line); natural width on desktop.
+                  flex: { xs: 1, sm: 'none' },
                   minWidth: 0,
                   px: 1.25,
                   py: 0.5,
