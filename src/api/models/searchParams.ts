@@ -8,7 +8,7 @@ export type RateRange = '1h' | '4h' | '24h' | '4d';
 // 90d/all dropped: the API clamps every range to ~30d (MAX_LOOKBACK_BLOCKS),
 // so they were redundant with 30d. A stale ?range=90d/all URL now falls back
 // to the 30d default. The Range type keeps them for API back-compat.
-const RANGES: readonly Range[] = ['24h', '7d', '30d'];
+const RANGES: readonly Range[] = ['1h', '24h', '7d', '30d'];
 const CROWN_RANGES: readonly CrownRange[] = ['1h', '2h', '4h'];
 const RATE_RANGES: readonly RateRange[] = ['1h', '4h', '24h', '4d'];
 

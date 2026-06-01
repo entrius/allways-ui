@@ -29,7 +29,9 @@ const MinersPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const rangeParam = params.get('range');
-  const range: Range = isRange(rangeParam) ? rangeParam : '30d';
+  // Default to 1h — the live scoring window — so the page opens on the data
+  // that reflects current scoring.
+  const range: Range = isRange(rangeParam) ? rangeParam : '1h';
   const pairParam = params.get('pair');
   const direction = isDirection(pairParam) ? pairParam : 'BTC-TAO';
   const crownRangeParam = params.get('crownRange');
