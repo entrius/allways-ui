@@ -5,6 +5,7 @@ import {
   GridComponent,
   TooltipComponent,
   MarkLineComponent,
+  GraphicComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Typography, useMediaQuery, useTheme } from '@mui/material';
@@ -27,6 +28,7 @@ echarts.use([
   GridComponent,
   TooltipComponent,
   MarkLineComponent,
+  GraphicComponent,
   CanvasRenderer,
 ]);
 
@@ -144,6 +146,25 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
     chart.setOption(
       {
         animation: false,
+        // "VOLUME" label over the volume sub-chart, mirroring the "EMA" title
+        // above the price chart. Anchored to the top-left of the volume grid;
+        // dropped on mobile where the volume grid isn't rendered.
+        ...(showVolume && {
+          graphic: [
+            {
+              type: 'text',
+              left: 48,
+              top: '72%',
+              style: {
+                text: 'VOLUME',
+                fill: axisColor,
+                fontFamily: FONTS.mono,
+                fontSize: 9,
+                fontWeight: 'normal',
+              },
+            },
+          ],
+        }),
         // Price grid on top, volume grid below (desktop). On mobile the volume
         // grid is dropped and price fills the full height.
         grid: showVolume
