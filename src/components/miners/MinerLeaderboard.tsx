@@ -345,7 +345,7 @@ const MinerLeaderboard: React.FC<{
                   hover
                   sx={{
                     cursor: 'pointer',
-                    '&:hover td': { backgroundColor: 'surface.elevated' },
+                    '&:hover td': { backgroundColor: 'action.hover' },
                     '&:focus-visible': {
                       outline: `2px solid ${theme.palette.primary.main}`,
                       outlineOffset: -2,

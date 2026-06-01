@@ -1,4 +1,4 @@
-import { createTheme, Theme } from '@mui/material/styles';
+import { alpha, createTheme, Theme } from '@mui/material/styles';
 
 // Font constants (shared across all themes)
 export const FONTS = {
@@ -144,6 +144,14 @@ export function createAppTheme(mode: ThemeMode): Theme {
         secondary: p.textSecondary,
       },
       divider: p.border,
+      // MUI's default light-mode hover (4% black) is too faint over our white
+      // card surfaces, so bump it to 6%. Dark mode keeps the 8% white default.
+      action: {
+        hover:
+          mode === 'light'
+            ? alpha(BRAND.woodsmoke, 0.06)
+            : alpha(BRAND.white, 0.08),
+      },
       border: {
         subtle: p.border,
         light: p.borderLight,
