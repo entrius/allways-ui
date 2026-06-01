@@ -1,5 +1,5 @@
 export type Direction = 'BTC-TAO' | 'TAO-BTC';
-export type Range = '24h' | '7d' | '30d' | '90d' | 'all';
+export type Range = '1h' | '24h' | '7d' | '30d' | '90d' | 'all';
 
 export type CurrentCrown = {
   uid: number | null;
