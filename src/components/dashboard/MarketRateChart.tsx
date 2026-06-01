@@ -89,6 +89,14 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
       hard: crownRate != null ? [crownRate] : [],
     });
     const vol = volumeByBlock(clean);
+    const maxVol = vol.length ? Math.max(...vol.map((b) => b.vol)) : 0;
+    // Compact τ-volume label: keep it short for the cramped volume axis.
+    const fmtVol = (v: number) =>
+      v >= 1000
+        ? `${(v / 1000).toFixed(1)}k`
+        : v >= 10
+          ? v.toFixed(0)
+          : v.toFixed(1);
 
     // Adaptive y-axis precision: a wide span (e.g. once a far-off crown rate is
     // included) reads fine as integers, but a tight band would collapse every
@@ -225,10 +233,21 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
                 type: 'value',
                 gridIndex: 1,
                 min: 0,
-                axisLabel: { show: false },
+                // Headroom above the tallest bar so the max-volume line and its
+                // label sit clear of the bar top rather than flush at the edge.
+                max: maxVol > 0 ? maxVol * 1.2 : undefined,
+                splitNumber: 2,
+                axisLabel: {
+                  color: axisColor,
+                  fontFamily: FONTS.mono,
+                  fontSize: 8,
+                  formatter: fmtVol,
+                },
                 axisLine: { show: false },
                 axisTick: { show: false },
-                splitLine: { show: false },
+                splitLine: {
+                  lineStyle: { color: gridColor, type: 'dashed', opacity: 0.4 },
+                },
               },
             ]
           : [
@@ -262,10 +281,21 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
             xAxisIndex: 0,
             yAxisIndex: 0,
             smooth: true,
+            // Constrain the spline so it never overshoots the data between
+            // points — keeps the curve smooth without the bowing/humps that
+            // plain `smooth` introduces over unevenly-spaced (by block) points.
+            smoothMonotone: 'x',
             showSymbol: false,
             data: clean.map((p, i) => [p.block, emaValues[i]]),
             lineStyle: { color: accent, width: 2 },
-            areaStyle: { color: accent, opacity: 0.07 },
+            // Vertical gradient fill (accent → transparent) for the trading-
+            // terminal look, instead of a flat low-opacity tint.
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: `${accent}40` },
+                { offset: 1, color: `${accent}00` },
+              ]),
+            },
             z: 3,
             // Dashed reference line at the live crown rate so the chart shows
             // where "now" sits versus the recent executed swaps.
@@ -301,6 +331,29 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
                   data: vol.map((b) => [b.block, b.vol]),
                   itemStyle: { color: accent, opacity: 0.32 },
                   barWidth: 5,
+                  // Dotted reference at the largest single-block volume so the
+                  // other bars read relative to the peak.
+                  markLine:
+                    maxVol > 0
+                      ? {
+                          silent: true,
+                          symbol: 'none',
+                          data: [{ yAxis: maxVol }],
+                          lineStyle: {
+                            color: crownColor,
+                            type: 'dotted',
+                            width: 1,
+                            opacity: 0.8,
+                          },
+                          label: {
+                            position: 'insideEndTop',
+                            color: axisColor,
+                            fontFamily: FONTS.mono,
+                            fontSize: 8,
+                            formatter: `max ${fmtVol(maxVol)}τ`,
+                          },
+                        }
+                      : undefined,
                 },
               ]
             : []),
