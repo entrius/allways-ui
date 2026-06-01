@@ -81,8 +81,36 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
 
     const rates = clean.map((p) => p.rate);
     const emaValues = ema(rates, EMA_PERIOD);
-    const yRange = robustYRange(rates);
+    // Keep the EMA line and the live crown rate on-axis. The EMA is "soft"
+    // (padded like the data); the crown is "hard" — pulled flush to the edge
+    // when far away rather than padded past, so we don't waste vertical space.
+    const yRange = robustYRange(rates, {
+      soft: emaValues,
+      hard: crownRate != null ? [crownRate] : [],
+    });
     const vol = volumeByBlock(clean);
+
+    // Adaptive y-axis precision: a wide span (e.g. once a far-off crown rate is
+    // included) reads fine as integers, but a tight band would collapse every
+    // tick to the same rounded value — so show decimals when the span is small.
+    const ySpan = yRange ? yRange.max - yRange.min : 0;
+    const yDecimals = ySpan >= 10 ? 0 : ySpan >= 1 ? 1 : 2;
+
+    // Keep the crown label inside the frame: when the crown line sits in the
+    // top half (often flush against the top edge), render the label below it;
+    // otherwise above. Avoids the label clipping off-chart at the extremes.
+    const crownLabelPosition =
+      crownRate != null &&
+      yRange &&
+      yRange.max - crownRate < crownRate - yRange.min
+        ? 'insideStartBottom'
+        : 'insideStartTop';
+    const yAxisLabel = {
+      color: axisColor,
+      fontFamily: FONTS.mono,
+      fontSize: 9,
+      formatter: (v: number) => v.toFixed(yDecimals),
+    };
 
     // Shared block x-range so the price and volume grids line up exactly.
     const blocks = clean.map((p) => p.block);
@@ -188,12 +216,7 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
                 scale: true,
                 gridIndex: 0,
                 ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
-                axisLabel: {
-                  color: axisColor,
-                  fontFamily: FONTS.mono,
-                  fontSize: 9,
-                  formatter: (v: number) => v.toFixed(0),
-                },
+                axisLabel: yAxisLabel,
                 axisLine: { show: false },
                 axisTick: { show: false },
                 splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
@@ -214,12 +237,7 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
                 scale: true,
                 gridIndex: 0,
                 ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
-                axisLabel: {
-                  color: axisColor,
-                  fontFamily: FONTS.mono,
-                  fontSize: 9,
-                  formatter: (v: number) => v.toFixed(0),
-                },
+                axisLabel: yAxisLabel,
                 axisLine: { show: false },
                 axisTick: { show: false },
                 splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
@@ -264,7 +282,7 @@ const MarketRateChart: React.FC<{ direction: Direction; fill?: boolean }> = ({
                       opacity: 0.8,
                     },
                     label: {
-                      position: 'insideStartTop',
+                      position: crownLabelPosition,
                       color: crownColor,
                       fontFamily: FONTS.mono,
                       fontSize: 9,
