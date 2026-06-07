@@ -64,7 +64,11 @@ const AllwaysMarketRate: React.FC<{
             arrow
             placement="right"
           >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+            <IconButton
+              aria-label="Explain EMA chart"
+              size="small"
+              sx={{ p: 0, color: 'text.secondary' }}
+            >
               <InfoOutlinedIcon sx={{ fontSize: 14 }} />
             </IconButton>
           </Tooltip>

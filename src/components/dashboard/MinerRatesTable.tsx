@@ -234,7 +234,11 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
             arrow
             placement="right"
           >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+            <IconButton
+              aria-label="Explain active rates"
+              size="small"
+              sx={{ p: 0, color: 'text.secondary' }}
+            >
               <InfoOutlinedIcon sx={{ fontSize: 14 }} />
             </IconButton>
           </Tooltip>

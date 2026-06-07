@@ -120,6 +120,7 @@ const AgentCard: React.FC<CardProps> = ({
             </Box>
             <Tooltip title={copied ? 'Copied' : 'Copy'} arrow>
               <IconButton
+                aria-label={copied ? 'Copied code snippet' : 'Copy code snippet'}
                 onClick={() => copy(code)}
                 size="small"
                 sx={{

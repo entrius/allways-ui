@@ -101,7 +101,11 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
             arrow
             placement="right"
           >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+            <IconButton
+              aria-label="Explain live events"
+              size="small"
+              sx={{ p: 0, color: 'text.secondary' }}
+            >
               <InfoOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -246,6 +250,7 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
       </Box>
       {scrolled && (
         <Button
+          aria-label="Scroll events to top"
           onClick={scrollToTop}
           size="small"
           sx={{

@@ -38,6 +38,7 @@ const SocialLinks: React.FC<Props> = ({ size = 18, spacing = 1 }) => (
   <Stack direction="row" spacing={spacing}>
     <Tooltip title="GitHub" arrow>
       <IconButton
+        aria-label="Open GitHub"
         component="a"
         href={LINKS.github}
         target="_blank"
@@ -49,6 +50,7 @@ const SocialLinks: React.FC<Props> = ({ size = 18, spacing = 1 }) => (
     </Tooltip>
     <Tooltip title="X" arrow>
       <IconButton
+        aria-label="Open X"
         component="a"
         href={LINKS.twitter}
         target="_blank"
@@ -60,6 +62,7 @@ const SocialLinks: React.FC<Props> = ({ size = 18, spacing = 1 }) => (
     </Tooltip>
     <Tooltip title="Discord" arrow>
       <IconButton
+        aria-label="Open Discord"
         component="a"
         href={LINKS.discord}
         target="_blank"

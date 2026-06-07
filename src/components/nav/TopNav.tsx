@@ -151,7 +151,13 @@ const TopNav: React.FC = () => {
         <Stack direction="row" spacing={1} alignItems="center">
           <SocialLinks size={16} spacing={0.75} />
           <Tooltip title={mode === 'light' ? 'Dark mode' : 'Light mode'} arrow>
-            <IconButton onClick={toggleTheme} sx={iconBtnSx}>
+            <IconButton
+              aria-label={
+                mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
+              }
+              onClick={toggleTheme}
+              sx={iconBtnSx}
+            >
               {mode === 'light' ? (
                 <DarkModeIcon sx={{ fontSize: 16 }} />
               ) : (
@@ -164,7 +170,13 @@ const TopNav: React.FC = () => {
 
       {isMobile && (
         <Stack direction="row" spacing={1} alignItems="center">
-          <IconButton onClick={toggleTheme} sx={iconBtnSx}>
+          <IconButton
+            aria-label={
+              mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
+            }
+            onClick={toggleTheme}
+            sx={iconBtnSx}
+          >
             {mode === 'light' ? (
               <DarkModeIcon sx={{ fontSize: 16 }} />
             ) : (
@@ -172,6 +184,7 @@ const TopNav: React.FC = () => {
             )}
           </IconButton>
           <IconButton
+            aria-label="Open navigation menu"
             onClick={(e) => setMenuAnchor(e.currentTarget)}
             sx={iconBtnSx}
           >

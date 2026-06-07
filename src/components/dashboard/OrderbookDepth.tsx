@@ -246,7 +246,11 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
               arrow
               placement="right"
             >
-              <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <IconButton
+                aria-label="Explain depth of market"
+                size="small"
+                sx={{ p: 0, color: 'text.secondary' }}
+              >
                 <InfoOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>

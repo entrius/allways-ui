@@ -130,6 +130,7 @@ const CopyRow: React.FC<CopyRowProps> = ({ label, value }) => {
         </Box>
         <Tooltip title={copied ? 'Copied' : 'Copy'} arrow>
           <IconButton
+            aria-label={copied ? 'Copied rate quote' : 'Copy rate quote'}
             onClick={() => copy(value)}
             sx={{
               borderRadius: 0,
