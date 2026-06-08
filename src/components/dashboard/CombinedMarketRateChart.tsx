@@ -49,17 +49,25 @@ const CombinedMarketRateChart: React.FC<{ fill?: boolean }> = ({ fill }) => {
     const build = (dir: Direction) => {
       const { clean } = tukeyClean(completedPoints(swaps, dir));
       const rates = clean.map((p) => p.rate);
-      return { clean, ema: ema(rates, EMA_PERIOD), rates, vol: volumeByBlock(clean) };
+      return {
+        clean,
+        ema: ema(rates, EMA_PERIOD),
+        rates,
+        vol: volumeByBlock(clean),
+      };
     };
     return { 'BTC-TAO': build('BTC-TAO'), 'TAO-BTC': build('TAO-BTC') };
   }, [swaps]);
 
-  const hasData = series['BTC-TAO'].clean.length + series['TAO-BTC'].clean.length > 0;
+  const hasData =
+    series['BTC-TAO'].clean.length + series['TAO-BTC'].clean.length > 0;
 
   // Init once.
   useEffect(() => {
     if (!elRef.current) return;
-    const chart = echarts.init(elRef.current, undefined, { renderer: 'canvas' });
+    const chart = echarts.init(elRef.current, undefined, {
+      renderer: 'canvas',
+    });
     chartRef.current = chart;
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(elRef.current);
@@ -104,7 +112,9 @@ const CombinedMarketRateChart: React.FC<{ fill?: boolean }> = ({ fill }) => {
     const xMax = blocks.length ? Math.max(...blocks) : undefined;
     const xPad = xMin != null && xMax != null ? (xMax - xMin) * 0.02 || 1 : 0;
     const xBounds =
-      xMin != null && xMax != null ? { min: xMin - xPad, max: xMax + xPad } : {};
+      xMin != null && xMax != null
+        ? { min: xMin - xPad, max: xMax + xPad }
+        : {};
 
     // Both directions trade in τ, so their per-block volume shares one axis.
     const maxVol = Math.max(
@@ -113,7 +123,11 @@ const CombinedMarketRateChart: React.FC<{ fill?: boolean }> = ({ fill }) => {
       ...t.vol.map((v) => v.vol),
     );
     const fmtVol = (v: number) =>
-      v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v >= 10 ? v.toFixed(0) : v.toFixed(1);
+      v >= 1000
+        ? `${(v / 1000).toFixed(1)}k`
+        : v >= 10
+          ? v.toFixed(0)
+          : v.toFixed(1);
 
     // Block-height x-axis label — shown on the volume grid when present, else on
     // the price grid.
@@ -165,7 +179,11 @@ const CombinedMarketRateChart: React.FC<{ fill?: boolean }> = ({ fill }) => {
             fontSize: 11,
           },
           formatter: (
-            params: { axisValue: number; seriesName: string; value: number[] }[],
+            params: {
+              axisValue: number;
+              seriesName: string;
+              value: number[];
+            }[],
           ) => {
             const block = params[0]?.axisValue;
             const lines = params
@@ -248,7 +266,11 @@ const CombinedMarketRateChart: React.FC<{ fill?: boolean }> = ({ fill }) => {
                   axisLine: { show: false },
                   axisTick: { show: false },
                   splitLine: {
-                    lineStyle: { color: gridColor, type: 'dashed', opacity: 0.4 },
+                    lineStyle: {
+                      color: gridColor,
+                      type: 'dashed',
+                      opacity: 0.4,
+                    },
                   },
                 },
               ]
