@@ -12,14 +12,13 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import type { Direction } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import MarketRateChart from './MarketRateChart';
-import CombinedMarketRateChart from './CombinedMarketRateChart';
 
 // The chart's view: a single trade direction, or BOTH overlaid on one chart.
 type View = Direction | 'BOTH';
 
 // The market-rate chart for a single direction (with a toggle that also drives
 // the page's shared direction, controlled by the parent), plus a BOTH view that
-// overlays both directions on one dual-axis chart. BOTH leaves the page
+// overlays both directions on one shared-axis chart. BOTH leaves the page
 // direction — and thus the Active Rates table filter — on its last value.
 const AllwaysMarketRate: React.FC<{
   direction: Direction;
@@ -122,11 +121,11 @@ const AllwaysMarketRate: React.FC<{
       <Box
         sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
       >
-        {view === 'BOTH' ? (
-          <CombinedMarketRateChart fill />
-        ) : (
-          <MarketRateChart key={direction} direction={direction} fill />
-        )}
+        <MarketRateChart
+          key={view}
+          directions={view === 'BOTH' ? ['BTC-TAO', 'TAO-BTC'] : [view]}
+          fill
+        />
       </Box>
     </Box>
   );
