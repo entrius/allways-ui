@@ -169,10 +169,13 @@ const MarketRateChart: React.FC<{
     const crowns = prepared
       .map((s) => s.crownRate)
       .filter((v): v is number => v != null);
-    const yRange = robustYRange(prepared.flatMap((s) => s.rates), {
-      soft: [...prepared.flatMap((s) => s.ema), ...crownLineRates],
-      hard: crowns,
-    });
+    const yRange = robustYRange(
+      prepared.flatMap((s) => s.rates),
+      {
+        soft: [...prepared.flatMap((s) => s.ema), ...crownLineRates],
+        hard: crowns,
+      },
+    );
 
     // Adaptive y-axis precision: a wide span (e.g. once a far-off crown rate is
     // included) reads fine as integers, but a tight band would collapse every
@@ -460,7 +463,9 @@ const MarketRateChart: React.FC<{
   }, [series, theme, crown, crownByDir, showVolume]);
 
   const single = series.length === 1;
-  const singleCrownRate = single ? (crown?.[series[0].dir]?.rate ?? null) : null;
+  const singleCrownRate = single
+    ? (crown?.[series[0].dir]?.rate ?? null)
+    : null;
   const crownSuffix =
     singleCrownRate != null ? ` · crown ${singleCrownRate.toFixed(2)}τ` : '';
   const countLabel = single
