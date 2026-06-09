@@ -37,17 +37,20 @@ export const useCrownHistory = (params: {
     },
   );
 
-export const useCrownRateHistory = (params: {
-  direction: Direction;
-  fromBlock?: number;
-  toBlock?: number;
-  blocks?: number;
-  // Opt in to the live current-crown tip stitched onto the end (the
-  // informational dashboard). Omitted entirely when false so per-block
-  // consumers (e.g. the miner rate chart) keep the clean settled ledger and an
-  // unchanged query key. See das-allways /crown/rate-history `liveTip`.
-  liveTip?: boolean;
-}) =>
+export const useCrownRateHistory = (
+  params: {
+    direction: Direction;
+    fromBlock?: number;
+    toBlock?: number;
+    blocks?: number;
+    // Opt in to the live current-crown tip stitched onto the end (the
+    // informational dashboard). Omitted entirely when false so per-block
+    // consumers (e.g. the miner rate chart) keep the clean settled ledger and
+    // an unchanged query key. See das-allways /crown/rate-history `liveTip`.
+    liveTip?: boolean;
+  },
+  enabled?: boolean,
+) =>
   useApiQuery<CrownRateHistoryRow[]>(
     'crown-rate-history',
     '/crown/rate-history',
@@ -59,6 +62,7 @@ export const useCrownRateHistory = (params: {
       blocks: params.blocks,
       liveTip: params.liveTip ? 'true' : undefined,
     },
+    enabled,
   );
 
 export const useMinerLeaderboard = (range: Range = '30d') =>

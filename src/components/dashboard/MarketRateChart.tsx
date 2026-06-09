@@ -95,22 +95,20 @@ const MarketRateChart: React.FC<{
     return Math.min(28_800, Math.max(300, span + 300));
   }, [series]);
 
-  // Both directions are fetched unconditionally (fixed hook count regardless of
-  // how many are shown) and picked per shown direction below. The queries are
-  // light and refresh on the crown cadence (~12s).
-  // liveTip: this dashboard is informational, so stitch the ~12s-fresh crown
-  // tip onto the end. The miner rate chart deliberately omits it to keep its
-  // per-block ledger clean (no diagonal bridge to a tip past the last flush).
-  const btcTaoCrown = useCrownRateHistory({
-    direction: 'BTC-TAO',
-    blocks: crownBlocks,
-    liveTip: true,
-  });
-  const taoBtcCrown = useCrownRateHistory({
-    direction: 'TAO-BTC',
-    blocks: crownBlocks,
-    liveTip: true,
-  });
+  // The stepwise crown "market rate" line is single-direction only — overlaid
+  // on the BOTH chart it's too noisy, so that mode falls back to a static
+  // horizontal crown reference and skips these fetches. Both hooks are still
+  // called (fixed hook count) but each is enabled only for the shown single
+  // direction. liveTip: this dashboard is informational, so stitch the
+  // ~12s-fresh crown tip onto the end; the miner rate chart omits it.
+  const btcTaoCrown = useCrownRateHistory(
+    { direction: 'BTC-TAO', blocks: crownBlocks, liveTip: true },
+    directions.length === 1 && directions[0] === 'BTC-TAO',
+  );
+  const taoBtcCrown = useCrownRateHistory(
+    { direction: 'TAO-BTC', blocks: crownBlocks, liveTip: true },
+    directions.length === 1 && directions[0] === 'TAO-BTC',
+  );
   const crownByDir = useMemo<Record<Direction, CrownRateHistoryRow[]>>(
     () => ({
       'BTC-TAO': btcTaoCrown.data ?? [],
@@ -149,7 +147,12 @@ const MarketRateChart: React.FC<{
       ...s,
       accent: accentFor(theme, s.dir),
       crownRate: crown?.[s.dir]?.rate ?? null,
-      crownHist: crownByDir[s.dir] ?? [],
+      // Single-direction only — the BOTH view uses a static horizontal crown
+      // reference instead of the stepwise line. BOTH disables the fetch, but
+      // react-query keeps the last single-view rows cached across the toggle,
+      // so gate here at the source to keep stale crown data out of the BOTH
+      // chart's line, y-range, and x-extent.
+      crownHist: single ? (crownByDir[s.dir] ?? []) : [],
     }));
 
     // Block window from the executed fills. The crown step line is clipped to
@@ -234,15 +237,17 @@ const MarketRateChart: React.FC<{
       hideOverlap: true,
     };
 
-    // Crown "market rate" step line per direction: the best executable rate over
+    // Crown "market rate" step line — single direction only (BOTH zeroes out
+    // crownHist above, so this is empty there). The best executable rate over
     // time, held flat between handoffs and stepping at each change (piecewise
     // constant), out to the live tip the backend stitches on. Drawn under the
-    // EMA + scatter (z:2) as a backdrop. The single-direction live value is
-    // shown in the count line above, so no inline label is needed here.
+    // EMA + scatter (z:2) as a backdrop; the live value is shown in the count
+    // line above. The BOTH view is too noisy with two of these, so it falls
+    // back to a static horizontal reference (crownMarkLine below).
     const crownSeries = crownShown
       .filter((c) => c.pts.length > 0)
       .map((c) => ({
-        name: single ? 'Crown' : `${labelFor(c.dir)} crown`,
+        name: 'Crown',
         type: 'line',
         xAxisIndex: 0,
         yAxisIndex: 0,
@@ -250,13 +255,36 @@ const MarketRateChart: React.FC<{
         showSymbol: false,
         data: c.pts.map((p) => [p.block, p.rate]),
         lineStyle: {
-          color: single ? crownColor : c.accent,
+          color: crownColor,
           width: 1.5,
           type: 'dashed',
           opacity: 0.9,
         },
         z: 2,
       }));
+
+    // BOTH view keeps the old static reference: a dashed horizontal line at each
+    // direction's live crown rate, in that direction's accent. Single view uses
+    // the step line above instead, so it gets no markLine.
+    const crownMarkLine = (rate: number | null, color: string) =>
+      rate != null
+        ? {
+            silent: true,
+            symbol: 'none',
+            data: [{ yAxis: rate }],
+            lineStyle: { color, type: 'dashed', width: 1, opacity: 0.8 },
+            label: {
+              position:
+                yRange && yRange.max - rate < rate - yRange.min
+                  ? 'insideStartBottom'
+                  : 'insideStartTop',
+              color,
+              fontFamily: FONTS.mono,
+              fontSize: 9,
+              formatter: `crown ${rate.toFixed(2)}τ`,
+            },
+          }
+        : undefined;
 
     const priceSeries = prepared.flatMap((s) => [
       {
@@ -297,6 +325,9 @@ const MarketRateChart: React.FC<{
           },
         }),
         z: 3,
+        // BOTH view: static horizontal crown reference per direction. Single
+        // view uses the stepwise crown line above, so no markLine here.
+        markLine: single ? undefined : crownMarkLine(s.crownRate, s.accent),
       },
     ]);
 
