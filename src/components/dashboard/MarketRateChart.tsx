@@ -14,8 +14,11 @@ import {
   useTheme,
   type Theme,
 } from '@mui/material';
-import { useAllSwaps, useCurrentCrown } from '../../api';
-import type { Direction } from '../../api/models/MinersDashboard';
+import { useAllSwaps, useCrownRateHistory, useCurrentCrown } from '../../api';
+import type {
+  CrownRateHistoryRow,
+  Direction,
+} from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import {
   EMA_PERIOD,
@@ -82,6 +85,35 @@ const MarketRateChart: React.FC<{
 
   const totalClean = series.reduce((n, s) => n + s.clean.length, 0);
 
+  // Crown rate-history window: cover the shown fills' block span plus ~1h of
+  // forward headroom so the step line reaches the live tip the backend stitches
+  // on (it can sit ahead of the last fill). Clamped to a sane floor/ceiling.
+  const crownBlocks = useMemo(() => {
+    const bs = series.flatMap((s) => s.clean.map((p) => p.block));
+    if (bs.length < 2) return 1200;
+    const span = Math.max(...bs) - Math.min(...bs);
+    return Math.min(28_800, Math.max(300, span + 300));
+  }, [series]);
+
+  // Both directions are fetched unconditionally (fixed hook count regardless of
+  // how many are shown) and picked per shown direction below. The queries are
+  // light and refresh on the crown cadence (~12s).
+  const btcTaoCrown = useCrownRateHistory({
+    direction: 'BTC-TAO',
+    blocks: crownBlocks,
+  });
+  const taoBtcCrown = useCrownRateHistory({
+    direction: 'TAO-BTC',
+    blocks: crownBlocks,
+  });
+  const crownByDir = useMemo<Record<Direction, CrownRateHistoryRow[]>>(
+    () => ({
+      'BTC-TAO': btcTaoCrown.data ?? [],
+      'TAO-BTC': taoBtcCrown.data ?? [],
+    }),
+    [btcTaoCrown.data, taoBtcCrown.data],
+  );
+
   // Init once.
   useEffect(() => {
     if (!elRef.current) return;
@@ -112,19 +144,35 @@ const MarketRateChart: React.FC<{
       ...s,
       accent: accentFor(theme, s.dir),
       crownRate: crown?.[s.dir]?.rate ?? null,
+      crownHist: crownByDir[s.dir] ?? [],
     }));
 
-    // One shared price range across every direction's rates + EMAs + crowns, so
-    // the gap between overlaid lines reads as the true spread and a single
-    // direction keeps the EMA/crown on-axis. EMA is "soft" (padded); crown is
+    // Block window from the executed fills. The crown step line is clipped to
+    // start at the oldest fill (xMin) so older crown history doesn't stretch the
+    // axis left and compress the fills; its right edge (the live tip) can sit
+    // ahead of the last fill, so it extends xMax below.
+    const swapBlocks = prepared.flatMap((s) => s.clean.map((p) => p.block));
+    const xMin = swapBlocks.length ? Math.min(...swapBlocks) : undefined;
+    const crownShown = prepared.map((s) => ({
+      dir: s.dir,
+      accent: s.accent,
+      pts:
+        xMin == null ? s.crownHist : s.crownHist.filter((p) => p.block >= xMin),
+    }));
+    const crownLineRates = crownShown.flatMap((c) => c.pts.map((p) => p.rate));
+
+    // One shared price range across every direction's fills + EMAs + crown line,
+    // so the gap between overlaid lines reads as the true spread and a single
+    // direction keeps everything on-axis. Fills set the robust core; EMA and the
+    // crown step line are "soft" (must-show, padded); the live crown level is
     // "hard" — pulled flush to the edge rather than padded past.
     const crowns = prepared
       .map((s) => s.crownRate)
       .filter((v): v is number => v != null);
-    const yRange = robustYRange(
-      prepared.flatMap((s) => s.rates),
-      { soft: prepared.flatMap((s) => s.ema), hard: crowns },
-    );
+    const yRange = robustYRange(prepared.flatMap((s) => s.rates), {
+      soft: [...prepared.flatMap((s) => s.ema), ...crownLineRates],
+      hard: crowns,
+    });
 
     // Adaptive y-axis precision: a wide span (e.g. once a far-off crown rate is
     // included) reads fine as integers, but a tight band would collapse every
@@ -139,10 +187,15 @@ const MarketRateChart: React.FC<{
     };
 
     // Shared block x-range so the price and volume grids — and both directions
-    // — line up exactly.
-    const blocks = prepared.flatMap((s) => s.clean.map((p) => p.block));
-    const xMin = blocks.length ? Math.min(...blocks) : undefined;
-    const xMax = blocks.length ? Math.max(...blocks) : undefined;
+    // — line up exactly. xMin comes from the fills (above); the right edge
+    // follows the crown line out to the live tip when it leads the last fill.
+    const xMax = (() => {
+      const right = [
+        ...swapBlocks,
+        ...crownShown.flatMap((c) => c.pts.map((p) => p.block)),
+      ];
+      return right.length ? Math.max(...right) : undefined;
+    })();
     const xPad = xMin != null && xMax != null ? (xMax - xMin) * 0.02 || 1 : 0;
     const xBounds =
       xMin != null && xMax != null
@@ -173,28 +226,29 @@ const MarketRateChart: React.FC<{
       hideOverlap: true,
     };
 
-    // Dashed reference line at a direction's live crown rate so the chart shows
-    // where "now" sits versus recent fills. Keep the label inside the frame:
-    // when the crown sits in the top half, render below it, else above.
-    const crownMarkLine = (rate: number | null, color: string) =>
-      rate != null
-        ? {
-            silent: true,
-            symbol: 'none',
-            data: [{ yAxis: rate }],
-            lineStyle: { color, type: 'dashed', width: 1, opacity: 0.8 },
-            label: {
-              position:
-                yRange && yRange.max - rate < rate - yRange.min
-                  ? 'insideStartBottom'
-                  : 'insideStartTop',
-              color,
-              fontFamily: FONTS.mono,
-              fontSize: 9,
-              formatter: `crown ${rate.toFixed(2)}τ`,
-            },
-          }
-        : undefined;
+    // Crown "market rate" step line per direction: the best executable rate over
+    // time, held flat between handoffs and stepping at each change (piecewise
+    // constant), out to the live tip the backend stitches on. Drawn under the
+    // EMA + scatter (z:2) as a backdrop. The single-direction live value is
+    // shown in the count line above, so no inline label is needed here.
+    const crownSeries = crownShown
+      .filter((c) => c.pts.length > 0)
+      .map((c) => ({
+        name: single ? 'Crown' : `${labelFor(c.dir)} crown`,
+        type: 'line',
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        step: 'end',
+        showSymbol: false,
+        data: c.pts.map((p) => [p.block, p.rate]),
+        lineStyle: {
+          color: single ? crownColor : c.accent,
+          width: 1.5,
+          type: 'dashed',
+          opacity: 0.9,
+        },
+        z: 2,
+      }));
 
     const priceSeries = prepared.flatMap((s) => [
       {
@@ -235,7 +289,6 @@ const MarketRateChart: React.FC<{
           },
         }),
         z: 3,
-        markLine: crownMarkLine(s.crownRate, single ? crownColor : s.accent),
       },
     ]);
 
@@ -400,16 +453,19 @@ const MarketRateChart: React.FC<{
                 splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
               },
             ],
-        series: [...priceSeries, ...volumeSeries],
+        series: [...crownSeries, ...priceSeries, ...volumeSeries],
       },
       true,
     );
-  }, [series, theme, crown, showVolume]);
+  }, [series, theme, crown, crownByDir, showVolume]);
 
   const single = series.length === 1;
+  const singleCrownRate = single ? (crown?.[series[0].dir]?.rate ?? null) : null;
+  const crownSuffix =
+    singleCrownRate != null ? ` · crown ${singleCrownRate.toFixed(2)}τ` : '';
   const countLabel = single
     ? series[0].clean.length
-      ? `${series[0].clean.length} swaps${series[0].hidden ? ` · ${series[0].hidden} outlier${series[0].hidden > 1 ? 's' : ''} hidden` : ''} · EMA${EMA_PERIOD}`
+      ? `${series[0].clean.length} swaps${series[0].hidden ? ` · ${series[0].hidden} outlier${series[0].hidden > 1 ? 's' : ''} hidden` : ''} · EMA${EMA_PERIOD}${crownSuffix}`
       : ''
     : totalClean
       ? `${series.map((s) => s.clean.length).join('+')} swaps · EMA${EMA_PERIOD}`
