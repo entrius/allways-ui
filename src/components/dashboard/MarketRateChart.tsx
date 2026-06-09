@@ -98,13 +98,18 @@ const MarketRateChart: React.FC<{
   // Both directions are fetched unconditionally (fixed hook count regardless of
   // how many are shown) and picked per shown direction below. The queries are
   // light and refresh on the crown cadence (~12s).
+  // liveTip: this dashboard is informational, so stitch the ~12s-fresh crown
+  // tip onto the end. The miner rate chart deliberately omits it to keep its
+  // per-block ledger clean (no diagonal bridge to a tip past the last flush).
   const btcTaoCrown = useCrownRateHistory({
     direction: 'BTC-TAO',
     blocks: crownBlocks,
+    liveTip: true,
   });
   const taoBtcCrown = useCrownRateHistory({
     direction: 'TAO-BTC',
     blocks: crownBlocks,
+    liveTip: true,
   });
   const crownByDir = useMemo<Record<Direction, CrownRateHistoryRow[]>>(
     () => ({

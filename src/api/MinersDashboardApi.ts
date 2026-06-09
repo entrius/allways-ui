@@ -42,6 +42,11 @@ export const useCrownRateHistory = (params: {
   fromBlock?: number;
   toBlock?: number;
   blocks?: number;
+  // Opt in to the live current-crown tip stitched onto the end (the
+  // informational dashboard). Omitted entirely when false so per-block
+  // consumers (e.g. the miner rate chart) keep the clean settled ledger and an
+  // unchanged query key. See das-allways /crown/rate-history `liveTip`.
+  liveTip?: boolean;
 }) =>
   useApiQuery<CrownRateHistoryRow[]>(
     'crown-rate-history',
@@ -52,6 +57,7 @@ export const useCrownRateHistory = (params: {
       fromBlock: params.fromBlock,
       toBlock: params.toBlock,
       blocks: params.blocks,
+      liveTip: params.liveTip ? 'true' : undefined,
     },
   );
 
