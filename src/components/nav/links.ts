@@ -20,5 +20,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Miners', to: '/miners' },
   { label: 'Exchange', to: '/swap' },
+  { label: 'Network Stats', to: '/network-stats' },
   { label: 'Agents', to: '/agents' },
 ];

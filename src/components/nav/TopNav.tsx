@@ -70,6 +70,9 @@ const TopNav: React.FC = () => {
     if (to === '/miners') {
       return location.pathname.startsWith('/miners');
     }
+    if (to === '/network-stats') {
+      return location.pathname.startsWith('/network-stats');
+    }
     return location.pathname === to;
   };
 
