@@ -63,7 +63,7 @@ const Hero: React.FC = () => {
         >
           Universal
           <br />
-          transaction layer.
+          transaction layer
         </Typography>
 
         <Typography
