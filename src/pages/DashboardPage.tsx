@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Box, Stack, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Stack, Tooltip, useMediaQuery, useTheme } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   AllwaysMarketRate,
   EventFeed,
   MinerRatesTable,
+  OrderbookDepth,
   RatesTicker,
   ReservationsTracker,
   SwapTracker,
@@ -12,6 +14,7 @@ import {
   SEO,
 } from '../components';
 import type { Direction } from '../api/models/MinersDashboard';
+import { FONTS } from '../theme';
 
 // Card-less column: no surface/border box (cohesive taostats-style); columns
 // are separated by thin dividers + padding instead. Flex column so children
@@ -23,15 +26,108 @@ const colSx = {
   minWidth: 0,
 } as const;
 
+// A single titled activity column: a mono-eyebrow header (matching the tab
+// labels) over content that fills the remaining height and scrolls internally.
+const ColumnPanel: React.FC<{
+  label: string;
+  info?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ label, info, children }) => (
+  <Box sx={{ ...colSx, height: '100%' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        mb: 1.5,
+        pb: 0.5,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.7rem',
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          lineHeight: 1,
+          color: 'text.primary',
+        }}
+      >
+        {label}
+      </Box>
+      {info && (
+        <Tooltip title={info} arrow placement="top">
+          <Box
+            component="span"
+            sx={{ display: 'inline-flex', color: 'text.secondary' }}
+          >
+            <InfoOutlinedIcon sx={{ fontSize: 13, display: 'block' }} />
+          </Box>
+        </Tooltip>
+      )}
+    </Box>
+    <Box
+      sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+    >
+      {children}
+    </Box>
+  </Box>
+);
+
 const DashboardPage: React.FC = () => {
-  // Shared trade direction — the Market Rate toggle drives both the chart and
-  // the Active Rates table filter.
+  // Shared trade direction — the Market Rate toggle drives the chart, the
+  // Active Rates table filter, and the orderbook. `showBoth` is the chart's
+  // BOTH view, lifted here so the orderbook can show both sides too.
   const [direction, setDirection] = useState<Direction>('BTC-TAO');
+  const [showBoth, setShowBoth] = useState(false);
 
   // Below md the layout stacks into one column — treat as "mobile": lead with
-  // the chart and drop the Events tab.
+  // the chart and collapse the activity columns into a single toggled panel.
   const theme = useTheme();
   const isStacked = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Activity panels — rendered as 3 side-by-side columns on desktop and a
+  // single toggled panel on small screens.
+  const activityPanels = [
+    {
+      key: 'tx',
+      label: 'Transactions',
+      info: (
+        <Box sx={{ maxWidth: 280 }}>
+          Every transaction in chronological order with its lifecycle progress:
+          Initiated → Fulfilled → Completed (or Timed Out). Click a row for the
+          full timeline.
+        </Box>
+      ),
+      node: <SwapTracker embedded />,
+    },
+    {
+      key: 'reservations',
+      label: 'Reservations',
+      info: (
+        <Box sx={{ maxWidth: 260 }}>
+          Short holds a user places on a miner's quoted rate before sending
+          funds — locks the rate and prevents others from claiming the same
+          miner mid-swap.
+        </Box>
+      ),
+      node: <ReservationsTracker embedded />,
+    },
+    {
+      key: 'events',
+      label: 'Events',
+      info: (
+        <Box sx={{ maxWidth: 280 }}>
+          Real-time stream of contract and chain events — swap lifecycle,
+          collateral changes, votes, reservations. Newest first.
+        </Box>
+      ),
+      node: <EventFeed embedded />,
+    },
+  ];
 
   return (
     <Page>
@@ -94,11 +190,13 @@ const DashboardPage: React.FC = () => {
             <AllwaysMarketRate
               direction={direction}
               onDirectionChange={setDirection}
+              showBoth={showBoth}
+              onShowBothChange={setShowBoth}
             />
           </Box>
 
-          {/* Right column; last on mobile (its list is unbounded):
-              transactions, reservations, and (desktop only) the event tape. */}
+          {/* Right column: depth-of-market orderbook — cumulative miner
+              liquidity available at each rate. Last on mobile. */}
           <Box
             sx={{
               ...colSx,
@@ -106,53 +204,34 @@ const DashboardPage: React.FC = () => {
               order: { xs: 3, md: 0 },
             }}
           >
-            <TabbedPanel
-              tabs={[
-                {
-                  key: 'tx',
-                  label: 'Transactions',
-                  info: (
-                    <Box sx={{ maxWidth: 280 }}>
-                      Every transaction in chronological order with its
-                      lifecycle progress: Initiated → Fulfilled → Completed (or
-                      Timed Out). Click a row for the full timeline.
-                    </Box>
-                  ),
-                  node: <SwapTracker embedded />,
-                },
-                {
-                  key: 'reservations',
-                  label: 'Reservations',
-                  info: (
-                    <Box sx={{ maxWidth: 260 }}>
-                      Short holds a user places on a miner's quoted rate before
-                      sending funds — locks the rate and prevents others from
-                      claiming the same miner mid-swap.
-                    </Box>
-                  ),
-                  node: <ReservationsTracker embedded />,
-                },
-                // Events tape is desktop-only — too much for the mobile view.
-                ...(isStacked
-                  ? []
-                  : [
-                      {
-                        key: 'events',
-                        label: 'Events',
-                        info: (
-                          <Box sx={{ maxWidth: 280 }}>
-                            Real-time stream of contract and chain events — swap
-                            lifecycle, collateral changes, votes, reservations.
-                            Newest first.
-                          </Box>
-                        ),
-                        node: <EventFeed embedded />,
-                      },
-                    ]),
-              ]}
-            />
+            <OrderbookDepth direction={direction} showBoth={showBoth} />
           </Box>
         </Box>
+
+        {/* Activity feeds: 3 side-by-side columns on desktop; a single toggled
+            panel on small screens. */}
+        {isStacked ? (
+          <Box sx={{ ...colSx, mt: 3, minHeight: 440, flexShrink: 0 }}>
+            <TabbedPanel tabs={activityPanels} />
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              mt: 2.5,
+              height: 300,
+              flexShrink: 0,
+              display: 'grid',
+              gap: 2.5,
+              gridTemplateColumns: 'repeat(3, 1fr)',
+            }}
+          >
+            {activityPanels.map((p) => (
+              <ColumnPanel key={p.key} label={p.label} info={p.info}>
+                {p.node}
+              </ColumnPanel>
+            ))}
+          </Box>
+        )}
       </Stack>
     </Page>
   );

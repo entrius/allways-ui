@@ -1,9 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Box,
   IconButton,
-  MenuItem,
-  Select,
   Stack,
   Table,
   TableBody,
@@ -17,10 +15,69 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners } from '../../api';
+import type { Direction } from '../../api/models/MinersDashboard';
+import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
-const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
+type Side = 'forward' | 'reverse';
+type DepthRow = { rate: string; capacity: number; cumCapacity: number };
+
+const sideLabel = (side: Side) =>
+  side === 'reverse' ? 'TAO → BTC' : 'BTC → TAO';
+
+// Cumulative depth for one trade side: group hittable miner collateral by
+// quoted rate, best rate first, accumulating capacity. Pure so it can be
+// memoized once per side and reused by both the single and BOTH views.
+const buildDepth = (
+  miners: Miner[] | undefined,
+  asset: string,
+  side: Side,
+): DepthRow[] => {
+  if (!miners?.length) return [];
+  const a = asset.toLowerCase();
+  const groups: Record<string, number> = {}; // key = rate, val = collateral TAO
+
+  miners.forEach((m) => {
+    // Only miners whose collateral is hittable right now count as depth.
+    // Inactive miners still have a quote on-chain but no one can take it;
+    // exchanging miners have their collateral locked in a swap; reserved
+    // miners have it locked by a pending swap. This panel answers "what rate
+    // can I actually use right now?".
+    if (!m.isActive || m.hasActiveSwap || m.isReserved) return;
+    if (!m.collateralRao) return;
+    const s = m.sourceChain?.toLowerCase();
+    const d = m.destChain?.toLowerCase();
+    if (s !== a || d !== 'tao') return;
+    const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
+    if (isNaN(capacityTao) || capacityTao <= 0) return;
+    const raw = side === 'forward' ? m.rate : m.counterRate;
+    const r = raw ? parseFloat(raw) : 0;
+    if (!isFinite(r) || r <= 0) return;
+    const key = r.toFixed(2);
+    groups[key] = (groups[key] || 0) + capacityTao;
+  });
+
+  // Best rate first: forward wants highest TAO/asset, reverse wants lowest.
+  const rates = Object.keys(groups).sort((x, y) =>
+    side === 'forward'
+      ? parseFloat(y) - parseFloat(x)
+      : parseFloat(x) - parseFloat(y),
+  );
+
+  let cum = 0;
+  return rates.map((key) => {
+    const capacity = groups[key];
+    cum += capacity;
+    return { rate: key, capacity, cumCapacity: cum };
+  });
+};
+
+const OrderbookDepth: React.FC<{
+  embedded?: boolean;
+  direction?: Direction;
+  showBoth?: boolean;
+}> = ({ embedded, direction = 'BTC-TAO', showBoth = false }) => {
   const theme = useTheme();
 
   const TAO_COLOR = theme.palette.asset.tao;
@@ -50,39 +107,6 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
     </svg>
   );
 
-  const AssetIcon = ({
-    asset,
-    size = 16,
-  }: {
-    asset: string;
-    size?: number;
-  }) => {
-    if (asset.toUpperCase() === 'BTC') return <BtcIcon size={size} />;
-    return (
-      <Box
-        sx={{
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          backgroundColor: theme.palette.text.secondary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography
-          sx={{
-            fontSize: size * 0.6,
-            color: theme.palette.background.paper,
-            fontWeight: 'bold',
-          }}
-        >
-          {asset[0]?.toUpperCase()}
-        </Typography>
-      </Box>
-    );
-  };
-
   const headerSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.65rem',
@@ -100,104 +124,277 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   };
 
   const { data: miners, isLoading } = useMiners();
-  type Direction = 'forward' | 'reverse';
-  type DirectionOption = {
-    asset: string;
-    direction: Direction;
-    key: string;
-    label: string;
+
+  // Driven by the shared dashboard direction so the orderbook mirrors the
+  // market-rate chart's BTC↔TAO toggle. 'BTC-TAO' → forward quote (m.rate);
+  // 'TAO-BTC' → reverse quote (m.counterRate). BOTH shows both sides stacked.
+  const activeSide: Side = direction === 'TAO-BTC' ? 'reverse' : 'forward';
+
+  const forward = useMemo(() => buildDepth(miners, 'BTC', 'forward'), [miners]);
+  const reverse = useMemo(() => buildDepth(miners, 'BTC', 'reverse'), [miners]);
+
+  // One depth ladder (header label + table) for a given side. Flexes to fill
+  // its share of the panel and scrolls internally.
+  const renderLadder = (side: Side, rows: DepthRow[]) => {
+    const maxCum = rows.reduce(
+      (m, r) => (r.cumCapacity > m ? r.cumCapacity : m),
+      1,
+    );
+    const fillColor = side === 'forward' ? BTC_COLOR : TAO_COLOR;
+
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          flex: 1,
+        }}
+      >
+        <TableContainer
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            '&::-webkit-scrollbar': { width: 4 },
+            '&::-webkit-scrollbar-thumb': {
+              background: theme.palette.border.light,
+              borderRadius: 0,
+            },
+          }}
+        >
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={headerSx}>
+                  <Tooltip
+                    title={`Quoted rate for ${sideLabel(side)} (TAO per 1 BTC).`}
+                    arrow
+                    placement="top"
+                  >
+                    <span
+                      style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
+                    >
+                      Rate (TAO)
+                    </span>
+                  </Tooltip>
+                </TableCell>
+                <TableCell sx={headerSx} align="right">
+                  <Tooltip
+                    title="Capacity at this exact rate, denominated in TAO collateral."
+                    arrow
+                    placement="top"
+                  >
+                    <span
+                      style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
+                    >
+                      Capacity (TAO)
+                    </span>
+                  </Tooltip>
+                </TableCell>
+                <TableCell sx={headerSx} align="right">
+                  <Tooltip
+                    title="Cumulative capacity walking from the best rate down."
+                    arrow
+                    placement="top"
+                  >
+                    <Box
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.75,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {side === 'reverse' ? (
+                        <>
+                          <TaoIcon /> {'→'} <BtcIcon />
+                        </>
+                      ) : (
+                        <>
+                          <BtcIcon /> {'→'} <TaoIcon />
+                        </>
+                      )}
+                    </Box>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {rows.map((row) => {
+                const pct = (row.cumCapacity / maxCum) * 100;
+                const gradColor = `color-mix(in srgb, ${fillColor} 14%, transparent)`;
+
+                return (
+                  <TableRow
+                    key={row.rate}
+                    sx={{
+                      backgroundColor: 'transparent',
+                      backgroundImage: `linear-gradient(to left, ${gradColor} ${pct}%, transparent ${pct}%)`,
+                      '&:hover': { backgroundColor: 'action.hover' },
+                    }}
+                  >
+                    <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
+                      {row.rate}
+                    </TableCell>
+                    <TableCell
+                      sx={{ ...cellSx, color: 'text.primary' }}
+                      align="right"
+                    >
+                      {row.capacity.toFixed(2)}
+                    </TableCell>
+                    <TableCell
+                      sx={{ ...cellSx, color: fillColor }}
+                      align="right"
+                    >
+                      {row.cumCapacity.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+
+              {rows.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={3}
+                    sx={{
+                      textAlign: 'center',
+                      borderBottom: 'none',
+                      py: 4,
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.8rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    No depth data available
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+    );
   };
-  const [selectedKey, setSelectedKey] = useState<string>('');
 
-  const directionOptions = useMemo<DirectionOption[]>(() => {
-    const seen = new Map<string, DirectionOption>();
-    miners?.forEach((m) => {
-      const s = m.sourceChain?.toLowerCase();
-      const d = m.destChain?.toLowerCase();
-      if (!s || d !== 'tao' || s === 'tao') return;
-      const asset = s.toUpperCase();
-      const fwd = m.rate ? parseFloat(m.rate) : 0;
-      const rev = m.counterRate ? parseFloat(m.counterRate) : 0;
-      if (fwd > 0) {
-        const key = `${asset}>forward`;
-        if (!seen.has(key))
-          seen.set(key, {
-            asset,
-            direction: 'forward',
-            key,
-            label: `${asset} → TAO`,
-          });
-      }
-      if (rev > 0) {
-        const key = `${asset}>reverse`;
-        if (!seen.has(key))
-          seen.set(key, {
-            asset,
-            direction: 'reverse',
-            key,
-            label: `TAO → ${asset}`,
-          });
-      }
-    });
-    return Array.from(seen.values()).sort((a, b) =>
-      a.label.localeCompare(b.label),
+  // BOTH view: overlay the two sides on one shared price (TAO/BTC) axis.
+  // Reverse quotes are asks (selling BTC) and sit above forward quotes, the
+  // bids (buying BTC); the gap between best ask and best bid is the spread.
+  const renderBook = () => {
+    const asks = reverse; // best (lowest) first, cumulative outward
+    const bids = forward; // best (highest) first, cumulative outward
+    const maxCum = Math.max(
+      asks.length ? asks[asks.length - 1].cumCapacity : 0,
+      bids.length ? bids[bids.length - 1].cumCapacity : 0,
+      1,
     );
-  }, [miners]);
+    const bestAsk = asks.length ? parseFloat(asks[0].rate) : null;
+    const bestBid = bids.length ? parseFloat(bids[0].rate) : null;
+    const spread =
+      bestAsk != null && bestBid != null ? bestAsk - bestBid : null;
+    const mid =
+      bestAsk != null && bestBid != null ? (bestAsk + bestBid) / 2 : null;
+    const spreadPct = spread != null && mid ? (spread / mid) * 100 : null;
+    const asksDisplay = [...asks].reverse(); // highest price on top
 
-  useEffect(() => {
-    if (directionOptions.length === 0) return;
-    if (!directionOptions.find((o) => o.key === selectedKey)) {
-      setSelectedKey(directionOptions[0].key);
-    }
-  }, [directionOptions, selectedKey]);
+    const bookRow = (side: Side, r: DepthRow) => {
+      const pct = (r.cumCapacity / maxCum) * 100;
+      const fillColor = side === 'forward' ? BTC_COLOR : TAO_COLOR;
+      const gradColor = `color-mix(in srgb, ${fillColor} 14%, transparent)`;
+      return (
+        <TableRow
+          key={`${side}-${r.rate}`}
+          sx={{
+            backgroundColor: 'transparent',
+            backgroundImage: `linear-gradient(to left, ${gradColor} ${pct}%, transparent ${pct}%)`,
+            '&:hover': { backgroundColor: 'action.hover' },
+          }}
+        >
+          <TableCell sx={{ ...cellSx, color: fillColor }}>{r.rate}</TableCell>
+          <TableCell sx={{ ...cellSx, color: 'text.primary' }} align="right">
+            {r.capacity.toFixed(2)}
+          </TableCell>
+          <TableCell sx={{ ...cellSx, color: fillColor }} align="right">
+            {r.cumCapacity.toFixed(2)}
+          </TableCell>
+        </TableRow>
+      );
+    };
 
-  const selected = directionOptions.find((o) => o.key === selectedKey) ?? null;
+    return (
+      <TableContainer
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-thumb': {
+            background: theme.palette.border.light,
+            borderRadius: 0,
+          },
+        }}
+      >
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={headerSx}>Rate (TAO)</TableCell>
+              <TableCell sx={headerSx} align="right">
+                Capacity (TAO)
+              </TableCell>
+              <TableCell sx={headerSx} align="right">
+                Total (TAO)
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {asksDisplay.map((r) => bookRow('reverse', r))}
 
-  const depthData = useMemo(() => {
-    if (!miners?.length || !selected) return [];
-    const asset = selected.asset.toLowerCase();
-    const groups: Record<string, number> = {}; // key = rate, val = collateral TAO
+            <TableRow>
+              <TableCell
+                colSpan={3}
+                sx={{
+                  ...cellSx,
+                  py: 0.75,
+                  textAlign: 'center',
+                  fontSize: '0.65rem',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  color: 'text.secondary',
+                  backgroundColor: 'action.hover',
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  borderBottom: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                {spread != null
+                  ? `Spread  ${spread.toFixed(2)} TAO${
+                      spreadPct != null ? `  (${spreadPct.toFixed(2)}%)` : ''
+                    }`
+                  : 'Spread  —'}
+              </TableCell>
+            </TableRow>
 
-    miners.forEach((m) => {
-      // Only miners whose collateral is hittable right now count as
-      // depth. Inactive miners still have a quote on-chain but no one
-      // can take it; exchanging miners have their collateral locked
-      // in a swap; reserved miners have it locked by a pending swap.
-      // This panel answers "what rate can I actually use right now?".
-      if (!m.isActive || m.hasActiveSwap || m.isReserved) return;
-      if (!m.collateralRao) return;
-      const s = m.sourceChain?.toLowerCase();
-      const d = m.destChain?.toLowerCase();
-      if (s !== asset || d !== 'tao') return;
-      const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
-      if (isNaN(capacityTao) || capacityTao <= 0) return;
-      const raw = selected.direction === 'forward' ? m.rate : m.counterRate;
-      const r = raw ? parseFloat(raw) : 0;
-      if (!isFinite(r) || r <= 0) return;
-      const key = r.toFixed(2);
-      groups[key] = (groups[key] || 0) + capacityTao;
-    });
+            {bids.map((r) => bookRow('forward', r))}
 
-    // Best rate first: forward wants highest TAO/asset, reverse wants lowest.
-    const rates = Object.keys(groups).sort((a, b) =>
-      selected.direction === 'forward'
-        ? parseFloat(b) - parseFloat(a)
-        : parseFloat(a) - parseFloat(b),
+            {asks.length === 0 && bids.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  sx={{
+                    textAlign: 'center',
+                    borderBottom: 'none',
+                    py: 4,
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.8rem',
+                    color: 'text.secondary',
+                  }}
+                >
+                  No depth data available
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
     );
-
-    let cum = 0;
-    return rates.map((key) => {
-      const capacity = groups[key];
-      cum += capacity;
-      return { rate: key, capacity, cumCapacity: cum };
-    });
-  }, [miners, selected]);
-
-  const maxCum = useMemo(
-    () =>
-      depthData.reduce((m, r) => (r.cumCapacity > m ? r.cumCapacity : m), 1),
-    [depthData],
-  );
+  };
 
   return isLoading || !miners ? (
     <OrderbookDepthSkeleton />
@@ -253,168 +450,25 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
           </Box>
         )}
 
-        {directionOptions.length > 0 && (
-          <Select
-            size="small"
-            value={selectedKey}
-            onChange={(e) => setSelectedKey(e.target.value as string)}
-            sx={{
-              width: 160,
-              height: 32,
-              fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              color: 'text.primary',
-              borderRadius: 0,
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: theme.palette.border.light,
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
-            }}
-          >
-            {directionOptions.map((opt) => (
-              <MenuItem
-                key={opt.key}
-                value={opt.key}
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem' }}
-              >
-                {opt.label}
-              </MenuItem>
-            ))}
-          </Select>
-        )}
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.75rem',
+            color: 'text.secondary',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}
+        >
+          {showBoth ? 'BOTH' : sideLabel(activeSide)}
+        </Typography>
       </Box>
 
-      <TableContainer
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          '&::-webkit-scrollbar': { width: 4 },
-          '&::-webkit-scrollbar-thumb': {
-            background: theme.palette.border.light,
-            borderRadius: 0,
-          },
-        }}
-      >
-        <Table size="small" stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={headerSx}>
-                <Tooltip
-                  title={`Quoted rate for ${selected?.label ?? 'this direction'} (TAO per 1 ${selected?.asset ?? 'asset'}).`}
-                  arrow
-                  placement="top"
-                >
-                  <span
-                    style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
-                  >
-                    Rate (TAO)
-                  </span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={headerSx} align="right">
-                <Tooltip
-                  title="Capacity at this exact rate, denominated in TAO collateral."
-                  arrow
-                  placement="top"
-                >
-                  <span
-                    style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
-                  >
-                    Capacity (TAO)
-                  </span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={headerSx} align="right">
-                <Tooltip
-                  title="Cumulative capacity walking from the best rate down."
-                  arrow
-                  placement="top"
-                >
-                  <Box
-                    sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 0.75,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {selected?.direction === 'reverse' ? (
-                      <>
-                        <TaoIcon /> {'→'} <AssetIcon asset={selected.asset} />
-                      </>
-                    ) : selected ? (
-                      <>
-                        <AssetIcon asset={selected.asset} /> {'→'} <TaoIcon />
-                      </>
-                    ) : (
-                      <span>Cumulative</span>
-                    )}
-                  </Box>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {depthData.map((row) => {
-              const pct = (row.cumCapacity / maxCum) * 100;
-              const isBtc = selected?.asset.toUpperCase() === 'BTC';
-              const assetThemeColor = isBtc
-                ? BTC_COLOR
-                : theme.palette.primary.main;
-              const fillColor =
-                selected?.direction === 'forward' ? assetThemeColor : TAO_COLOR;
-              const gradColor = `color-mix(in srgb, ${fillColor} 14%, transparent)`;
-
-              return (
-                <TableRow
-                  key={row.rate}
-                  sx={{
-                    backgroundColor: 'transparent',
-                    backgroundImage: `linear-gradient(to left, ${gradColor} ${pct}%, transparent ${pct}%)`,
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                    },
-                  }}
-                >
-                  <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
-                    {row.rate}
-                  </TableCell>
-                  <TableCell
-                    sx={{ ...cellSx, color: 'text.primary' }}
-                    align="right"
-                  >
-                    {row.capacity.toFixed(2)}
-                  </TableCell>
-                  <TableCell sx={{ ...cellSx, color: fillColor }} align="right">
-                    {row.cumCapacity.toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-
-            {depthData.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={3}
-                  sx={{
-                    textAlign: 'center',
-                    borderBottom: 'none',
-                    py: 4,
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.8rem',
-                    color: 'text.secondary',
-                  }}
-                >
-                  No depth data available
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      {showBoth
+        ? renderBook()
+        : renderLadder(
+            activeSide,
+            activeSide === 'forward' ? forward : reverse,
+          )}
     </Box>
   );
 };

@@ -36,8 +36,10 @@ echarts.use([
   CanvasRenderer,
 ]);
 
+// Match the Depth of Market colors: BTC→TAO (bids) = BTC accent,
+// TAO→BTC (asks) = TAO accent.
 const accentFor = (theme: Theme, dir: Direction) =>
-  dir === 'BTC-TAO' ? theme.palette.asset.btc : theme.palette.primary.main;
+  dir === 'BTC-TAO' ? theme.palette.asset.btc : theme.palette.asset.tao;
 
 const labelFor = (dir: Direction) =>
   dir === 'BTC-TAO' ? 'BTC → TAO' : 'TAO → BTC';
