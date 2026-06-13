@@ -23,7 +23,8 @@ import { OrderbookDepthSkeleton } from './Skeletons';
 type Side = 'forward' | 'reverse';
 type DepthRow = { rate: string; capacity: number; cumCapacity: number };
 
-const sideLabel = (side: Side) => (side === 'reverse' ? 'TAO → BTC' : 'BTC → TAO');
+const sideLabel = (side: Side) =>
+  side === 'reverse' ? 'TAO → BTC' : 'BTC → TAO';
 
 // Cumulative depth for one trade side: group hittable miner collateral by
 // quoted rate, best rate first, accumulating capacity. Pure so it can be
@@ -464,7 +465,10 @@ const OrderbookDepth: React.FC<{
 
       {showBoth
         ? renderBook()
-        : renderLadder(activeSide, activeSide === 'forward' ? forward : reverse)}
+        : renderLadder(
+            activeSide,
+            activeSide === 'forward' ? forward : reverse,
+          )}
     </Box>
   );
 };
