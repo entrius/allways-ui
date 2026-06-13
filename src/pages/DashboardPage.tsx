@@ -4,6 +4,7 @@ import {
   AllwaysMarketRate,
   EventFeed,
   MinerRatesTable,
+  OrderbookDepth,
   RatesTicker,
   ReservationsTracker,
   SwapTracker,
@@ -24,9 +25,11 @@ const colSx = {
 } as const;
 
 const DashboardPage: React.FC = () => {
-  // Shared trade direction — the Market Rate toggle drives both the chart and
-  // the Active Rates table filter.
+  // Shared trade direction — the Market Rate toggle drives the chart, the
+  // Active Rates table filter, and the orderbook. `showBoth` is the chart's
+  // BOTH view, lifted here so the orderbook can show both sides too.
   const [direction, setDirection] = useState<Direction>('BTC-TAO');
+  const [showBoth, setShowBoth] = useState(false);
 
   // Below md the layout stacks into one column — treat as "mobile": lead with
   // the chart and drop the Events tab.
@@ -94,11 +97,13 @@ const DashboardPage: React.FC = () => {
             <AllwaysMarketRate
               direction={direction}
               onDirectionChange={setDirection}
+              showBoth={showBoth}
+              onShowBothChange={setShowBoth}
             />
           </Box>
 
-          {/* Right column; last on mobile (its list is unbounded):
-              transactions, reservations, and (desktop only) the event tape. */}
+          {/* Right column: depth-of-market orderbook — cumulative miner
+              liquidity available at each rate. Last on mobile. */}
           <Box
             sx={{
               ...colSx,
@@ -106,52 +111,66 @@ const DashboardPage: React.FC = () => {
               order: { xs: 3, md: 0 },
             }}
           >
-            <TabbedPanel
-              tabs={[
-                {
-                  key: 'tx',
-                  label: 'Transactions',
-                  info: (
-                    <Box sx={{ maxWidth: 280 }}>
-                      Every transaction in chronological order with its
-                      lifecycle progress: Initiated → Fulfilled → Completed (or
-                      Timed Out). Click a row for the full timeline.
-                    </Box>
-                  ),
-                  node: <SwapTracker embedded />,
-                },
-                {
-                  key: 'reservations',
-                  label: 'Reservations',
-                  info: (
-                    <Box sx={{ maxWidth: 260 }}>
-                      Short holds a user places on a miner's quoted rate before
-                      sending funds — locks the rate and prevents others from
-                      claiming the same miner mid-swap.
-                    </Box>
-                  ),
-                  node: <ReservationsTracker embedded />,
-                },
-                // Events tape is desktop-only — too much for the mobile view.
-                ...(isStacked
-                  ? []
-                  : [
-                      {
-                        key: 'events',
-                        label: 'Events',
-                        info: (
-                          <Box sx={{ maxWidth: 280 }}>
-                            Real-time stream of contract and chain events — swap
-                            lifecycle, collateral changes, votes, reservations.
-                            Newest first.
-                          </Box>
-                        ),
-                        node: <EventFeed embedded />,
-                      },
-                    ]),
-              ]}
-            />
+            <OrderbookDepth direction={direction} showBoth={showBoth} />
           </Box>
+        </Box>
+
+        {/* Full-width activity panel below the terminal: transactions,
+            reservations, and (desktop only) the event tape. */}
+        <Box
+          sx={{
+            ...colSx,
+            mt: { xs: 3, md: 2.5 },
+            height: { md: 300 },
+            minHeight: { xs: 440, md: 300 },
+            flexShrink: 0,
+          }}
+        >
+          <TabbedPanel
+            tabs={[
+              {
+                key: 'tx',
+                label: 'Transactions',
+                info: (
+                  <Box sx={{ maxWidth: 280 }}>
+                    Every transaction in chronological order with its lifecycle
+                    progress: Initiated → Fulfilled → Completed (or Timed Out).
+                    Click a row for the full timeline.
+                  </Box>
+                ),
+                node: <SwapTracker embedded />,
+              },
+              {
+                key: 'reservations',
+                label: 'Reservations',
+                info: (
+                  <Box sx={{ maxWidth: 260 }}>
+                    Short holds a user places on a miner's quoted rate before
+                    sending funds — locks the rate and prevents others from
+                    claiming the same miner mid-swap.
+                  </Box>
+                ),
+                node: <ReservationsTracker embedded />,
+              },
+              // Events tape is desktop-only — too much for the mobile view.
+              ...(isStacked
+                ? []
+                : [
+                    {
+                      key: 'events',
+                      label: 'Events',
+                      info: (
+                        <Box sx={{ maxWidth: 280 }}>
+                          Real-time stream of contract and chain events — swap
+                          lifecycle, collateral changes, votes, reservations.
+                          Newest first.
+                        </Box>
+                      ),
+                      node: <EventFeed embedded />,
+                    },
+                  ]),
+            ]}
+          />
         </Box>
       </Stack>
     </Page>

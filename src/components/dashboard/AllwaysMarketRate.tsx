@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   IconButton,
@@ -23,9 +23,10 @@ type View = Direction | 'BOTH';
 const AllwaysMarketRate: React.FC<{
   direction: Direction;
   onDirectionChange: (d: Direction) => void;
-}> = ({ direction, onDirectionChange }) => {
+  showBoth: boolean;
+  onShowBothChange: (b: boolean) => void;
+}> = ({ direction, onDirectionChange, showBoth, onShowBothChange }) => {
   const theme = useTheme();
-  const [showBoth, setShowBoth] = useState(false);
   const view: View = showBoth ? 'BOTH' : direction;
 
   return (
@@ -84,9 +85,9 @@ const AllwaysMarketRate: React.FC<{
           onChange={(_, v) => {
             if (!v) return;
             if (v === 'BOTH') {
-              setShowBoth(true);
+              onShowBothChange(true);
             } else {
-              setShowBoth(false);
+              onShowBothChange(false);
               onDirectionChange(v as Direction);
             }
           }}
