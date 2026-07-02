@@ -5,20 +5,22 @@ export type CurrentCrown = {
   uid: number | null;
   hotkey: string | null;
   rate: number | null;
-  sinceBlock: number | null;
+  // Unix seconds the current holder took the crown.
+  sinceTs: number | null;
 };
 
 export type CurrentCrownMap = Record<Direction, CurrentCrown>;
 
 export type CrownHistoryRow = {
-  block: number;
+  // Unix-seconds bucket timestamp for this crown observation.
+  t: number;
   hotkey: string;
   uid: number | null;
   rate: number;
 };
 
 export type CrownRateHistoryRow = {
-  block: number;
+  t: number;
   rate: number;
 };
 
@@ -29,22 +31,22 @@ export type LeaderboardRow = {
   successRate: number;
   completedSwaps: number;
   timedOutSwaps: number;
-  volumeTao: string;
-  collateralRao: string;
+  volumeSol: string;
+  collateral: string;
   isActive: boolean;
   currentCrownDirections: Direction[];
 };
 
 export type ScoreFactors = {
   capacityFactor: number;
-  collateralRao: string;
-  maxSwapAmountRao: string;
+  collateral: string;
+  maxSwapAmount: string;
 
   volumeFactor: number;
   volumeShareWindow: number;
   crownShareWindow: number;
-  volumeTaoWindow: string;
-  networkVolumeTaoWindow: string;
+  volumeSolWindow: string;
+  networkVolumeSolWindow: string;
   previousCrownShareWindow: number;
   previousVolumeFactor: number;
 
@@ -63,19 +65,21 @@ export type MinerStats = {
   completedSwaps: number;
   timedOutSwaps: number;
   successRate: number;
-  volumeTao: string;
+  volumeSol: string;
   avgFulfillSec: number | null;
   avgCompleteSec: number | null;
   crownShare: number;
   isActive: boolean;
-  collateralRao: string;
+  collateral: string;
+  // Unix seconds the miner activated, or null.
   activatedAt: number | null;
   currentCrownDirections: Direction[];
   scoreFactors: ScoreFactors;
 };
 
 export type MinerRateHistoryRow = {
-  block: number;
+  // Unix-seconds bucket timestamp.
+  t: number;
   rate: number;
   fromChain: string;
   toChain: string;
@@ -84,21 +88,21 @@ export type MinerRateHistoryRow = {
 export type PairMix = { pair: string; pct: number };
 
 export type NetworkOverview = {
-  volumeTao: string;
+  volumeSol: string;
   totalSwaps: number;
   networkSuccessRate: number;
   activeMiners: number;
   pairMix: PairMix[];
-  scoringWindowVolumeTao: string;
-  maxSwapAmountRao: string;
+  scoringWindowVolumeSol: string;
+  maxSwapAmount: string;
 };
 
-export type HaltState = { halted: boolean; asOfBlock: number };
+export type HaltState = { halted: boolean; asOf: number };
 
-// Validator's last crown/rate flush. lastScoredBlock is the block scored
-// through; updatedAt is the wall-clock time of that flush (advances only on a
-// real flush, ~every scoring window), or null before the first flush.
+// Validator's last crown/rate flush. lastScoredAt is the unix-seconds watermark
+// scored through; updatedAt is the wall-clock time of that flush (advances only
+// on a real flush, ~every scoring window), or null before the first flush.
 export type ScoringState = {
-  lastScoredBlock: number;
+  lastScoredAt: number;
   updatedAt: string | null;
 };

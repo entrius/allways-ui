@@ -26,13 +26,13 @@ const INNER_H = PANEL_H - MT - MB;
 
 type CrownRange = '1h' | '4h' | '24h' | '4d';
 
-const RANGE_BLOCKS: Record<CrownRange, number> = {
-  '1h': 300,
-  '4h': 1200,
-  '24h': 7200,
-  // Matches the API's RATE_MAX_BLOCKS cap — the crown rate line reads
+const RANGE_SECS: Record<CrownRange, number> = {
+  '1h': 3600,
+  '4h': 14_400,
+  '24h': 86_400,
+  // Matches the API's RATE_MAX_SECS cap — the crown rate line reads
   // crown_holders, which alw-utils prunes, so the widest chip stops at ~4d.
-  '4d': 28_800,
+  '4d': 345_600,
 };
 
 const DIRECTION_META: Record<
@@ -85,8 +85,8 @@ const fmt = (n: number): string => {
   return n.toExponential(1);
 };
 
-type RateRow = { block: number; rate: number };
-type SharedCursor = { block: number; x: number } | null;
+type RateRow = { t: number; rate: number };
+type SharedCursor = { t: number; x: number } | null;
 
 type PanelProps = {
   direction: Direction;
@@ -124,8 +124,8 @@ const RatePanel: React.FC<PanelProps> = ({
     return { yMin: lo - pad, yMax: hi + pad };
   }, [primary, reference]);
 
-  const mapX = (block: number) =>
-    head === lo ? ML : ML + ((block - lo) / (head - lo)) * INNER_W;
+  const mapX = (t: number) =>
+    head === lo ? ML : ML + ((t - lo) / (head - lo)) * INNER_W;
   const mapY = (rate: number) =>
     yMax === yMin
       ? MT + INNER_H / 2
@@ -133,9 +133,9 @@ const RatePanel: React.FC<PanelProps> = ({
 
   const linePath = (rows: RateRow[]): string => {
     if (!rows.length) return '';
-    let d = `M ${mapX(rows[0].block)} ${mapY(rows[0].rate)}`;
+    let d = `M ${mapX(rows[0].t)} ${mapY(rows[0].rate)}`;
     for (let i = 1; i < rows.length; i++) {
-      d += ` L ${mapX(rows[i].block)} ${mapY(rows[i].rate)}`;
+      d += ` L ${mapX(rows[i].t)} ${mapY(rows[i].rate)}`;
     }
     return d;
   };
@@ -143,8 +143,8 @@ const RatePanel: React.FC<PanelProps> = ({
   const areaPath = (rows: RateRow[]): string => {
     if (rows.length < 2) return '';
     const top = linePath(rows);
-    const lastX = mapX(rows[rows.length - 1].block);
-    const firstX = mapX(rows[0].block);
+    const lastX = mapX(rows[rows.length - 1].t);
+    const firstX = mapX(rows[0].t);
     const baselineY = MT + INNER_H;
     return `${top} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
   };
@@ -163,17 +163,17 @@ const RatePanel: React.FC<PanelProps> = ({
       onCursor(null);
       return;
     }
-    const targetBlock = lo + ((viewX - ML) / INNER_W) * (head - lo);
+    const targetT = lo + ((viewX - ML) / INNER_W) * (head - lo);
     let best = primary[0];
-    let bestDist = Math.abs(best.block - targetBlock);
+    let bestDist = Math.abs(best.t - targetT);
     for (const p of primary) {
-      const dist = Math.abs(p.block - targetBlock);
+      const dist = Math.abs(p.t - targetT);
       if (dist < bestDist) {
         best = p;
         bestDist = dist;
       }
     }
-    onCursor({ block: best.block, x: mapX(best.block) });
+    onCursor({ t: best.t, x: mapX(best.t) });
   };
 
   const ticks = niceTicks(yMin, yMax, 4);
@@ -181,15 +181,15 @@ const RatePanel: React.FC<PanelProps> = ({
   const hover = useMemo(() => {
     if (!cursor || !primary.length) return null;
     let best = primary[0];
-    let bestDist = Math.abs(best.block - cursor.block);
+    let bestDist = Math.abs(best.t - cursor.t);
     for (const p of primary) {
-      const d = Math.abs(p.block - cursor.block);
+      const d = Math.abs(p.t - cursor.t);
       if (d < bestDist) {
         best = p;
         bestDist = d;
       }
     }
-    return { block: best.block, rate: best.rate };
+    return { t: best.t, rate: best.rate };
   }, [cursor, primary]);
 
   const latest = primary.length ? primary[primary.length - 1].rate : null;
@@ -422,7 +422,10 @@ const RatePanel: React.FC<PanelProps> = ({
             }}
           >
             <Box sx={{ color: 'text.disabled', fontSize: '0.6rem', mb: 0.25 }}>
-              #{hover.block.toLocaleString()}
+              {new Date(hover.t * 1000).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </Box>
             <Stack direction="row" spacing={0.5} alignItems="baseline">
               {meta.valueLeft ? (
@@ -487,42 +490,42 @@ const CrownRateChart: React.FC<{
 }> = ({ range, onRangeChange, minerHotkey }) => {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const blocks = RANGE_BLOCKS[range];
+  const secs = RANGE_SECS[range];
   const minerMode = !!minerHotkey;
 
   const { data: btcTao } = useCrownRateHistory({
     direction: 'BTC-TAO',
-    blocks,
+    secs,
   });
   const { data: taoBtc } = useCrownRateHistory({
     direction: 'TAO-BTC',
-    blocks,
+    secs,
   });
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
 
   // Use reduce instead of `Math.max(...arr)` to avoid spreading large arrays.
   const head = useMemo(() => {
-    const maxBlock = (arr: { block: number }[] | undefined) =>
-      (arr ?? []).reduce((m, p) => (p.block > m ? p.block : m), 0);
-    return Math.max(maxBlock(btcTao), maxBlock(taoBtc));
+    const maxT = (arr: { t: number }[] | undefined) =>
+      (arr ?? []).reduce((m, p) => (p.t > m ? p.t : m), 0);
+    return Math.max(maxT(btcTao), maxT(taoBtc));
   }, [btcTao, taoBtc]);
-  const lo = Math.max(0, head - blocks + 1);
+  const lo = Math.max(0, head - secs + 1);
 
   // One memo over all the per-render data shaping so a hover cursor change
   // (which lifts state up here) doesn't re-filter the full window every
   // mouse move.
   const { btcTaoCrown, taoBtcCrown, btcTaoMiner, taoBtcMiner } = useMemo(() => {
-    const inRange = <T extends { block: number }>(arr: T[] | undefined) =>
-      (arr ?? []).filter((p) => p.block >= lo && p.block <= head);
+    const inRange = <T extends { t: number }>(arr: T[] | undefined) =>
+      (arr ?? []).filter((p) => p.t >= lo && p.t <= head);
     const strip = (rows: CrownRateHistoryRow[]): RateRow[] =>
-      rows.map((r) => ({ block: r.block, rate: r.rate }));
+      rows.map((r) => ({ t: r.t, rate: r.rate }));
     const minerFor = (direction: Direction): RateRow[] => {
       if (!minerHotkey) return [];
       const from = direction === 'BTC-TAO' ? 'btc' : 'tao';
       const to = direction === 'BTC-TAO' ? 'tao' : 'btc';
       return inRange(minerRates ?? [])
         .filter((r) => r.fromChain === from && r.toChain === to)
-        .map((r) => ({ block: r.block, rate: r.rate }));
+        .map((r) => ({ t: r.t, rate: r.rate }));
     };
     return {
       btcTaoCrown: strip(inRange(btcTao)),
@@ -580,7 +583,7 @@ const CrownRateChart: React.FC<{
           value={range}
           onChange={(_e, v) => v && onRangeChange(v)}
         >
-          {(Object.keys(RANGE_BLOCKS) as CrownRange[]).map((r) => (
+          {(Object.keys(RANGE_SECS) as CrownRange[]).map((r) => (
             <ToggleButton
               key={r}
               value={r}
@@ -627,7 +630,14 @@ const CrownRateChart: React.FC<{
           color: 'text.disabled',
         }}
       >
-        <Box>#{lo.toLocaleString()}</Box>
+        <Box>
+          {lo > 0
+            ? new Date(lo * 1000).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '—'}
+        </Box>
         {minerMode && (
           <Stack direction="row" spacing={2} alignItems="center">
             <Stack direction="row" spacing={0.6} alignItems="center">
@@ -665,7 +675,14 @@ const CrownRateChart: React.FC<{
             </Stack>
           </Stack>
         )}
-        <Box>#{head.toLocaleString()}</Box>
+        <Box>
+          {head > 0
+            ? new Date(head * 1000).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '—'}
+        </Box>
       </Stack>
     </Box>
   );

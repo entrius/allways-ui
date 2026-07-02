@@ -46,6 +46,8 @@ const lightPalette = {
   statusMinerActivated: 'var(--color-status-miner-activated)',
   assetBtc: '#f7931a',
   assetTao: BRAND.woodsmoke,
+  // SOL is the hub/numeraire now — Solana brand purple, readable in both modes.
+  assetSol: '#9945ff',
 } as const;
 
 // Dark surface tints are pre-computed equivalents of the index.css color-mix()
@@ -79,7 +81,7 @@ declare module '@mui/material/styles' {
       vote: string;
       minerActivated: string;
     };
-    asset: { btc: string; tao: string };
+    asset: { btc: string; tao: string; sol: string };
   }
   interface PaletteOptions {
     border?: { subtle: string; light: string; medium: string };
@@ -93,7 +95,7 @@ declare module '@mui/material/styles' {
       vote: string;
       minerActivated: string;
     };
-    asset?: { btc: string; tao: string };
+    asset?: { btc: string; tao: string; sol: string };
   }
   interface TypographyVariants {
     mono: React.CSSProperties;
@@ -174,6 +176,7 @@ export function createAppTheme(mode: ThemeMode): Theme {
       asset: {
         btc: p.assetBtc,
         tao: p.assetTao,
+        sol: p.assetSol,
       },
     },
     typography: {

@@ -75,7 +75,7 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading, unit }) => (
 
 const MetricsStrip: React.FC = () => {
   const { data: stats, isLoading } = useStats();
-  const volume = stats ? parseFloat(stats.totalVolumeTao).toFixed(2) : '0';
+  const volume = stats ? parseFloat(stats.totalVolumeSol).toFixed(2) : '0';
 
   return (
     <Box
@@ -99,7 +99,7 @@ const MetricsStrip: React.FC = () => {
             <Metric
               label="Volume"
               value={volume}
-              unit="τ"
+              unit="SOL"
               loading={isLoading}
             />
           </Grid>

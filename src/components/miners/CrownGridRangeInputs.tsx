@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Stack, TextField, Typography } from '@mui/material';
 import { FONTS } from '../../theme';
 
-// From/to block-number inputs for the crown grid's custom-range mode.
-// Owns its own draft state (resets when the URL-driven props change), and
+// From/to unix-timestamp (seconds) inputs for the crown grid's custom-range
+// mode. Owns its own draft state (resets when the URL-driven props change), and
 // commits via onChange on Enter when valid. Validation: both ends set,
 // non-negative integers, to > from, span <= maxSpan.
 const CrownGridRangeInputs: React.FC<{
@@ -32,9 +32,9 @@ const CrownGridRangeInputs: React.FC<{
     const f = Number(fromInput);
     const t = Number(toInput);
     if (!Number.isInteger(f) || !Number.isInteger(t) || f < 0 || t < 0)
-      return 'block #s must be non-negative integers';
+      return 'timestamps must be non-negative integers';
     if (t <= f) return 'to must be > from';
-    if (t - f > maxSpan) return `range > ${maxSpan} blocks`;
+    if (t - f > maxSpan) return `range > ${maxSpan}s`;
     return null;
   }, [fromInput, toInput, maxSpan]);
 
@@ -73,7 +73,7 @@ const CrownGridRangeInputs: React.FC<{
       </Typography>
       <TextField
         size="small"
-        placeholder="from #"
+        placeholder="from ts"
         value={fromInput}
         onChange={(e) => setFromInput(onlyDigits(e.target.value))}
         onKeyDown={(e) => {
@@ -90,7 +90,7 @@ const CrownGridRangeInputs: React.FC<{
       </Typography>
       <TextField
         size="small"
-        placeholder="to #"
+        placeholder="to ts"
         value={toInput}
         onChange={(e) => setToInput(onlyDigits(e.target.value))}
         onKeyDown={(e) => {

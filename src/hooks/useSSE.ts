@@ -16,11 +16,11 @@ export function useSSE() {
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     });
 
-    es.addEventListener('block', (e) => {
-      const { block } = JSON.parse((e as MessageEvent).data);
+    es.addEventListener('head', (e) => {
+      const { asOf, slot } = JSON.parse((e as MessageEvent).data);
       queryClient.setQueryData(
         ['chainState', '/protocol/chain-state', undefined],
-        { currentBlock: block },
+        { asOf, slot },
       );
     });
 

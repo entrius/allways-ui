@@ -12,8 +12,10 @@ export const useProtocolConstants = () =>
     ONE_HOUR_MS,
   );
 
+// Chain head is time-native now: `asOf` is unix seconds (MAX block_time over
+// contract events); `slot` is the latest Solana slot, when the API includes it.
 export const useChainState = () =>
-  useApiQuery<{ currentBlock: number }>(
+  useApiQuery<{ asOf: number; slot?: number }>(
     'chainState',
     '/protocol/chain-state',
     SSE_FALLBACK_INTERVAL,

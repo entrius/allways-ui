@@ -21,11 +21,11 @@ import {
 import CrownIcon from './CrownIcon';
 import SortHeader, { type SortDir } from './SortHeader';
 import { FONTS } from '../../theme';
-import { formatTao, shortHotkey } from '../../utils/format';
+import { formatSol, shortHotkey } from '../../utils/format';
 
-// 1h is the live scoring window (SCORING_WINDOW_BLOCKS) and the default view.
+// 1h is the live scoring window (SCORING_WINDOW_SECS) and the default view.
 // 30d is the deepest window; the API clamps everything to ~30d
-// (MAX_LOOKBACK_BLOCKS) so crown_holders stays prunable, which made the old
+// (MAX_LOOKBACK_SECS) so crown_holders stays prunable, which made the old
 // 90d/all chips return identical data to 30d.
 const RANGES: Range[] = ['1h', '24h', '7d', '30d'];
 
@@ -82,11 +82,11 @@ const compare = (
     case 'crownShare':
       return a.crownShare - b.crownShare;
     case 'collateral':
-      return parseFloat(a.collateralRao) - parseFloat(b.collateralRao);
+      return parseFloat(a.collateral) - parseFloat(b.collateral);
     case 'success':
       return successRatio(a) - successRatio(b);
     case 'volume':
-      return parseFloat(a.volumeTao) - parseFloat(b.volumeTao);
+      return parseFloat(a.volumeSol) - parseFloat(b.volumeSol);
     case 'active':
       return Number(a.isActive) - Number(b.isActive);
   }
@@ -397,7 +397,7 @@ const MinerLeaderboard: React.FC<{
                     </Stack>
                   </TableCell>
                   <TableCell sx={{ fontFamily: FONTS.mono }}>
-                    {formatTao(row.collateralRao)} τ
+                    {formatSol(row.collateral)} SOL
                   </TableCell>
                   <TableCell
                     sx={{ fontFamily: FONTS.mono, color: successColor }}
@@ -405,7 +405,7 @@ const MinerLeaderboard: React.FC<{
                     {formatSuccess(row)}
                   </TableCell>
                   <TableCell sx={{ fontFamily: FONTS.mono }}>
-                    {formatVolume(row.volumeTao)} τ
+                    {formatVolume(row.volumeSol)} SOL
                   </TableCell>
                   <TableCell>
                     <Box

@@ -2,19 +2,21 @@ export type Reservation = {
   id: string;
   requestHash: string;
   minerHotkey: string;
+  minerPubkey: string | null;
   userFromAddress: string;
   fromChain: string | null;
   toChain: string | null;
-  taoAmount: string | null;
+  solAmount: string | null;
   fromAmount: string | null;
   toAmount: string | null;
-  reservedAtBlock: string;
-  reservedUntilBlock: string;
+  // Reservation window is unix seconds.
+  reservedAt: string;
+  reservedUntil: string;
   status: string;
   swapId: string | null;
   extensionsUsed: number;
   pendingExtensionTarget: string | null;
-  pendingExtensionProposedBlock: string | null;
+  pendingExtensionProposedAt: string | null;
   pendingExtensionProposedBy: string | null;
   pendingExtensionFromTxHash: string | null;
   createdAt: string;

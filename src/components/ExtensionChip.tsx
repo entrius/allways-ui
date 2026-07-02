@@ -2,7 +2,9 @@ import React from 'react';
 import { Chip, Tooltip } from '@mui/material';
 import { FONTS } from '../theme';
 import { type ProtocolConstants } from '../api/models';
+import { formatCountdown } from '../utils/format';
 
+// target / finalizableAt are unix-seconds timestamps (time-native contract).
 export type ExtensionStatus =
   | { kind: 'none' }
   | {
@@ -20,7 +22,7 @@ export const deriveSwapExtensionStatus = (
   s: {
     status: string;
     pendingTimeoutExtensionTarget: string | null;
-    pendingTimeoutExtensionProposedBlock: string | null;
+    pendingTimeoutExtensionProposedAt: string | null;
     pendingTimeoutExtensionProposedBy: string | null;
     timeoutExtensionsUsed: number;
   },
@@ -33,13 +35,13 @@ export const deriveSwapExtensionStatus = (
   if (
     canExtend &&
     s.pendingTimeoutExtensionTarget &&
-    s.pendingTimeoutExtensionProposedBlock
+    s.pendingTimeoutExtensionProposedAt
   ) {
-    const proposed = parseInt(s.pendingTimeoutExtensionProposedBlock, 10);
+    const proposed = parseInt(s.pendingTimeoutExtensionProposedAt, 10);
     return {
       kind: 'pending',
       target: parseInt(s.pendingTimeoutExtensionTarget, 10),
-      finalizableAt: proposed + constants.challengeWindowBlocks,
+      finalizableAt: proposed + constants.challengeWindowSecs,
       proposedBy: s.pendingTimeoutExtensionProposedBy,
     };
   }
@@ -56,7 +58,7 @@ export const deriveReservationExtensionStatus = (
   r: {
     status: string;
     pendingExtensionTarget: string | null;
-    pendingExtensionProposedBlock: string | null;
+    pendingExtensionProposedAt: string | null;
     pendingExtensionProposedBy: string | null;
     extensionsUsed: number;
   },
@@ -69,13 +71,13 @@ export const deriveReservationExtensionStatus = (
   if (
     r.status === 'ACTIVE' &&
     r.pendingExtensionTarget &&
-    r.pendingExtensionProposedBlock
+    r.pendingExtensionProposedAt
   ) {
-    const proposed = parseInt(r.pendingExtensionProposedBlock, 10);
+    const proposed = parseInt(r.pendingExtensionProposedAt, 10);
     return {
       kind: 'pending',
       target: parseInt(r.pendingExtensionTarget, 10),
-      finalizableAt: proposed + constants.challengeWindowBlocks,
+      finalizableAt: proposed + constants.challengeWindowSecs,
       proposedBy: r.pendingExtensionProposedBy,
     };
   }
@@ -115,12 +117,12 @@ const ExtensionChip: React.FC<{ status: ExtensionStatus }> = ({ status }) => {
 
   return (
     <Tooltip
-      title={`Proposed by ${shortAddr(status.proposedBy)}. Finalizes at block #${status.finalizableAt} if no challenge.`}
+      title={`Proposed by ${shortAddr(status.proposedBy)}. Finalizes ${formatCountdown(status.finalizableAt)} if no challenge.`}
       arrow
       placement="top"
     >
       <Chip
-        label={`Extension pending → #${status.target}`}
+        label="Extension pending"
         size="small"
         variant="outlined"
         sx={{ ...chipSx, color: 'warning.main', borderColor: 'warning.main' }}

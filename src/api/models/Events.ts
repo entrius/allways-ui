@@ -1,31 +1,30 @@
 export type ContractEvent = {
   id: string;
   eventType: string;
-  blockNumber: string;
+  signature: string | null;
+  // Solana slot the event landed in, and its block time (unix seconds).
+  slot: string;
+  blockTime: string | null;
+  logIndex: number | null;
   swapId: string | null;
+  swapKey: string | null;
   minerHotkey: string | null;
+  minerPubkey: string | null;
   userAddress: string | null;
-  taoAmount: string | null;
+  solAmount: string | null;
   sourceChain: string | null;
   destChain: string | null;
   amountRaw: string | null;
   secondaryAmount: string | null;
   txHash: string | null;
-  address: string | null;
-  voteType: string | null;
-  voteCount: number | null;
-  configKey: string | null;
-  reservedUntil: string | null;
-  isActive: boolean | null;
-  extrinsicIndex: number | null;
-  actorHotkey: string | null;
-  extensionTargetBlock: string | null;
+  actorPubkey: string | null;
+  // Event-specific payload (halted flag, active flag, reserved-until, …) that
+  // used to live in flat columns now rides along in this JSONB blob.
+  eventData: Record<string, unknown> | null;
   createdAt: string;
 };
 
-export const displayEventType = (
-  e: Pick<ContractEvent, 'eventType' | 'isActive'>,
-): string =>
-  e.eventType === 'MinerActivated' && e.isActive === false
-    ? 'MinerDeactivated'
-    : e.eventType;
+// The Anchor event name is the display label directly — the contract emits
+// distinct MinerActivated / MinerDeactivated names, so no derivation is needed.
+export const displayEventType = (e: Pick<ContractEvent, 'eventType'>): string =>
+  e.eventType;

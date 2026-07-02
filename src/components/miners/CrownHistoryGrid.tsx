@@ -14,19 +14,32 @@ import { useCrownHistory, useScoringState, type Direction } from '../../api';
 import { FONTS } from '../../theme';
 import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
-import { buildCells, buildTiers, type CellState } from './crownGridCells';
+import {
+  CELL_SECS,
+  buildCells,
+  buildTiers,
+  cellBucket,
+  type CellState,
+} from './crownGridCells';
 
-// Mirrors SCORING_WINDOW_BLOCKS in allways/constants.py — one scoring round
-// (~1h at 12s/block). The 1h grid snaps to round boundaries; the custom-range
-// input caps at the same span.
-const SCORING_WINDOW_BLOCKS = 300;
-const ROW_BLOCKS = 60;
+// Mirrors SCORING_WINDOW_SECS in allways/constants.py — one scoring round (~1h).
+// The 1h grid snaps to round boundaries; the custom-range input caps at the
+// same span. One cell = CELL_SECS; one row = CELLS_PER_ROW cells (12 min).
+const SCORING_WINDOW_SECS = 3600;
+const CELLS_PER_ROW = 60;
+const ROW_SECS = CELLS_PER_ROW * CELL_SECS;
 const CELL_PX = 14;
-const RANGE_BLOCKS: Record<string, number> = {
-  '1h': SCORING_WINDOW_BLOCKS,
-  '2h': 2 * SCORING_WINDOW_BLOCKS,
-  '4h': 4 * SCORING_WINDOW_BLOCKS,
+const RANGE_SECS: Record<string, number> = {
+  '1h': SCORING_WINDOW_SECS,
+  '2h': 2 * SCORING_WINDOW_SECS,
+  '4h': 4 * SCORING_WINDOW_SECS,
 };
+
+const fmtClock = (unixSecs: number): string =>
+  new Date(unixSecs * 1000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
 type CrownRange = '1h' | '2h' | '4h';
 
@@ -79,7 +92,7 @@ const CrownHistoryGrid: React.FC<{
     customTo != null &&
     customFrom >= 0 &&
     customTo > customFrom &&
-    customTo - customFrom <= SCORING_WINDOW_BLOCKS;
+    customTo - customFrom <= SCORING_WINDOW_SECS;
   const [uidSearch, setUidSearch] = useState('');
   // Track whether the active filter came from clicking a legend chip vs.
   // typing in the search box. Only chip-driven filters surface a clear (×)
@@ -91,14 +104,15 @@ const CrownHistoryGrid: React.FC<{
     y: number;
   } | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
-  const span = RANGE_BLOCKS[range];
+  const span = RANGE_SECS[range];
 
   // Anchor head (window snap, "as of", pending stripe) on the crown_holders
-  // watermark, not the event head — an asOfBlock anchor strands the stripe on a
-  // finalized interior cell. lastScoredBlock is finalized; +1 is the live tip.
+  // watermark, not the event head — an asOf anchor strands the stripe on a
+  // finalized interior cell. lastScoredAt is finalized; +CELL_SECS is the live
+  // tip.
   const { data: scoring } = useScoringState();
-  const scoredBlock = scoring?.lastScoredBlock ?? 0;
-  const headBlock = scoredBlock > 0 ? scoredBlock + 1 : 0;
+  const scoredAt = scoring?.lastScoredAt ?? 0;
+  const headT = scoredAt > 0 ? scoredAt + CELL_SECS : 0;
 
   let hi: number;
   let lo: number;
@@ -107,26 +121,26 @@ const CrownHistoryGrid: React.FC<{
     hi = customTo as number;
   } else if (range === '1h') {
     const anchor =
-      Math.floor(headBlock / SCORING_WINDOW_BLOCKS) * SCORING_WINDOW_BLOCKS;
-    const windowsBack = Math.floor(pan / SCORING_WINDOW_BLOCKS);
-    lo = Math.max(0, anchor - windowsBack * SCORING_WINDOW_BLOCKS);
-    hi = lo + SCORING_WINDOW_BLOCKS - 1;
+      Math.floor(headT / SCORING_WINDOW_SECS) * SCORING_WINDOW_SECS;
+    const windowsBack = Math.floor(pan / SCORING_WINDOW_SECS);
+    lo = Math.max(0, anchor - windowsBack * SCORING_WINDOW_SECS);
+    hi = lo + SCORING_WINDOW_SECS - 1;
   } else {
-    hi = headBlock - pan;
+    hi = headT - pan;
     lo = Math.max(0, hi - span + 1);
   }
   const atEarliest = lo <= 0;
   useEffect(() => {
-    if (headBlock > 0) onWindowChange?.(lo, hi);
-  }, [lo, hi, headBlock, onWindowChange]);
+    if (headT > 0) onWindowChange?.(lo, hi);
+  }, [lo, hi, headT, onWindowChange]);
 
   // Fetch the exact window we're rendering — without this the grid asked for
   // the API's default range and showed empty cells whenever the user panned
   // backward past the default.
   const { data } = useCrownHistory({
     direction,
-    fromBlock: headBlock > 0 ? lo : undefined,
-    toBlock: headBlock > 0 ? hi : undefined,
+    fromTs: headT > 0 ? lo : undefined,
+    toTs: headT > 0 ? hi : undefined,
   });
   const rows = useMemo(() => data ?? [], [data]);
   const isLocked = lockedUid != null;
@@ -142,7 +156,7 @@ const CrownHistoryGrid: React.FC<{
         rows,
         lo,
         hi,
-        headBlock,
+        headT,
         tierColors,
         otherColor,
         isLocked ? lockedUid : null,
@@ -152,7 +166,7 @@ const CrownHistoryGrid: React.FC<{
       rows,
       lo,
       hi,
-      headBlock,
+      headT,
       tierColors,
       otherColor,
       isLocked,
@@ -161,7 +175,7 @@ const CrownHistoryGrid: React.FC<{
     ],
   );
 
-  const rowsCount = Math.ceil(cells.length / ROW_BLOCKS);
+  const rowsCount = Math.ceil(cells.length / CELLS_PER_ROW);
   const subjectCellCount = isLocked
     ? cells.reduce((n, c) => n + (c.holderUid === lockedUid ? 1 : 0), 0)
     : 0;
@@ -228,7 +242,7 @@ const CrownHistoryGrid: React.FC<{
                 color: 'text.disabled',
               }}
             >
-              per block · who held the best rate
+              per cell · who held the best rate
             </Typography>
           </Stack>
         )}
@@ -297,7 +311,7 @@ const CrownHistoryGrid: React.FC<{
             size="small"
             disabled={customActive || atEarliest}
             onClick={() =>
-              onPanChange(pan + (range === '1h' ? SCORING_WINDOW_BLOCKS : span))
+              onPanChange(pan + (range === '1h' ? SCORING_WINDOW_SECS : span))
             }
             sx={{ fontFamily: FONTS.mono, fontSize: '0.65rem' }}
           >
@@ -329,8 +343,7 @@ const CrownHistoryGrid: React.FC<{
         >
           {range === '1h' ? (
             <>
-              scoring window · block #{lo.toLocaleString()} — #
-              {hi.toLocaleString()}
+              scoring window · {fmtClock(lo)} — {fmtClock(hi)}
               {pan === 0 && (
                 <Box component="span" sx={{ color: 'primary.main', ml: 0.5 }}>
                   · current
@@ -339,8 +352,7 @@ const CrownHistoryGrid: React.FC<{
             </>
           ) : (
             <>
-              block #{lo.toLocaleString()} — #{hi.toLocaleString()} · last{' '}
-              {span} blocks · {range}
+              {fmtClock(lo)} — {fmtClock(hi)} · last {span / 3600}h · {range}
             </>
           )}
         </Typography>
@@ -393,7 +405,7 @@ const CrownHistoryGrid: React.FC<{
           customFrom={customFrom}
           customTo={customTo}
           customActive={customActive}
-          maxSpan={SCORING_WINDOW_BLOCKS}
+          maxSpan={SCORING_WINDOW_SECS}
           onChange={onCustomRangeChange}
         />
       )}
@@ -416,7 +428,7 @@ const CrownHistoryGrid: React.FC<{
             }}
           >
             {Array.from({ length: rowsCount }).map((_, r) => {
-              const rowStart = lo + r * ROW_BLOCKS;
+              const rowStart = cellBucket(lo) + r * ROW_SECS;
               return (
                 <Box
                   key={r}
@@ -430,7 +442,7 @@ const CrownHistoryGrid: React.FC<{
                     lineHeight: `${CELL_PX}px`,
                   }}
                 >
-                  #{rowStart.toLocaleString()}
+                  {fmtClock(rowStart)}
                 </Box>
               );
             })}
@@ -438,7 +450,7 @@ const CrownHistoryGrid: React.FC<{
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${ROW_BLOCKS}, 1fr)`,
+              gridTemplateColumns: `repeat(${CELLS_PER_ROW}, 1fr)`,
               gridAutoRows: `${CELL_PX}px`,
               gap: '2px',
               filter: subjectAbsent ? 'blur(2px)' : 'none',
@@ -448,8 +460,8 @@ const CrownHistoryGrid: React.FC<{
           >
             {Array.from({ length: rowsCount }).map((_, r) => {
               const rowCells = cells.slice(
-                r * ROW_BLOCKS,
-                (r + 1) * ROW_BLOCKS,
+                r * CELLS_PER_ROW,
+                (r + 1) * CELLS_PER_ROW,
               );
               return (
                 <React.Fragment key={r}>
@@ -473,7 +485,7 @@ const CrownHistoryGrid: React.FC<{
                         : (cell.color as string);
                     return (
                       <Box
-                        key={cell.block}
+                        key={cell.t}
                         onMouseEnter={(e) => {
                           const rect = (
                             e.currentTarget as HTMLElement
@@ -716,8 +728,8 @@ const CrownHistoryGrid: React.FC<{
           mt: 2,
         }}
       >
-        as of #{headBlock.toLocaleString()} · each cell = 1 block (12s) · each
-        row = 60 blocks (12m)
+        as of {headT > 0 ? fmtClock(headT) : '—'} · each cell = 12s · each row =
+        12m
       </Typography>
     </Box>
   );

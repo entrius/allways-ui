@@ -11,7 +11,6 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   displayEventType,
-  useChainState,
   useMinerByHotkey,
   useProtocolConstants,
   useSwapDetail,
@@ -31,10 +30,10 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   applyFee,
   formatAmount,
+  formatCountdown,
   formatRateLine,
-  formatTimeUntilBlock,
-  explorerExtrinsicUrl,
-  extrinsicRef,
+  formatUnixTime,
+  explorerSignatureUrl,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
 import ExtensionChip, {
@@ -43,14 +42,11 @@ import ExtensionChip, {
 
 type SwapStep = {
   label: string;
-  block: string | null;
-  timestamp: string | null;
+  // Unix-seconds timestamp of the step, or null if it hasn't happened.
+  at: string | null;
   done: boolean;
   failed: boolean;
 };
-
-const fmtBlock = (b: string | number): string =>
-  Number(b).toLocaleString('en-US');
 
 const getStatusColor = (
   status: string,
@@ -73,9 +69,7 @@ const SwapDetailPage: React.FC = () => {
 
   const { data, isLoading } = useSwapDetail(swapId ?? '');
   const { data: protocol } = useProtocolConstants();
-  const { data: chainState } = useChainState();
   const { data: miner } = useMinerByHotkey(data?.swap?.minerHotkey ?? '');
-  const currentBlock = chainState?.currentBlock ?? 0;
 
   if (isLoading) {
     return (
@@ -111,22 +105,19 @@ const SwapDetailPage: React.FC = () => {
   const steps: SwapStep[] = [
     {
       label: 'Initiated',
-      block: swap.initiatedBlock,
-      timestamp: swap.initiatedAt,
+      at: swap.initiatedAt,
       done: true,
       failed: false,
     },
     {
       label: 'Fulfilled',
-      block: swap.fulfilledBlock,
-      timestamp: swap.fulfilledAt,
+      at: swap.fulfilledAt,
       done: !!swap.fulfilledAt,
       failed: isTimedOut && !swap.fulfilledAt,
     },
     {
       label: 'Completed',
-      block: swap.completedBlock,
-      timestamp: swap.resolvedAt,
+      at: swap.completedAt ?? swap.resolvedAt,
       done: swap.status === 'COMPLETED',
       failed: isTimedOut,
     },
@@ -348,13 +339,11 @@ const SwapDetailPage: React.FC = () => {
                     isTerminalCompleted ? 'var(--color-success)' : undefined
                   }
                   label={step.label}
-                  detail={
-                    step.block ? `Block ${fmtBlock(step.block)}` : '\u2014'
-                  }
+                  detail={step.at ? formatUnixTime(step.at) : '\u2014'}
                 />
               );
             })}
-          {swap.timeoutBlock && swap.status !== 'COMPLETED' && (
+          {swap.timeoutAt && swap.status !== 'COMPLETED' && (
             <TimelineStep
               state={isTimedOut ? 'failed' : 'pending'}
               glyph={isTimedOut ? undefined : '\u23F1'}
@@ -362,23 +351,15 @@ const SwapDetailPage: React.FC = () => {
               label="Timeout"
               detail={
                 <>
-                  Block {fmtBlock(swap.timeoutBlock)}
-                  {!isTimedOut && currentBlock > 0 && (
-                    <>
-                      {' '}
-                      (
-                      {formatTimeUntilBlock(
-                        parseInt(swap.timeoutBlock),
-                        currentBlock,
-                      )}{' '}
-                      remaining)
-                    </>
+                  {formatUnixTime(swap.timeoutAt)}
+                  {!isTimedOut && (
+                    <> ({formatCountdown(swap.timeoutAt)} remaining)</>
                   )}
                 </>
               }
             />
           )}
-          {swap.timeoutBlock && !isTimedOut && swap.status !== 'COMPLETED' && (
+          {swap.timeoutAt && !isTimedOut && swap.status !== 'COMPLETED' && (
             <Typography
               sx={{
                 fontFamily: FONTS.mono,
@@ -388,7 +369,7 @@ const SwapDetailPage: React.FC = () => {
                 lineHeight: 1.4,
               }}
             >
-              Timeout may extend if validators need additional blocks to safely
+              Timeout may extend if validators need additional time to safely
               confirm the destination tx.
             </Typography>
           )}
@@ -430,21 +411,21 @@ const SwapDetailPage: React.FC = () => {
                 ? 'Slash pending — user must claim on-chain with `alw claim`.'
                 : 'Slash paid directly from network collateral to user.'}
             </Typography>
-            {refundEvent.taoAmount && (
+            {refundEvent.solAmount && (
               <LabelValue
                 label="Amount"
-                value={`${parseFloat(refundEvent.taoAmount).toFixed(4)} TAO`}
+                value={`${parseFloat(refundEvent.solAmount).toFixed(4)} SOL`}
               />
             )}
-            {(refundEvent.address ?? refundEvent.userAddress) && (
+            {(refundEvent.userAddress ?? refundEvent.actorPubkey) && (
               <LabelAddr
                 label="Recipient"
                 address={
-                  (refundEvent.address ?? refundEvent.userAddress) as string
+                  (refundEvent.userAddress ?? refundEvent.actorPubkey) as string
                 }
               />
             )}
-            {refundEvent.extrinsicIndex !== null && (
+            {refundEvent.signature && (
               <Stack
                 direction="row"
                 spacing={1}
@@ -459,14 +440,11 @@ const SwapDetailPage: React.FC = () => {
                     minWidth: 80,
                   }}
                 >
-                  Extrinsic
+                  Signature
                 </Typography>
                 <Typography
                   component="a"
-                  href={explorerExtrinsicUrl(
-                    refundEvent.blockNumber,
-                    refundEvent.extrinsicIndex,
-                  )}
+                  href={explorerSignatureUrl(refundEvent.signature)}
                   target="_blank"
                   rel="noopener noreferrer"
                   sx={{
@@ -480,10 +458,7 @@ const SwapDetailPage: React.FC = () => {
                     '&:hover': { textDecoration: 'underline' },
                   }}
                 >
-                  {extrinsicRef(
-                    refundEvent.blockNumber,
-                    refundEvent.extrinsicIndex,
-                  )}
+                  {refundEvent.signature.slice(0, 8)}…
                   <OpenInNewIcon sx={{ fontSize: 12 }} />
                 </Typography>
               </Stack>
@@ -632,9 +607,9 @@ const SwapDetailPage: React.FC = () => {
                     color: 'text.secondary',
                   }}
                 >
-                  {fmtBlock(event.blockNumber)}
+                  #{event.slot}
                 </Typography>
-                {event.taoAmount && (
+                {event.solAmount && (
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
@@ -642,19 +617,7 @@ const SwapDetailPage: React.FC = () => {
                       color: 'primary.main',
                     }}
                   >
-                    {parseFloat(event.taoAmount).toFixed(4)} TAO
-                  </Typography>
-                )}
-                {event.voteType && (
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.65rem',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    {event.voteType}
-                    {event.voteCount !== null ? ` (${event.voteCount})` : ''}
+                    {parseFloat(event.solAmount).toFixed(4)} SOL
                   </Typography>
                 )}
                 {event.txHash && (
@@ -669,13 +632,10 @@ const SwapDetailPage: React.FC = () => {
                     tx: {event.txHash.slice(0, 10)}...
                   </Typography>
                 )}
-                {event.extrinsicIndex !== null && (
+                {event.signature && (
                   <Typography
                     component="a"
-                    href={explorerExtrinsicUrl(
-                      event.blockNumber,
-                      event.extrinsicIndex,
-                    )}
+                    href={explorerSignatureUrl(event.signature)}
                     target="_blank"
                     rel="noopener noreferrer"
                     sx={{
@@ -690,7 +650,7 @@ const SwapDetailPage: React.FC = () => {
                       '&:hover': { textDecoration: 'underline' },
                     }}
                   >
-                    ex: {extrinsicRef(event.blockNumber, event.extrinsicIndex)}
+                    sig: {event.signature.slice(0, 8)}…
                     <OpenInNewIcon sx={{ fontSize: 10 }} />
                   </Typography>
                 )}

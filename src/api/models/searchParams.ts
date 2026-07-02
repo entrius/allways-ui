@@ -5,7 +5,7 @@ import type { Direction, Range } from './MinersDashboard';
 export type CrownRange = '1h' | '2h' | '4h';
 export type RateRange = '1h' | '4h' | '24h' | '4d';
 
-// 90d/all dropped: the API clamps every range to ~30d (MAX_LOOKBACK_BLOCKS),
+// 90d/all dropped: the API clamps every range to ~30d (MAX_LOOKBACK_SECS),
 // so they were redundant with 30d. A stale ?range=90d/all URL now falls back
 // to the 30d default. The Range type keeps them for API back-compat.
 const RANGES: readonly Range[] = ['1h', '24h', '7d', '30d'];
@@ -24,7 +24,9 @@ export const isCrownRange = (v: string | null): v is CrownRange =>
 export const isRateRange = (v: string | null): v is RateRange =>
   RATE_RANGES.includes((v ?? '') as RateRange);
 
-export const parseBlockParam = (v: string | null): number | null => {
+// Parses a non-negative-integer URL param (unix-seconds bounds for the crown
+// grid's custom range).
+export const parseTsParam = (v: string | null): number | null => {
   if (v == null || v === '') return null;
   const n = Number(v);
   return Number.isInteger(n) && n >= 0 ? n : null;

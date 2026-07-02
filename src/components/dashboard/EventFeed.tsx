@@ -165,7 +165,7 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                       color: 'text.secondary',
                     }}
                   >
-                    #{event.blockNumber}
+                    #{event.slot}
                   </Typography>
                 </Stack>
                 <Stack
@@ -205,7 +205,7 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                   {event.minerHotkey && (
                     <CopyableAddress address={event.minerHotkey} />
                   )}
-                  {event.taoAmount && (
+                  {event.solAmount && (
                     <Typography
                       sx={{
                         fontFamily: FONTS.mono,
@@ -213,29 +213,7 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         color: 'text.primary',
                       }}
                     >
-                      {parseFloat(event.taoAmount).toFixed(4)} TAO
-                    </Typography>
-                  )}
-                  {event.reservedUntil && (
-                    <Typography
-                      sx={{
-                        fontFamily: FONTS.mono,
-                        fontSize: '0.65rem',
-                        color: 'text.secondary',
-                      }}
-                    >
-                      until #{event.reservedUntil}
-                    </Typography>
-                  )}
-                  {event.voteType && (
-                    <Typography
-                      sx={{
-                        fontFamily: FONTS.mono,
-                        fontSize: '0.65rem',
-                        color: 'text.secondary',
-                      }}
-                    >
-                      {event.voteType} ({event.voteCount})
+                      {parseFloat(event.solAmount).toFixed(4)} SOL
                     </Typography>
                   )}
                 </Stack>

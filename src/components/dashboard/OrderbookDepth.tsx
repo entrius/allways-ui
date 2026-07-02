@@ -23,7 +23,7 @@ import { OrderbookDepthSkeleton } from './Skeletons';
 const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const theme = useTheme();
 
-  const TAO_COLOR = theme.palette.asset.tao;
+  const SOL_COLOR = theme.palette.asset.sol;
   const BTC_COLOR = theme.palette.asset.btc;
 
   const BtcIcon = ({ size = 16 }: { size?: number }) => (
@@ -33,19 +33,6 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
         fill="var(--color-white)"
         fillRule="evenodd"
         d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.92-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.533 2.147-4.148.986-5.32.695l.95-3.805c1.172.293 4.929.872 4.37 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.696 3.61 2.733z"
-      />
-    </svg>
-  );
-
-  const TaoIcon = ({ size = 16, color }: { size?: number; color?: string }) => (
-    <svg viewBox="0 0 21.6 23.1" width={size} height={size}>
-      <path
-        fill={color || TAO_COLOR}
-        d="M13.1,17.7V8.3c0-2.4-1.9-4.3-4.3-4.3v15.1c0,2.2,1.7,4,3.9,4c0.1,0,0.1,0,0.2,0c1,0.1,2.1-0.2,2.9-0.9C13.3,22,13.1,20.5,13.1,17.7L13.1,17.7z"
-      />
-      <path
-        fill={color || TAO_COLOR}
-        d="M3.9,0C1.8,0,0,1.8,0,4h17.6c2.2,0,3.9-1.8,3.9-4C21.6,0,3.9,0,3.9,0z"
       />
     </svg>
   );
@@ -114,7 +101,7 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
     miners?.forEach((m) => {
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
-      if (!s || d !== 'tao' || s === 'tao') return;
+      if (!s || d !== 'sol' || s === 'sol') return;
       const asset = s.toUpperCase();
       const fwd = m.rate ? parseFloat(m.rate) : 0;
       const rev = m.counterRate ? parseFloat(m.counterRate) : 0;
@@ -125,7 +112,7 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
             asset,
             direction: 'forward',
             key,
-            label: `${asset} → TAO`,
+            label: `${asset} → SOL`,
           });
       }
       if (rev > 0) {
@@ -135,7 +122,7 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
             asset,
             direction: 'reverse',
             key,
-            label: `TAO → ${asset}`,
+            label: `SOL → ${asset}`,
           });
       }
     });
@@ -156,7 +143,7 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const depthData = useMemo(() => {
     if (!miners?.length || !selected) return [];
     const asset = selected.asset.toLowerCase();
-    const groups: Record<string, number> = {}; // key = rate, val = collateral TAO
+    const groups: Record<string, number> = {}; // key = rate, val = collateral SOL
 
     miners.forEach((m) => {
       // Only miners whose collateral is hittable right now count as
@@ -165,17 +152,17 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
       // in a swap; reserved miners have it locked by a pending swap.
       // This panel answers "what rate can I actually use right now?".
       if (!m.isActive || m.hasActiveSwap || m.isReserved) return;
-      if (!m.collateralRao) return;
+      if (!m.collateral) return;
       const s = m.sourceChain?.toLowerCase();
       const d = m.destChain?.toLowerCase();
-      if (s !== asset || d !== 'tao') return;
-      const capacityTao = parseInt(m.collateralRao, 10) / 1e9;
-      if (isNaN(capacityTao) || capacityTao <= 0) return;
+      if (s !== asset || d !== 'sol') return;
+      const capacitySol = parseInt(m.collateral, 10) / 1e9;
+      if (isNaN(capacitySol) || capacitySol <= 0) return;
       const raw = selected.direction === 'forward' ? m.rate : m.counterRate;
       const r = raw ? parseFloat(raw) : 0;
       if (!isFinite(r) || r <= 0) return;
       const key = r.toFixed(2);
-      groups[key] = (groups[key] || 0) + capacityTao;
+      groups[key] = (groups[key] || 0) + capacitySol;
     });
 
     // Best rate first: forward wants highest TAO/asset, reverse wants lowest.
@@ -303,27 +290,27 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
             <TableRow>
               <TableCell sx={headerSx}>
                 <Tooltip
-                  title={`Quoted rate for ${selected?.label ?? 'this direction'} (TAO per 1 ${selected?.asset ?? 'asset'}).`}
+                  title={`Quoted rate for ${selected?.label ?? 'this direction'} (SOL per 1 ${selected?.asset ?? 'asset'}).`}
                   arrow
                   placement="top"
                 >
                   <span
                     style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
                   >
-                    Rate (TAO)
+                    Rate (SOL)
                   </span>
                 </Tooltip>
               </TableCell>
               <TableCell sx={headerSx} align="right">
                 <Tooltip
-                  title="Capacity at this exact rate, denominated in TAO collateral."
+                  title="Capacity at this exact rate, denominated in SOL collateral."
                   arrow
                   placement="top"
                 >
                   <span
                     style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
                   >
-                    Capacity (TAO)
+                    Capacity (SOL)
                   </span>
                 </Tooltip>
               </TableCell>
@@ -343,11 +330,13 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                   >
                     {selected?.direction === 'reverse' ? (
                       <>
-                        <TaoIcon /> {'→'} <AssetIcon asset={selected.asset} />
+                        <AssetIcon asset="SOL" /> {'→'}{' '}
+                        <AssetIcon asset={selected.asset} />
                       </>
                     ) : selected ? (
                       <>
-                        <AssetIcon asset={selected.asset} /> {'→'} <TaoIcon />
+                        <AssetIcon asset={selected.asset} /> {'→'}{' '}
+                        <AssetIcon asset="SOL" />
                       </>
                     ) : (
                       <span>Cumulative</span>
@@ -365,7 +354,7 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                 ? BTC_COLOR
                 : theme.palette.primary.main;
               const fillColor =
-                selected?.direction === 'forward' ? assetThemeColor : TAO_COLOR;
+                selected?.direction === 'forward' ? assetThemeColor : SOL_COLOR;
               const gradColor = `color-mix(in srgb, ${fillColor} 14%, transparent)`;
 
               return (

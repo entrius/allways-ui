@@ -204,8 +204,8 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
               const sentLine =
                 swap.sourceAmount && swap.sourceChain
                   ? formatAmount(swap.sourceAmount, swap.sourceChain)
-                  : swap.taoAmount
-                    ? `${parseFloat(swap.taoAmount).toFixed(4)} TAO`
+                  : swap.solAmount
+                    ? `${parseFloat(swap.solAmount).toFixed(4)} SOL`
                     : null;
               const recvLine =
                 swap.destAmount && swap.destChain

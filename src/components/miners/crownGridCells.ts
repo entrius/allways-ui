@@ -8,8 +8,17 @@ export const TIER_PALETTE = [
   '#d2dafe',
 ];
 
+// One grid cell spans this many seconds. Mirrors the old 1-block cadence
+// (~12s) so the grid keeps the same cell density in the time-native model.
+export const CELL_SECS = 12;
+
+// Snap a unix-seconds timestamp down to its cell bucket.
+export const cellBucket = (t: number): number =>
+  Math.floor(t / CELL_SECS) * CELL_SECS;
+
 export type CellState = {
-  block: number;
+  // Unix-seconds bucket timestamp for this cell.
+  t: number;
   holderHotkey: string | null;
   holderUid: number | null;
   rate: number;
@@ -25,59 +34,61 @@ export type TierEntry = {
   color: string;
 };
 
-// Build per-block cell rows for [lo, hi]. When `subjectUid` is set, every
-// cell shows whether *that* uid held the crown (subjectColor or null), not
-// the actual winner — used on the per-miner page where the page locks to
-// its own uid. Otherwise the top alphabetical holder wins and gets tier
-// color.
+// Build per-cell rows for the [lo, hi] window (unix seconds, stepped by
+// CELL_SECS). When `subjectUid` is set, every cell shows whether *that* uid held
+// the crown (subjectColor or null), not the actual winner — used on the
+// per-miner page where the page locks to its own uid. Otherwise the top
+// alphabetical holder wins and gets tier color.
 export const buildCells = (
   rows: CrownHistoryRow[],
   lo: number,
   hi: number,
-  maxBlock: number,
+  headT: number,
   tiers: Map<string, string>,
   otherColor: string,
   subjectUid: number | null = null,
   subjectColor: string | null = null,
 ): CellState[] => {
-  const byBlock = new Map<number, CrownHistoryRow[]>();
+  const byBucket = new Map<number, CrownHistoryRow[]>();
   for (const row of rows) {
-    const arr = byBlock.get(row.block) ?? [];
+    const b = cellBucket(row.t);
+    const arr = byBucket.get(b) ?? [];
     arr.push(row);
-    byBlock.set(row.block, arr);
+    byBucket.set(b, arr);
   }
+  const headBucket = cellBucket(headT);
   const cells: CellState[] = [];
-  for (let b = lo; b <= hi; b++) {
-    const here = byBlock.get(b) ?? [];
+  for (let b = cellBucket(lo); b <= hi; b += CELL_SECS) {
+    const here = byBucket.get(b) ?? [];
     here.sort((a, c) => a.hotkey.localeCompare(c.hotkey));
     if (subjectUid != null) {
       const mine = here.find((r) => r.uid === subjectUid);
       cells.push({
-        block: b,
+        t: b,
         holderHotkey: mine?.hotkey ?? null,
         holderUid: mine?.uid ?? null,
         rate: mine?.rate ?? 0,
         isTie: mine != null && here.length > 1,
-        isCurrent: b === maxBlock,
+        isCurrent: b === headBucket,
         color: mine ? subjectColor : null,
       });
       continue;
     }
     const winner = here[0];
     cells.push({
-      block: b,
+      t: b,
       holderHotkey: winner?.hotkey ?? null,
       holderUid: winner?.uid ?? null,
       rate: winner?.rate ?? 0,
       isTie: here.length > 1,
-      isCurrent: b === maxBlock,
+      isCurrent: b === headBucket,
       color: winner?.hotkey ? (tiers.get(winner.hotkey) ?? otherColor) : null,
     });
   }
   return cells;
 };
 
-// Tier coloring is stable per (hotkey, window) — most-crown-blocks wins the
+// Tier coloring is stable per (hotkey, window) — most-crown-cells wins the
 // top color, ties broken by sort order. The legend renders `ordered`; the
 // cells look up `color`.
 export const buildTiers = (
@@ -87,7 +98,7 @@ export const buildTiers = (
 ): { color: Map<string, string>; ordered: TierEntry[] } => {
   const counts = new Map<string, { uid: number | null; count: number }>();
   for (const row of rows) {
-    if (row.block < lo || row.block > hi) continue;
+    if (row.t < lo || row.t > hi) continue;
     const entry = counts.get(row.hotkey);
     if (entry) entry.count += 1;
     else counts.set(row.hotkey, { uid: row.uid ?? null, count: 1 });

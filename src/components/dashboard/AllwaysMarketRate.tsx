@@ -64,8 +64,7 @@ const AllwaysMarketRate: React.FC<{
               <Box sx={{ maxWidth: 280 }}>
                 Executed rate of recently completed swaps (points) with an EMA
                 (line) over the most recent window, plus a dashed line at the
-                live crown rate. X-axis is Bittensor block height, y-axis is
-                rate in TAO.
+                live crown rate. X-axis is time, y-axis is rate in SOL.
               </Box>
             }
             arrow

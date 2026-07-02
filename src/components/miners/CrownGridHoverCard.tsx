@@ -114,7 +114,14 @@ const CrownGridHoverCard: React.FC<{
             </Box>
           )}
         </Stack>
-        <HoverLine label="block" value={`#${cell.block.toLocaleString()}`} />
+        <HoverLine
+          label="time"
+          value={new Date(cell.t * 1000).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })}
+        />
         {cell.holderHotkey && (
           <HoverLine label="rate" value={cell.rate.toFixed(2)} />
         )}

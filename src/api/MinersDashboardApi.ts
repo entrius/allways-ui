@@ -23,8 +23,8 @@ export const useCurrentCrown = () =>
 
 export const useCrownHistory = (params: {
   direction: Direction;
-  fromBlock?: number;
-  toBlock?: number;
+  fromTs?: number;
+  toTs?: number;
 }) =>
   useApiQuery<CrownHistoryRow[]>(
     'crown-history',
@@ -32,16 +32,16 @@ export const useCrownHistory = (params: {
     CROWN_REFRESH_MS,
     {
       direction: params.direction,
-      fromBlock: params.fromBlock,
-      toBlock: params.toBlock,
+      fromTs: params.fromTs,
+      toTs: params.toTs,
     },
   );
 
 export const useCrownRateHistory = (params: {
   direction: Direction;
-  fromBlock?: number;
-  toBlock?: number;
-  blocks?: number;
+  fromTs?: number;
+  toTs?: number;
+  secs?: number;
 }) =>
   useApiQuery<CrownRateHistoryRow[]>(
     'crown-rate-history',
@@ -49,9 +49,9 @@ export const useCrownRateHistory = (params: {
     CROWN_REFRESH_MS,
     {
       direction: params.direction,
-      fromBlock: params.fromBlock,
-      toBlock: params.toBlock,
-      blocks: params.blocks,
+      fromTs: params.fromTs,
+      toTs: params.toTs,
+      secs: params.secs,
     },
   );
 
@@ -77,15 +77,15 @@ export const useMinerStats = (hotkey: string, range: Range = '30d') =>
 export const useScoreFactorsWindow = (
   hotkey: string,
   direction: Direction,
-  fromBlock: number | undefined,
-  toBlock: number | undefined,
+  fromTs: number | undefined,
+  toTs: number | undefined,
 ) =>
   useApiQuery<ScoreFactors>(
     'miner-score-factors-window',
     `/miners/${hotkey}/score-factors`,
     SSE_FALLBACK_INTERVAL,
-    { direction, fromBlock, toBlock },
-    !!hotkey && fromBlock != null && toBlock != null && toBlock >= fromBlock,
+    { direction, fromTs, toTs },
+    !!hotkey && fromTs != null && toTs != null && toTs >= fromTs,
   );
 
 export const useMinerSwaps = (
@@ -102,7 +102,7 @@ export const useMinerSwaps = (
 
 export const useMinerRateHistory = (
   hotkey: string,
-  params: { fromBlock?: number; toBlock?: number; blocks?: number } = {},
+  params: { fromTs?: number; toTs?: number; secs?: number } = {},
 ) =>
   useApiQuery<MinerRateHistoryRow[]>(
     'miner-rate-history',

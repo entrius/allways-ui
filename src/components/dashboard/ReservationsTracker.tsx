@@ -12,19 +12,14 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
-import {
-  useChainState,
-  useMiners,
-  useProtocolConstants,
-  useReservations,
-} from '../../api';
+import { useMiners, useProtocolConstants, useReservations } from '../../api';
 import type { Miner, Reservation } from '../../api/models';
 import { FONTS } from '../../theme';
 import {
   applyFee,
   formatAmount,
+  formatCountdown,
   formatRateLine,
-  formatTimeUntilBlock,
 } from '../../utils/format';
 import { ReservationsTrackerSkeleton } from './Skeletons';
 
@@ -44,12 +39,10 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
   const navigate = useNavigate();
   const { data, isLoading } = useReservations();
   const { data: miners } = useMiners();
-  const { data: chainState } = useChainState();
   const { data: protocol } = useProtocolConstants();
   const [searchAddr, setSearchAddr] = useState('');
   const reservations = data ?? [];
   const colors = STATUS_COLORS(theme.palette);
-  const currentBlock = chainState?.currentBlock ?? 0;
 
   if (isLoading && !data) {
     return <ReservationsTrackerSkeleton />;
@@ -182,7 +175,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
             const netRecv = applyFee(r.toAmount, protocol?.feeDivisor);
             const recvLabel =
               netRecv && r.toChain ? formatAmount(netRecv, r.toChain) : '—';
-            // Locked rate from the on-chain amounts (gross), quoted in TAO.
+            // Locked rate from the on-chain amounts (gross), quoted in SOL.
             const rateLine = formatRateLine(
               r.fromAmount,
               r.fromChain,
@@ -195,12 +188,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                 ? `UID ${uid}`
                 : `${r.minerHotkey.slice(0, 6)}…`;
             const remaining =
-              r.status === 'ACTIVE' && currentBlock > 0
-                ? formatTimeUntilBlock(
-                    parseInt(r.reservedUntilBlock, 10),
-                    currentBlock,
-                  )
-                : null;
+              r.status === 'ACTIVE' ? formatCountdown(r.reservedUntil) : null;
             return (
               <Box
                 key={r.id}
@@ -281,8 +269,8 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                     mt: 0.25,
                   }}
                 >
-                  {minerLabel} · until #{r.reservedUntilBlock}
-                  {remaining ? ` (${remaining} left)` : ''}
+                  {minerLabel}
+                  {remaining ? ` · expires ${remaining}` : ''}
                   {r.swapId ? ` · swap #${r.swapId}` : ''}
                 </Typography>
               </Box>

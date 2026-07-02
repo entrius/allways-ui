@@ -10,19 +10,15 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import {
-  useChainState,
-  useMinerByHotkey,
-  useProtocolConstants,
-  useReservation,
-} from '../api';
+import { useMinerByHotkey, useProtocolConstants, useReservation } from '../api';
 import type { Miner } from '../api/models';
 import { FONTS } from '../theme';
 import {
   applyFee,
   explorerTxUrl,
   formatAmount,
-  formatTimeUntilBlock,
+  formatCountdown,
+  formatUnixTime,
   normalizeTxHash,
 } from '../utils/format';
 import {
@@ -49,9 +45,6 @@ const minerSendToAddress = (
   return null;
 };
 
-const fmtBlock = (b: string | number): string =>
-  Number(b).toLocaleString('en-US');
-
 const relativeTime = (iso: string): string => {
   const ms = Date.now() - new Date(iso).getTime();
   if (ms < 60_000) return 'just now';
@@ -68,8 +61,6 @@ const ReservationDetailPage: React.FC = () => {
   const { data: r, isLoading } = useReservation(requestHash ?? '');
   const { data: miner } = useMinerByHotkey(r?.minerHotkey ?? '');
   const { data: protocol } = useProtocolConstants();
-  const { data: chainState } = useChainState();
-  const currentBlock = chainState?.currentBlock ?? 0;
 
   if (isLoading) {
     return (
@@ -235,11 +226,7 @@ const ReservationDetailPage: React.FC = () => {
             }}
           >
             {r.status === 'ACTIVE' && !fundsSeen
-              ? `Awaiting funds${
-                  currentBlock > 0
-                    ? ` · ${formatTimeUntilBlock(parseInt(r.reservedUntilBlock, 10), currentBlock)} remaining`
-                    : ''
-                }`
+              ? `Awaiting funds · ${formatCountdown(r.reservedUntil)} remaining`
               : r.status === 'ACTIVE' && fundsSeen
                 ? 'Funds detected · confirming'
                 : r.status === 'EXPIRED'
@@ -276,7 +263,7 @@ const ReservationDetailPage: React.FC = () => {
             labelMinWidth={120}
             state={reservedStage}
             label="Reserved"
-            detail={`Block ${fmtBlock(r.reservedAtBlock)} · ${relativeTime(r.createdAt)}`}
+            detail={`${formatUnixTime(r.reservedAt)} · ${relativeTime(r.createdAt)}`}
           />
           <TimelineStep
             labelMinWidth={120}
@@ -331,8 +318,9 @@ const ReservationDetailPage: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              Send <strong>{sourceLine}</strong> from the source address before
-              block <strong>{fmtBlock(r.reservedUntilBlock)}</strong>.
+              Send <strong>{sourceLine}</strong> from the source address before{' '}
+              <strong>{formatUnixTime(r.reservedUntil)}</strong> (
+              {formatCountdown(r.reservedUntil)}).
             </Typography>
             {sendToAddr && (
               <LabelValue label="Send to" value={sendToAddr} copyable />
@@ -420,9 +408,9 @@ const ReservationDetailPage: React.FC = () => {
           <LabelValue
             label="Window"
             value={
-              r.status === 'ACTIVE' && currentBlock > 0
-                ? `${fmtBlock(r.reservedAtBlock)} → ${fmtBlock(r.reservedUntilBlock)} (${formatTimeUntilBlock(parseInt(r.reservedUntilBlock, 10), currentBlock)} left)`
-                : `${fmtBlock(r.reservedAtBlock)} → ${fmtBlock(r.reservedUntilBlock)}`
+              r.status === 'ACTIVE'
+                ? `${formatUnixTime(r.reservedAt)} → ${formatUnixTime(r.reservedUntil)} (${formatCountdown(r.reservedUntil)} left)`
+                : `${formatUnixTime(r.reservedAt)} → ${formatUnixTime(r.reservedUntil)}`
             }
           />
           {(extensionStatus.kind !== 'none' || r.extensionsUsed > 0) && (
@@ -444,15 +432,11 @@ const ReservationDetailPage: React.FC = () => {
                 <>
                   <LabelValue
                     label="Proposed"
-                    value={`+${extensionStatus.target - parseInt(r.reservedUntilBlock, 10)} blocks → ${fmtBlock(extensionStatus.target)}`}
+                    value={`+${extensionStatus.target - parseInt(r.reservedUntil, 10)}s → ${formatUnixTime(extensionStatus.target)}`}
                   />
                   <LabelValue
                     label="Finalizes"
-                    value={
-                      currentBlock > 0
-                        ? `Block ${fmtBlock(extensionStatus.finalizableAt)} (~${formatTimeUntilBlock(extensionStatus.finalizableAt, currentBlock)}) if uncontested`
-                        : `Block ${fmtBlock(extensionStatus.finalizableAt)} if uncontested`
-                    }
+                    value={`${formatUnixTime(extensionStatus.finalizableAt)} (${formatCountdown(extensionStatus.finalizableAt)}) if uncontested`}
                   />
                   {extensionStatus.proposedBy && (
                     <LabelValue

@@ -19,10 +19,7 @@ const formatAgo = (updatedAtMs: number, nowMs: number): string => {
   return m > 0 ? `~${h}h ${m}m ago` : `~${h}h ago`;
 };
 
-const RefreshIndicator: React.FC<{ block: number; updatedAt: string }> = ({
-  block,
-  updatedAt,
-}) => {
+const RefreshIndicator: React.FC<{ updatedAt: string }> = ({ updatedAt }) => {
   const updatedAtMs = React.useMemo(
     () => new Date(updatedAt).getTime(),
     [updatedAt],
@@ -41,11 +38,7 @@ const RefreshIndicator: React.FC<{ block: number; updatedAt: string }> = ({
         color: 'text.secondary',
       }}
     >
-      last refresh #{block.toLocaleString()}
-      <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
-        ·
-      </Box>
-      {formatAgo(updatedAtMs, nowMs)}
+      last refresh {formatAgo(updatedAtMs, nowMs)}
     </Typography>
   );
 };
@@ -91,7 +84,7 @@ const StickyNetworkHeader: React.FC = () => {
               }}
             >
               uid {h.uid}
-              {h.rate != null && <> @ {h.rate.toFixed(2)} τ</>}
+              {h.rate != null && <> @ {h.rate.toFixed(2)} SOL</>}
             </Typography>
           ) : (
             <Typography
@@ -167,11 +160,8 @@ const StickyNetworkHeader: React.FC = () => {
             >
               paused
             </Typography>
-          ) : scoring?.updatedAt != null && scoring.lastScoredBlock > 0 ? (
-            <RefreshIndicator
-              block={scoring.lastScoredBlock}
-              updatedAt={scoring.updatedAt}
-            />
+          ) : scoring?.updatedAt != null && scoring.lastScoredAt > 0 ? (
+            <RefreshIndicator updatedAt={scoring.updatedAt} />
           ) : (
             <Typography
               variant="mono"

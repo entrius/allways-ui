@@ -34,9 +34,9 @@ type DirectionFilter = 'forward' | 'reverse';
 // Open = idle/tradeable now; Active = also reserved/exchanging; All = + inactive.
 type StatusFilter = 'open' | 'active' | 'all';
 
-const formatCollateral = (rao: string) => {
-  const tao = parseInt(rao, 10) / 1e9;
-  return tao.toFixed(2);
+const formatCollateral = (lamports: string) => {
+  const sol = parseInt(lamports, 10) / 1e9;
+  return sol.toFixed(2);
 };
 
 const parseRate = (raw: string | null): number => {
@@ -65,7 +65,7 @@ const getSortValue = (
     case 'rate':
       return directionRate(m, filter);
     case 'collateral':
-      return parseInt(m.collateralRao, 10) || 0;
+      return parseInt(m.collateral, 10) || 0;
     case 'status':
       return statusRank(m);
   }
@@ -191,7 +191,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       <Box component="span">
         {formatRate(v)}
         <Box component="span" sx={{ color: 'text.secondary', ml: 0.5 }}>
-          τ
+          SOL
         </Box>
       </Box>
     );
@@ -391,6 +391,14 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                           <CopyableAddress address={miner.hotkey} />
                         </Box>
                       )}
+                      {!isMobile && miner.solanaPubkey && (
+                        <Box
+                          component="span"
+                          sx={{ fontSize: '0.62rem', color: 'text.disabled' }}
+                        >
+                          <CopyableAddress address={miner.solanaPubkey} />
+                        </Box>
+                      )}
                     </Stack>
                   </TableCell>
 
@@ -411,7 +419,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                             maxWidth: 240,
                           }}
                         >
-                          Total TAO collateral backing this node — caps exchange
+                          Total SOL collateral backing this node — caps exchange
                           size and is what gets slashed on failure to deliver.
                         </Box>
                       }
@@ -419,12 +427,12 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                       placement="top"
                     >
                       <Box component="span">
-                        {formatCollateral(miner.collateralRao)}
+                        {formatCollateral(miner.collateral)}
                         <Box
                           component="span"
                           sx={{ color: 'text.secondary', ml: 0.5 }}
                         >
-                          τ
+                          SOL
                         </Box>
                       </Box>
                     </Tooltip>
