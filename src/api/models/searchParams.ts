@@ -16,7 +16,7 @@ export const isRange = (v: string | null): v is Range =>
   RANGES.includes((v ?? '') as Range);
 
 export const isDirection = (v: string | null): v is Direction =>
-  v === 'BTC-TAO' || v === 'TAO-BTC';
+  v === 'SOL-BTC' || v === 'SOL-TAO';
 
 export const isCrownRange = (v: string | null): v is CrownRange =>
   CROWN_RANGES.includes((v ?? '') as CrownRange);

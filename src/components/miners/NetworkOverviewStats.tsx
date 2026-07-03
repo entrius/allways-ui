@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { useNetworkOverview, type Range, type PairMix } from '../../api';
+import { lamportsToSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 
 interface Tile {
@@ -125,7 +126,7 @@ const NetworkOverviewStats: React.FC<{ range?: Range }> = ({
 }) => {
   const { data } = useNetworkOverview(range);
 
-  const volume = data?.volumeSol ? parseFloat(data.volumeSol).toFixed(1) : '—';
+  const volume = data?.volumeSol ? lamportsToSol(data.volumeSol).toFixed(1) : '—';
   const swaps =
     data?.totalSwaps != null ? data.totalSwaps.toLocaleString() : '—';
   const successPct =

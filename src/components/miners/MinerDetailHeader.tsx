@@ -129,7 +129,7 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   stats,
 }) => {
   const volume = stats?.volumeSol
-    ? parseFloat(stats.volumeSol).toFixed(2)
+    ? formatSol(stats.volumeSol)
     : '—';
   const successPct =
     stats && stats.totalSwaps > 0

@@ -21,7 +21,7 @@ import {
 import CrownIcon from './CrownIcon';
 import SortHeader, { type SortDir } from './SortHeader';
 import { FONTS } from '../../theme';
-import { formatSol, shortHotkey } from '../../utils/format';
+import { formatSol, lamportsToSol, shortHotkey } from '../../utils/format';
 
 // 1h is the live scoring window (SCORING_WINDOW_SECS) and the default view.
 // 30d is the deepest window; the API clamps everything to ~30d
@@ -30,7 +30,7 @@ import { formatSol, shortHotkey } from '../../utils/format';
 const RANGES: Range[] = ['1h', '24h', '7d', '30d'];
 
 const formatVolume = (raw: string): string => {
-  const v = parseFloat(raw);
+  const v = lamportsToSol(raw);
   if (!Number.isFinite(v) || v === 0) return '0.00';
   return v.toFixed(2);
 };

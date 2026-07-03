@@ -255,16 +255,16 @@ const CrownHistoryGrid: React.FC<{
             sx={{ '& .MuiToggleButton-root': { borderColor: 'divider' } }}
           >
             <ToggleButton
-              value="BTC-TAO"
+              value="SOL-BTC"
               sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
             >
-              BTC → TAO
+              SOL → BTC
             </ToggleButton>
             <ToggleButton
-              value="TAO-BTC"
+              value="SOL-TAO"
               sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
             >
-              TAO → BTC
+              SOL → TAO
             </ToggleButton>
           </ToggleButtonGroup>
           <ToggleButtonGroup

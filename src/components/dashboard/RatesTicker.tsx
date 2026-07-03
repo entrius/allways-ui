@@ -7,7 +7,7 @@ import { BlockIndicator } from '../index';
 import CrownIcon from '../miners/CrownIcon';
 import { latestEmaRate } from './marketRate';
 
-const DIRECTIONS: Direction[] = ['BTC-TAO', 'TAO-BTC'];
+const DIRECTIONS: Direction[] = ['SOL-BTC', 'SOL-TAO'];
 
 // Mirrors the miners-page StickyNetworkHeader eyebrow — the "updated <ago>"
 // indicator plus the current crown holder and its live rate per direction

@@ -26,7 +26,7 @@ const colSx = {
 const DashboardPage: React.FC = () => {
   // Shared trade direction — the Market Rate toggle drives both the chart and
   // the Active Rates table filter.
-  const [direction, setDirection] = useState<Direction>('BTC-TAO');
+  const [direction, setDirection] = useState<Direction>('SOL-BTC');
 
   // Below md the layout stacks into one column — treat as "mobile": lead with
   // the chart and drop the Events tab.

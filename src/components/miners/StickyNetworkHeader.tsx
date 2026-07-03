@@ -50,7 +50,7 @@ const StickyNetworkHeader: React.FC = () => {
 
   const segments: React.ReactNode[] = [];
   if (crown) {
-    for (const dir of ['BTC-TAO', 'TAO-BTC'] as const) {
+    for (const dir of ['SOL-BTC', 'SOL-TAO'] as const) {
       const h = crown[dir];
       if (!h) continue;
       const [from, to] = dir.split('-');

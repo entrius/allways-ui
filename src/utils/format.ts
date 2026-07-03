@@ -12,6 +12,11 @@ export const formatSol = (lamports: string | number) => {
   return (val / 1e9).toFixed(2);
 };
 
+// Numeric lamports→SOL, for chart math / aggregation where a Number (not a
+// formatted string) is needed. Display-side callers should prefer formatSol.
+export const lamportsToSol = (lamports: string | number) =>
+  (typeof lamports === 'string' ? parseFloat(lamports) : lamports) / 1e9;
+
 export const formatNumber = (n: number, decimals = 2) =>
   n.toLocaleString(undefined, {
     minimumFractionDigits: decimals,

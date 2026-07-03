@@ -92,7 +92,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
 
   // Direction is driven by the page's Market Rate toggle — no local toggle.
   const directionFilter: DirectionFilter =
-    syncDirection === 'TAO-BTC' ? 'reverse' : 'forward';
+    syncDirection === 'SOL-TAO' ? 'reverse' : 'forward';
 
   const statusInfo = (miner: Miner) => {
     if (!miner.isActive) return { color: disabled, label: 'Inactive' };
@@ -133,7 +133,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   // first (asc). A manual re-sort persists until the next flip.
   useEffect(() => {
     setSortKey('rate');
-    setSortDir(syncDirection === 'TAO-BTC' ? 'asc' : 'desc');
+    setSortDir(syncDirection === 'SOL-TAO' ? 'asc' : 'desc');
   }, [syncDirection]);
 
   const handleSort = (key: SortKey) => {

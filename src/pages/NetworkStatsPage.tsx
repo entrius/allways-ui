@@ -24,6 +24,7 @@ import {
   useStats,
 } from '../api';
 import type { HistoryRow, HistoryStateRow } from '../api/models';
+import { lamportsToSol } from '../utils/format';
 import { FONTS } from '../theme';
 
 // ---------------------------------------------------------------------------
@@ -257,7 +258,7 @@ const NetworkStatsPage: React.FC = () => {
         color: cPrimary,
         unit: 'SOL',
         formatValue: sol,
-        points: histPoints(history, (r) => parseFloat(r.cumulativeVolumeSol)),
+        points: histPoints(history, (r) => lamportsToSol(r.cumulativeVolumeSol)),
       },
     ],
     [history, cPrimary],
@@ -297,7 +298,7 @@ const NetworkStatsPage: React.FC = () => {
         type: 'bar',
         unit: 'SOL',
         formatValue: sol,
-        points: histPoints(history, (r) => parseFloat(r.volumeSol)),
+        points: histPoints(history, (r) => lamportsToSol(r.volumeSol)),
       },
     ],
     [history, cBtc],
@@ -355,7 +356,7 @@ const NetworkStatsPage: React.FC = () => {
         formatValue: sol,
         points: histPoints(
           history,
-          (r) => parseFloat(r.cumulativeVolumeSol) * 0.01,
+          (r) => lamportsToSol(r.cumulativeVolumeSol) * 0.01,
         ),
       },
     ],
@@ -370,7 +371,7 @@ const NetworkStatsPage: React.FC = () => {
         type: 'bar',
         unit: 'SOL',
         formatValue: (v) => v.toFixed(4),
-        points: histPoints(history, (r) => parseFloat(r.volumeSol) * 0.01),
+        points: histPoints(history, (r) => lamportsToSol(r.volumeSol) * 0.01),
       },
     ],
     [history, cPrimary],
@@ -416,8 +417,8 @@ const NetworkStatsPage: React.FC = () => {
 
   // --- Composition: pair mix ----------------------------------------------
   const pairMix = overview?.pairMix ?? [];
-  const totalVol = overview ? parseFloat(overview.volumeSol) : 0;
-  // "TAO-BTC" → "TAO → BTC" so the swap direction (input → output) is explicit.
+  const totalVol = overview ? lamportsToSol(overview.volumeSol) : 0;
+  // "SOL-BTC" → "SOL → BTC" so the swap direction (input → output) is explicit.
   const fmtPair = (pair: string) => pair.replace(/-/g, ' → ');
   // Monochrome shades (theme-aware) so the breakdown bars stay distinguishable
   // without reintroducing fixed accent colors.
@@ -434,7 +435,7 @@ const NetworkStatsPage: React.FC = () => {
     [leaderboard],
   );
 
-  const volumeTotal = stats ? parseFloat(stats.totalVolumeSol) : 0;
+  const volumeTotal = stats ? lamportsToSol(stats.totalVolumeSol) : 0;
 
   return (
     <Page title="Network Stats">
@@ -854,7 +855,7 @@ const NetworkStatsPage: React.FC = () => {
                             {m.isActive ? '' : ' (inactive)'}
                           </Box>
                           <Box component="span" sx={{ color: 'text.primary' }}>
-                            {sol(parseFloat(m.volumeSol))} SOL
+                            {sol(lamportsToSol(m.volumeSol))} SOL
                           </Box>
                         </Box>
                       ))}

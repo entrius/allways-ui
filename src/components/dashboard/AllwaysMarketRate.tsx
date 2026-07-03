@@ -111,8 +111,8 @@ const AllwaysMarketRate: React.FC<{
             },
           }}
         >
-          <ToggleButton value="BTC-TAO">BTC {'→'} TAO</ToggleButton>
-          <ToggleButton value="TAO-BTC">TAO {'→'} BTC</ToggleButton>
+          <ToggleButton value="SOL-BTC">SOL {'→'} BTC</ToggleButton>
+          <ToggleButton value="SOL-TAO">SOL {'→'} TAO</ToggleButton>
           <ToggleButton value="BOTH">BOTH</ToggleButton>
         </ToggleButtonGroup>
       </Box>
@@ -122,7 +122,7 @@ const AllwaysMarketRate: React.FC<{
       >
         <MarketRateChart
           key={view}
-          directions={view === 'BOTH' ? ['BTC-TAO', 'TAO-BTC'] : [view]}
+          directions={view === 'BOTH' ? ['SOL-BTC', 'SOL-TAO'] : [view]}
           fill
         />
       </Box>

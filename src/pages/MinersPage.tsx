@@ -2,23 +2,15 @@ import React, { useCallback } from 'react';
 import { Stack, useMediaQuery, useTheme } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import {
-  CrownHistoryGrid,
   CrownRateChart,
+  CrownTimeLeaderboard,
   MinerLeaderboard,
   NetworkOverviewStats,
   Page,
   SEO,
   StickyNetworkHeader,
 } from '../components';
-import {
-  isCrownRange,
-  isDirection,
-  isRange,
-  isRateRange,
-  type CrownRange,
-  type Range,
-  type RateRange,
-} from '../api';
+import { isRange, isRateRange, type Range, type RateRange } from '../api';
 
 const MinersPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -32,17 +24,10 @@ const MinersPage: React.FC = () => {
   // Default to 1h — the live scoring window — so the page opens on the data
   // that reflects current scoring.
   const range: Range = isRange(rangeParam) ? rangeParam : '1h';
-  const pairParam = params.get('pair');
-  const direction = isDirection(pairParam) ? pairParam : 'BTC-TAO';
-  const crownRangeParam = params.get('crownRange');
-  const crownRange: CrownRange = isCrownRange(crownRangeParam)
-    ? crownRangeParam
-    : '1h';
   const rateRangeParam = params.get('rateRange');
   const rateRange: RateRange = isRateRange(rateRangeParam)
     ? rateRangeParam
     : '4h';
-  const pan = Number(params.get('pan') ?? '0') || 0;
 
   const setParam = useCallback(
     (key: string, value: string | undefined) => {
@@ -80,16 +65,7 @@ const MinersPage: React.FC = () => {
         />
         {!isMobile && (
           <>
-            <CrownHistoryGrid
-              direction={direction}
-              onDirectionChange={(d) => setParam('pair', d)}
-              range={crownRange}
-              onRangeChange={(r) => setParam('crownRange', r)}
-              pan={pan}
-              onPanChange={(p) =>
-                setParam('pan', p === 0 ? undefined : String(p))
-              }
-            />
+            <CrownTimeLeaderboard />
             <CrownRateChart
               range={rateRange}
               onRangeChange={(r) => setParam('rateRange', r)}

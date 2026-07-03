@@ -37,10 +37,10 @@ echarts.use([
 ]);
 
 const accentFor = (theme: Theme, dir: Direction) =>
-  dir === 'BTC-TAO' ? theme.palette.asset.btc : theme.palette.primary.main;
+  dir === 'SOL-BTC' ? theme.palette.asset.btc : theme.palette.asset.tao;
 
 const labelFor = (dir: Direction) =>
-  dir === 'BTC-TAO' ? 'BTC → TAO' : 'TAO → BTC';
+  dir === 'SOL-BTC' ? 'SOL → BTC' : 'SOL → TAO';
 
 // The market-rate chart. With one direction it shows that direction's scatter +
 // EMA (with a gradient area fill), live crown reference, and per-timestamp

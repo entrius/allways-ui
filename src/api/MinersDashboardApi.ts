@@ -4,6 +4,7 @@ import type {
   ActiveSwap,
   CrownHistoryRow,
   CrownRateHistoryRow,
+  CrownTimeWindow,
   CurrentCrownMap,
   Direction,
   HaltState,
@@ -21,6 +22,8 @@ const CROWN_REFRESH_MS = 12_000;
 export const useCurrentCrown = () =>
   useApiQuery<CurrentCrownMap>('crown', '/crown', CROWN_REFRESH_MS);
 
+// NOTE: das-allways reads fromTime/toTime/seconds — the query keys below must
+// use those names (the JS param names stay short for callers).
 export const useCrownHistory = (params: {
   direction: Direction;
   fromTs?: number;
@@ -32,8 +35,8 @@ export const useCrownHistory = (params: {
     CROWN_REFRESH_MS,
     {
       direction: params.direction,
-      fromTs: params.fromTs,
-      toTs: params.toTs,
+      fromTime: params.fromTs,
+      toTime: params.toTs,
     },
   );
 
@@ -49,11 +52,26 @@ export const useCrownRateHistory = (params: {
     CROWN_REFRESH_MS,
     {
       direction: params.direction,
-      fromTs: params.fromTs,
-      toTs: params.toTs,
-      secs: params.secs,
+      fromTime: params.fromTs,
+      toTime: params.toTs,
+      seconds: params.secs,
     },
   );
+
+// Crown-time leaderboard for a direction: seconds each miner held the crown in
+// the window (tie-credited) + share of the window.
+export const useCrownTime = (params: {
+  direction: Direction;
+  seconds?: number;
+  fromTs?: number;
+  toTs?: number;
+}) =>
+  useApiQuery<CrownTimeWindow>('crown-time', '/crown/time', CROWN_REFRESH_MS, {
+    direction: params.direction,
+    seconds: params.seconds,
+    fromTime: params.fromTs,
+    toTime: params.toTs,
+  });
 
 export const useMinerLeaderboard = (range: Range = '30d') =>
   useApiQuery<LeaderboardRow[]>(

@@ -1,4 +1,4 @@
-export type Direction = 'BTC-TAO' | 'TAO-BTC';
+export type Direction = 'SOL-BTC' | 'SOL-TAO';
 export type Range = '1h' | '24h' | '7d' | '30d' | '90d' | 'all';
 
 export type CurrentCrown = {
@@ -12,11 +12,30 @@ export type CurrentCrown = {
 export type CurrentCrownMap = Record<Direction, CurrentCrown>;
 
 export type CrownHistoryRow = {
-  // Unix-seconds bucket timestamp for this crown observation.
+  // Interval start (unix seconds) the holder took the crown.
   t: number;
+  // Interval end (unix seconds, exclusive).
+  endedAt: number;
   hotkey: string;
   uid: number | null;
   rate: number;
+};
+
+// One miner's crown time within a window: seconds held (tie-credited) and that
+// as a fraction of the window's duration. Feeds the crown-time leaderboard.
+export type CrownTimeRow = {
+  hotkey: string;
+  uid: number | null;
+  crownSecs: number;
+  shareOfWindow: number;
+  rate: number;
+};
+
+export type CrownTimeWindow = {
+  windowStart: number;
+  windowEnd: number;
+  windowSecs: number;
+  holders: CrownTimeRow[];
 };
 
 export type CrownRateHistoryRow = {

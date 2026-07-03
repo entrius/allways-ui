@@ -48,25 +48,25 @@ const DIRECTION_META: Record<
     valueLeft: boolean;
   }
 > = {
-  'BTC-TAO': {
-    label: 'BTC → TAO',
+  'SOL-BTC': {
+    label: 'SOL → BTC',
     color: '#0052ff',
     referenceColor: '#7f9eff',
-    gradId: 'btctaoFill',
-    from: 'BTC',
-    to: 'TAO',
-    caption: 'TAO returned for 1 BTC',
+    gradId: 'solbtcFill',
+    from: 'SOL',
+    to: 'BTC',
+    caption: 'BTC per 1 SOL',
     valueLeft: false,
   },
-  'TAO-BTC': {
-    label: 'TAO → BTC',
+  'SOL-TAO': {
+    label: 'SOL → TAO',
     color: '#f7931a',
     referenceColor: '#fbc77a',
-    gradId: 'taobtcFill',
-    from: 'TAO',
-    to: 'BTC',
-    caption: 'TAO needed for 1 BTC',
-    valueLeft: true,
+    gradId: 'soltaoFill',
+    from: 'SOL',
+    to: 'TAO',
+    caption: 'TAO per 1 SOL',
+    valueLeft: false,
   },
 };
 
@@ -493,12 +493,12 @@ const CrownRateChart: React.FC<{
   const secs = RANGE_SECS[range];
   const minerMode = !!minerHotkey;
 
-  const { data: btcTao } = useCrownRateHistory({
-    direction: 'BTC-TAO',
+  const { data: solBtc } = useCrownRateHistory({
+    direction: 'SOL-BTC',
     secs,
   });
-  const { data: taoBtc } = useCrownRateHistory({
-    direction: 'TAO-BTC',
+  const { data: solTao } = useCrownRateHistory({
+    direction: 'SOL-TAO',
     secs,
   });
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
@@ -507,33 +507,33 @@ const CrownRateChart: React.FC<{
   const head = useMemo(() => {
     const maxT = (arr: { t: number }[] | undefined) =>
       (arr ?? []).reduce((m, p) => (p.t > m ? p.t : m), 0);
-    return Math.max(maxT(btcTao), maxT(taoBtc));
-  }, [btcTao, taoBtc]);
+    return Math.max(maxT(solBtc), maxT(solTao));
+  }, [solBtc, solTao]);
   const lo = Math.max(0, head - secs + 1);
 
   // One memo over all the per-render data shaping so a hover cursor change
   // (which lifts state up here) doesn't re-filter the full window every
   // mouse move.
-  const { btcTaoCrown, taoBtcCrown, btcTaoMiner, taoBtcMiner } = useMemo(() => {
+  const { solBtcCrown, solTaoCrown, solBtcMiner, solTaoMiner } = useMemo(() => {
     const inRange = <T extends { t: number }>(arr: T[] | undefined) =>
       (arr ?? []).filter((p) => p.t >= lo && p.t <= head);
     const strip = (rows: CrownRateHistoryRow[]): RateRow[] =>
       rows.map((r) => ({ t: r.t, rate: r.rate }));
     const minerFor = (direction: Direction): RateRow[] => {
       if (!minerHotkey) return [];
-      const from = direction === 'BTC-TAO' ? 'btc' : 'tao';
-      const to = direction === 'BTC-TAO' ? 'tao' : 'btc';
+      const from = 'sol';
+      const to = direction === 'SOL-BTC' ? 'btc' : 'tao';
       return inRange(minerRates ?? [])
         .filter((r) => r.fromChain === from && r.toChain === to)
         .map((r) => ({ t: r.t, rate: r.rate }));
     };
     return {
-      btcTaoCrown: strip(inRange(btcTao)),
-      taoBtcCrown: strip(inRange(taoBtc)),
-      btcTaoMiner: minerFor('BTC-TAO'),
-      taoBtcMiner: minerFor('TAO-BTC'),
+      solBtcCrown: strip(inRange(solBtc)),
+      solTaoCrown: strip(inRange(solTao)),
+      solBtcMiner: minerFor('SOL-BTC'),
+      solTaoMiner: minerFor('SOL-TAO'),
     };
-  }, [btcTao, taoBtc, minerRates, minerHotkey, lo, head]);
+  }, [solBtc, solTao, minerRates, minerHotkey, lo, head]);
 
   const [cursor, setCursor] = useState<SharedCursor>(null);
 
@@ -597,9 +597,9 @@ const CrownRateChart: React.FC<{
 
       <Stack spacing={2.5}>
         <RatePanel
-          direction="BTC-TAO"
-          primary={minerMode ? btcTaoMiner : btcTaoCrown}
-          reference={minerMode ? btcTaoCrown : []}
+          direction="SOL-BTC"
+          primary={minerMode ? solBtcMiner : solBtcCrown}
+          reference={minerMode ? solBtcCrown : []}
           lo={lo}
           head={head}
           isDark={isDark}
@@ -607,9 +607,9 @@ const CrownRateChart: React.FC<{
           onCursor={setCursor}
         />
         <RatePanel
-          direction="TAO-BTC"
-          primary={minerMode ? taoBtcMiner : taoBtcCrown}
-          reference={minerMode ? taoBtcCrown : []}
+          direction="SOL-TAO"
+          primary={minerMode ? solTaoMiner : solTaoCrown}
+          reference={minerMode ? solTaoCrown : []}
           lo={lo}
           head={head}
           isDark={isDark}

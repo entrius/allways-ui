@@ -12,8 +12,8 @@ export type RatePoint = { t: number; rate: number; vol: number };
 const matchesDirection = (s: ActiveSwap, dir: Direction): boolean => {
   const src = s.sourceChain?.toLowerCase();
   const dst = s.destChain?.toLowerCase();
-  if (dir === 'BTC-TAO') return src === 'btc' && dst === 'tao';
-  return src === 'tao' && dst === 'btc';
+  if (dir === 'SOL-BTC') return src === 'sol' && dst === 'btc';
+  return src === 'sol' && dst === 'tao';
 };
 
 // Completed swaps for a direction as {t, rate, vol} points, oldest→newest,
