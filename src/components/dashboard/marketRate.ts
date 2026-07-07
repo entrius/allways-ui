@@ -1,5 +1,6 @@
 import type { ActiveSwap } from '../../api/models';
 import type { Direction } from '../../api/models/MinersDashboard';
+import { lamportsToSol } from '../../utils/format';
 
 // How many of the most recent completed swaps feed the chart, and the EMA
 // smoothing window over that series. Shared by the chart and the ticker.
@@ -32,7 +33,7 @@ export const completedPoints = (
         matchesDirection(s, dir),
     )
     .map((s) => {
-      const vol = s.solAmount ? parseFloat(s.solAmount) : 0;
+      const vol = s.solAmount ? lamportsToSol(s.solAmount) : 0;
       return {
         t: parseInt(s.completedAt as string, 10),
         rate: parseFloat(s.rate as string),

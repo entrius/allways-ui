@@ -16,7 +16,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useAllSwaps, useMiners, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
-import { formatAmount } from '../../utils/format';
+import { formatAmount, lamportsToSol } from '../../utils/format';
 
 const PAGE_SIZE = 25;
 
@@ -205,7 +205,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                 swap.sourceAmount && swap.sourceChain
                   ? formatAmount(swap.sourceAmount, swap.sourceChain)
                   : swap.solAmount
-                    ? `${parseFloat(swap.solAmount).toFixed(4)} SOL`
+                    ? `${lamportsToSol(swap.solAmount).toFixed(4)} SOL`
                     : null;
               const recvLine =
                 swap.destAmount && swap.destChain
