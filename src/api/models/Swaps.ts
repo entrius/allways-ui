@@ -24,9 +24,6 @@ export type ActiveSwap = {
   completedAt: string | null;
   resolvedAt: string | null;
   timeoutExtensionsUsed: number;
-  pendingTimeoutExtensionTarget: string | null;
-  pendingTimeoutExtensionProposedAt: string | null;
-  pendingTimeoutExtensionProposedBy: string | null;
   reservationRequestHash: string | null;
 };
 

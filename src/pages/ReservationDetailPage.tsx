@@ -413,7 +413,7 @@ const ReservationDetailPage: React.FC = () => {
                 : `${formatUnixTime(r.reservedAt)} → ${formatUnixTime(r.reservedUntil)}`
             }
           />
-          {(extensionStatus.kind !== 'none' || r.extensionsUsed > 0) && (
+          {r.extensionsUsed > 0 && (
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography
                 sx={{
