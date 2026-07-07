@@ -102,7 +102,7 @@ export const useScoreFactorsWindow = (
     'miner-score-factors-window',
     `/miners/${hotkey}/score-factors`,
     SSE_FALLBACK_INTERVAL,
-    { direction, fromTs, toTs },
+    { direction, fromTime: fromTs, toTime: toTs },
     !!hotkey && fromTs != null && toTs != null && toTs >= fromTs,
   );
 
@@ -126,7 +126,7 @@ export const useMinerRateHistory = (
     'miner-rate-history',
     `/miners/${hotkey}/rate-history`,
     SSE_FALLBACK_INTERVAL,
-    params,
+    { fromTime: params.fromTs, toTime: params.toTs, seconds: params.secs },
     !!hotkey,
   );
 
