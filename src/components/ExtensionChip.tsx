@@ -1,7 +1,6 @@
 import React from 'react';
 import { Chip, Tooltip } from '@mui/material';
 import { FONTS } from '../theme';
-import { type ProtocolConstants } from '../api/models';
 import { formatUnixTime } from '../utils/format';
 
 // Extensions apply instantly (single-validator on the v2 contract) — there is
@@ -9,7 +8,7 @@ import { formatUnixTime } from '../utils/format';
 // deadline (timeoutAt / reservedUntil).
 export type ExtensionStatus =
   | { kind: 'none' }
-  | { kind: 'applied'; used: number; cap: number; deadline: number | null };
+  | { kind: 'applied'; used: number; deadline: number | null };
 
 const parseTs = (v: string | null): number | null => {
   if (!v) return null;
@@ -17,30 +16,20 @@ const parseTs = (v: string | null): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-export const deriveSwapExtensionStatus = (
-  s: { timeoutExtensionsUsed: number; timeoutAt: string | null },
-  constants: ProtocolConstants | undefined,
-): ExtensionStatus => {
-  if (!constants || s.timeoutExtensionsUsed <= 0) return { kind: 'none' };
-  return {
-    kind: 'applied',
-    used: s.timeoutExtensionsUsed,
-    cap: constants.maxExtensionsPerSwap,
-    deadline: parseTs(s.timeoutAt),
-  };
+export const deriveSwapExtensionStatus = (s: {
+  timeoutExtensionsUsed: number;
+  timeoutAt: string | null;
+}): ExtensionStatus => {
+  if (s.timeoutExtensionsUsed <= 0) return { kind: 'none' };
+  return { kind: 'applied', used: s.timeoutExtensionsUsed, deadline: parseTs(s.timeoutAt) };
 };
 
-export const deriveReservationExtensionStatus = (
-  r: { extensionsUsed: number; reservedUntil: string },
-  constants: ProtocolConstants | undefined,
-): ExtensionStatus => {
-  if (!constants || r.extensionsUsed <= 0) return { kind: 'none' };
-  return {
-    kind: 'applied',
-    used: r.extensionsUsed,
-    cap: constants.maxExtensionsPerReservation,
-    deadline: parseTs(r.reservedUntil),
-  };
+export const deriveReservationExtensionStatus = (r: {
+  extensionsUsed: number;
+  reservedUntil: string;
+}): ExtensionStatus => {
+  if (r.extensionsUsed <= 0) return { kind: 'none' };
+  return { kind: 'applied', used: r.extensionsUsed, deadline: parseTs(r.reservedUntil) };
 };
 
 const ExtensionChip: React.FC<{ status: ExtensionStatus }> = ({ status }) => {
@@ -48,7 +37,7 @@ const ExtensionChip: React.FC<{ status: ExtensionStatus }> = ({ status }) => {
 
   const chip = (
     <Chip
-      label={`Extended ${status.used}/${status.cap}`}
+      label={`Extended ×${status.used}`}
       size="small"
       variant="outlined"
       sx={{

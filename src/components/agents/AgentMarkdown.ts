@@ -315,7 +315,7 @@ live state instead of polling, and don't hammer it.
 | GET | \`/events/miner/{hotkey}\` | Event history for a miner |
 | GET | \`/reservations/by-source/{address}\` | Reservations from a source address (newest first) |
 | GET | \`/reservations/{requestHash}\` | Reservation by request hash |
-| GET | \`/protocol/constants\` | Immutable contract constants (extension caps) |
+| GET | \`/protocol/constants\` | Immutable contract constants (fee divisor) |
 | GET | \`/sse\` | Server-Sent Events. Channels: \`connected\`, \`event\`, \`miner\`, \`swap\` |
 | GET | \`/llms.txt\` | This document, statically served |
 

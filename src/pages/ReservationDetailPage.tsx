@@ -116,7 +116,7 @@ const ReservationDetailPage: React.FC = () => {
       ? 'done'
       : 'pending';
 
-  const extensionStatus = deriveReservationExtensionStatus(r, protocol);
+  const extensionStatus = deriveReservationExtensionStatus(r);
   const sourceLine =
     r.fromAmount && r.fromChain ? formatAmount(r.fromAmount, r.fromChain) : '—';
   // Destination amount is gross on-chain; deduct the protocol fee so the user

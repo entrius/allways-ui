@@ -375,7 +375,7 @@ const SwapDetailPage: React.FC = () => {
             </Typography>
           )}
           {(() => {
-            const ext = deriveSwapExtensionStatus(swap, protocol);
+            const ext = deriveSwapExtensionStatus(swap);
             if (ext.kind === 'none') return null;
             return (
               <Stack direction="row" alignItems="center" spacing={1}>
