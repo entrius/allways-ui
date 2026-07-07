@@ -14,6 +14,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { displayEventType, useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
+import { lamportsToSol } from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import { EventFeedSkeleton } from './Skeletons';
 
@@ -213,7 +214,7 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         color: 'text.primary',
                       }}
                     >
-                      {parseFloat(event.solAmount).toFixed(4)} SOL
+                      {lamportsToSol(event.solAmount).toFixed(4)} SOL
                     </Typography>
                   )}
                 </Stack>

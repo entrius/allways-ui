@@ -34,6 +34,7 @@ import {
   formatRateLine,
   formatUnixTime,
   explorerSignatureUrl,
+  lamportsToSol,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
 import ExtensionChip, {
@@ -374,7 +375,7 @@ const SwapDetailPage: React.FC = () => {
             </Typography>
           )}
           {(() => {
-            const ext = deriveSwapExtensionStatus(swap, protocol);
+            const ext = deriveSwapExtensionStatus(swap);
             if (ext.kind === 'none') return null;
             return (
               <Stack direction="row" alignItems="center" spacing={1}>
@@ -414,7 +415,7 @@ const SwapDetailPage: React.FC = () => {
             {refundEvent.solAmount && (
               <LabelValue
                 label="Amount"
-                value={`${parseFloat(refundEvent.solAmount).toFixed(4)} SOL`}
+                value={`${lamportsToSol(refundEvent.solAmount).toFixed(4)} SOL`}
               />
             )}
             {(refundEvent.userAddress ?? refundEvent.actorPubkey) && (
@@ -617,7 +618,7 @@ const SwapDetailPage: React.FC = () => {
                       color: 'primary.main',
                     }}
                   >
-                    {parseFloat(event.solAmount).toFixed(4)} SOL
+                    {lamportsToSol(event.solAmount).toFixed(4)} SOL
                   </Typography>
                 )}
                 {event.txHash && (

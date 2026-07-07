@@ -15,9 +15,6 @@ export type Reservation = {
   status: string;
   swapId: string | null;
   extensionsUsed: number;
-  pendingExtensionTarget: string | null;
-  pendingExtensionProposedAt: string | null;
-  pendingExtensionProposedBy: string | null;
   pendingExtensionFromTxHash: string | null;
   createdAt: string;
   updatedAt: string;
