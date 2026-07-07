@@ -414,39 +414,18 @@ const ReservationDetailPage: React.FC = () => {
             }
           />
           {(extensionStatus.kind !== 'none' || r.extensionsUsed > 0) && (
-            <Stack spacing={0.75}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.7rem',
-                    color: 'text.secondary',
-                    minWidth: 80,
-                  }}
-                >
-                  Extensions
-                </Typography>
-                <ExtensionChip status={extensionStatus} />
-              </Stack>
-              {extensionStatus.kind === 'pending' && (
-                <>
-                  <LabelValue
-                    label="Proposed"
-                    value={`+${extensionStatus.target - parseInt(r.reservedUntil, 10)}s → ${formatUnixTime(extensionStatus.target)}`}
-                  />
-                  <LabelValue
-                    label="Finalizes"
-                    value={`${formatUnixTime(extensionStatus.finalizableAt)} (${formatCountdown(extensionStatus.finalizableAt)}) if uncontested`}
-                  />
-                  {extensionStatus.proposedBy && (
-                    <LabelValue
-                      label="Proposed by"
-                      value={extensionStatus.proposedBy}
-                      copyable
-                    />
-                  )}
-                </>
-              )}
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.7rem',
+                  color: 'text.secondary',
+                  minWidth: 80,
+                }}
+              >
+                Extensions
+              </Typography>
+              <ExtensionChip status={extensionStatus} />
             </Stack>
           )}
         </Stack>

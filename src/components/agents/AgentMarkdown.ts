@@ -51,13 +51,13 @@ no wrapped asset, no bridge token.
 - **Statuses (on-chain swap, post-initiate).** \`ACTIVE → FULFILLED → COMPLETED\` (happy) or \`ACTIVE → TIMED_OUT\` (slash to user).
 - **Fee — 1%, paid via the rate.** The fee is *implicit in the price you accept*. If a miner quotes \`1 BTC = 300 TAO\` and you send 1 BTC, you receive **297 TAO** — the 3-TAO fee is the protocol's cut. The fee never leaves your wallet as a separate charge; it's harvested from the miner's collateral on settlement. Always preview with \`alw swap quote\` (or the rate display in \`alw swap now\`) — the post-fee receive amount is shown.
 - **Block time.** ~12s on Bittensor.
-- **Live contract parameters — read before assuming.** All time-bounded values (reservation TTL, fulfillment timeout, extension caps, challenge window) and economic bounds (fee, min/max swap, min/max collateral) are on-chain and readable via \`alw view contract\` or \`GET /protocol/constants\`. Don't hardcode — values can change. The fields you'll see and what they mean:
+- **Live contract parameters — read before assuming.** All time-bounded values (reservation TTL, fulfillment timeout, extension caps) and economic bounds (fee, min/max swap, min/max collateral) are on-chain and readable via \`alw view contract\` or \`GET /protocol/constants\`. Don't hardcode — values can change. The fields you'll see and what they mean:
   - \`Reservation TTL\` — how long a reserve holds a miner for you before it expires. Broadcast your source tx and confirm inside this window.
   - \`Fulfillment Timeout\` — once \`ACTIVE\`, how long the miner has to deliver before validators can vote \`TIMED_OUT\`.
   - \`Fee\` — protocol cut, currently 1%, paid implicitly via the rate.
   - \`Min/Max Swap Amount\` — bounds on the TAO-equivalent swap size. Out-of-range reservations get rejected at the contract.
   - \`Min/Max Collateral\` — what miners must lock; affects who can fulfill.
-  - \`Extension Challenge Window\` / \`Max Extension Length\` / \`Max Extensions per Reservation|Swap\` — control how long swap deadlines can be auto-extended while you're awaiting confirmations.
+  - \`Max Extension Length\` / \`Max Extensions per Reservation|Swap\` — control how long swap deadlines can be auto-extended while you're awaiting confirmations.
   - \`Consensus\` — validator quorum required to advance a swap.
 - **BTC fees gate the whole flow — underprice them and you lose your send.** For BTC-source swaps, validators only extend your reservation once the source tx has ≥1 confirmation (tier-1 extension is gated on \`confirmations >= 1\`). Set the fee too low and the tx sits in mempool: no confirmation → no extension → the reservation eventually times out *while your BTC is still in flight*. When it finally mines, it lands in the miner's address with no on-chain swap to credit it against, and the funds are gone. The CLI's auto-estimated \`--btc-fee-rate\` is intended to be a safe default — only override it if you've checked current mempool conditions (e.g. https://mempool.space), and never set it below a next-block tier. Same rule if you broadcast from your own wallet: validators cannot wait all day for a confirmation, so frugal fees = lost send.
 - **Slash payouts are always TAO.** Even on BTC-side swaps you need a Bittensor wallet — that's where any timeout refund lands.
@@ -315,7 +315,7 @@ live state instead of polling, and don't hammer it.
 | GET | \`/events/miner/{hotkey}\` | Event history for a miner |
 | GET | \`/reservations/by-source/{address}\` | Reservations from a source address (newest first) |
 | GET | \`/reservations/{requestHash}\` | Reservation by request hash |
-| GET | \`/protocol/constants\` | Immutable contract constants (extension caps, challenge window) |
+| GET | \`/protocol/constants\` | Immutable contract constants (extension caps) |
 | GET | \`/sse\` | Server-Sent Events. Channels: \`connected\`, \`event\`, \`miner\`, \`swap\` |
 | GET | \`/llms.txt\` | This document, statically served |
 

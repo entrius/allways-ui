@@ -5,8 +5,6 @@ export type CurrentCrown = {
   uid: number | null;
   hotkey: string | null;
   rate: number | null;
-  // Unix seconds the current holder took the crown.
-  sinceTs: number | null;
 };
 
 export type CurrentCrownMap = Record<Direction, CurrentCrown>;
