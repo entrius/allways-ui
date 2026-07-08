@@ -16,11 +16,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useAllSwaps, useMiners, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
-import {
-  formatAmount,
-  lamportsToSol,
-  swapDisplayId,
-} from '../../utils/format';
+import { formatAmount, lamportsToSol, swapDisplayId } from '../../utils/format';
 
 const PAGE_SIZE = 25;
 
