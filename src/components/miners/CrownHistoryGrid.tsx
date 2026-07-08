@@ -10,7 +10,13 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { useCrownHistory, useScoringState, type Direction } from '../../api';
+import {
+  ALL_DIRECTIONS,
+  directionLabel,
+  useCrownHistory,
+  useScoringState,
+  type Direction,
+} from '../../api';
 import { FONTS } from '../../theme';
 import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
@@ -254,18 +260,15 @@ const CrownHistoryGrid: React.FC<{
             onChange={(_e, v) => v && onDirectionChange(v)}
             sx={{ '& .MuiToggleButton-root': { borderColor: 'divider' } }}
           >
-            <ToggleButton
-              value="SOL-BTC"
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-            >
-              SOL → BTC
-            </ToggleButton>
-            <ToggleButton
-              value="SOL-TAO"
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-            >
-              SOL → TAO
-            </ToggleButton>
+            {ALL_DIRECTIONS.map((d) => (
+              <ToggleButton
+                key={d}
+                value={d}
+                sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
+              >
+                {directionLabel(d)}
+              </ToggleButton>
+            ))}
           </ToggleButtonGroup>
           <ToggleButtonGroup
             exclusive

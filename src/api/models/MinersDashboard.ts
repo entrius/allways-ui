@@ -1,5 +1,41 @@
-export type Direction = 'SOL-BTC' | 'SOL-TAO';
+// Each hub↔spoke leg is its own crown/pool: the forward SOL→spoke quotes plus
+// their SOL-hub reverses. Mirrors das-allways' Direction / allways.constants.
+export type Direction = 'SOL-BTC' | 'BTC-SOL' | 'SOL-TAO' | 'TAO-SOL';
 export type Range = '1h' | '24h' | '7d' | '30d' | '90d' | 'all';
+
+// Canonical render order — pairs kept together, forward leg first.
+export const ALL_DIRECTIONS: Direction[] = [
+  'SOL-BTC',
+  'BTC-SOL',
+  'SOL-TAO',
+  'TAO-SOL',
+];
+
+// 'SOL-BTC' → 'SOL → BTC'
+export const directionLabel = (dir: Direction): string =>
+  dir.replace('-', ' → ');
+
+// Splits a direction into its lowercase chain legs, the spoke chain (the
+// non-hub side), and whether it's the forward (SOL→spoke) or reverse
+// (spoke→SOL) leg. This separates "which pair" (spoke) from "which way" (leg)
+// so callers stop conflating the two.
+export const decomposeDirection = (
+  dir: Direction,
+): {
+  from: string;
+  to: string;
+  spoke: string;
+  leg: 'forward' | 'reverse';
+} => {
+  const [from, to] = dir.split('-').map((c) => c.toLowerCase());
+  const forward = from === 'sol';
+  return {
+    from,
+    to,
+    spoke: forward ? to : from,
+    leg: forward ? 'forward' : 'reverse',
+  };
+};
 
 export type CurrentCrown = {
   uid: number | null;

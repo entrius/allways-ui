@@ -17,9 +17,9 @@ contract slashes collateral on failure and refunds the user. No custodian,
 no wrapped asset, no bridge token.
 
 > **Where to point your wallets right now:** **mainnet** is live on
-> netuid 7 — contract \`5DjJmTpcHZvF3aZZEafKBdo3ksmdUSZ8bBBUSFhW3Ce3xf1J\`.
-> **Testnet** is also live on netuid 19 — contract
-> \`5FwPheGT96iBFZ6JkwyDhDH4GcVjafWxAtSsSSq26UiYyTfg\` — and is the
+> netuid 7 and **testnet** on netuid 19. Both run the same Solana program
+> \`AKgfVK8zJVHuZwttdjU2CPykaHyTAvw5r9FUFUpM74JU\` — the program id is the
+> same across clusters; only the network differs. Testnet is the
 > recommended place to dry-run before exercising mainnet. Full setup
 > blocks for both are below.
 
@@ -158,13 +158,13 @@ The WIF (without \`p2wpkh:\`) is what you put in \`BTC_PRIVATE_KEY\`; the \`bc1q
 
 **Mainnet (live — netuid 7):**
 
-    alw config set wallet  <coldkey-name>
-    alw config set hotkey  <hotkey-name>
-    alw config set network finney
-    alw config set netuid  7
-    alw config set contract-address 5DjJmTpcHZvF3aZZEafKBdo3ksmdUSZ8bBBUSFhW3Ce3xf1J
+    alw config set env    mainnet   # bittensor finney + solana mainnet + btc mainnet + netuid 7
+    alw config set wallet <coldkey-name>
+    alw config set hotkey <hotkey-name>
 
-**Testnet:** see the Testnet section below for the full block including the testnet contract address and BTC env. Testnet is recommended for dry-running before exercising mainnet.
+\`env\` resolves the bittensor network, Solana cluster, BTC network, and netuid together — no program id or RPC to copy (the program id is baked in, same across clusters). Override any one leg with \`alw config set network | solana-network | btc-network <name>\`.
+
+**Testnet:** see the Testnet section below for the full block including the testnet BTC env. Testnet is recommended for dry-running before exercising mainnet.
 
 Config persists at \`~/.allways/config.json\`.
 
@@ -378,11 +378,9 @@ live state instead of polling, and don't hammer it.
 
 Configure the CLI for testnet:
 
-    alw config set wallet  <coldkey-name>
-    alw config set hotkey  <hotkey-name>
-    alw config set network test
-    alw config set netuid  19
-    alw config set contract-address 5FwPheGT96iBFZ6JkwyDhDH4GcVjafWxAtSsSSq26UiYyTfg
+    alw config set env    testnet   # bittensor test + solana devnet + btc testnet4 + netuid 19
+    alw config set wallet <coldkey-name>
+    alw config set hotkey <hotkey-name>
 
 For BTC-side testnet swaps, use a testnet \`.env\` (CWD when invoking \`alw\`):
 

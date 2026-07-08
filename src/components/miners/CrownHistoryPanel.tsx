@@ -90,7 +90,7 @@ const CrownHistoryPanel: React.FC<{
             color: 'text.disabled',
           }}
         >
-          pool × crown × cap × vol × rate³ × ramp
+          pool × crown × cap × vol × (rate × ramp)³
         </Typography>
       </Stack>
 

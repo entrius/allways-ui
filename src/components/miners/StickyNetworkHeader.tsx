@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { BlockIndicator } from '../index';
 import { useCurrentCrown, useHaltState, useScoringState } from '../../api';
+import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
 import CrownIcon from './CrownIcon';
 import { FONTS } from '../../theme';
 
@@ -50,7 +51,7 @@ const StickyNetworkHeader: React.FC = () => {
 
   const segments: React.ReactNode[] = [];
   if (crown) {
-    for (const dir of ['SOL-BTC', 'SOL-TAO'] as const) {
+    for (const dir of ALL_DIRECTIONS) {
       const h = crown[dir];
       if (!h) continue;
       const [from, to] = dir.split('-');

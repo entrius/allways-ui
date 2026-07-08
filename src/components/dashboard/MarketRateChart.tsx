@@ -15,7 +15,11 @@ import {
   type Theme,
 } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
-import type { Direction } from '../../api/models/MinersDashboard';
+import {
+  decomposeDirection,
+  directionLabel,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import {
   EMA_PERIOD,
@@ -36,11 +40,13 @@ echarts.use([
   CanvasRenderer,
 ]);
 
+// Accent by the pair's spoke asset, so a leg and its reverse share a colour.
 const accentFor = (theme: Theme, dir: Direction) =>
-  dir === 'SOL-BTC' ? theme.palette.asset.btc : theme.palette.asset.tao;
+  decomposeDirection(dir).spoke === 'btc'
+    ? theme.palette.asset.btc
+    : theme.palette.asset.tao;
 
-const labelFor = (dir: Direction) =>
-  dir === 'SOL-BTC' ? 'SOL → BTC' : 'SOL → TAO';
+const labelFor = directionLabel;
 
 // The market-rate chart. With one direction it shows that direction's scatter +
 // EMA (with a gradient area fill), live crown reference, and per-timestamp
