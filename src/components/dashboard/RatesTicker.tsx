@@ -1,13 +1,13 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
-import type { Direction } from '../../api/models/MinersDashboard';
+import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { BlockIndicator } from '../index';
 import CrownIcon from '../miners/CrownIcon';
 import { latestEmaRate } from './marketRate';
 
-const DIRECTIONS: Direction[] = ['SOL-BTC', 'SOL-TAO'];
+const DIRECTIONS = ALL_DIRECTIONS;
 
 // Mirrors the miners-page StickyNetworkHeader eyebrow — the "updated <ago>"
 // indicator plus the current crown holder and its live rate per direction

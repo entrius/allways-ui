@@ -1,5 +1,8 @@
 import type { ActiveSwap } from '../../api/models';
-import type { Direction } from '../../api/models/MinersDashboard';
+import {
+  decomposeDirection,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { lamportsToSol } from '../../utils/format';
 
 // How many of the most recent completed swaps feed the chart, and the EMA
@@ -13,8 +16,8 @@ export type RatePoint = { t: number; rate: number; vol: number };
 const matchesDirection = (s: ActiveSwap, dir: Direction): boolean => {
   const src = s.sourceChain?.toLowerCase();
   const dst = s.destChain?.toLowerCase();
-  if (dir === 'SOL-BTC') return src === 'sol' && dst === 'btc';
-  return src === 'sol' && dst === 'tao';
+  const { from, to } = decomposeDirection(dir);
+  return src === from && dst === to;
 };
 
 // Completed swaps for a direction as {t, rate, vol} points, oldest→newest,

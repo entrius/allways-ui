@@ -9,12 +9,20 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import type { Direction } from '../../api/models/MinersDashboard';
+import {
+  ALL_DIRECTIONS,
+  directionLabel,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import MarketRateChart from './MarketRateChart';
 
-// The chart's view: a single trade direction, or BOTH overlaid on one chart.
+// The chart's view: a single trade direction, or BOTH — the two forward
+// SOL→spoke legs overlaid on one shared price axis. Only the forward legs
+// overlay: a leg and its reverse are quoted in different units (BTC-per-SOL vs
+// SOL-per-BTC), so they can't share a price scale.
 type View = Direction | 'BOTH';
+const BOTH_DIRECTIONS: Direction[] = ['SOL-BTC', 'SOL-TAO'];
 
 // The market-rate chart for a single direction (with a toggle that also drives
 // the page's shared direction, controlled by the parent), plus a BOTH view that
@@ -111,8 +119,11 @@ const AllwaysMarketRate: React.FC<{
             },
           }}
         >
-          <ToggleButton value="SOL-BTC">SOL {'→'} BTC</ToggleButton>
-          <ToggleButton value="SOL-TAO">SOL {'→'} TAO</ToggleButton>
+          {ALL_DIRECTIONS.map((d) => (
+            <ToggleButton key={d} value={d}>
+              {directionLabel(d)}
+            </ToggleButton>
+          ))}
           <ToggleButton value="BOTH">BOTH</ToggleButton>
         </ToggleButtonGroup>
       </Box>
@@ -122,7 +133,7 @@ const AllwaysMarketRate: React.FC<{
       >
         <MarketRateChart
           key={view}
-          directions={view === 'BOTH' ? ['SOL-BTC', 'SOL-TAO'] : [view]}
+          directions={view === 'BOTH' ? BOTH_DIRECTIONS : [view]}
           fill
         />
       </Box>

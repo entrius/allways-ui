@@ -22,7 +22,10 @@ import {
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
-import type { Direction } from '../../api/models/MinersDashboard';
+import {
+  decomposeDirection,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
@@ -30,7 +33,18 @@ import { formatRate } from '../../utils/format';
 
 type SortKey = 'uid' | 'rate' | 'collateral' | 'status';
 type SortDir = 'asc' | 'desc';
+// Which leg of a miner's pair we're quoting: forward = SOL→spoke (m.rate),
+// reverse = spoke→SOL (m.counterRate).
 type DirectionFilter = 'forward' | 'reverse';
+
+// The non-hub side of a miner's pair (canonical order pins SOL as source, so
+// this is normally destChain), lowercased — or null if the miner has no pair.
+const minerSpoke = (m: Miner): string | null => {
+  const chains = [m.sourceChain, m.destChain]
+    .map((c) => c?.toLowerCase())
+    .filter((c): c is string => !!c && c !== 'sol');
+  return chains[0] ?? null;
+};
 // Open = idle/tradeable now; Active = also reserved/exchanging; All = + inactive.
 type StatusFilter = 'open' | 'active' | 'all';
 
@@ -48,9 +62,9 @@ const parseRate = (raw: string | null): number => {
 const statusRank = (m: Miner) =>
   !m.isActive ? 3 : m.hasActiveSwap ? 2 : m.isReserved ? 1 : 0;
 
-// The quoted rate for the active direction (TAO per 1 BTC either way). Sorting
-// on the raw value lets the sort arrow read naturally — desc = highest first
-// for BTC→TAO (best), asc = lowest first for TAO→BTC (best).
+// The quoted rate for the active leg. Both rates are "dest per 1 source", so a
+// higher value is always more output per unit in — best-first is desc for every
+// direction. forward = SOL→spoke (m.rate); reverse = spoke→SOL (m.counterRate).
 const directionRate = (m: Miner, filter: DirectionFilter): number =>
   filter === 'reverse' ? parseRate(m.counterRate) : parseRate(m.rate);
 
@@ -91,8 +105,12 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
     : columns;
 
   // Direction is driven by the page's Market Rate toggle — no local toggle.
-  const directionFilter: DirectionFilter =
-    syncDirection === 'SOL-TAO' ? 'reverse' : 'forward';
+  // Decompose it into the pair (spoke) we filter miners to and the leg
+  // (forward/reverse) that picks rate vs counterRate. Separating the two is the
+  // whole point: "which pair" and "which way" are independent.
+  const { spoke, leg: directionFilter } = decomposeDirection(
+    syncDirection ?? 'SOL-BTC',
+  );
 
   const statusInfo = (miner: Miner) => {
     if (!miner.isActive) return { color: disabled, label: 'Inactive' };
@@ -129,11 +147,12 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
 
   // When the EMA chart's direction flips, re-default the table to the most
-  // advantageous rate first: BTC→TAO highest first (desc), TAO→BTC lowest
-  // first (asc). A manual re-sort persists until the next flip.
+  // advantageous rate first. Both legs quote "dest per source", so more output
+  // is always better → highest first (desc) for every direction. A manual
+  // re-sort persists until the next flip.
   useEffect(() => {
     setSortKey('rate');
-    setSortDir(syncDirection === 'SOL-TAO' ? 'asc' : 'desc');
+    setSortDir('desc');
   }, [syncDirection]);
 
   const handleSort = (key: SortKey) => {
@@ -148,6 +167,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     const base = (miners ?? []).filter((m) => {
+      // Only nodes on the selected pair (SOL/BTC vs SOL/TAO) — a miner serves
+      // one pair, so a SOL/TAO node must not appear under a SOL/BTC view.
+      if (minerSpoke(m) !== spoke) return false;
       const hasQuote =
         directionFilter === 'reverse'
           ? parseRate(m.counterRate) > 0
@@ -173,7 +195,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       miner: m,
       match: String(m.uid) === q || m.hotkey.toLowerCase().includes(q),
     }));
-  }, [miners, sortKey, sortDir, search, directionFilter, statusFilter]);
+  }, [miners, sortKey, sortDir, search, spoke, directionFilter, statusFilter]);
   const hasSearch = search.trim().length > 0;
 
   const renderRate = (m: Miner) => {
@@ -277,10 +299,19 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
           />
           <Tooltip
             title={
-              <Box sx={{ maxWidth: 220, fontSize: '0.7rem' }}>
-                <strong>Open</strong>: idle nodes you can trade with now.{' '}
-                <strong>Active</strong>: also reserved/exchanging.{' '}
-                <strong>All</strong>: include inactive.
+              <Box sx={{ maxWidth: 220 }}>
+                {[
+                  { term: 'Open', desc: 'idle nodes you can trade with now.' },
+                  { term: 'Active', desc: 'also reserved/exchanging.' },
+                  { term: 'All', desc: 'include inactive.' },
+                ].map(({ term, desc }) => (
+                  <Typography key={term} sx={{ fontSize: '0.7rem' }}>
+                    <Box component="span" sx={{ fontWeight: 700 }}>
+                      {term}
+                    </Box>
+                    : {desc}
+                  </Typography>
+                ))}
               </Box>
             }
             arrow

@@ -8,6 +8,8 @@ import {
   useTheme,
 } from '@mui/material';
 import {
+  ALL_DIRECTIONS,
+  decomposeDirection,
   useCrownRateHistory,
   useMinerRateHistory,
   type CrownRateHistoryRow,
@@ -35,6 +37,10 @@ const RANGE_SECS: Record<CrownRange, number> = {
   '4d': 345_600,
 };
 
+// One panel per direction. Colours are grouped by pair (BTC = cool/blue, TAO =
+// warm/orange); the forward leg is the saturated tone, the reverse a shifted
+// shade of the same family so a pair reads together. Every rate is "to per 1
+// from", so valueLeft stays false ("1 {from} = {value} {to}") for all four.
 const DIRECTION_META: Record<
   Direction,
   {
@@ -58,6 +64,16 @@ const DIRECTION_META: Record<
     caption: 'BTC per 1 SOL',
     valueLeft: false,
   },
+  'BTC-SOL': {
+    label: 'BTC → SOL',
+    color: '#00a6c4',
+    referenceColor: '#7fd0e0',
+    gradId: 'btcsolFill',
+    from: 'BTC',
+    to: 'SOL',
+    caption: 'SOL per 1 BTC',
+    valueLeft: false,
+  },
   'SOL-TAO': {
     label: 'SOL → TAO',
     color: '#f7931a',
@@ -66,6 +82,16 @@ const DIRECTION_META: Record<
     from: 'SOL',
     to: 'TAO',
     caption: 'TAO per 1 SOL',
+    valueLeft: false,
+  },
+  'TAO-SOL': {
+    label: 'TAO → SOL',
+    color: '#c96a12',
+    referenceColor: '#e0a86b',
+    gradId: 'taosolFill',
+    from: 'TAO',
+    to: 'SOL',
+    caption: 'SOL per 1 TAO',
     valueLeft: false,
   },
 };
@@ -493,47 +519,62 @@ const CrownRateChart: React.FC<{
   const secs = RANGE_SECS[range];
   const minerMode = !!minerHotkey;
 
-  const { data: solBtc } = useCrownRateHistory({
-    direction: 'SOL-BTC',
-    secs,
-  });
-  const { data: solTao } = useCrownRateHistory({
-    direction: 'SOL-TAO',
-    secs,
-  });
+  // One fixed hook per direction (order is stable, so the rules of hooks hold).
+  const solBtc = useCrownRateHistory({ direction: 'SOL-BTC', secs }).data;
+  const btcSol = useCrownRateHistory({ direction: 'BTC-SOL', secs }).data;
+  const solTao = useCrownRateHistory({ direction: 'SOL-TAO', secs }).data;
+  const taoSol = useCrownRateHistory({ direction: 'TAO-SOL', secs }).data;
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
+
+  const crownByDir = useMemo<
+    Record<Direction, CrownRateHistoryRow[] | undefined>
+  >(
+    () => ({
+      'SOL-BTC': solBtc,
+      'BTC-SOL': btcSol,
+      'SOL-TAO': solTao,
+      'TAO-SOL': taoSol,
+    }),
+    [solBtc, btcSol, solTao, taoSol],
+  );
 
   // Use reduce instead of `Math.max(...arr)` to avoid spreading large arrays.
   const head = useMemo(() => {
     const maxT = (arr: { t: number }[] | undefined) =>
       (arr ?? []).reduce((m, p) => (p.t > m ? p.t : m), 0);
-    return Math.max(maxT(solBtc), maxT(solTao));
-  }, [solBtc, solTao]);
+    return ALL_DIRECTIONS.reduce(
+      (m, dir) => Math.max(m, maxT(crownByDir[dir])),
+      0,
+    );
+  }, [crownByDir]);
   const lo = Math.max(0, head - secs + 1);
 
   // One memo over all the per-render data shaping so a hover cursor change
   // (which lifts state up here) doesn't re-filter the full window every
-  // mouse move.
-  const { solBtcCrown, solTaoCrown, solBtcMiner, solTaoMiner } = useMemo(() => {
+  // mouse move. Produces {crown, miner} series per direction.
+  const seriesByDir = useMemo(() => {
     const inRange = <T extends { t: number }>(arr: T[] | undefined) =>
       (arr ?? []).filter((p) => p.t >= lo && p.t <= head);
     const strip = (rows: CrownRateHistoryRow[]): RateRow[] =>
       rows.map((r) => ({ t: r.t, rate: r.rate }));
     const minerFor = (direction: Direction): RateRow[] => {
       if (!minerHotkey) return [];
-      const from = 'sol';
-      const to = direction === 'SOL-BTC' ? 'btc' : 'tao';
+      const { from, to } = decomposeDirection(direction);
       return inRange(minerRates ?? [])
         .filter((r) => r.fromChain === from && r.toChain === to)
         .map((r) => ({ t: r.t, rate: r.rate }));
     };
-    return {
-      solBtcCrown: strip(inRange(solBtc)),
-      solTaoCrown: strip(inRange(solTao)),
-      solBtcMiner: minerFor('SOL-BTC'),
-      solTaoMiner: minerFor('SOL-TAO'),
-    };
-  }, [solBtc, solTao, minerRates, minerHotkey, lo, head]);
+    return ALL_DIRECTIONS.reduce(
+      (acc, dir) => {
+        acc[dir] = {
+          crown: strip(inRange(crownByDir[dir])),
+          miner: minerFor(dir),
+        };
+        return acc;
+      },
+      {} as Record<Direction, { crown: RateRow[]; miner: RateRow[] }>,
+    );
+  }, [crownByDir, minerRates, minerHotkey, lo, head]);
 
   const [cursor, setCursor] = useState<SharedCursor>(null);
 
@@ -596,26 +637,22 @@ const CrownRateChart: React.FC<{
       </Stack>
 
       <Stack spacing={2.5}>
-        <RatePanel
-          direction="SOL-BTC"
-          primary={minerMode ? solBtcMiner : solBtcCrown}
-          reference={minerMode ? solBtcCrown : []}
-          lo={lo}
-          head={head}
-          isDark={isDark}
-          cursor={cursor}
-          onCursor={setCursor}
-        />
-        <RatePanel
-          direction="SOL-TAO"
-          primary={minerMode ? solTaoMiner : solTaoCrown}
-          reference={minerMode ? solTaoCrown : []}
-          lo={lo}
-          head={head}
-          isDark={isDark}
-          cursor={cursor}
-          onCursor={setCursor}
-        />
+        {ALL_DIRECTIONS.map((dir) => {
+          const s = seriesByDir[dir];
+          return (
+            <RatePanel
+              key={dir}
+              direction={dir}
+              primary={minerMode ? s.miner : s.crown}
+              reference={minerMode ? s.crown : []}
+              lo={lo}
+              head={head}
+              isDark={isDark}
+              cursor={cursor}
+              onCursor={setCursor}
+            />
+          );
+        })}
       </Stack>
 
       <Stack

@@ -8,6 +8,11 @@ import {
   useTheme,
 } from '@mui/material';
 import { useCrownTime } from '../../api';
+import {
+  ALL_DIRECTIONS,
+  decomposeDirection,
+  directionLabel,
+} from '../../api/models/MinersDashboard';
 import type { CrownTimeRow, Direction } from '../../api/models';
 import { shortHotkey } from '../../utils/format';
 import { FONTS } from '../../theme';
@@ -25,10 +30,12 @@ const RANGES: { key: RangeKey; secs: number }[] = [
   { key: '4d', secs: 345_600 },
 ];
 
-const DIR_META: Record<Direction, { label: string; color: string }> = {
-  'SOL-BTC': { label: 'SOL → BTC', color: '#f7931a' },
-  'SOL-TAO': { label: 'SOL → TAO', color: '#0088cc' },
-};
+// Colour by the pair's spoke asset so a leg and its reverse read as one pair.
+const SPOKE_COLOR: Record<string, string> = { btc: '#f7931a', tao: '#0088cc' };
+const dirMeta = (dir: Direction): { label: string; color: string } => ({
+  label: directionLabel(dir),
+  color: SPOKE_COLOR[decomposeDirection(dir).spoke] ?? '#888',
+});
 
 const fmtDuration = (secs: number): string => {
   const s = Math.max(0, Math.round(secs));
@@ -118,7 +125,7 @@ const DirectionColumn: React.FC<{
   seconds: number;
 }> = ({ direction, seconds }) => {
   const { data } = useCrownTime({ direction, seconds });
-  const meta = DIR_META[direction];
+  const meta = dirMeta(direction);
   const holders = data?.holders ?? [];
 
   return (
@@ -225,10 +232,18 @@ const CrownTimeLeaderboard: React.FC = () => {
           ))}
         </ToggleButtonGroup>
       </Stack>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 3, md: 4 }}>
-        <DirectionColumn direction="SOL-BTC" seconds={seconds} />
-        <DirectionColumn direction="SOL-TAO" seconds={seconds} />
-      </Stack>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+          columnGap: 4,
+          rowGap: 3,
+        }}
+      >
+        {ALL_DIRECTIONS.map((dir) => (
+          <DirectionColumn key={dir} direction={dir} seconds={seconds} />
+        ))}
+      </Box>
     </Box>
   );
 };

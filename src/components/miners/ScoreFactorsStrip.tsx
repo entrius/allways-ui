@@ -274,7 +274,7 @@ const composeMultiplier = (sf: ScoreFactors): number =>
   sf.crownShareWindow *
   sf.capacityFactor *
   sf.volumeFactor *
-  // TODO: display reads rate³ × ramp; underlying math is (rate × ramp)³ — fix later
+  // Matches the validator's successMultiplier = (success_rate × ramp)³.
   (sf.successRate30d * sf.credibilityRamp) ** 3;
 
 const CompositeFooter: React.FC<{ sf: ScoreFactors | undefined }> = ({
@@ -317,7 +317,7 @@ const CompositeFooter: React.FC<{ sf: ScoreFactors | undefined }> = ({
       >
         {fmtMultiplier(m)}
         <Box component="span" sx={{ color: 'text.disabled', ml: 0.75 }}>
-          = crown × cap × vol × rate³ × ramp
+          = crown × cap × vol × (rate × ramp)³
         </Box>
       </Typography>
     </Stack>
