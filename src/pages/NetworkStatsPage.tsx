@@ -853,7 +853,7 @@ const NetworkStatsPage: React.FC = () => {
                             component="span"
                             sx={{ color: 'text.secondary' }}
                           >
-                            UID {m.uid}
+                            UID {m.uid ?? '—'}
                             {m.isActive ? '' : ' (inactive)'}
                           </Box>
                           <Box component="span" sx={{ color: 'text.primary' }}>

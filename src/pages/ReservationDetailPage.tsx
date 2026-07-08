@@ -215,7 +215,7 @@ const ReservationDetailPage: React.FC = () => {
               '&:hover': { textDecoration: 'underline' },
             }}
           >
-            Funded · Swap #{r.swapId} <ArrowForwardIcon sx={{ fontSize: 14 }} />
+            Funded · View swap <ArrowForwardIcon sx={{ fontSize: 14 }} />
           </Typography>
         ) : (
           <Typography
@@ -287,7 +287,7 @@ const ReservationDetailPage: React.FC = () => {
             label="Swap initiated"
             detail={
               isInitiated
-                ? `quorum confirmed → Swap #${r.swapId}`
+                ? 'quorum confirmed → swap initiated'
                 : isTerminal
                   ? 'did not initiate'
                   : 'pending validator quorum'
@@ -353,7 +353,7 @@ const ReservationDetailPage: React.FC = () => {
             >
               Miner
             </Typography>
-            {miner?.uid !== undefined && (
+            {miner?.uid != null && (
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,
@@ -364,7 +364,7 @@ const ReservationDetailPage: React.FC = () => {
                 UID {miner.uid}
               </Typography>
             )}
-            {miner?.uid !== undefined && (
+            {miner?.uid != null && (
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,

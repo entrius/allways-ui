@@ -78,7 +78,7 @@ export type CrownRateHistoryRow = {
 };
 
 export type LeaderboardRow = {
-  uid: number;
+  uid: number | null;
   hotkey: string;
   crownShare: number;
   successRate: number;

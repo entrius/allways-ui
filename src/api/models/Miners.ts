@@ -12,7 +12,9 @@
  * A miner with both rates = 0 is filtered out by the API.
  */
 export type Miner = {
-  uid: number;
+  // Real Bittensor metagraph uid; null when the hotkey is not registered on
+  // the metagraph (or the indexer couldn't resolve it).
+  uid: number | null;
   hotkey: string;
   solanaPubkey: string | null;
   sourceChain: string | null;

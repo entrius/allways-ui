@@ -5,6 +5,25 @@ export const shortAddr = (addr: string) =>
 // ellipsis to match the leaderboard / detail-header convention.
 export const shortHotkey = (h: string) => `${h.slice(0, 4)}…${h.slice(-4)}`;
 
+// Tx signatures / swap keys: 6…6 keeps enough of a Solana signature to be
+// recognizable (e.g. 54foaU…zBuwoj).
+export const shortHash = (h: string) =>
+  h.length > 13 ? `${h.slice(0, 6)}…${h.slice(-6)}` : h;
+
+// The human-facing identity of a swap: the Solana tx signature when we have
+// it, else the swap_key hex. The int64 swapId is an internal lookup key only —
+// it's meaningless to users and unsafe to render as a number.
+export const swapDisplayId = (swap: {
+  sourceTxHash: string | null;
+  swapKey?: string | null;
+  swapId: string;
+}): string =>
+  swap.sourceTxHash
+    ? shortHash(swap.sourceTxHash)
+    : swap.swapKey
+      ? shortHash(swap.swapKey)
+      : `#${swap.swapId}`;
+
 // Numeraire is SOL: lamports (1e9) → SOL. Kept parallel to the old rao→TAO
 // helper it replaced — collateral, volume, and swap-size caps are all SOL now.
 export const formatSol = (lamports: string | number) => {
