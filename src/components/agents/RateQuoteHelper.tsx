@@ -23,7 +23,7 @@ import HoverCard from '../HoverCard';
 import { formatRate, trimTrailingZeros } from '../../utils/format';
 
 interface BestQuote {
-  uid: number;
+  uid: number | null;
   hotkey: string;
   // The miner's quote for the chosen leg, "dest per 1 source" (forward =
   // m.rate, reverse = m.counterRate — see Miner model docs).
@@ -37,7 +37,7 @@ const computeBest = (
   miners: {
     rate: string | null;
     counterRate: string | null;
-    uid: number;
+    uid: number | null;
     hotkey: string;
     isActive: boolean;
     sourceChain: string | null;
@@ -69,7 +69,7 @@ const computeBest = (
       (
         x,
       ): x is {
-        uid: number;
+        uid: number | null;
         hotkey: string;
         rawRate: string;
         parsed: number;
@@ -265,7 +265,7 @@ const RateQuoteHelper: React.FC = () => {
                 color: 'text.primary',
               }}
             >
-              {best ? `UID ${best.uid}` : '—'}
+              {best ? `UID ${best.uid ?? '—'}` : '—'}
             </Typography>
           </Stack>
           <Stack sx={{ flex: 1 }}>

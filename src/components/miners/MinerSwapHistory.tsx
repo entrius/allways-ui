@@ -12,7 +12,11 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { useMinerSwaps } from '../../api';
 import { FONTS } from '../../theme';
-import { formatTimeAgo, lamportsToSol } from '../../utils/format';
+import {
+  formatTimeAgo,
+  lamportsToSol,
+  swapDisplayId,
+} from '../../utils/format';
 
 const STATUS_COLOR: Record<string, string> = {
   COMPLETED: 'success.main',
@@ -128,7 +132,7 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                         '&:hover': { textDecoration: 'underline' },
                       }}
                     >
-                      #{row.swapId}
+                      {swapDisplayId(row)}
                     </Box>
                   </TableCell>
                   <TableCell

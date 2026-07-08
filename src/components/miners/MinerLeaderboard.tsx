@@ -78,7 +78,8 @@ const compare = (
 ): number => {
   switch (key) {
     case 'uid':
-      return a.uid - b.uid;
+      // null uids (unregistered hotkeys) sort after every real uid.
+      return (a.uid ?? Infinity) - (b.uid ?? Infinity);
     case 'crownShare':
       return a.crownShare - b.crownShare;
     case 'collateral':
@@ -358,7 +359,7 @@ const MinerLeaderboard: React.FC<{
                     {wearsCrown && <CrownIcon />}
                   </TableCell>
                   <TableCell sx={{ fontFamily: FONTS.mono }}>
-                    {row.uid}
+                    {row.uid ?? '—'}
                   </TableCell>
                   <TableCell
                     sx={{
