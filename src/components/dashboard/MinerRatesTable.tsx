@@ -75,7 +75,8 @@ const getSortValue = (
 ): string | number => {
   switch (key) {
     case 'uid':
-      return m.uid;
+      // Unregistered miners (uid null) sort after every real uid.
+      return m.uid ?? Number.POSITIVE_INFINITY;
     case 'rate':
       return directionRate(m, filter);
     case 'collateral':
@@ -397,7 +398,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
               const dimmed = hasSearch && !match;
               return (
                 <TableRow
-                  key={miner.uid}
+                  key={miner.hotkey}
                   sx={{
                     '&:hover': { backgroundColor: 'background.paper' },
                     transition: 'background-color 0.15s, opacity 0.15s',
@@ -411,8 +412,10 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                       mobile to keep the table compact). */}
                   <TableCell sx={{ ...cellSx, minWidth: { xs: 0, sm: 92 } }}>
                     <Stack spacing={0.25}>
+                      {/* uid is null when the hotkey isn't registered on the
+                          metagraph — show an explicit dash, never a fake 0. */}
                       <Box component="span" sx={{ color: 'text.primary' }}>
-                        {miner.uid}
+                        {miner.uid ?? '—'}
                       </Box>
                       {!isMobile && (
                         <Box

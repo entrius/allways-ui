@@ -14,7 +14,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { displayEventType, useLatestEvents } from '../../api';
 import { FONTS } from '../../theme';
-import { lamportsToSol } from '../../utils/format';
+import { lamportsToSol, shortHash } from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import { EventFeedSkeleton } from './Skeletons';
 
@@ -188,7 +188,10 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         '&:hover': { color: 'primary.main' },
                       }}
                     >
-                      Transaction #{event.swapId}
+                      Transaction{' '}
+                      {event.swapKey
+                        ? shortHash(event.swapKey)
+                        : `#${event.swapId}`}
                     </Typography>
                   )}
                   {event.sourceChain && event.destChain && (

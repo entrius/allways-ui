@@ -64,7 +64,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
     if (addr) navigate(`/reservations/by-source/${addr}`);
   };
 
-  const minerUid = (hotkey: string): number | undefined =>
+  const minerUid = (hotkey: string): number | null | undefined =>
     miners?.find((m: Miner) => m.hotkey === hotkey)?.uid;
 
   return (
@@ -184,9 +184,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
             );
             const uid = minerUid(r.minerHotkey);
             const minerLabel =
-              uid !== undefined
-                ? `UID ${uid}`
-                : `${r.minerHotkey.slice(0, 6)}…`;
+              uid != null ? `UID ${uid}` : `${r.minerHotkey.slice(0, 6)}…`;
             const remaining =
               r.status === 'ACTIVE' ? formatCountdown(r.reservedUntil) : null;
             return (
@@ -271,7 +269,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                 >
                   {minerLabel}
                   {remaining ? ` · expires ${remaining}` : ''}
-                  {r.swapId ? ` · swap #${r.swapId}` : ''}
+                  {r.swapId ? ' · swap initiated' : ''}
                 </Typography>
               </Box>
             );
