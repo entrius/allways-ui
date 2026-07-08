@@ -64,8 +64,7 @@ const AllwaysMarketRate: React.FC<{
               <Box sx={{ maxWidth: 280 }}>
                 Executed rate of recently completed swaps (points) with an EMA
                 (line) over the most recent window, plus a dashed line at the
-                live crown rate. X-axis is Bittensor block height, y-axis is
-                rate in TAO.
+                live crown rate. X-axis is time, y-axis is rate in SOL.
               </Box>
             }
             arrow
@@ -112,8 +111,8 @@ const AllwaysMarketRate: React.FC<{
             },
           }}
         >
-          <ToggleButton value="BTC-TAO">BTC {'→'} TAO</ToggleButton>
-          <ToggleButton value="TAO-BTC">TAO {'→'} BTC</ToggleButton>
+          <ToggleButton value="SOL-BTC">SOL {'→'} BTC</ToggleButton>
+          <ToggleButton value="SOL-TAO">SOL {'→'} TAO</ToggleButton>
           <ToggleButton value="BOTH">BOTH</ToggleButton>
         </ToggleButtonGroup>
       </Box>
@@ -123,7 +122,7 @@ const AllwaysMarketRate: React.FC<{
       >
         <MarketRateChart
           key={view}
-          directions={view === 'BOTH' ? ['BTC-TAO', 'TAO-BTC'] : [view]}
+          directions={view === 'BOTH' ? ['SOL-BTC', 'SOL-TAO'] : [view]}
           fill
         />
       </Box>

@@ -3,7 +3,8 @@ export type ActiveSwap = {
   status: string;
   userAddress: string | null;
   minerHotkey: string | null;
-  taoAmount: string | null;
+  minerPubkey: string | null;
+  solAmount: string | null;
   sourceChain: string | null;
   destChain: string | null;
   sourceAmount: string | null;
@@ -16,17 +17,13 @@ export type ActiveSwap = {
   minerDestAddress: string | null;
   sourceTxHash: string | null;
   destTxHash: string | null;
-  timeoutBlock: string | null;
-  initiatedBlock: string | null;
-  fulfilledBlock: string | null;
-  completedBlock: string | null;
+  // All lifecycle timestamps are unix seconds.
+  timeoutAt: string | null;
   initiatedAt: string | null;
   fulfilledAt: string | null;
+  completedAt: string | null;
   resolvedAt: string | null;
   timeoutExtensionsUsed: number;
-  pendingTimeoutExtensionTarget: string | null;
-  pendingTimeoutExtensionProposedBlock: string | null;
-  pendingTimeoutExtensionProposedBy: string | null;
   reservationRequestHash: string | null;
 };
 

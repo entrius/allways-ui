@@ -1,24 +1,43 @@
-export type Direction = 'BTC-TAO' | 'TAO-BTC';
+export type Direction = 'SOL-BTC' | 'SOL-TAO';
 export type Range = '1h' | '24h' | '7d' | '30d' | '90d' | 'all';
 
 export type CurrentCrown = {
   uid: number | null;
   hotkey: string | null;
   rate: number | null;
-  sinceBlock: number | null;
 };
 
 export type CurrentCrownMap = Record<Direction, CurrentCrown>;
 
 export type CrownHistoryRow = {
-  block: number;
+  // Interval start (unix seconds) the holder took the crown.
+  t: number;
+  // Interval end (unix seconds, exclusive).
+  endedAt: number;
   hotkey: string;
   uid: number | null;
   rate: number;
 };
 
+// One miner's crown time within a window: seconds held (tie-credited) and that
+// as a fraction of the window's duration. Feeds the crown-time leaderboard.
+export type CrownTimeRow = {
+  hotkey: string;
+  uid: number | null;
+  crownSecs: number;
+  shareOfWindow: number;
+  rate: number;
+};
+
+export type CrownTimeWindow = {
+  windowStart: number;
+  windowEnd: number;
+  windowSecs: number;
+  holders: CrownTimeRow[];
+};
+
 export type CrownRateHistoryRow = {
-  block: number;
+  t: number;
   rate: number;
 };
 
@@ -29,22 +48,22 @@ export type LeaderboardRow = {
   successRate: number;
   completedSwaps: number;
   timedOutSwaps: number;
-  volumeTao: string;
-  collateralRao: string;
+  volumeSol: string;
+  collateral: string;
   isActive: boolean;
   currentCrownDirections: Direction[];
 };
 
 export type ScoreFactors = {
   capacityFactor: number;
-  collateralRao: string;
-  maxSwapAmountRao: string;
+  collateral: string;
+  maxSwapAmount: string;
 
   volumeFactor: number;
   volumeShareWindow: number;
   crownShareWindow: number;
-  volumeTaoWindow: string;
-  networkVolumeTaoWindow: string;
+  volumeSolWindow: string;
+  networkVolumeSolWindow: string;
   previousCrownShareWindow: number;
   previousVolumeFactor: number;
 
@@ -63,19 +82,21 @@ export type MinerStats = {
   completedSwaps: number;
   timedOutSwaps: number;
   successRate: number;
-  volumeTao: string;
+  volumeSol: string;
   avgFulfillSec: number | null;
   avgCompleteSec: number | null;
   crownShare: number;
   isActive: boolean;
-  collateralRao: string;
+  collateral: string;
+  // Unix seconds the miner activated, or null.
   activatedAt: number | null;
   currentCrownDirections: Direction[];
   scoreFactors: ScoreFactors;
 };
 
 export type MinerRateHistoryRow = {
-  block: number;
+  // Unix-seconds bucket timestamp.
+  t: number;
   rate: number;
   fromChain: string;
   toChain: string;
@@ -84,21 +105,21 @@ export type MinerRateHistoryRow = {
 export type PairMix = { pair: string; pct: number };
 
 export type NetworkOverview = {
-  volumeTao: string;
+  volumeSol: string;
   totalSwaps: number;
   networkSuccessRate: number;
   activeMiners: number;
   pairMix: PairMix[];
-  scoringWindowVolumeTao: string;
-  maxSwapAmountRao: string;
+  scoringWindowVolumeSol: string;
+  maxSwapAmount: string;
 };
 
-export type HaltState = { halted: boolean; asOfBlock: number };
+export type HaltState = { halted: boolean; asOf: number };
 
-// Validator's last crown/rate flush. lastScoredBlock is the block scored
-// through; updatedAt is the wall-clock time of that flush (advances only on a
-// real flush, ~every scoring window), or null before the first flush.
+// Validator's last crown/rate flush. lastScoredAt is the unix-seconds watermark
+// scored through; updatedAt is the wall-clock time of that flush (advances only
+// on a real flush, ~every scoring window), or null before the first flush.
 export type ScoringState = {
-  lastScoredBlock: number;
+  lastScoredAt: number;
   updatedAt: string | null;
 };

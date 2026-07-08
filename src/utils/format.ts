@@ -1,14 +1,21 @@
 export const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
 
-// SS58 hotkeys are always > 40 chars; format as 4…4 with an ellipsis to
-// match the leaderboard / detail-header convention.
+// SS58 hotkeys / Solana pubkeys are always > 40 chars; format as 4…4 with an
+// ellipsis to match the leaderboard / detail-header convention.
 export const shortHotkey = (h: string) => `${h.slice(0, 4)}…${h.slice(-4)}`;
 
-export const formatTao = (rao: string | number) => {
-  const val = typeof rao === 'string' ? parseInt(rao, 10) : rao;
+// Numeraire is SOL: lamports (1e9) → SOL. Kept parallel to the old rao→TAO
+// helper it replaced — collateral, volume, and swap-size caps are all SOL now.
+export const formatSol = (lamports: string | number) => {
+  const val = typeof lamports === 'string' ? parseInt(lamports, 10) : lamports;
   return (val / 1e9).toFixed(2);
 };
+
+// Numeric lamports→SOL, for chart math / aggregation where a Number (not a
+// formatted string) is needed. Display-side callers should prefer formatSol.
+export const lamportsToSol = (lamports: string | number) =>
+  (typeof lamports === 'string' ? parseFloat(lamports) : lamports) / 1e9;
 
 export const formatNumber = (n: number, decimals = 2) =>
   n.toLocaleString(undefined, {
@@ -45,15 +52,21 @@ const trimToMinDecimals = (value: string, minDecimals: number): string => {
   return padded ? `${intPart}.${padded}` : intPart;
 };
 
+// SOL is the hub/numeraire; BTC and TAO are spoke chains whose amounts still
+// render on the source/dest legs of a swap.
 const CHAIN_DECIMALS: Record<
   string,
   { exp: number; digits: number; symbol: string }
 > = {
   btc: { exp: 1e8, digits: 8, symbol: 'BTC' },
   tao: { exp: 1e9, digits: 4, symbol: 'TAO' },
+  sol: { exp: 1e9, digits: 4, symbol: 'SOL' },
 };
 
-// Min display precision so a clean "0.2 TAO" renders as "0.20 TAO" rather
+// The hub chain — the numeraire. Rates and cross-quotes pin this as the base.
+export const HUB_CHAIN = 'sol';
+
+// Min display precision so a clean "0.2 SOL" renders as "0.20 SOL" rather
 // than dropping the trailing zero entirely.
 const AMOUNT_MIN_DECIMALS = 2;
 
@@ -80,8 +93,8 @@ export const applyFee = (
   return String(net);
 };
 
-// Returns "1 BTC = N TAO" computed from on-chain amounts. Always quotes the
-// non-TAO leg in TAO terms so the unit is consistent regardless of direction.
+// Returns "1 BTC = N SOL" computed from on-chain amounts. Always quotes the
+// non-hub leg in SOL terms so the unit is consistent regardless of direction.
 export const formatRateLine = (
   fromAmount: string | null,
   fromChain: string | null,
@@ -96,56 +109,80 @@ export const formatRateLine = (
   const toHuman = parseInt(toAmount, 10) / toCfg.exp;
   if (!Number.isFinite(fromHuman) || !Number.isFinite(toHuman) || toHuman === 0)
     return null;
-  const fromIsTao = fromChain.toLowerCase() === 'tao';
-  const taoSide = fromIsTao ? fromHuman : toHuman;
-  const otherSide = fromIsTao ? toHuman : fromHuman;
-  const otherSym = (fromIsTao ? toChain : fromChain).toUpperCase();
+  const fromIsHub = fromChain.toLowerCase() === HUB_CHAIN;
+  const hubSide = fromIsHub ? fromHuman : toHuman;
+  const otherSide = fromIsHub ? toHuman : fromHuman;
+  const otherSym = (fromIsHub ? toChain : fromChain).toUpperCase();
   if (otherSide === 0) return null;
-  const ratio = taoSide / otherSide;
-  return `1 ${otherSym} = ${formatRate(ratio)} TAO`;
+  const ratio = hubSide / otherSide;
+  return `1 ${otherSym} = ${formatRate(ratio)} SOL`;
 };
 
 export const chainSymbol = (chain: string): string =>
   CHAIN_DECIMALS[chain.toLowerCase()]?.symbol ?? chain.toUpperCase();
 
-const SECONDS_PER_BLOCK = 12;
+// ── Time formatting (unix seconds) ──
+// The chain is time-native now: all lifecycle timestamps and windows are unix
+// seconds. These replace the old block-count estimators.
 
-export const formatBlockEstimate = (blocks: number): string => {
-  const seconds = blocks * SECONDS_PER_BLOCK;
-  if (seconds < 60) return `~${seconds}s`;
-  if (seconds < 3600) return `~${Math.round(seconds / 60)}m`;
-  return `~${(seconds / 3600).toFixed(1)}h`;
+export const formatDurationSecs = (secs: number): string => {
+  if (!Number.isFinite(secs) || secs < 0) return '—';
+  if (secs < 60) return `~${Math.round(secs)}s`;
+  if (secs < 3600) return `~${Math.round(secs / 60)}m`;
+  return `~${(secs / 3600).toFixed(1)}h`;
 };
 
-export const formatTimeUntilBlock = (
-  targetBlock: number,
-  currentBlock: number,
+// "Xs/m/h/d ago" from a unix-seconds timestamp.
+export const formatTimeAgo = (
+  unixSecs: number | string | null | undefined,
+  nowMs = Date.now(),
 ): string => {
-  const remaining = targetBlock - currentBlock;
-  if (remaining <= 0) return 'past';
-  return formatBlockEstimate(remaining);
+  if (unixSecs == null || unixSecs === '') return '—';
+  const ts = typeof unixSecs === 'string' ? parseInt(unixSecs, 10) : unixSecs;
+  if (!Number.isFinite(ts)) return '—';
+  const secs = Math.max(0, Math.floor(nowMs / 1000 - ts));
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 };
 
-// Taostats extrinsic URL: /extrinsic/<block>-<idx>, idx zero-padded to 4
-// digits (e.g. 8026775-0015). VITE_EXPLORER_EXTRINSIC_URL can override with
-// any template containing {block} and {idx}.
-const EXTRINSIC_URL_TEMPLATE =
-  (import.meta.env.VITE_EXPLORER_EXTRINSIC_URL as string | undefined) ??
-  'https://taostats.io/extrinsic/{block}-{idx}';
+// Countdown to a unix-seconds target: "~Xs/m/h" while in the future, else "past".
+export const formatCountdown = (
+  targetUnixSecs: number | string | null | undefined,
+  nowMs = Date.now(),
+): string => {
+  if (targetUnixSecs == null || targetUnixSecs === '') return '—';
+  const ts =
+    typeof targetUnixSecs === 'string'
+      ? parseInt(targetUnixSecs, 10)
+      : targetUnixSecs;
+  if (!Number.isFinite(ts)) return '—';
+  const remaining = Math.floor(ts - nowMs / 1000);
+  if (remaining <= 0) return 'past';
+  return formatDurationSecs(remaining);
+};
 
-export const extrinsicRef = (
-  blockNumber: string | number,
-  extrinsicIndex: number,
-): string => `${blockNumber}-${String(extrinsicIndex).padStart(4, '0')}`;
+// A unix-seconds timestamp as a wall-clock string for detail rows.
+export const formatUnixTime = (
+  unixSecs: number | string | null | undefined,
+): string => {
+  if (unixSecs == null || unixSecs === '') return '—';
+  const ts = typeof unixSecs === 'string' ? parseInt(unixSecs, 10) : unixSecs;
+  if (!Number.isFinite(ts)) return '—';
+  return new Date(ts * 1000).toLocaleString();
+};
 
-export const explorerExtrinsicUrl = (
-  blockNumber: string | number,
-  extrinsicIndex: number,
-): string =>
-  EXTRINSIC_URL_TEMPLATE.replace('{block}', String(blockNumber)).replace(
-    '{idx}',
-    String(extrinsicIndex).padStart(4, '0'),
-  );
+// Solana explorer link for a transaction signature. VITE_EXPLORER_SOLANA_TX_URL
+// can override with any template containing {sig}.
+const SOLANA_TX_URL_TEMPLATE =
+  (import.meta.env.VITE_EXPLORER_SOLANA_TX_URL as string | undefined) ??
+  'https://explorer.solana.com/tx/{sig}';
+
+export const explorerSignatureUrl = (signature: string): string =>
+  SOLANA_TX_URL_TEMPLATE.replace('{sig}', signature);
 
 // BTC tx hashes are bare hex; the reservation-extension event types its hash as
 // a Hash, so it arrives 0x-prefixed and a mempool link built from it 404s.

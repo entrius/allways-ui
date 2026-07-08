@@ -1,21 +1,23 @@
 import type { ActiveSwap } from '../../api/models';
 import type { Direction } from '../../api/models/MinersDashboard';
+import { lamportsToSol } from '../../utils/format';
 
 // How many of the most recent completed swaps feed the chart, and the EMA
 // smoothing window over that series. Shared by the chart and the ticker.
 export const WINDOW = 100;
 export const EMA_PERIOD = 10;
 
-export type RatePoint = { block: number; rate: number; vol: number };
+// `t` is the completion time in unix seconds; `vol` is the SOL numeraire volume.
+export type RatePoint = { t: number; rate: number; vol: number };
 
 const matchesDirection = (s: ActiveSwap, dir: Direction): boolean => {
   const src = s.sourceChain?.toLowerCase();
   const dst = s.destChain?.toLowerCase();
-  if (dir === 'BTC-TAO') return src === 'btc' && dst === 'tao';
-  return src === 'tao' && dst === 'btc';
+  if (dir === 'SOL-BTC') return src === 'sol' && dst === 'btc';
+  return src === 'sol' && dst === 'tao';
 };
 
-// Completed swaps for a direction as {block, rate, vol} points, oldest→newest,
+// Completed swaps for a direction as {t, rate, vol} points, oldest→newest,
 // capped at the most recent WINDOW.
 export const completedPoints = (
   swaps: ActiveSwap[] | undefined,
@@ -27,21 +29,21 @@ export const completedPoints = (
       (s) =>
         s.status === 'COMPLETED' &&
         s.rate != null &&
-        s.completedBlock != null &&
+        s.completedAt != null &&
         matchesDirection(s, dir),
     )
     .map((s) => {
-      const vol = s.taoAmount ? parseFloat(s.taoAmount) : 0;
+      const vol = s.solAmount ? lamportsToSol(s.solAmount) : 0;
       return {
-        block: parseInt(s.completedBlock as string, 10),
+        t: parseInt(s.completedAt as string, 10),
         rate: parseFloat(s.rate as string),
         vol: Number.isFinite(vol) ? vol : 0,
       };
     })
     .filter(
-      (p) => Number.isFinite(p.block) && Number.isFinite(p.rate) && p.rate > 0,
+      (p) => Number.isFinite(p.t) && Number.isFinite(p.rate) && p.rate > 0,
     )
-    .sort((a, b) => a.block - b.block)
+    .sort((a, b) => a.t - b.t)
     .slice(-WINDOW);
 };
 
@@ -77,15 +79,15 @@ export const ema = (values: number[], period: number): number[] => {
   return out;
 };
 
-// Total TAO volume per exact block so each bar sits under its swap point(s).
-export const volumeByBlock = (
+// Total SOL volume per exact timestamp so each bar sits under its swap point(s).
+export const volumeByTime = (
   pts: RatePoint[],
-): { block: number; vol: number }[] => {
+): { t: number; vol: number }[] => {
   const m = new Map<number, number>();
-  for (const p of pts) m.set(p.block, (m.get(p.block) ?? 0) + p.vol);
+  for (const p of pts) m.set(p.t, (m.get(p.t) ?? 0) + p.vol);
   return [...m.entries()]
-    .map(([block, vol]) => ({ block, vol }))
-    .sort((a, b) => a.block - b.block);
+    .map(([t, vol]) => ({ t, vol }))
+    .sort((a, b) => a.t - b.t);
 };
 
 // Padded y-axis bounds for the (already outlier-free) scatter series.

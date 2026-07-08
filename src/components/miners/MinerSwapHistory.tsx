@@ -12,6 +12,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { useMinerSwaps } from '../../api';
 import { FONTS } from '../../theme';
+import { formatTimeAgo, lamportsToSol } from '../../utils/format';
 
 const STATUS_COLOR: Record<string, string> = {
   COMPLETED: 'success.main',
@@ -23,13 +24,6 @@ const STATUS_COLOR: Record<string, string> = {
 const PILL_BORDER: Record<string, string> = {
   COMPLETED: 'rgba(21,128,61,0.5)',
   TIMED_OUT: 'rgba(185,28,28,0.5)',
-};
-
-const fmtBlock = (raw: string | null): string => {
-  if (!raw) return '—';
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n)) return '—';
-  return `#${n.toLocaleString()}`;
 };
 
 const fmtDuration = (
@@ -119,8 +113,8 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
               </TableRow>
             )}
             {rows.map((row) => {
-              const taoAmount = row.taoAmount
-                ? parseFloat(row.taoAmount).toFixed(4)
+              const solAmount = row.solAmount
+                ? lamportsToSol(row.solAmount).toFixed(4)
                 : '—';
               return (
                 <TableRow key={row.swapId}>
@@ -143,7 +137,7 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                       display: { xs: 'none', md: 'table-cell' },
                     }}
                   >
-                    {fmtBlock(row.initiatedBlock)}
+                    {formatTimeAgo(row.initiatedAt)}
                   </TableCell>
                   <TableCell>
                     <Box
@@ -165,7 +159,7 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                     </Box>
                   </TableCell>
                   <TableCell sx={{ fontFamily: FONTS.mono }}>
-                    {taoAmount} τ
+                    {solAmount} SOL
                   </TableCell>
                   <TableCell sx={{ fontFamily: FONTS.mono }}>
                     {row.sourceChain && row.destChain

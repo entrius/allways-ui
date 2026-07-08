@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import type { ScoreFactors } from '../../api';
 import { FONTS } from '../../theme';
-import { formatTao } from '../../utils/format';
+import { formatSol } from '../../utils/format';
 
 const fmtMultiplier = (factor: number): string => `${factor.toFixed(2)}×`;
 
@@ -55,9 +55,9 @@ const buildCards = (sf: ScoreFactors): Card[] => {
       window: 'snapshot',
       headline: fmtMultiplier(sf.capacityFactor),
       fill: sf.capacityFactor,
-      description: `${formatTao(sf.collateralRao)} / ${formatTao(
-        sf.maxSwapAmountRao,
-      )} τ collateral`,
+      description: `${formatSol(sf.collateral)} / ${formatSol(
+        sf.maxSwapAmount,
+      )} SOL collateral`,
       weak: sf.capacityFactor < 0.5,
     },
     {

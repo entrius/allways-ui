@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Grid, Skeleton, Stack, Typography } from '@mui/material';
 import { useStats } from '../../api';
+import { formatSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { CountUpValue } from '../animated';
 
@@ -75,7 +76,7 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading, unit }) => (
 
 const MetricsStrip: React.FC = () => {
   const { data: stats, isLoading } = useStats();
-  const volume = stats ? parseFloat(stats.totalVolumeTao).toFixed(2) : '0';
+  const volume = stats ? formatSol(stats.totalVolumeSol) : '0';
 
   return (
     <Box
@@ -99,7 +100,7 @@ const MetricsStrip: React.FC = () => {
             <Metric
               label="Volume"
               value={volume}
-              unit="τ"
+              unit="SOL"
               loading={isLoading}
             />
           </Grid>

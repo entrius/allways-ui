@@ -24,6 +24,7 @@ import {
   useStats,
 } from '../api';
 import type { HistoryRow, HistoryStateRow } from '../api/models';
+import { lamportsToSol } from '../utils/format';
 import { FONTS } from '../theme';
 
 // ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ import { FONTS } from '../theme';
 const num = (v: number) =>
   v.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const tao = (v: number) =>
+const sol = (v: number) =>
   v.toLocaleString(undefined, {
     maximumFractionDigits: v >= 1000 ? 0 : 2,
   });
@@ -255,9 +256,11 @@ const NetworkStatsPage: React.FC = () => {
       {
         name: 'Cumulative Volume',
         color: cPrimary,
-        unit: 'τ',
-        formatValue: tao,
-        points: histPoints(history, (r) => parseFloat(r.cumulativeVolumeTao)),
+        unit: 'SOL',
+        formatValue: sol,
+        points: histPoints(history, (r) =>
+          lamportsToSol(r.cumulativeVolumeSol),
+        ),
       },
     ],
     [history, cPrimary],
@@ -295,9 +298,9 @@ const NetworkStatsPage: React.FC = () => {
         name: 'Volume / day',
         color: cBtc,
         type: 'bar',
-        unit: 'τ',
-        formatValue: tao,
-        points: histPoints(history, (r) => parseFloat(r.volumeTao)),
+        unit: 'SOL',
+        formatValue: sol,
+        points: histPoints(history, (r) => lamportsToSol(r.volumeSol)),
       },
     ],
     [history, cBtc],
@@ -351,11 +354,11 @@ const NetworkStatsPage: React.FC = () => {
       {
         name: 'Cumulative Fees',
         color: cPrimary,
-        unit: 'τ',
-        formatValue: tao,
+        unit: 'SOL',
+        formatValue: sol,
         points: histPoints(
           history,
-          (r) => parseFloat(r.cumulativeVolumeTao) * 0.01,
+          (r) => lamportsToSol(r.cumulativeVolumeSol) * 0.01,
         ),
       },
     ],
@@ -368,9 +371,9 @@ const NetworkStatsPage: React.FC = () => {
         name: 'Fees / day',
         color: cPrimary,
         type: 'bar',
-        unit: 'τ',
+        unit: 'SOL',
         formatValue: (v) => v.toFixed(4),
-        points: histPoints(history, (r) => parseFloat(r.volumeTao) * 0.01),
+        points: histPoints(history, (r) => lamportsToSol(r.volumeSol) * 0.01),
       },
     ],
     [history, cPrimary],
@@ -416,8 +419,8 @@ const NetworkStatsPage: React.FC = () => {
 
   // --- Composition: pair mix ----------------------------------------------
   const pairMix = overview?.pairMix ?? [];
-  const totalVol = overview ? parseFloat(overview.volumeTao) : 0;
-  // "TAO-BTC" → "TAO → BTC" so the swap direction (input → output) is explicit.
+  const totalVol = overview ? lamportsToSol(overview.volumeSol) : 0;
+  // "SOL-BTC" → "SOL → BTC" so the swap direction (input → output) is explicit.
   const fmtPair = (pair: string) => pair.replace(/-/g, ' → ');
   // Monochrome shades (theme-aware) so the breakdown bars stay distinguishable
   // without reintroducing fixed accent colors.
@@ -429,12 +432,12 @@ const NetworkStatsPage: React.FC = () => {
     () =>
       (leaderboard ?? [])
         .slice()
-        .sort((a, b) => parseFloat(b.volumeTao) - parseFloat(a.volumeTao))
+        .sort((a, b) => parseFloat(b.volumeSol) - parseFloat(a.volumeSol))
         .slice(0, 5),
     [leaderboard],
   );
 
-  const volumeTotal = stats ? parseFloat(stats.totalVolumeTao) : 0;
+  const volumeTotal = stats ? lamportsToSol(stats.totalVolumeSol) : 0;
 
   return (
     <Page title="Network Stats">
@@ -489,8 +492,8 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={6} md={3}>
               <StatCell
                 label="Volume"
-                value={tao(volumeTotal)}
-                unit="τ"
+                value={sol(volumeTotal)}
+                unit="SOL"
                 loading={statsLoading}
               />
             </Grid>
@@ -516,8 +519,8 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Cumulative Volume"
-                subtitle="τ, all-time"
-                info="Running total of completed swap volume (TAO) since launch."
+                subtitle="SOL, all-time"
+                info="Running total of completed swap volume (SOL) since launch."
               >
                 <TimeSeriesChart
                   series={cumVolume}
@@ -559,8 +562,8 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Volume per day"
-                subtitle="τ"
-                info="Swap volume (TAO) completed each day."
+                subtitle="SOL"
+                info="Swap volume (SOL) completed each day."
               >
                 <TimeSeriesChart
                   series={dailyVolume}
@@ -622,7 +625,7 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Cumulative Fees"
-                subtitle="1% of volume, all-time (τ)"
+                subtitle="1% of volume, all-time (SOL)"
                 info="Running total of protocol fees: a flat 1% of volume, enforced at the smart contract level."
               >
                 <TimeSeriesChart
@@ -635,7 +638,7 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Fees per day"
-                subtitle="1% of daily volume (τ)"
+                subtitle="1% of daily volume (SOL)"
                 info="Protocol fees each day: a flat 1% of that day's volume, enforced at the smart contract level."
               >
                 <TimeSeriesChart
@@ -743,7 +746,7 @@ const NetworkStatsPage: React.FC = () => {
                               {p.pct.toFixed(1)}%
                             </Box>
                             {totalVol > 0 &&
-                              `  ·  ${tao((p.pct / 100) * totalVol)} τ`}
+                              `  ·  ${sol((p.pct / 100) * totalVol)} SOL`}
                           </Typography>
                         </Box>
                         <Box
@@ -854,7 +857,7 @@ const NetworkStatsPage: React.FC = () => {
                             {m.isActive ? '' : ' (inactive)'}
                           </Box>
                           <Box component="span" sx={{ color: 'text.primary' }}>
-                            {tao(parseFloat(m.volumeTao))} τ
+                            {sol(lamportsToSol(m.volumeSol))} SOL
                           </Box>
                         </Box>
                       ))}

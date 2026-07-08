@@ -22,7 +22,7 @@ import {
   isDirection,
   isRange,
   isRateRange,
-  parseBlockParam,
+  parseTsParam,
   type CrownRange,
   type Range,
   type RateRange,
@@ -45,14 +45,16 @@ const MinerDetailPage: React.FC = () => {
     ? rateRangeParam
     : '4h';
   const crownDirParam = params.get('crownDir');
-  const crownDirection = isDirection(crownDirParam) ? crownDirParam : 'BTC-TAO';
+  const crownDirection = isDirection(crownDirParam) ? crownDirParam : 'SOL-BTC';
   const crownGridRangeParam = params.get('crownGridRange');
   const crownGridRange: CrownRange = isCrownRange(crownGridRangeParam)
     ? crownGridRangeParam
     : '1h';
-  const crownGridPan = parseInt(params.get('crownPan') ?? '300', 10) || 0;
-  const crownFrom = parseBlockParam(params.get('crownFrom'));
-  const crownTo = parseBlockParam(params.get('crownTo'));
+  // Default pan = one scoring window (3600s) back so the grid opens on the last
+  // finalized round rather than the still-scoring live one.
+  const crownGridPan = parseInt(params.get('crownPan') ?? '3600', 10) || 0;
+  const crownFrom = parseTsParam(params.get('crownFrom'));
+  const crownTo = parseTsParam(params.get('crownTo'));
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {

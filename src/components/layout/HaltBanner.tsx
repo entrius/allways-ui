@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { useHaltState } from '../../api';
 import { FONTS } from '../../theme';
+import { formatTimeAgo } from '../../utils/format';
 
 // Full-width red banner that mounts above every page when the swap
 // contract is halted. The StickyNetworkHeader does carry a tiny
@@ -38,9 +39,9 @@ const HaltBanner: React.FC = () => {
         System is paused for maintenance. Swaps are not being initiated.
         Emissions are recycling. Scoring will resume when the system is
         unpaused.
-        {halt.asOfBlock != null && (
+        {halt.asOf != null && (
           <Box component="span" sx={{ ml: 1, fontWeight: 400, opacity: 0.85 }}>
-            (as of block #{halt.asOfBlock.toLocaleString()})
+            (as of {formatTimeAgo(halt.asOf)})
           </Box>
         )}
       </Typography>

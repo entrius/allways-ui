@@ -1,6 +1,6 @@
 export type DashboardStats = {
   totalSwaps: number;
-  totalVolumeTao: string;
+  totalVolumeSol: string;
   activeMiners: number;
   activeSwaps: number;
 };
@@ -12,14 +12,14 @@ export type DashboardStats = {
  */
 export type HistoryRow = {
   t: string;
-  volumeTao: string;
-  cumulativeVolumeTao: string;
+  volumeSol: string;
+  cumulativeVolumeSol: string;
   swaps: number;
   cumulativeSwaps: number;
-  feesTao: string;
-  // NOTE: cumulativeFeesTao is intentionally unused — it carries a bogus
-  // seed offset on prod. Per-bucket feesTao is fine.
-  cumulativeFeesTao: string;
+  feesSol: string;
+  // NOTE: cumulativeFeesSol is intentionally unused — it carries a bogus
+  // seed offset on prod. Per-bucket feesSol is fine.
+  cumulativeFeesSol: string;
   tps: number;
   successRate: number | null;
   avgSettlementSecs: number | null;

@@ -23,7 +23,7 @@ import {
   ema,
   robustYRange,
   tukeyClean,
-  volumeByBlock,
+  volumeByTime,
 } from './marketRate';
 
 echarts.use([
@@ -37,17 +37,17 @@ echarts.use([
 ]);
 
 const accentFor = (theme: Theme, dir: Direction) =>
-  dir === 'BTC-TAO' ? theme.palette.asset.btc : theme.palette.primary.main;
+  dir === 'SOL-BTC' ? theme.palette.asset.btc : theme.palette.asset.tao;
 
 const labelFor = (dir: Direction) =>
-  dir === 'BTC-TAO' ? 'BTC → TAO' : 'TAO → BTC';
+  dir === 'SOL-BTC' ? 'SOL → BTC' : 'SOL → TAO';
 
 // The market-rate chart. With one direction it shows that direction's scatter +
-// EMA (with a gradient area fill), live crown reference, and per-block volume
-// with a max-volume marker. With two directions it overlays both on a single
-// shared price scale — the vertical gap between the two EMA lines IS the
+// EMA (with a gradient area fill), live crown reference, and per-timestamp
+// volume with a max-volume marker. With two directions it overlays both on a
+// single shared price scale — the vertical gap between the two EMA lines IS the
 // directional spread — drawing each in its own accent (BTC orange / primary
-// blue) over a shared block x-axis and a shared τ-volume sub-chart. Both modes
+// blue) over a shared time x-axis and a shared SOL-volume sub-chart. Both modes
 // run through one option builder; the few visual differences are gated on the
 // number of directions.
 const MarketRateChart: React.FC<{
@@ -74,7 +74,7 @@ const MarketRateChart: React.FC<{
           hidden,
           rates,
           ema: ema(rates, EMA_PERIOD),
-          vol: volumeByBlock(clean),
+          vol: volumeByTime(clean),
         };
       }),
     [swaps, directions],
@@ -138,23 +138,23 @@ const MarketRateChart: React.FC<{
       formatter: (v: number) => v.toFixed(yDecimals),
     };
 
-    // Shared block x-range so the price and volume grids — and both directions
-    // — line up exactly.
-    const blocks = prepared.flatMap((s) => s.clean.map((p) => p.block));
-    const xMin = blocks.length ? Math.min(...blocks) : undefined;
-    const xMax = blocks.length ? Math.max(...blocks) : undefined;
+    // Shared time x-range (unix seconds) so the price and volume grids — and
+    // both directions — line up exactly.
+    const times = prepared.flatMap((s) => s.clean.map((p) => p.t));
+    const xMin = times.length ? Math.min(...times) : undefined;
+    const xMax = times.length ? Math.max(...times) : undefined;
     const xPad = xMin != null && xMax != null ? (xMax - xMin) * 0.02 || 1 : 0;
     const xBounds =
       xMin != null && xMax != null
         ? { min: xMin - xPad, max: xMax + xPad }
         : {};
 
-    // Both directions trade in τ, so per-block volume shares one axis.
+    // Volume is the SOL numeraire for both directions, so it shares one axis.
     const maxVol = Math.max(
       0,
       ...prepared.flatMap((s) => s.vol.map((v) => v.vol)),
     );
-    // Compact τ-volume label: keep it short for the cramped volume axis.
+    // Compact SOL-volume label: keep it short for the cramped volume axis.
     const fmtVol = (v: number) =>
       v >= 1000
         ? `${(v / 1000).toFixed(1)}k`
@@ -162,14 +162,17 @@ const MarketRateChart: React.FC<{
           ? v.toFixed(0)
           : v.toFixed(1);
 
-    // Block-height axis labels. One decimal of "k" so a ~2k-block window
-    // doesn't collapse every tick to the same "8291k"; e.g. 8,291,200 →
-    // "8291.2k". Shown on the volume axis when present, else on the price axis.
-    const blockAxisLabel = {
+    // Time axis labels (unix seconds → HH:MM). Shown on the volume axis when
+    // present, else on the price axis.
+    const timeAxisLabel = {
       color: axisColor,
       fontFamily: FONTS.mono,
       fontSize: 9,
-      formatter: (v: number) => `${(v / 1000).toFixed(1)}k`,
+      formatter: (v: number) =>
+        new Date(v * 1000).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
       hideOverlap: true,
     };
 
@@ -191,7 +194,7 @@ const MarketRateChart: React.FC<{
               color,
               fontFamily: FONTS.mono,
               fontSize: 9,
-              formatter: `crown ${rate.toFixed(2)}τ`,
+              formatter: `crown ${rate.toFixed(2)} SOL`,
             },
           }
         : undefined;
@@ -207,7 +210,7 @@ const MarketRateChart: React.FC<{
         symbolSize: 5,
         // Render above the EMA line + area so every executed swap is visible.
         z: 5,
-        data: s.clean.map((p) => [p.block, p.rate]),
+        data: s.clean.map((p) => [p.t, p.rate]),
         itemStyle: { color: s.accent, opacity: 0.7 },
       },
       {
@@ -222,7 +225,7 @@ const MarketRateChart: React.FC<{
         // over unevenly-spaced (by block) points.
         smoothMonotone: 'x',
         showSymbol: false,
-        data: s.clean.map((p, i) => [p.block, s.ema[i]]),
+        data: s.clean.map((p, i) => [p.t, s.ema[i]]),
         lineStyle: { color: s.accent, width: 2 },
         // Single direction gets the trading-terminal gradient fill; overlaid
         // lines skip it so two fills don't muddy the shared band.
@@ -246,7 +249,7 @@ const MarketRateChart: React.FC<{
             type: 'bar',
             xAxisIndex: 1,
             yAxisIndex: 1,
-            data: s.vol.map((v) => [v.block, v.vol]),
+            data: s.vol.map((v) => [v.t, v.vol]),
             itemStyle: { color: s.accent, opacity: single ? 0.32 : 0.3 },
             barWidth: 5,
             // Overlap the two directions' bars on the same slot.
@@ -271,7 +274,7 @@ const MarketRateChart: React.FC<{
                       color: axisColor,
                       fontFamily: FONTS.mono,
                       fontSize: 8,
-                      formatter: `max ${fmtVol(maxVol)}τ`,
+                      formatter: `max ${fmtVol(maxVol)} SOL`,
                     },
                   },
                 }
@@ -309,15 +312,15 @@ const MarketRateChart: React.FC<{
               value: number[];
             }[],
           ) => {
-            const block = params[0]?.axisValue;
+            const t = params[0]?.axisValue;
             const lines = params
               .map((p) => {
                 const v = Array.isArray(p.value) ? p.value[1] : p.value;
-                const unit = p.seriesName === 'Volume' ? 'τ vol' : 'τ';
+                const unit = p.seriesName === 'Volume' ? 'SOL vol' : 'SOL';
                 return `${p.seriesName}: ${Number(v).toFixed(2)} ${unit}`;
               })
               .join('<br/>');
-            return `blk #${Number(block).toLocaleString()}<br/>${lines}`;
+            return `${new Date(Number(t) * 1000).toLocaleString()}<br/>${lines}`;
           },
         },
         xAxis: showVolume
@@ -337,7 +340,7 @@ const MarketRateChart: React.FC<{
                 scale: true,
                 gridIndex: 1,
                 ...xBounds,
-                axisLabel: blockAxisLabel,
+                axisLabel: timeAxisLabel,
                 axisLine: { lineStyle: { color: gridColor } },
                 axisTick: { show: false },
                 splitLine: { show: false },
@@ -349,7 +352,7 @@ const MarketRateChart: React.FC<{
                 scale: true,
                 gridIndex: 0,
                 ...xBounds,
-                axisLabel: blockAxisLabel,
+                axisLabel: timeAxisLabel,
                 axisLine: { lineStyle: { color: gridColor } },
                 axisTick: { show: false },
                 splitLine: { show: false },

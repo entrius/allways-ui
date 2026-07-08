@@ -1,29 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Stack, keyframes, useTheme } from '@mui/material';
-import ViewInArIcon from '@mui/icons-material/ViewInAr';
+import UpdateIcon from '@mui/icons-material/Update';
 import { useChainState } from '../api';
 import { FONTS } from '../theme';
-import { RollingValue } from './animated';
+import { formatTimeAgo } from '../utils/format';
 
+// The chain head is time-native: `asOf` is the unix-seconds timestamp of the
+// most recent contract event. This renders a live "updated <ago>" indicator,
+// flashing whenever the head advances.
 const BlockIndicator: React.FC = () => {
   const theme = useTheme();
   const { data: chainState } = useChainState();
-  const currentBlock = chainState?.currentBlock;
+  const asOf = chainState?.asOf;
   const [tick, setTick] = useState(0);
-  const prevRef = useRef<number | undefined>(currentBlock);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const prevRef = useRef<number | undefined>(asOf);
 
   useEffect(() => {
     if (
-      currentBlock !== undefined &&
+      asOf !== undefined &&
       prevRef.current !== undefined &&
-      currentBlock > prevRef.current
+      asOf > prevRef.current
     ) {
       setTick((t) => t + 1);
     }
-    prevRef.current = currentBlock;
-  }, [currentBlock]);
+    prevRef.current = asOf;
+  }, [asOf]);
 
-  const display = currentBlock ? currentBlock.toLocaleString() : null;
+  // Re-render each second so the relative time stays live between head updates.
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const display = asOf ? formatTimeAgo(asOf, nowMs) : null;
 
   const flash = keyframes`
     0%   { transform: scale(1); color: ${theme.palette.text.secondary}; }
@@ -42,7 +52,7 @@ const BlockIndicator: React.FC = () => {
         color: 'text.secondary',
       }}
     >
-      <ViewInArIcon
+      <UpdateIcon
         key={tick}
         sx={{
           fontSize: 14,
@@ -61,7 +71,7 @@ const BlockIndicator: React.FC = () => {
           color: 'text.secondary',
         }}
       >
-        Block #{display ? <RollingValue value={display} /> : '—'}
+        updated {display ?? '—'}
       </Box>
     </Stack>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
 import { useStats } from '../../api';
+import { formatSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { RollingValue } from '../animated';
 import { StatsPanelSkeleton } from './Skeletons';
@@ -48,7 +49,7 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
 const StatsPanel: React.FC = () => {
   const { data: stats, isLoading } = useStats();
 
-  const volume = stats ? parseFloat(stats.totalVolumeTao).toFixed(2) : '0';
+  const volume = stats ? formatSol(stats.totalVolumeSol) : '0';
 
   return isLoading || !stats ? (
     <StatsPanelSkeleton />
@@ -61,7 +62,7 @@ const StatsPanel: React.FC = () => {
         />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label="Volume (TAO)" value={volume} />
+        <StatCard label="Volume (SOL)" value={volume} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard

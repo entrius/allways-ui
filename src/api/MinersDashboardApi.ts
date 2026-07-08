@@ -4,6 +4,7 @@ import type {
   ActiveSwap,
   CrownHistoryRow,
   CrownRateHistoryRow,
+  CrownTimeWindow,
   CurrentCrownMap,
   Direction,
   HaltState,
@@ -21,10 +22,12 @@ const CROWN_REFRESH_MS = 12_000;
 export const useCurrentCrown = () =>
   useApiQuery<CurrentCrownMap>('crown', '/crown', CROWN_REFRESH_MS);
 
+// NOTE: das-allways reads fromTime/toTime/seconds — the query keys below must
+// use those names (the JS param names stay short for callers).
 export const useCrownHistory = (params: {
   direction: Direction;
-  fromBlock?: number;
-  toBlock?: number;
+  fromTs?: number;
+  toTs?: number;
 }) =>
   useApiQuery<CrownHistoryRow[]>(
     'crown-history',
@@ -32,16 +35,16 @@ export const useCrownHistory = (params: {
     CROWN_REFRESH_MS,
     {
       direction: params.direction,
-      fromBlock: params.fromBlock,
-      toBlock: params.toBlock,
+      fromTime: params.fromTs,
+      toTime: params.toTs,
     },
   );
 
 export const useCrownRateHistory = (params: {
   direction: Direction;
-  fromBlock?: number;
-  toBlock?: number;
-  blocks?: number;
+  fromTs?: number;
+  toTs?: number;
+  secs?: number;
 }) =>
   useApiQuery<CrownRateHistoryRow[]>(
     'crown-rate-history',
@@ -49,11 +52,26 @@ export const useCrownRateHistory = (params: {
     CROWN_REFRESH_MS,
     {
       direction: params.direction,
-      fromBlock: params.fromBlock,
-      toBlock: params.toBlock,
-      blocks: params.blocks,
+      fromTime: params.fromTs,
+      toTime: params.toTs,
+      seconds: params.secs,
     },
   );
+
+// Crown-time leaderboard for a direction: seconds each miner held the crown in
+// the window (tie-credited) + share of the window.
+export const useCrownTime = (params: {
+  direction: Direction;
+  seconds?: number;
+  fromTs?: number;
+  toTs?: number;
+}) =>
+  useApiQuery<CrownTimeWindow>('crown-time', '/crown/time', CROWN_REFRESH_MS, {
+    direction: params.direction,
+    seconds: params.seconds,
+    fromTime: params.fromTs,
+    toTime: params.toTs,
+  });
 
 export const useMinerLeaderboard = (range: Range = '30d') =>
   useApiQuery<LeaderboardRow[]>(
@@ -77,15 +95,15 @@ export const useMinerStats = (hotkey: string, range: Range = '30d') =>
 export const useScoreFactorsWindow = (
   hotkey: string,
   direction: Direction,
-  fromBlock: number | undefined,
-  toBlock: number | undefined,
+  fromTs: number | undefined,
+  toTs: number | undefined,
 ) =>
   useApiQuery<ScoreFactors>(
     'miner-score-factors-window',
     `/miners/${hotkey}/score-factors`,
     SSE_FALLBACK_INTERVAL,
-    { direction, fromBlock, toBlock },
-    !!hotkey && fromBlock != null && toBlock != null && toBlock >= fromBlock,
+    { direction, fromTime: fromTs, toTime: toTs },
+    !!hotkey && fromTs != null && toTs != null && toTs >= fromTs,
   );
 
 export const useMinerSwaps = (
@@ -102,13 +120,13 @@ export const useMinerSwaps = (
 
 export const useMinerRateHistory = (
   hotkey: string,
-  params: { fromBlock?: number; toBlock?: number; blocks?: number } = {},
+  params: { fromTs?: number; toTs?: number; secs?: number } = {},
 ) =>
   useApiQuery<MinerRateHistoryRow[]>(
     'miner-rate-history',
     `/miners/${hotkey}/rate-history`,
     SSE_FALLBACK_INTERVAL,
-    params,
+    { fromTime: params.fromTs, toTime: params.toTs, seconds: params.secs },
     !!hotkey,
   );
 

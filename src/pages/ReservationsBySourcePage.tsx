@@ -129,7 +129,6 @@ const ReservationsBySourcePage: React.FC = () => {
                     mt: 0.5,
                   }}
                 >
-                  Block #{r.reservedUntilBlock} ·{' '}
                   {new Date(r.createdAt).toLocaleString()}
                 </Typography>
               </Box>

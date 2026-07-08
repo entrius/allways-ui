@@ -3,7 +3,7 @@ import { Box, Button, Stack, Typography, alpha, useTheme } from '@mui/material';
 import type { MinerStats, Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
-import { formatTao } from '../../utils/format';
+import { formatSol, formatUnixTime } from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
 
@@ -128,9 +128,7 @@ const RangeChips: React.FC<{
 const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   stats,
 }) => {
-  const volume = stats?.volumeTao
-    ? parseFloat(stats.volumeTao).toFixed(2)
-    : '—';
+  const volume = stats?.volumeSol ? formatSol(stats.volumeSol) : '—';
   const successPct =
     stats && stats.totalSwaps > 0
       ? `${(stats.successRate * 100).toFixed(0)}%`
@@ -164,7 +162,7 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
               component="span"
               sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
             >
-              τ
+              SOL
             </Box>
           </>
         }
@@ -190,9 +188,8 @@ const MinerDetailHeader: React.FC<{
 }> = ({ hotkey, uid, stats, liveMiner, range, onRangeChange }) => {
   const theme = useTheme();
   const crownDirections = stats?.currentCrownDirections ?? [];
-  // On-chain commitment is canonicalized so TAO is always destChain. `rate`
-  // is source→dest (BTC→TAO when sourceChain='btc'); `counterRate` is the
-  // reverse leg.
+  // On-chain commitment is canonicalized so the hub (SOL) is pinned as source.
+  // `rate` is source→dest; `counterRate` is the reverse leg.
   const fwdRate = parseFloat(liveMiner?.rate ?? '0');
   const revRate = parseFloat(liveMiner?.counterRate ?? '0');
   const fwdLabel =
@@ -302,24 +299,29 @@ const MinerDetailHeader: React.FC<{
           <HeaderField label="hotkey">
             <CopyableAddress address={hotkey} />
           </HeaderField>
-          {stats?.collateralRao && (
+          {liveMiner?.solanaPubkey && (
+            <HeaderField label="solana pubkey">
+              <CopyableAddress address={liveMiner.solanaPubkey} />
+            </HeaderField>
+          )}
+          {stats?.collateral && (
             <HeaderField label="collateral">
-              {formatTao(stats.collateralRao)}
+              {formatSol(stats.collateral)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                τ
+                SOL
               </Box>
             </HeaderField>
           )}
           {stats?.activatedAt != null && (
-            <HeaderField label="activated at block">
-              {stats.activatedAt.toLocaleString()}
+            <HeaderField label="activated">
+              {formatUnixTime(stats.activatedAt)}
             </HeaderField>
           )}
           {fwdRate > 0 && fwdLabel && (
             <HeaderField label={`quote · ${fwdLabel}`}>
               {fwdRate.toFixed(2)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                τ
+                SOL
               </Box>
             </HeaderField>
           )}
@@ -327,7 +329,7 @@ const MinerDetailHeader: React.FC<{
             <HeaderField label={`quote · ${revLabel}`}>
               {revRate.toFixed(2)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                τ
+                SOL
               </Box>
             </HeaderField>
           )}
