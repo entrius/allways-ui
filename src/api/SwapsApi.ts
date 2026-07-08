@@ -8,6 +8,8 @@ export const useActiveSwaps = () =>
 export const useAllSwaps = (
   params?: {
     search?: string;
+    // Exact transaction number (the display "#N", not the int64 swapId).
+    seq?: number;
     limit?: number;
     offset?: number;
   },
@@ -19,6 +21,13 @@ export const useAllSwaps = (
     SSE_FALLBACK_INTERVAL,
     params,
     enabled,
+  );
+
+export const useSwapsCount = () =>
+  useApiQuery<{ totalCount: number }>(
+    'swapsCount',
+    '/swaps/count',
+    SSE_FALLBACK_INTERVAL,
   );
 
 export const useSwapDetail = (swapId: string) =>

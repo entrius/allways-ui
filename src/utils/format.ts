@@ -10,19 +10,23 @@ export const shortHotkey = (h: string) => `${h.slice(0, 4)}…${h.slice(-4)}`;
 export const shortHash = (h: string) =>
   h.length > 13 ? `${h.slice(0, 6)}…${h.slice(-6)}` : h;
 
-// The human-facing identity of a swap: the Solana tx signature when we have
-// it, else the swap_key hex. The int64 swapId is an internal lookup key only —
-// it's meaningless to users and unsafe to render as a number.
+// The human-facing identity of a swap: its transaction number ("#12"),
+// falling back to the truncated tx signature / swap_key for unbackfilled
+// rows. The int64 swapId is an internal lookup key only — meaningless to
+// users and unsafe to render as a number.
 export const swapDisplayId = (swap: {
+  seq?: number | null;
   sourceTxHash: string | null;
   swapKey?: string | null;
   swapId: string;
 }): string =>
-  swap.sourceTxHash
-    ? shortHash(swap.sourceTxHash)
-    : swap.swapKey
-      ? shortHash(swap.swapKey)
-      : `#${swap.swapId}`;
+  swap.seq != null
+    ? `#${swap.seq}`
+    : swap.sourceTxHash
+      ? shortHash(swap.sourceTxHash)
+      : swap.swapKey
+        ? shortHash(swap.swapKey)
+        : `#${swap.swapId}`;
 
 // Numeraire is SOL: lamports (1e9) → SOL. Kept parallel to the old rao→TAO
 // helper it replaced — collateral, volume, and swap-size caps are all SOL now.
