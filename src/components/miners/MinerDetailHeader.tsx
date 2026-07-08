@@ -128,9 +128,7 @@ const RangeChips: React.FC<{
 const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   stats,
 }) => {
-  const volume = stats?.volumeSol
-    ? formatSol(stats.volumeSol)
-    : '—';
+  const volume = stats?.volumeSol ? formatSol(stats.volumeSol) : '—';
   const successPct =
     stats && stats.totalSwaps > 0
       ? `${(stats.successRate * 100).toFixed(0)}%`

@@ -21,7 +21,11 @@ export const deriveSwapExtensionStatus = (s: {
   timeoutAt: string | null;
 }): ExtensionStatus => {
   if (s.timeoutExtensionsUsed <= 0) return { kind: 'none' };
-  return { kind: 'applied', used: s.timeoutExtensionsUsed, deadline: parseTs(s.timeoutAt) };
+  return {
+    kind: 'applied',
+    used: s.timeoutExtensionsUsed,
+    deadline: parseTs(s.timeoutAt),
+  };
 };
 
 export const deriveReservationExtensionStatus = (r: {
@@ -29,7 +33,11 @@ export const deriveReservationExtensionStatus = (r: {
   reservedUntil: string;
 }): ExtensionStatus => {
   if (r.extensionsUsed <= 0) return { kind: 'none' };
-  return { kind: 'applied', used: r.extensionsUsed, deadline: parseTs(r.reservedUntil) };
+  return {
+    kind: 'applied',
+    used: r.extensionsUsed,
+    deadline: parseTs(r.reservedUntil),
+  };
 };
 
 const ExtensionChip: React.FC<{ status: ExtensionStatus }> = ({ status }) => {

@@ -258,7 +258,9 @@ const NetworkStatsPage: React.FC = () => {
         color: cPrimary,
         unit: 'SOL',
         formatValue: sol,
-        points: histPoints(history, (r) => lamportsToSol(r.cumulativeVolumeSol)),
+        points: histPoints(history, (r) =>
+          lamportsToSol(r.cumulativeVolumeSol),
+        ),
       },
     ],
     [history, cPrimary],

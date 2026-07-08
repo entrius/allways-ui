@@ -56,7 +56,11 @@ const HolderRow: React.FC<{ row: CrownTimeRow; color: string }> = ({
       }}
     >
       <Typography
-        sx={{ fontFamily: FONTS.mono, fontSize: '0.72rem', color: 'text.primary' }}
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.72rem',
+          color: 'text.primary',
+        }}
         title={row.hotkey}
       >
         {who}
@@ -119,12 +123,7 @@ const DirectionColumn: React.FC<{
 
   return (
     <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ mb: 1 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
         <Box sx={{ width: 8, height: 8, backgroundColor: meta.color }} />
         <Typography
           sx={{
@@ -226,10 +225,7 @@ const CrownTimeLeaderboard: React.FC = () => {
           ))}
         </ToggleButtonGroup>
       </Stack>
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={{ xs: 3, md: 4 }}
-      >
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={{ xs: 3, md: 4 }}>
         <DirectionColumn direction="SOL-BTC" seconds={seconds} />
         <DirectionColumn direction="SOL-TAO" seconds={seconds} />
       </Stack>
