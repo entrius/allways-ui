@@ -16,7 +16,11 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useAllSwaps, useMiners, useSwapDetail } from '../../api';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
-import { formatAmount, lamportsToSol } from '../../utils/format';
+import {
+  formatAmount,
+  lamportsToSol,
+  swapDisplayId,
+} from '../../utils/format';
 
 const PAGE_SIZE = 25;
 
@@ -73,7 +77,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
     !exactSwapId,
   );
   const { data: miners } = useMiners();
-  const minerUid = (hotkey: string | null): number | undefined =>
+  const minerUid = (hotkey: string | null): number | null | undefined =>
     hotkey ? miners?.find((m) => m.hotkey === hotkey)?.uid : undefined;
 
   const swaps = exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy;
@@ -246,7 +250,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         color: 'text.primary',
                       }}
                     >
-                      {sentLine ?? `#${swap.swapId}`}
+                      {sentLine ?? swapDisplayId(swap)}
                       {sentLine && recvLine && (
                         <>
                           <Box
@@ -296,7 +300,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     }}
                   />
 
-                  {/* Tx id + miner uid, de-emphasized. */}
+                  {/* Tx signature + miner uid, de-emphasized. */}
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
@@ -304,7 +308,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                       color: 'text.secondary',
                     }}
                   >
-                    #{swap.swapId}
+                    {swapDisplayId(swap)}
                     {uid != null && ` · uid ${uid}`}
                   </Typography>
                 </Box>

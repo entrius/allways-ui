@@ -35,6 +35,7 @@ import {
   formatUnixTime,
   explorerSignatureUrl,
   lamportsToSol,
+  swapDisplayId,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
 import ExtensionChip, {
@@ -87,7 +88,7 @@ const SwapDetailPage: React.FC = () => {
     return (
       <PageWrapper>
         <Typography sx={{ fontFamily: FONTS.mono, color: 'text.secondary' }}>
-          Transaction #{swapId} not found
+          Transaction {swapId} not found
         </Typography>
       </PageWrapper>
     );
@@ -175,7 +176,7 @@ const SwapDetailPage: React.FC = () => {
             color: 'text.primary',
           }}
         >
-          Transaction #{swap.swapId}
+          Transaction {swapDisplayId(swap)}
         </Typography>
         <BlockIndicator />
       </Stack>
@@ -216,7 +217,7 @@ const SwapDetailPage: React.FC = () => {
           >
             Miner
           </Typography>
-          {miner?.uid !== undefined && (
+          {miner?.uid != null && (
             <Typography
               sx={{
                 fontFamily: FONTS.mono,
