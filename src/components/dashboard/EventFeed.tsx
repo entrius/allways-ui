@@ -189,9 +189,11 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                       }}
                     >
                       Transaction{' '}
-                      {event.swapKey
-                        ? shortHash(event.swapKey)
-                        : `#${event.swapId}`}
+                      {event.swapSeq != null
+                        ? `#${event.swapSeq}`
+                        : event.swapKey
+                          ? shortHash(event.swapKey)
+                          : `#${event.swapId}`}
                     </Typography>
                   )}
                   {event.sourceChain && event.destChain && (

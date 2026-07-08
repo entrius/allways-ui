@@ -1,8 +1,10 @@
 export type ActiveSwap = {
   // Internal int64 lookup key, ALWAYS a string on the wire — it exceeds JS
   // Number precision (2^53), so it must never pass through Number()/parseInt.
-  // Display identity is sourceTxHash (the Solana tx signature) / swapKey.
   swapId: string;
+  // The user-facing transaction number (#1, #2, …), trigger-assigned in the
+  // DB. Display identity; null only for unbackfilled legacy rows.
+  seq: number | null;
   swapKey: string | null; // hex of the 32-byte on-chain swap_key
   status: string;
   userAddress: string | null;

@@ -6,7 +6,10 @@ export type ContractEvent = {
   slot: string;
   blockTime: string | null;
   logIndex: number | null;
+  // Joined from active_swaps by swap_key: the swap's internal id (for deep
+  // links) and its user-facing transaction number. Null for non-swap events.
   swapId: string | null;
+  swapSeq: number | null;
   swapKey: string | null;
   minerHotkey: string | null;
   minerPubkey: string | null;

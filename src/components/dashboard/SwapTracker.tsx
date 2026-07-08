@@ -13,10 +13,20 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
-import { useAllSwaps, useMiners, useSwapDetail } from '../../api';
+import {
+  useAllSwaps,
+  useMiners,
+  useSwapDetail,
+  useSwapsCount,
+} from '../../api';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
-import { formatAmount, lamportsToSol, swapDisplayId } from '../../utils/format';
+import {
+  formatAmount,
+  lamportsToSol,
+  shortHash,
+  swapDisplayId,
+} from '../../utils/format';
 
 const PAGE_SIZE = 25;
 
@@ -64,14 +74,21 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const debouncedSearch = useDebounce(search, 300);
 
+  // "#N" (or a bare short number) is a transaction-number lookup; a huge
+  // digit string (> 9 digits) can only be a legacy int64 swap id.
   const idMatch = debouncedSearch.trim().match(/^#?(\d+)$/);
-  const exactSwapId = idMatch?.[1] ?? '';
+  const numericSearch = idMatch?.[1] ?? '';
+  const exactSeq = numericSearch.length <= 9 ? numericSearch : '';
+  const exactSwapId = numericSearch.length > 9 ? numericSearch : '';
 
   const { data: detail, isLoading: detailLoading } = useSwapDetail(exactSwapId);
   const { data: fuzzy, isLoading: fuzzyLoading } = useAllSwaps(
-    { search: debouncedSearch || undefined, limit },
+    exactSeq
+      ? { seq: Number(exactSeq) }
+      : { search: debouncedSearch || undefined, limit },
     !exactSwapId,
   );
+  const { data: swapsCount } = useSwapsCount();
   const { data: miners } = useMiners();
   const minerUid = (hotkey: string | null): number | null | undefined =>
     hotkey ? miners?.find((m) => m.hotkey === hotkey)?.uid : undefined;
@@ -135,7 +152,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
 
       <TextField
         size="small"
-        placeholder="Search by transaction ID (#N) or address..."
+        placeholder="Search by transaction # or address..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         InputProps={{
@@ -160,6 +177,20 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
           },
         }}
       />
+
+      {swapsCount != null && (
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: { xs: '0.58rem', sm: '0.65rem' },
+            color: 'text.secondary',
+            mb: 1,
+          }}
+        >
+          {swapsCount.totalCount.toLocaleString()} transaction
+          {swapsCount.totalCount === 1 ? '' : 's'} all-time
+        </Typography>
+      )}
 
       {!swaps?.length ? (
         <Box
@@ -296,7 +327,8 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     }}
                   />
 
-                  {/* Tx signature + miner uid, de-emphasized. */}
+                  {/* Tx number, then the Solana signature + miner uid,
+                      de-emphasized. */}
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
@@ -305,6 +337,9 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     }}
                   >
                     {swapDisplayId(swap)}
+                    {swap.seq != null &&
+                      swap.sourceTxHash &&
+                      ` · ${shortHash(swap.sourceTxHash)}`}
                     {uid != null && ` · uid ${uid}`}
                   </Typography>
                 </Box>
