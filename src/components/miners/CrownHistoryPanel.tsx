@@ -1,9 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { useScoreFactorsWindow, type Direction } from '../../api';
+import { useMinerScores, type Direction } from '../../api';
 import { FONTS } from '../../theme';
 import CrownHistoryGrid from './CrownHistoryGrid';
-import ScoreFactorsStrip from './ScoreFactorsStrip';
+import ScoreBreakdown from './ScoreBreakdown';
 
 type CrownRange = '1h' | '2h' | '4h';
 
@@ -33,7 +33,7 @@ const CrownHistoryPanel: React.FC<{
   onCustomRangeChange,
 }) => {
   // Grid owns lo/hi math (snap, pan, custom range) and reports the resolved
-  // window so we can fetch factors that match what's drawn above.
+  // window so we can fetch the score rounds that match what's drawn above.
   const [window, setWindow] = useState<{ lo: number; hi: number } | null>(null);
   const onWindowChange = useCallback((lo: number, hi: number) => {
     setWindow((prev) =>
@@ -41,13 +41,12 @@ const CrownHistoryPanel: React.FC<{
     );
   }, []);
 
-  const { data: windowFactors } = useScoreFactorsWindow(
+  const { data: windowRounds } = useMinerScores(
     hotkey,
-    direction,
-    window?.lo,
-    window?.hi,
+    { direction, fromTs: window?.lo, toTs: window?.hi },
+    window != null,
   );
-  const noCrown = windowFactors != null && windowFactors.crownShareWindow <= 0;
+  const rounds = windowRounds ?? [];
 
   return (
     <Box
@@ -90,7 +89,7 @@ const CrownHistoryPanel: React.FC<{
             color: 'text.disabled',
           }}
         >
-          pool × crown × cap × vol × (rate × ramp)³
+          eligible × [0.8·pool·crown·cap·fill + 0.2·pool·vol·quality]
         </Typography>
       </Stack>
 
@@ -112,31 +111,38 @@ const CrownHistoryPanel: React.FC<{
       <Box
         sx={{
           mt: 3,
-          mb: noCrown ? 1.5 : 2.5,
+          mb: 2,
           borderTop: '1px solid',
           borderColor: 'divider',
         }}
       />
 
-      {noCrown && (
+      {rounds.length === 0 ? (
         <Typography
           variant="mono"
           sx={{
-            mb: 1.5,
             px: 0.5,
             fontSize: '0.7rem',
-            color: 'text.secondary',
+            color: 'text.disabled',
             letterSpacing: '0.04em',
           }}
         >
-          no crown share — factors below don't contribute to score
+          no scored rounds in this window
         </Typography>
+      ) : (
+        <Stack spacing={0.75} sx={{ px: 0.5 }}>
+          {rounds.map((row) => (
+            <ScoreBreakdown
+              key={`${row.roundTs}-${row.fromChain}-${row.toChain}`}
+              row={row}
+              label={new Date(row.roundTs * 1000).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            />
+          ))}
+        </Stack>
       )}
-
-      <ScoreFactorsStrip
-        scoreFactors={windowFactors}
-        windowCrownShare={windowFactors?.crownShareWindow}
-      />
     </Box>
   );
 };

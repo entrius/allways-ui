@@ -12,6 +12,8 @@ import {
   MinerDetailHeader,
   MinerSwapHistory,
   Page,
+  RateHistoryTable,
+  ScoringPanel,
   SEO,
   StickyNetworkHeader,
 } from '../components';
@@ -55,6 +57,9 @@ const MinerDetailPage: React.FC = () => {
   const crownGridPan = parseInt(params.get('crownPan') ?? '3600', 10) || 0;
   const crownFrom = parseTsParam(params.get('crownFrom'));
   const crownTo = parseTsParam(params.get('crownTo'));
+  // Scoring-panel pair filter; null = "All pairs". Also scopes the rate table.
+  const scoreDirParam = params.get('scoreDir');
+  const scoreDirection = isDirection(scoreDirParam) ? scoreDirParam : null;
 
   const updateParams = useCallback(
     (updates: Record<string, string | undefined>) => {
@@ -122,6 +127,15 @@ const MinerDetailPage: React.FC = () => {
           onRangeChange={(r) => setParam('range', r)}
         />
 
+        {!isMobile && (
+          <ScoringPanel
+            hotkey={hotkey}
+            stats={stats}
+            direction={scoreDirection}
+            onDirectionChange={(d) => setParam('scoreDir', d ?? undefined)}
+          />
+        )}
+
         {uid != null && !isMobile && (
           <CrownHistoryPanel
             hotkey={hotkey}
@@ -153,6 +167,7 @@ const MinerDetailPage: React.FC = () => {
                 onRangeChange={(r) => setParam('rateRange', r)}
                 minerHotkey={hotkey}
               />
+              <RateHistoryTable hotkey={hotkey} direction={scoreDirection} />
             </Box>
           )}
           <Box sx={{ flex: 1, minWidth: 0 }}>

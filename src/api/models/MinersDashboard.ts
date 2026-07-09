@@ -90,26 +90,28 @@ export type LeaderboardRow = {
   currentCrownDirections: Direction[];
 };
 
-export type ScoreFactors = {
-  capacityFactor: number;
-  collateral: string;
-  maxSwapAmount: string;
+// One validator-written score snapshot per (round, direction) the miner held
+// crown in. Rounds are ~hourly; the API returns them ordered roundTs ASC.
+// reward = eligible × [0.8·pool·crownShare·capacity·fillRatio
+//                    + 0.2·pool·volShare·rateQuality].
+export type MinerScoreRow = {
+  roundTs: number;
+  direction: Direction | null;
+  fromChain: string;
+  toChain: string;
+  eligible: boolean;
+  crownShare: number;
+  capacity: number;
+  fillRatio: number;
+  volShare: number;
+  rateQuality: number;
+  reward: number;
+};
 
-  volumeFactor: number;
-  volumeShareWindow: number;
-  crownShareWindow: number;
-  volumeSolWindow: string;
-  networkVolumeSolWindow: string;
-  previousCrownShareWindow: number;
-  previousVolumeFactor: number;
-
-  closedSwaps: number;
-  credibilityRamp: number;
-  credibilityRampTarget: number;
-  // Timed-out swaps in the credibility window — used to explain a hard-zeroed ramp.
-  credibilityTimedOut: number;
-  successRate30d: number;
-  successMultiplier: number;
+// The live mid-round tip — same factors keyed by `ts` instead of `roundTs`.
+// Empty array when the miner holds no crown right now.
+export type CurrentMinerScoreRow = Omit<MinerScoreRow, 'roundTs'> & {
+  ts: number;
 };
 
 export type MinerStats = {
@@ -127,7 +129,6 @@ export type MinerStats = {
   // Unix seconds the miner activated, or null.
   activatedAt: number | null;
   currentCrownDirections: Direction[];
-  scoreFactors: ScoreFactors;
 };
 
 export type MinerRateHistoryRow = {
