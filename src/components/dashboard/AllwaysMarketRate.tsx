@@ -17,27 +17,14 @@ import {
 import { FONTS } from '../../theme';
 import MarketRateChart from './MarketRateChart';
 
-// The chart's view: a single trade direction, or BOTH — the two forward
-// SOL→spoke legs overlaid on one shared price axis. Only the forward legs
-// overlay: a leg and its reverse are quoted in different units (BTC-per-SOL vs
-// SOL-per-BTC), so they can't share a price scale.
-export type MarketRateView = Direction | 'BOTH';
-const BOTH_DIRECTIONS: Direction[] = ['SOL-BTC', 'SOL-TAO'];
-
-// The market-rate chart for a single direction (with a toggle that also drives
-// the page's shared direction), plus a BOTH view that overlays both directions
-// on one shared-axis chart. BOTH leaves the page direction — and thus the Active
-// Rates table filter — on its last value.
-//
-// Fully controlled: the parent owns both `direction` and `showBoth` so it can
-// mirror them onto the URL. `view` is derived, never stored.
+// The market-rate chart for a single trade direction. The toggle also drives the
+// page's shared direction (and thus the Active Rates table filter), so the
+// parent owns the value and mirrors it onto the URL.
 const AllwaysMarketRate: React.FC<{
   direction: Direction;
-  showBoth: boolean;
-  onViewChange: (view: MarketRateView) => void;
-}> = ({ direction, showBoth, onViewChange }) => {
+  onDirectionChange: (direction: Direction) => void;
+}> = ({ direction, onDirectionChange }) => {
   const theme = useTheme();
-  const view: MarketRateView = showBoth ? 'BOTH' : direction;
 
   return (
     <Box
@@ -90,10 +77,10 @@ const AllwaysMarketRate: React.FC<{
         <ToggleButtonGroup
           size="small"
           exclusive
-          value={view}
+          value={direction}
           onChange={(_, v) => {
             if (!v) return;
-            onViewChange(v as MarketRateView);
+            onDirectionChange(v as Direction);
           }}
           sx={{
             '& .MuiToggleButton-root': {
@@ -122,18 +109,13 @@ const AllwaysMarketRate: React.FC<{
               {directionLabel(d)}
             </ToggleButton>
           ))}
-          <ToggleButton value="BOTH">BOTH</ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
       <Box
         sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
       >
-        <MarketRateChart
-          key={view}
-          directions={view === 'BOTH' ? BOTH_DIRECTIONS : [view]}
-          fill
-        />
+        <MarketRateChart key={direction} directions={[direction]} fill />
       </Box>
     </Box>
   );

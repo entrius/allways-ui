@@ -11,7 +11,6 @@ import {
   TabbedPanel,
   Page,
   SEO,
-  type MarketRateView,
 } from '../components';
 import { isDirection } from '../api';
 import type { Direction } from '../api/models/MinersDashboard';
@@ -41,25 +40,13 @@ const DashboardPage: React.FC = () => {
     ? directionParam
     : DEFAULT_DIRECTION;
 
-  // BOTH is an overlay on top of `direction`, not a fifth direction: it leaves
-  // the page direction — and thus the Active Rates filter — on its last value.
-  // So it needs its own param, or reloading a BOTH url would lose the filter.
-  const showBoth = params.get('chart') === 'both';
-
-  // One write per toggle: `chart` and `direction` change together, and two
-  // sequential setParam calls would both branch off the same stale `params`,
-  // so the second would clobber the first.
-  const setView = useCallback(
-    (view: MarketRateView) => {
+  const setDirection = useCallback(
+    (value: Direction) => {
+      // Clone so unrelated params on the URL survive the write.
       const next = new URLSearchParams(params);
-      if (view === 'BOTH') {
-        next.set('chart', 'both');
-      } else {
-        next.delete('chart');
-        if (view === DEFAULT_DIRECTION) next.delete('direction');
-        else next.set('direction', view);
-      }
-      // replace: toggling a chart view is not a navigation step; the back
+      if (value === DEFAULT_DIRECTION) next.delete('direction');
+      else next.set('direction', value);
+      // replace: toggling a chart direction is not a navigation step; the back
       // button should leave the dashboard, not walk back through toggles.
       setParams(next, { replace: true });
     },
@@ -131,8 +118,7 @@ const DashboardPage: React.FC = () => {
           >
             <AllwaysMarketRate
               direction={direction}
-              showBoth={showBoth}
-              onViewChange={setView}
+              onDirectionChange={setDirection}
             />
           </Box>
 

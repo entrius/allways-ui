@@ -6,6 +6,7 @@ import { FONTS } from '../../theme';
 import { BlockIndicator } from '../index';
 import CrownIcon from '../miners/CrownIcon';
 import { latestEmaRate } from './marketRate';
+import { formatRate } from '../../utils/format';
 
 const DIRECTIONS = ALL_DIRECTIONS;
 
@@ -77,7 +78,9 @@ const RatesTicker: React.FC = () => {
                   }}
                 >
                   uid {h.uid}
-                  {h.rate != null && <> @ {h.rate.toFixed(2)} SOL</>}
+                  {/* Significant figures, not 2dp: a BTC leg quotes ~0.0021
+                      SOL, which toFixed(2) renders as a flat "0.00". */}
+                  {h.rate != null && <> @ {formatRate(h.rate)} SOL</>}
                 </Typography>
               ) : (
                 <Typography
@@ -119,7 +122,7 @@ const RatesTicker: React.FC = () => {
                       ml: 0.5,
                     }}
                   >
-                    {emaRate.toFixed(2)}
+                    {formatRate(emaRate)}
                     <Box
                       component="span"
                       sx={{

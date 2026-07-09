@@ -1,5 +1,4 @@
 export { default as AllwaysMarketRate } from './AllwaysMarketRate';
-export type { MarketRateView } from './AllwaysMarketRate';
 export { default as EventFeed } from './EventFeed';
 export { default as MinerRatesTable } from './MinerRatesTable';
 export { default as OrderbookDepth } from './OrderbookDepth';
