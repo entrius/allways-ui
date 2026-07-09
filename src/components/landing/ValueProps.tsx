@@ -14,26 +14,29 @@ interface Prop {
   body: string;
 }
 
+// Bodies are written to matching lengths so the four cards render the same
+// line count, and to the same trust principles as the steps above: concrete
+// nouns, a stated mechanism, benefits addressed to "you", no insider jargon.
 const PROPS: Prop[] = [
   {
     Icon: VerifiedUserOutlinedIcon,
-    title: 'Trustless',
-    body: 'Allways collateral guarantees delivery. The contract slashes on failure and refunds users automatically.',
+    title: 'Guaranteed',
+    body: 'Every transaction is backed by locked funds worth its full value. If delivery fails, you are repaid in full, automatically.',
   },
   {
     Icon: TrendingUpOutlinedIcon,
     title: 'Best rate',
-    body: 'Rates are continuously updated, so the orderbook always surfaces the best quote.',
+    body: 'Nodes compete for every transaction, so posted rates keep improving. The rate you take is the best available.',
   },
   {
     Icon: HubOutlinedIcon,
-    title: 'Native settlement',
-    body: 'Real BTC, real TAO. No bridges, no IOUs, no wrapped tokens — funds settle natively on each chain.',
+    title: 'The real asset',
+    body: 'Real BTC, real SOL, real TAO. No bridges, no IOUs, no wrapped tokens. What arrives settles natively on its own chain.',
   },
   {
     Icon: CodeOutlinedIcon,
     title: 'Open + agentic',
-    body: 'Open source, public API, SSE feeds, and a one-click context bundle for AI agents.',
+    body: 'The code is open source, every feed is public. One copy-paste teaches an AI agent to quote, transact, and watch.',
   },
 ];
 
