@@ -162,7 +162,10 @@ export const formatTimeAgo = (
 ): string => {
   if (unixSecs == null || unixSecs === '') return '—';
   const ts = typeof unixSecs === 'string' ? parseInt(unixSecs, 10) : unixSecs;
-  if (!Number.isFinite(ts)) return '—';
+  // 0 is the "not set yet" sentinel (e.g. a swap's initiated_at before quorum), not the
+  // epoch. Rendering it relative gives an absurd "20643d ago". Producers should send NULL;
+  // guard anyway so one stale row can't make the whole column look broken.
+  if (!Number.isFinite(ts) || ts <= 0) return '—';
   const secs = Math.max(0, Math.floor(nowMs / 1000 - ts));
   if (secs < 60) return `${secs}s ago`;
   const mins = Math.floor(secs / 60);
@@ -182,7 +185,8 @@ export const formatCountdown = (
     typeof targetUnixSecs === 'string'
       ? parseInt(targetUnixSecs, 10)
       : targetUnixSecs;
-  if (!Number.isFinite(ts)) return '—';
+  // 0 = unset, not the epoch; it must read "—", never "past".
+  if (!Number.isFinite(ts) || ts <= 0) return '—';
   const remaining = Math.floor(ts - nowMs / 1000);
   if (remaining <= 0) return 'past';
   return formatDurationSecs(remaining);
