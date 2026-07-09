@@ -3,7 +3,7 @@ import { Box, Button, Stack, Typography, alpha, useTheme } from '@mui/material';
 import type { MinerStats, Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
-import { formatSol, formatUnixTime } from '../../utils/format';
+import { formatRate, formatSol, formatUnixTime } from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
 
@@ -317,9 +317,10 @@ const MinerDetailHeader: React.FC<{
               {formatUnixTime(stats.activatedAt)}
             </HeaderField>
           )}
+          {/* Significant figures, not 2dp — a BTC quote (~0.0021 SOL) read "0.00". */}
           {fwdRate > 0 && fwdLabel && (
             <HeaderField label={`quote · ${fwdLabel}`}>
-              {fwdRate.toFixed(2)}
+              {formatRate(fwdRate)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
                 SOL
               </Box>
@@ -327,7 +328,7 @@ const MinerDetailHeader: React.FC<{
           )}
           {revRate > 0 && revLabel && (
             <HeaderField label={`quote · ${revLabel}`}>
-              {revRate.toFixed(2)}
+              {formatRate(revRate)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
                 SOL
               </Box>
