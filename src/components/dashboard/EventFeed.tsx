@@ -44,6 +44,13 @@ const getEventColor = (
     MinerActivated: palette.status.minerActivated,
     MinerDeactivated: palette.status.timedOut,
     MinerReserved: palette.status.minerActivated,
+    // Two-phase reservation lottery (bid -> draw -> finalize).
+    PoolOpened: palette.status.vote,
+    PoolResolved: palette.status.minerActivated,
+    PoolDrawArmed: palette.status.vote,
+    ReservationRequested: palette.status.vote,
+    ReservationFilled: palette.status.active,
+    UnfilledReservationClosed: palette.status.timedOut,
     ReservationCancelled: palette.status.timedOut,
     ReservationExtensionProposed: palette.status.minerActivated,
     ReservationExtensionFinalized: palette.status.minerActivated,
