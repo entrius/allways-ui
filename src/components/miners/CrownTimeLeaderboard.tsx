@@ -10,7 +10,6 @@ import {
 import { useCrownTime } from '../../api';
 import {
   ALL_DIRECTIONS,
-  decomposeDirection,
   directionLabel,
 } from '../../api/models/MinersDashboard';
 import type { CrownTimeRow, Direction } from '../../api/models';
@@ -30,13 +29,6 @@ const RANGES: { key: RangeKey; secs: number }[] = [
   { key: '4d', secs: 345_600 },
 ];
 
-// Colour by the pair's spoke asset so a leg and its reverse read as one pair.
-const SPOKE_COLOR: Record<string, string> = { btc: '#f7931a', tao: '#0088cc' };
-const dirMeta = (dir: Direction): { label: string; color: string } => ({
-  label: directionLabel(dir),
-  color: SPOKE_COLOR[decomposeDirection(dir).spoke] ?? '#888',
-});
-
 const fmtDuration = (secs: number): string => {
   const s = Math.max(0, Math.round(secs));
   if (s < 60) return `${s}s`;
@@ -46,10 +38,7 @@ const fmtDuration = (secs: number): string => {
   return `${h}h ${m}m`;
 };
 
-const HolderRow: React.FC<{ row: CrownTimeRow; color: string }> = ({
-  row,
-  color,
-}) => {
+const HolderRow: React.FC<{ row: CrownTimeRow }> = ({ row }) => {
   const pct = Math.min(100, Math.max(0, row.shareOfWindow * 100));
   const who = row.uid != null ? `uid ${row.uid}` : shortHotkey(row.hotkey);
   return (
@@ -86,8 +75,9 @@ const HolderRow: React.FC<{ row: CrownTimeRow; color: string }> = ({
             top: 0,
             left: 0,
             bottom: 0,
+            // Monochrome like the Network Stats pair-mix bars.
             width: `${pct}%`,
-            backgroundColor: color,
+            backgroundColor: 'text.primary',
             opacity: 0.85,
           }}
         />
@@ -99,7 +89,9 @@ const HolderRow: React.FC<{ row: CrownTimeRow; color: string }> = ({
             lineHeight: '16px',
             fontFamily: FONTS.mono,
             fontSize: '0.62rem',
-            color: 'text.primary',
+            // White + difference blend stays readable over both the dark bar
+            // and the light track, in both themes.
+            color: '#fff',
             mixBlendMode: 'difference',
           }}
         >
@@ -125,25 +117,22 @@ const DirectionColumn: React.FC<{
   seconds: number;
 }> = ({ direction, seconds }) => {
   const { data } = useCrownTime({ direction, seconds });
-  const meta = dirMeta(direction);
   const holders = data?.holders ?? [];
 
   return (
     <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-        <Box sx={{ width: 8, height: 8, backgroundColor: meta.color }} />
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.72rem',
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            color: 'text.primary',
-          }}
-        >
-          {meta.label}
-        </Typography>
-      </Stack>
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          letterSpacing: '0.06em',
+          color: 'text.primary',
+          mb: 1,
+        }}
+      >
+        {directionLabel(direction)}
+      </Typography>
       {holders.length === 0 ? (
         <Typography
           sx={{
@@ -158,7 +147,7 @@ const DirectionColumn: React.FC<{
       ) : (
         <Stack>
           {holders.map((h) => (
-            <HolderRow key={h.hotkey} row={h} color={meta.color} />
+            <HolderRow key={h.hotkey} row={h} />
           ))}
         </Stack>
       )}

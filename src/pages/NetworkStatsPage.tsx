@@ -4,13 +4,12 @@ import {
   Grid,
   Skeleton,
   Stack,
-  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   Page,
+  Panel,
   SEO,
   TimeSeriesChart,
   type ChartSeries,
@@ -61,71 +60,6 @@ const statePoints = (
 // ---------------------------------------------------------------------------
 // Layout primitives
 // ---------------------------------------------------------------------------
-
-const Panel: React.FC<{
-  title: string;
-  subtitle?: string;
-  /** Plain-language explanation shown in a tooltip on the title's info icon. */
-  info?: string;
-  children: React.ReactNode;
-}> = ({ title, subtitle, info, children }) => (
-  <Box
-    sx={{
-      height: '100%',
-      borderRadius: 0,
-      border: '1px solid',
-      borderColor: 'divider',
-      backgroundColor: 'background.paper',
-      p: { xs: 2, md: 2.5 },
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 1.5,
-      minWidth: 0,
-    }}
-  >
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'text.primary',
-          }}
-        >
-          {title}
-        </Typography>
-        {info && (
-          <Tooltip title={info} arrow enterTouchDelay={0}>
-            <InfoOutlinedIcon
-              sx={{
-                fontSize: '0.85rem',
-                color: 'text.disabled',
-                cursor: 'help',
-                '&:hover': { color: 'text.secondary' },
-              }}
-            />
-          </Tooltip>
-        )}
-      </Box>
-      {subtitle && (
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.62rem',
-            color: 'text.secondary',
-            mt: 0.25,
-          }}
-        >
-          {subtitle}
-        </Typography>
-      )}
-    </Box>
-    {children}
-  </Box>
-);
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -418,7 +352,12 @@ const NetworkStatsPage: React.FC = () => {
   }, [stateHourly, cBtc]);
 
   // --- Composition: pair mix ----------------------------------------------
-  const pairMix = overview?.pairMix ?? [];
+  // pct arrives as a string when json-bigint deems the float too precise
+  // (ApiUtils parses long numbers as strings), so coerce before .toFixed().
+  const pairMix = (overview?.pairMix ?? []).map((p) => ({
+    ...p,
+    pct: Number(p.pct),
+  }));
   const totalVol = overview ? lamportsToSol(overview.volumeSol) : 0;
   // "SOL-BTC" → "SOL → BTC" so the swap direction (input → output) is explicit.
   const fmtPair = (pair: string) => pair.replace(/-/g, ' → ');
