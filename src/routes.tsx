@@ -10,7 +10,6 @@ const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 const MinersPage = React.lazy(() => import('./pages/MinersPage'));
 const MinerDetailPage = React.lazy(() => import('./pages/MinerDetailPage'));
-const SwapPage = React.lazy(() => import('./pages/SwapPage'));
 const SwapDetailPage = React.lazy(() => import('./pages/SwapDetailPage'));
 const ReservationDetailPage = React.lazy(
   () => import('./pages/ReservationDetailPage'),
@@ -31,7 +30,6 @@ const routesArray: AppRoute[] = [
     path: '/miners/:hotkey',
     element: <MinerDetailPage />,
   },
-  { name: 'swap', path: '/swap', element: <SwapPage /> },
   { name: 'swap-detail', path: '/swap/:swapId', element: <SwapDetailPage /> },
   {
     name: 'reservations-by-source',
