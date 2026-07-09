@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback } from 'react';
 import { Box, Stack, useMediaQuery, useTheme } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import {
   AllwaysMarketRate,
   EventFeed,
@@ -11,7 +12,12 @@ import {
   Page,
   SEO,
 } from '../components';
+import { isDirection } from '../api';
 import type { Direction } from '../api/models/MinersDashboard';
+
+// Opening view when the URL says nothing. Kept off the URL so a bare
+// /dashboard and /dashboard?direction=SOL-BTC render the same thing.
+const DEFAULT_DIRECTION: Direction = 'SOL-BTC';
 
 // Card-less column: no surface/border box (cohesive taostats-style); columns
 // are separated by thin dividers + padding instead. Flex column so children
@@ -24,9 +30,28 @@ const colSx = {
 } as const;
 
 const DashboardPage: React.FC = () => {
+  const [params, setParams] = useSearchParams();
+
   // Shared trade direction — the Market Rate toggle drives both the chart and
-  // the Active Rates table filter.
-  const [direction, setDirection] = useState<Direction>('SOL-BTC');
+  // the Active Rates table filter. An unrecognised ?direction= falls back to
+  // the default rather than rendering an empty chart.
+  const directionParam = params.get('direction');
+  const direction: Direction = isDirection(directionParam)
+    ? directionParam
+    : DEFAULT_DIRECTION;
+
+  const setDirection = useCallback(
+    (value: Direction) => {
+      // Clone so unrelated params on the URL survive the write.
+      const next = new URLSearchParams(params);
+      if (value === DEFAULT_DIRECTION) next.delete('direction');
+      else next.set('direction', value);
+      // replace: toggling a chart direction is not a navigation step; the back
+      // button should leave the dashboard, not walk back through toggles.
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
 
   // Below md the layout stacks into one column — treat as "mobile": lead with
   // the chart and drop the Events tab.

@@ -21,6 +21,7 @@ import {
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
+import { formatRate } from '../../utils/format';
 import {
   EMA_PERIOD,
   completedPoints,
@@ -135,8 +136,17 @@ const MarketRateChart: React.FC<{
     // Adaptive y-axis precision: a wide span (e.g. once a far-off crown rate is
     // included) reads fine as integers, but a tight band would collapse every
     // tick to the same rounded value — so show decimals when the span is small.
+    // Below 0.01 a fixed 2dp collapsed a whole BTC-scale axis (~0.0021 SOL) to
+    // "0.00", so scale the decimals to the span's magnitude instead.
     const ySpan = yRange ? yRange.max - yRange.min : 0;
-    const yDecimals = ySpan >= 10 ? 0 : ySpan >= 1 ? 1 : 2;
+    const yDecimals =
+      ySpan <= 0
+        ? 4
+        : ySpan >= 10
+          ? 0
+          : ySpan >= 1
+            ? 1
+            : Math.min(8, Math.ceil(-Math.log10(ySpan)) + 1);
     const yAxisLabel = {
       color: axisColor,
       fontFamily: FONTS.mono,
@@ -200,7 +210,7 @@ const MarketRateChart: React.FC<{
               color,
               fontFamily: FONTS.mono,
               fontSize: 9,
-              formatter: `crown ${rate.toFixed(2)} SOL`,
+              formatter: `crown ${formatRate(rate)} SOL`,
             },
           }
         : undefined;
@@ -322,8 +332,14 @@ const MarketRateChart: React.FC<{
             const lines = params
               .map((p) => {
                 const v = Array.isArray(p.value) ? p.value[1] : p.value;
-                const unit = p.seriesName === 'Volume' ? 'SOL vol' : 'SOL';
-                return `${p.seriesName}: ${Number(v).toFixed(2)} ${unit}`;
+                const isVolume = p.seriesName === 'Volume';
+                const unit = isVolume ? 'SOL vol' : 'SOL';
+                // Volume is an amount (2dp reads fine); a rate needs sig figs
+                // or a BTC leg (~0.0021 SOL) shows as "0.00".
+                const shown = isVolume
+                  ? Number(v).toFixed(2)
+                  : formatRate(Number(v));
+                return `${p.seriesName}: ${shown} ${unit}`;
               })
               .join('<br/>');
             return `${new Date(Number(t) * 1000).toLocaleString()}<br/>${lines}`;
