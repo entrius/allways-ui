@@ -95,12 +95,12 @@ const AllwaysMarketRate: React.FC<{
               color: theme.palette.text.secondary,
             },
             '& .Mui-selected': {
-              backgroundColor: `${theme.palette.primary.main}22 !important`,
-              color: `${theme.palette.primary.main} !important`,
-              borderColor: `${theme.palette.primary.main} !important`,
+              backgroundColor: `${theme.palette.text.primary} !important`,
+              color: `${theme.palette.background.paper} !important`,
+              borderColor: `${theme.palette.text.primary} !important`,
             },
             '& .Mui-selected + .MuiToggleButton-root': {
-              borderLeftColor: `${theme.palette.primary.main} !important`,
+              borderLeftColor: `${theme.palette.text.primary} !important`,
             },
           }}
         >
