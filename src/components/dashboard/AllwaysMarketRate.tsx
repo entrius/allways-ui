@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   IconButton,
@@ -21,20 +21,23 @@ import MarketRateChart from './MarketRateChart';
 // SOL→spoke legs overlaid on one shared price axis. Only the forward legs
 // overlay: a leg and its reverse are quoted in different units (BTC-per-SOL vs
 // SOL-per-BTC), so they can't share a price scale.
-type View = Direction | 'BOTH';
+export type MarketRateView = Direction | 'BOTH';
 const BOTH_DIRECTIONS: Direction[] = ['SOL-BTC', 'SOL-TAO'];
 
 // The market-rate chart for a single direction (with a toggle that also drives
-// the page's shared direction, controlled by the parent), plus a BOTH view that
-// overlays both directions on one shared-axis chart. BOTH leaves the page
-// direction — and thus the Active Rates table filter — on its last value.
+// the page's shared direction), plus a BOTH view that overlays both directions
+// on one shared-axis chart. BOTH leaves the page direction — and thus the Active
+// Rates table filter — on its last value.
+//
+// Fully controlled: the parent owns both `direction` and `showBoth` so it can
+// mirror them onto the URL. `view` is derived, never stored.
 const AllwaysMarketRate: React.FC<{
   direction: Direction;
-  onDirectionChange: (d: Direction) => void;
-}> = ({ direction, onDirectionChange }) => {
+  showBoth: boolean;
+  onViewChange: (view: MarketRateView) => void;
+}> = ({ direction, showBoth, onViewChange }) => {
   const theme = useTheme();
-  const [showBoth, setShowBoth] = useState(false);
-  const view: View = showBoth ? 'BOTH' : direction;
+  const view: MarketRateView = showBoth ? 'BOTH' : direction;
 
   return (
     <Box
@@ -90,12 +93,7 @@ const AllwaysMarketRate: React.FC<{
           value={view}
           onChange={(_, v) => {
             if (!v) return;
-            if (v === 'BOTH') {
-              setShowBoth(true);
-            } else {
-              setShowBoth(false);
-              onDirectionChange(v as Direction);
-            }
+            onViewChange(v as MarketRateView);
           }}
           sx={{
             '& .MuiToggleButton-root': {

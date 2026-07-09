@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback } from 'react';
 import { Box, Stack, useMediaQuery, useTheme } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import {
   AllwaysMarketRate,
   EventFeed,
@@ -10,8 +11,14 @@ import {
   TabbedPanel,
   Page,
   SEO,
+  type MarketRateView,
 } from '../components';
+import { isDirection } from '../api';
 import type { Direction } from '../api/models/MinersDashboard';
+
+// Opening view when the URL says nothing. Kept off the URL so a bare
+// /dashboard and /dashboard?direction=SOL-BTC render the same thing.
+const DEFAULT_DIRECTION: Direction = 'SOL-BTC';
 
 // Card-less column: no surface/border box (cohesive taostats-style); columns
 // are separated by thin dividers + padding instead. Flex column so children
@@ -24,9 +31,40 @@ const colSx = {
 } as const;
 
 const DashboardPage: React.FC = () => {
+  const [params, setParams] = useSearchParams();
+
   // Shared trade direction — the Market Rate toggle drives both the chart and
-  // the Active Rates table filter.
-  const [direction, setDirection] = useState<Direction>('SOL-BTC');
+  // the Active Rates table filter. An unrecognised ?direction= falls back to
+  // the default rather than rendering an empty chart.
+  const directionParam = params.get('direction');
+  const direction: Direction = isDirection(directionParam)
+    ? directionParam
+    : DEFAULT_DIRECTION;
+
+  // BOTH is an overlay on top of `direction`, not a fifth direction: it leaves
+  // the page direction — and thus the Active Rates filter — on its last value.
+  // So it needs its own param, or reloading a BOTH url would lose the filter.
+  const showBoth = params.get('chart') === 'both';
+
+  // One write per toggle: `chart` and `direction` change together, and two
+  // sequential setParam calls would both branch off the same stale `params`,
+  // so the second would clobber the first.
+  const setView = useCallback(
+    (view: MarketRateView) => {
+      const next = new URLSearchParams(params);
+      if (view === 'BOTH') {
+        next.set('chart', 'both');
+      } else {
+        next.delete('chart');
+        if (view === DEFAULT_DIRECTION) next.delete('direction');
+        else next.set('direction', view);
+      }
+      // replace: toggling a chart view is not a navigation step; the back
+      // button should leave the dashboard, not walk back through toggles.
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
 
   // Below md the layout stacks into one column — treat as "mobile": lead with
   // the chart and drop the Events tab.
@@ -93,7 +131,8 @@ const DashboardPage: React.FC = () => {
           >
             <AllwaysMarketRate
               direction={direction}
-              onDirectionChange={setDirection}
+              showBoth={showBoth}
+              onViewChange={setView}
             />
           </Box>
 
