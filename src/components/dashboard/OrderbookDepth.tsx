@@ -145,10 +145,10 @@ const OrderbookDepth: React.FC<{
           <Tooltip
             title={
               <Box sx={{ maxWidth: 260 }}>
-                Liquidity you can hit right now for the selected direction:
-                idle miners' collateral grouped by quoted rate, best rate
-                first. The bar behind each row is the cumulative capacity
-                walking down the book.
+                Liquidity you can hit right now for the selected direction: idle
+                miners' collateral grouped by quoted rate, best rate first. The
+                bar behind each row is the cumulative capacity walking down the
+                book.
               </Box>
             }
             arrow
