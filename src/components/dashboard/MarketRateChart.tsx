@@ -7,16 +7,9 @@ import {
   MarkLineComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
-import {
-  Box,
-  Typography,
-  useMediaQuery,
-  useTheme,
-  type Theme,
-} from '@mui/material';
+import { Box, Typography, useTheme, type Theme } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
 import {
-  decomposeDirection,
   directionLabel,
   type Direction,
 } from '../../api/models/MinersDashboard';
@@ -41,11 +34,12 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-// Accent by the pair's spoke asset, so a leg and its reverse share a colour.
-const accentFor = (theme: Theme, dir: Direction) =>
-  decomposeDirection(dir).spoke === 'btc'
-    ? theme.palette.asset.btc
-    : theme.palette.asset.tao;
+// Monochrome, matching the house chart style: the active series draws in the
+// theme's primary text shade; a second overlaid direction falls back to the
+// secondary shade so the two stay distinguishable. text.primary is a hex in
+// both themes, which the gradient's alpha-suffix relies on.
+const accentFor = (theme: Theme, index: number) =>
+  index === 0 ? theme.palette.text.primary : theme.palette.text.secondary;
 
 const labelFor = directionLabel;
 
@@ -62,8 +56,6 @@ const MarketRateChart: React.FC<{
   fill?: boolean;
 }> = ({ directions, fill }) => {
   const theme = useTheme();
-  // Drop the volume sub-chart on small/stacked screens — too cramped on mobile.
-  const showVolume = !useMediaQuery(theme.breakpoints.down('md'));
   const { data: swaps } = useAllSwaps({ limit: 600 });
   const { data: crown } = useCurrentCrown();
   const elRef = useRef<HTMLDivElement>(null);
@@ -115,9 +107,9 @@ const MarketRateChart: React.FC<{
     const gridColor = theme.palette.divider;
     const crownColor = theme.palette.text.secondary;
 
-    const prepared = series.map((s) => ({
+    const prepared = series.map((s, i) => ({
       ...s,
-      accent: accentFor(theme, s.dir),
+      accent: accentFor(theme, i),
       crownRate: crown?.[s.dir]?.rate ?? null,
     }));
 
@@ -159,7 +151,13 @@ const MarketRateChart: React.FC<{
     const times = prepared.flatMap((s) => s.clean.map((p) => p.t));
     const xMin = times.length ? Math.min(...times) : undefined;
     const xMax = times.length ? Math.max(...times) : undefined;
-    const xPad = xMin != null && xMax != null ? (xMax - xMin) * 0.02 || 1 : 0;
+    // Floor the padding at a real interval: with one swap in the window the
+    // old ±1s pad made a 2-second axis whose every tick label rounded to the
+    // same HH:MM.
+    const xPad =
+      xMin != null && xMax != null
+        ? Math.max((xMax - xMin) * 0.02, xMax === xMin ? 900 : 30)
+        : 0;
     const xBounds =
       xMin != null && xMax != null
         ? { min: xMin - xPad, max: xMax + xPad }
@@ -170,16 +168,8 @@ const MarketRateChart: React.FC<{
       0,
       ...prepared.flatMap((s) => s.vol.map((v) => v.vol)),
     );
-    // Compact SOL-volume label: keep it short for the cramped volume axis.
-    const fmtVol = (v: number) =>
-      v >= 1000
-        ? `${(v / 1000).toFixed(1)}k`
-        : v >= 10
-          ? v.toFixed(0)
-          : v.toFixed(1);
 
-    // Time axis labels (unix seconds → HH:MM). Shown on the volume axis when
-    // present, else on the price axis.
+    // Time axis labels (unix seconds → HH:MM).
     const timeAxisLabel = {
       color: axisColor,
       fontFamily: FONTS.mono,
@@ -258,59 +248,30 @@ const MarketRateChart: React.FC<{
       },
     ]);
 
+    // Volume overlays the price pane TradingView-style: same grid, hidden
+    // second y-axis whose max is 4× the tallest bar so the bars hug the bottom
+    // quarter and never collide with the price line. z below the price series.
     const volumeSeries =
-      showVolume && maxVol > 0
-        ? prepared.map((s, i) => ({
+      maxVol > 0
+        ? prepared.map((s) => ({
             name: single ? 'Volume' : labelFor(s.dir),
             type: 'bar',
-            xAxisIndex: 1,
+            xAxisIndex: 0,
             yAxisIndex: 1,
             data: s.vol.map((v) => [v.t, v.vol]),
-            itemStyle: { color: s.accent, opacity: single ? 0.32 : 0.3 },
+            itemStyle: { color: s.accent, opacity: single ? 0.25 : 0.22 },
             barWidth: 5,
+            z: 1,
             // Overlap the two directions' bars on the same slot.
             ...(single ? {} : { barGap: '-100%' }),
-            // Dotted reference at the largest single-block volume so the other
-            // bars read relative to the peak — single direction only (a shared
-            // max across two directions would be ambiguous).
-            ...(single && i === 0
-              ? {
-                  markLine: {
-                    silent: true,
-                    symbol: 'none',
-                    data: [{ yAxis: maxVol }],
-                    lineStyle: {
-                      color: crownColor,
-                      type: 'dotted',
-                      width: 1,
-                      opacity: 0.8,
-                    },
-                    label: {
-                      position: 'insideEndTop',
-                      color: axisColor,
-                      fontFamily: FONTS.mono,
-                      fontSize: 8,
-                      formatter: `max ${fmtVol(maxVol)} SOL`,
-                    },
-                  },
-                }
-              : {}),
           }))
         : [];
 
     chart.setOption(
       {
         animation: false,
-        // Price grid on top, volume grid below (desktop). On mobile the volume
-        // grid is dropped and price fills the full height.
-        grid: showVolume
-          ? [
-              { left: 48, right: 14, top: 8, height: '60%' },
-              { left: 48, right: 14, top: '74%', bottom: 22 },
-            ]
-          : // Mobile: tighter gutters so the plot fills the narrow width.
-            [{ left: 34, right: 8, top: 6, bottom: 18 }],
-        axisPointer: { link: [{ xAxisIndex: 'all' }] },
+        // One pane: price and volume share the grid and x-axis.
+        grid: [{ left: 48, right: 14, top: 8, bottom: 22 }],
         tooltip: {
           trigger: 'axis',
           backgroundColor: theme.palette.background.paper,
@@ -345,91 +306,45 @@ const MarketRateChart: React.FC<{
             return `${new Date(Number(t) * 1000).toLocaleString()}<br/>${lines}`;
           },
         },
-        xAxis: showVolume
-          ? [
-              {
-                type: 'value',
-                scale: true,
-                gridIndex: 0,
-                ...xBounds,
-                axisLabel: { show: false },
-                axisLine: { lineStyle: { color: gridColor } },
-                axisTick: { show: false },
-                splitLine: { show: false },
-              },
-              {
-                type: 'value',
-                scale: true,
-                gridIndex: 1,
-                ...xBounds,
-                axisLabel: timeAxisLabel,
-                axisLine: { lineStyle: { color: gridColor } },
-                axisTick: { show: false },
-                splitLine: { show: false },
-              },
-            ]
-          : [
-              {
-                type: 'value',
-                scale: true,
-                gridIndex: 0,
-                ...xBounds,
-                axisLabel: timeAxisLabel,
-                axisLine: { lineStyle: { color: gridColor } },
-                axisTick: { show: false },
-                splitLine: { show: false },
-              },
-            ],
-        yAxis: showVolume
-          ? [
-              {
-                type: 'value',
-                scale: true,
-                gridIndex: 0,
-                ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
-                axisLabel: yAxisLabel,
-                axisLine: { show: false },
-                axisTick: { show: false },
-                splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
-              },
-              {
-                type: 'value',
-                gridIndex: 1,
-                min: 0,
-                // Headroom above the tallest bar so the max-volume line and its
-                // label sit clear of the bar top rather than flush at the edge.
-                max: maxVol > 0 ? maxVol * 1.2 : undefined,
-                splitNumber: 2,
-                axisLabel: {
-                  color: axisColor,
-                  fontFamily: FONTS.mono,
-                  fontSize: 8,
-                  formatter: fmtVol,
-                },
-                axisLine: { show: false },
-                axisTick: { show: false },
-                splitLine: {
-                  lineStyle: { color: gridColor, type: 'dashed', opacity: 0.4 },
-                },
-              },
-            ]
-          : [
-              {
-                type: 'value',
-                scale: true,
-                gridIndex: 0,
-                ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
-                axisLabel: yAxisLabel,
-                axisLine: { show: false },
-                axisTick: { show: false },
-                splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
-              },
-            ],
+        xAxis: [
+          {
+            type: 'value',
+            scale: true,
+            gridIndex: 0,
+            ...xBounds,
+            axisLabel: timeAxisLabel,
+            axisLine: { lineStyle: { color: gridColor } },
+            axisTick: { show: false },
+            splitLine: { show: false },
+          },
+        ],
+        yAxis: [
+          {
+            type: 'value',
+            scale: true,
+            gridIndex: 0,
+            ...(yRange ? { min: yRange.min, max: yRange.max } : {}),
+            axisLabel: yAxisLabel,
+            axisLine: { show: false },
+            axisTick: { show: false },
+            splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
+          },
+          {
+            // Hidden overlay axis for volume: 4× the tallest bar keeps the
+            // bars in the bottom quarter of the pane (tooltip carries the
+            // numbers, so no visible scale needed).
+            type: 'value',
+            gridIndex: 0,
+            min: 0,
+            max: maxVol > 0 ? maxVol * 4 : undefined,
+            show: false,
+          },
+        ],
         series: [...priceSeries, ...volumeSeries],
       },
       true,
     );
-  }, [series, theme, crown, showVolume]);
+  }, [series, theme, crown]);
 
   const single = series.length === 1;
   const countLabel = single

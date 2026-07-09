@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as echarts from 'echarts/core';
 import { BarChart, LineChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent } from 'echarts/components';
+import {
+  GridComponent,
+  LegendComponent,
+  TooltipComponent,
+} from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Skeleton, useTheme } from '@mui/material';
 import { FONTS } from '../../theme';
@@ -10,6 +14,7 @@ echarts.use([
   BarChart,
   LineChart,
   GridComponent,
+  LegendComponent,
   TooltipComponent,
   CanvasRenderer,
 ]);
@@ -31,6 +36,8 @@ export type ChartSeries = {
   formatValue?: (v: number) => string;
   /** Unit suffix shown after the value in the tooltip (e.g. 'τ', '%'). */
   unit?: string;
+  /** Render the line dashed (reference/comparison series). */
+  dashed?: boolean;
 };
 
 type TimeSeriesChartProps = {
@@ -43,16 +50,30 @@ type TimeSeriesChartProps = {
   noArea?: boolean;
   /** When true, the y-axis uses a log scale (for wide-range / outlier data). */
   logScale?: boolean;
+  /**
+   * When true, the y-axis zooms to the data range instead of starting at 0 —
+   * for level-style series (rates) where the shape matters more than the
+   * distance from zero.
+   */
+  autoScale?: boolean;
   /** Message shown when every series is empty. */
   emptyLabel?: string;
 };
 
-const fmtTime = (ms: number) =>
-  new Date(ms).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: '2-digit',
-  });
+// Spans at or under this render hour:minute labels; longer spans render dates.
+const HOURLY_SPAN_MS = 3 * 24 * 3600 * 1000;
+
+const fmtTime = (ms: number, hourly: boolean) =>
+  hourly
+    ? new Date(ms).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : new Date(ms).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: '2-digit',
+      });
 
 const defaultFmt = (v: number) =>
   Math.abs(v) >= 1000
@@ -74,6 +95,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   formatValue,
   noArea,
   logScale,
+  autoScale,
   emptyLabel = 'no history yet',
 }) => {
   const theme = useTheme();
@@ -111,6 +133,22 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     const single = series.length === 1;
     const useArea = single && !noArea;
 
+    // Short windows (intraday rate charts) label the x-axis with clock time;
+    // long histories with dates. Reduce instead of Math.max(...arr) — rate
+    // series can hold thousands of points and spreading them risks the stack.
+    const span = series.reduce(
+      (acc, s) =>
+        s.points.reduce(
+          (a, p) => ({
+            lo: p.t < a.lo ? p.t : a.lo,
+            hi: p.t > a.hi ? p.t : a.hi,
+          }),
+          acc,
+        ),
+      { lo: Infinity, hi: -Infinity },
+    );
+    const hourly = span.hi > span.lo && span.hi - span.lo <= HOURLY_SPAN_MS;
+
     const echartsSeries = series.map((s) => {
       const data = s.points.map((p) => [p.t, p.value]);
       if ((s.type ?? 'line') === 'bar') {
@@ -133,7 +171,11 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         symbolSize: 6,
         // Null buckets break the line into gaps rather than dropping to zero.
         connectNulls: false,
-        lineStyle: { color: s.color, width: 2 },
+        lineStyle: {
+          color: s.color,
+          width: 2,
+          ...(s.dashed && { type: [4, 3] as number[], width: 1.6 }),
+        },
         itemStyle: { color: s.color },
         ...(useArea && {
           areaStyle: {
@@ -188,6 +230,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             if (!params.length) return '';
             const header = `<span style="color:${theme.palette.text.disabled}">${fmtTime(
               Number(params[0].axisValue),
+              hourly,
             )}</span>`;
             const lines = params
               .map((p) => {
@@ -218,17 +261,22 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             fontSize: 10,
             hideOverlap: true,
             formatter: (v: number) =>
-              new Date(v).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-              }),
+              hourly
+                ? new Date(v).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : new Date(v).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                  }),
           },
           splitLine: { show: false },
         },
         yAxis: {
           // Log scale can't include 0, so drop the min:0 floor when enabled.
           type: logScale ? 'log' : 'value',
-          ...(logScale ? {} : { scale: false, min: 0 }),
+          ...(logScale ? {} : autoScale ? { scale: true } : { min: 0 }),
           axisLine: { show: false },
           axisTick: { show: false },
           axisLabel: {
@@ -243,7 +291,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       },
       true,
     );
-  }, [series, theme, formatValue, noArea, logScale]);
+  }, [series, theme, formatValue, noArea, logScale, autoScale]);
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height }}>

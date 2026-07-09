@@ -138,10 +138,15 @@ export const robustYRange = (
   }
 
   if (coreMin === coreMax) {
-    coreMin -= 1;
-    coreMax += 1;
+    // Degenerate span (a single rate level). Widen relative to the value's own
+    // magnitude — a fixed ±1 turned a 0.0001 BTC-leg axis into -1..+1, burying
+    // the line at zero on a scale 10,000× too big.
+    const eps = Math.max(Math.abs(coreMin) * 0.15, 1e-9);
+    coreMin -= eps;
+    coreMax += eps;
   }
-  const pad = (coreMax - coreMin) * 0.12 || 1;
+  const pad =
+    (coreMax - coreMin) * 0.12 || Math.max(Math.abs(coreMax) * 0.05, 1e-9);
   let min = coreMin - pad;
   let max = coreMax + pad;
 

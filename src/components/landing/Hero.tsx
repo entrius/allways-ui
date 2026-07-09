@@ -87,7 +87,7 @@ const Hero: React.FC = () => {
         >
           <Button
             component={RouterLink}
-            to="/swap"
+            to="/dashboard"
             variant="contained"
             size="large"
             sx={{
@@ -104,30 +104,6 @@ const Hero: React.FC = () => {
               '&:hover': {
                 backgroundColor: 'var(--color-primary)',
                 boxShadow: 'none',
-              },
-            }}
-          >
-            Exchange
-          </Button>
-          <Button
-            component={RouterLink}
-            to="/dashboard"
-            variant="outlined"
-            size="large"
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.8rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              borderRadius: 0,
-              px: 4,
-              py: 1.5,
-              borderColor: 'divider',
-              color: 'text.primary',
-              '&:hover': {
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                backgroundColor: 'transparent',
               },
             }}
           >
