@@ -30,14 +30,26 @@ const PILL_BORDER: Record<string, string> = {
   TIMED_OUT: 'rgba(185,28,28,0.5)',
 };
 
+// Both bounds are unix-SECONDS strings ("1783562486"), not date strings. `new Date(secs)` parses that
+// as a date and yields Invalid Date, so this column rendered "—" for every swap ever. Parse as an int.
+// 0 is the not-yet-set sentinel, never a real timestamp.
+const asUnix = (v: string | null): number | null => {
+  if (v == null || v === '') return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
 const fmtDuration = (
   initiated: string | null,
   resolved: string | null,
 ): string => {
-  if (!initiated || !resolved) return '—';
-  const ms = new Date(resolved).getTime() - new Date(initiated).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return '—';
-  const mins = Math.round(ms / 60_000);
+  const from = asUnix(initiated);
+  const to = asUnix(resolved);
+  if (from == null || to == null) return '—';
+  const secs = to - from;
+  if (secs < 0) return '—';
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.round(secs / 60);
   if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
   return `${hrs}h ${mins % 60}m`;
