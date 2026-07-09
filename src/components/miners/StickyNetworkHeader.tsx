@@ -3,7 +3,7 @@ import { Box, Stack, Typography } from '@mui/material';
 import { BlockIndicator } from '../index';
 import { useCurrentCrown, useHaltState, useScoringState } from '../../api';
 import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
-import CrownIcon from './CrownIcon';
+import CrownDirectionSegment from './CrownDirectionSegment';
 import { FONTS } from '../../theme';
 
 // Live "time since the validator last flushed crown/rate data". The validator
@@ -54,52 +54,13 @@ const StickyNetworkHeader: React.FC = () => {
     for (const dir of ALL_DIRECTIONS) {
       const h = crown[dir];
       if (!h) continue;
-      const [from, to] = dir.split('-');
       segments.push(
-        <Stack
+        <CrownDirectionSegment
           key={dir}
-          direction="row"
-          spacing={0.5}
-          alignItems="center"
-          sx={{ color: 'text.secondary' }}
-        >
-          <CrownIcon />
-          <Typography
-            variant="mono"
-            sx={{ fontSize: { xs: '0.6rem', sm: '0.72rem' } }}
-          >
-            {from}
-            <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
-              →
-            </Box>
-            {to}
-          </Typography>
-          {h.uid != null ? (
-            <Typography
-              variant="mono"
-              sx={{
-                fontSize: { xs: '0.6rem', sm: '0.72rem' },
-                color: 'text.primary',
-                ml: 0.5,
-                fontWeight: 500,
-              }}
-            >
-              uid {h.uid}
-              {h.rate != null && <> @ {h.rate.toFixed(2)} SOL</>}
-            </Typography>
-          ) : (
-            <Typography
-              variant="mono"
-              sx={{
-                fontSize: { xs: '0.6rem', sm: '0.72rem' },
-                color: 'text.disabled',
-                ml: 0.5,
-              }}
-            >
-              none
-            </Typography>
-          )}
-        </Stack>,
+          direction={dir}
+          holder={h}
+          emptyLabel="none"
+        />,
       );
     }
   }

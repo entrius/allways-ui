@@ -1,10 +1,10 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
 import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { BlockIndicator } from '../index';
-import CrownIcon from '../miners/CrownIcon';
+import CrownDirectionSegment from '../miners/CrownDirectionSegment';
 import { latestEmaRate } from './marketRate';
 import { formatRate } from '../../utils/format';
 
@@ -13,7 +13,7 @@ const DIRECTIONS = ALL_DIRECTIONS;
 // Mirrors the miners-page StickyNetworkHeader eyebrow — the "updated <ago>"
 // indicator plus the current crown holder and its live rate per direction
 // (uid N @ rate SOL), then the smoothed EMA market rate. No last-refresh /
-// health segment.
+// health segment. Both share CrownDirectionSegment; only the EMA suffix is ours.
 const RatesTicker: React.FC = () => {
   const { data: crown } = useCurrentCrown();
   const { data: swaps } = useAllSwaps({ limit: 600 });
@@ -45,55 +45,14 @@ const RatesTicker: React.FC = () => {
         sx={{ flexWrap: 'wrap', gap: { xs: 0.5, md: 3 } }}
       >
         {DIRECTIONS.map((dir) => {
-          const h = crown?.[dir];
-          const [from, to] = dir.split('-');
           const emaRate = latestEmaRate(swaps, dir);
           return (
-            <Stack
+            <CrownDirectionSegment
               key={dir}
-              direction="row"
-              spacing={0.5}
-              alignItems="center"
-              sx={{ color: 'text.secondary' }}
+              direction={dir}
+              holder={crown?.[dir]}
+              emptyLabel="no crown"
             >
-              <CrownIcon />
-              <Typography
-                variant="mono"
-                sx={{ fontSize: { xs: '0.6rem', sm: '0.72rem' } }}
-              >
-                {from}
-                <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
-                  →
-                </Box>
-                {to}
-              </Typography>
-              {h?.uid != null ? (
-                <Typography
-                  variant="mono"
-                  sx={{
-                    fontSize: { xs: '0.6rem', sm: '0.72rem' },
-                    color: 'text.primary',
-                    ml: 0.5,
-                    fontWeight: 500,
-                  }}
-                >
-                  uid {h.uid}
-                  {/* Significant figures, not 2dp: a BTC leg quotes ~0.0021
-                      SOL, which toFixed(2) renders as a flat "0.00". */}
-                  {h.rate != null && <> @ {formatRate(h.rate)} SOL</>}
-                </Typography>
-              ) : (
-                <Typography
-                  variant="mono"
-                  sx={{
-                    fontSize: { xs: '0.6rem', sm: '0.72rem' },
-                    color: 'text.disabled',
-                    ml: 0.5,
-                  }}
-                >
-                  no crown
-                </Typography>
-              )}
               {emaRate != null && (
                 <>
                   <Box
@@ -136,7 +95,7 @@ const RatesTicker: React.FC = () => {
                   </Box>
                 </>
               )}
-            </Stack>
+            </CrownDirectionSegment>
           );
         })}
       </Stack>

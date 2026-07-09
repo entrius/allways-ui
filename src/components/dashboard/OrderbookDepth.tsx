@@ -18,6 +18,7 @@ import {
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners } from '../../api';
 import { FONTS } from '../../theme';
+import { formatRate } from '../../utils/format';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
 const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
@@ -161,7 +162,10 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
       const raw = selected.direction === 'forward' ? m.rate : m.counterRate;
       const r = raw ? parseFloat(raw) : 0;
       if (!isFinite(r) || r <= 0) return;
-      const key = r.toFixed(2);
+      // This key is the price LEVEL — it groups miners, sorts the book, and is
+      // rendered verbatim. At 2dp every BTC-scale quote (~0.0021 SOL) rounded to
+      // "0.00", collapsing the whole book into a single bogus level.
+      const key = formatRate(r);
       groups[key] = (groups[key] || 0) + capacitySol;
     });
 

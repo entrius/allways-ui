@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Stack } from '@mui/material';
 import { FONTS } from '../../theme';
+import { formatRate } from '../../utils/format';
 import CrownIcon from './CrownIcon';
 import type { CellState } from './crownGridCells';
 
@@ -123,7 +124,7 @@ const CrownGridHoverCard: React.FC<{
           })}
         />
         {cell.holderHotkey && (
-          <HoverLine label="rate" value={cell.rate.toFixed(2)} />
+          <HoverLine label="rate" value={formatRate(cell.rate)} />
         )}
         {cell.isTie && (
           <HoverLine
