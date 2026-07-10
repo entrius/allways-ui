@@ -24,44 +24,47 @@ const OdometerDigit: React.FC<{ digit: string; delayMs: number }> = ({
 
   const target = mounted ? Number(digit) : 0;
 
+  // Baseline correctness: an overflow-hidden inline-block reports its BOTTOM
+  // EDGE as its baseline, which made neighbouring baseline-aligned text (the
+  // metrics strip's "SOL" unit) render visibly lower than the digits. So the
+  // outer box keeps overflow visible and holds an invisible real "0" — the
+  // browser derives the baseline from that glyph's actual font metrics. The
+  // rolling strip is an absolutely-positioned overlay whose cells use the
+  // same 1em line box, so the visible digit lands exactly on the hidden one.
   return (
     <Box
+      component="span"
       sx={{
         display: 'inline-block',
         position: 'relative',
         width: '0.85em',
         height: '1em',
-        overflow: 'hidden',
-        verticalAlign: 'baseline',
+        lineHeight: 1,
+        textAlign: 'center',
       }}
     >
-      <Box
-        sx={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: '100%',
-          transform: `translateY(-${target}em)`,
-          transition: `transform 1100ms cubic-bezier(0.23, 1, 0.32, 1) ${delayMs}ms`,
-          '@media (prefers-reduced-motion: reduce)': {
-            transition: 'none',
-          },
-        }}
-      >
-        {DIGITS.map((d) => (
-          <Box
-            key={d}
-            sx={{
-              height: '1em',
-              lineHeight: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {d}
-          </Box>
-        ))}
+      <Box component="span" aria-hidden sx={{ visibility: 'hidden' }}>
+        0
+      </Box>
+      <Box sx={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+        <Box
+          sx={{
+            transform: `translateY(-${target}em)`,
+            transition: `transform 1100ms cubic-bezier(0.23, 1, 0.32, 1) ${delayMs}ms`,
+            '@media (prefers-reduced-motion: reduce)': {
+              transition: 'none',
+            },
+          }}
+        >
+          {DIGITS.map((d) => (
+            <Box
+              key={d}
+              sx={{ height: '1em', lineHeight: 1, textAlign: 'center' }}
+            >
+              {d}
+            </Box>
+          ))}
+        </Box>
       </Box>
     </Box>
   );
