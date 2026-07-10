@@ -6,14 +6,15 @@ import type {
   CrownRateHistoryRow,
   CrownTimeWindow,
   CurrentCrownMap,
+  CurrentMinerScoreRow,
   Direction,
   HaltState,
   LeaderboardRow,
   MinerRateHistoryRow,
+  MinerScoreRow,
   MinerStats,
   NetworkOverview,
   Range,
-  ScoreFactors,
   ScoringState,
 } from './models';
 
@@ -92,18 +93,34 @@ export const useMinerStats = (hotkey: string, range: Range = '30d') =>
     !!hotkey,
   );
 
-export const useScoreFactorsWindow = (
+// Validator-written score snapshots, one row per (round, direction) the miner
+// held crown in. Defaults to the API's 30d window when no bounds are given.
+export const useMinerScores = (
   hotkey: string,
-  direction: Direction,
-  fromTs: number | undefined,
-  toTs: number | undefined,
+  params: { direction?: Direction; fromTs?: number; toTs?: number } = {},
+  enabled = true,
 ) =>
-  useApiQuery<ScoreFactors>(
-    'miner-score-factors-window',
-    `/miners/${hotkey}/score-factors`,
+  useApiQuery<MinerScoreRow[]>(
+    'miner-scores',
+    `/miners/${hotkey}/scores`,
     SSE_FALLBACK_INTERVAL,
-    { direction, fromTime: fromTs, toTime: toTs },
-    !!hotkey && fromTs != null && toTs != null && toTs >= fromTs,
+    {
+      direction: params.direction,
+      fromTime: params.fromTs,
+      toTime: params.toTs,
+    },
+    !!hotkey && enabled,
+  );
+
+// Live mid-round tip — refreshed on the crown cadence so the "this round"
+// readout tracks the still-scoring round, not just the last flushed one.
+export const useCurrentMinerScores = (hotkey: string) =>
+  useApiQuery<CurrentMinerScoreRow[]>(
+    'miner-scores-current',
+    `/miners/${hotkey}/scores/current`,
+    CROWN_REFRESH_MS,
+    undefined,
+    !!hotkey,
   );
 
 export const useMinerSwaps = (
