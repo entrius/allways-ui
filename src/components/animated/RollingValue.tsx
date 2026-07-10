@@ -55,7 +55,11 @@ const OdometerDigit: React.FC<{ digit: string; delayMs: number }> = ({
               height: '1em',
               lineHeight: 1,
               display: 'flex',
-              alignItems: 'center',
+              // Bottom-aligned, not centered: an overflow-hidden inline-block
+              // puts its baseline at the box's bottom edge, so the glyph's
+              // baseline must sit there too or neighbouring text (the "SOL"
+              // unit) renders visibly lower than the digits.
+              alignItems: 'flex-end',
               justifyContent: 'center',
             }}
           >
