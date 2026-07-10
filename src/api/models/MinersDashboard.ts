@@ -153,10 +153,10 @@ export type NetworkOverview = {
 
 export type HaltState = { halted: boolean; asOf: number };
 
-// Validator's last crown/rate flush. lastScoredAt is the unix-seconds watermark
+// Validator's last crown flush. lastScored is the unix-seconds watermark
 // scored through; updatedAt is the wall-clock time of that flush (advances only
 // on a real flush, ~every scoring window), or null before the first flush.
 export type ScoringState = {
-  lastScoredAt: number;
+  lastScored: number;
   updatedAt: string | null;
 };

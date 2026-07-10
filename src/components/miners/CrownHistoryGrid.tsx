@@ -114,10 +114,10 @@ const CrownHistoryGrid: React.FC<{
 
   // Anchor head (window snap, "as of", pending stripe) on the crown_holders
   // watermark, not the event head — an asOf anchor strands the stripe on a
-  // finalized interior cell. lastScoredAt is finalized; +CELL_SECS is the live
+  // finalized interior cell. lastScored is finalized; +CELL_SECS is the live
   // tip.
   const { data: scoring } = useScoringState();
-  const scoredAt = scoring?.lastScoredAt ?? 0;
+  const scoredAt = scoring?.lastScored ?? 0;
   const headT = scoredAt > 0 ? scoredAt + CELL_SECS : 0;
 
   let hi: number;

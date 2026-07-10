@@ -122,7 +122,7 @@ const StickyNetworkHeader: React.FC = () => {
             >
               paused
             </Typography>
-          ) : scoring?.updatedAt != null && scoring.lastScoredAt > 0 ? (
+          ) : scoring?.updatedAt != null && scoring.lastScored > 0 ? (
             <RefreshIndicator updatedAt={scoring.updatedAt} />
           ) : (
             <Typography
