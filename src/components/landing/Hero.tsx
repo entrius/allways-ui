@@ -121,9 +121,9 @@ const Hero: React.FC = () => {
             lineHeight: 1.5,
           }}
         >
-          A direct, liquid market between any two assets. Choose what you
-          send, what arrives, and where it lands. No account, no exchange, no
-          hoops in between.
+          A direct, liquid market between any two assets. Choose what you send,
+          what arrives, and where it lands. No account, no exchange, no hoops in
+          between.
         </Typography>
 
         <Stack
