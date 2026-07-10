@@ -10,7 +10,8 @@ export interface SEOProps {
 }
 
 const SITE_NAME = 'Allways';
-const DEFAULT_IMAGE = '/hero/allways-2.png';
+// Brand share card (1200x630). Regenerate from public/og/allways-og.template.html.
+const DEFAULT_IMAGE = '/og/allways-og.png';
 
 export const SEO: React.FC<SEOProps> = ({
   title,

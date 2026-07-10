@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  .card {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    background:
+      radial-gradient(900px 540px at 88% 12%, rgba(0, 82, 255, 0.12), transparent 65%),
+      linear-gradient(120deg, #fbfbfb 55%, #eef3ff 100%);
+    font-family: 'Inter', sans-serif;
+    color: #090b0d;
+  }
+  svg.circles { position: absolute; inset: 0; }
+  .inner { position: absolute; inset: 0; padding: 64px 72px; }
+  .toprow {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .badge {
+    width: 84px; height: 84px; border-radius: 50%;
+    background: #ffffff; border: 1px solid rgba(9, 11, 13, 0.08);
+    box-shadow: 0 2px 18px rgba(9, 11, 13, 0.06);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .badge img { width: 86px; height: 86px; border-radius: 50%; }
+  .wordmark {
+    font-family: 'DM Mono', monospace; font-size: 24px; letter-spacing: 0.35em;
+    color: rgba(9, 11, 13, 0.55);
+  }
+  h1 {
+    margin-top: 64px;
+    font-size: 118px; font-weight: 900; line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+  h1 .blue { color: #0052ff; }
+  .sub {
+    margin-top: 40px;
+    font-size: 31px; font-weight: 400; color: rgba(9, 11, 13, 0.62);
+    letter-spacing: -0.01em;
+  }
+  .bottomrow {
+    position: absolute; left: 72px; right: 72px; bottom: 56px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'DM Mono', monospace; font-size: 20px;
+  }
+  .eyebrow { color: #0052ff; letter-spacing: 0.22em; }
+  .tagline { color: rgba(9, 11, 13, 0.45); letter-spacing: 0.14em; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <svg class="circles" viewBox="0 0 1200 630" fill="none">
+      <circle cx="1010" cy="150" r="300" stroke="#0052ff" stroke-opacity="0.20" stroke-width="1.5" />
+      <circle cx="920" cy="430" r="380" stroke="#0052ff" stroke-opacity="0.12" stroke-width="1.5" />
+      <circle cx="1180" cy="500" r="230" stroke="#0052ff" stroke-opacity="0.16" stroke-width="1.5" />
+    </svg>
+    <div class="inner">
+      <div class="toprow">
+        <div class="badge"><img src="ETA_SRC" /></div>
+        <div class="wordmark">ALLWAYS</div>
+      </div>
+      <h1>Any asset<br /><span class="blue">to any asset.</span></h1>
+      <div class="sub">Choose what you send, what arrives, and where it lands.</div>
+      <div class="bottomrow">
+        <div class="eyebrow">BITTENSOR · SUBNET 7</div>
+        <div class="tagline">Universal transaction layer</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
