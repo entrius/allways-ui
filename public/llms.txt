@@ -15,7 +15,7 @@ no wrapped asset, no bridge token.
 
 > **Where to point your wallets right now:** **mainnet** is live on
 > netuid 7 and **testnet** on netuid 19. Both run the same Solana program
-> `AKgfVK8zJVHuZwttdjU2CPykaHyTAvw5r9FUFUpM74JU` — the program id is the
+> `6JVBEj5w27J2SVjERmv2c7wXgFee9nSSBKUJevHehyBD` — the program id is the
 > same across clusters; only the network differs. Testnet is the
 > recommended place to dry-run before exercising mainnet. Full setup
 > blocks for both are below.
