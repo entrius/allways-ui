@@ -1,10 +1,12 @@
 {
   "name": "Allways",
   "short_name": "Allways",
-  "description": "Trustless peer to peer transactions on Bittensor Subnet 7.",
+  "description": "Any asset to any asset. Choose what you send, what arrives, and where it lands. Delivery guaranteed. Bittensor Subnet 7.",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["finance"],
+  "categories": [
+    "finance"
+  ],
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

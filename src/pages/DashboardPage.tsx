@@ -5,8 +5,10 @@ import {
   AllwaysMarketRate,
   EventFeed,
   MinerRatesTable,
+  OrderbookDepth,
   RatesTicker,
   ReservationsTracker,
+  StatsStrip,
   SwapTracker,
   TabbedPanel,
   Page,
@@ -91,24 +93,15 @@ const DashboardPage: React.FC = () => {
             // Separate columns with whitespace, not hard dividers (cohesive
             // taostats look) — tight enough to avoid dead space.
             gap: { xs: 3, md: 2.5 },
-            gridTemplateColumns: { xs: '1fr', md: '0.82fr 2fr 0.8fr' },
+            // Two columns: the chart + liquidity stack owns the width, the
+            // live feeds keep their rail on the right.
+            gridTemplateColumns: { xs: '1fr', md: '2.6fr 0.85fr' },
             gridTemplateRows: { md: '1fr' },
           }}
         >
-          {/* Left column (desktop) / second on mobile: the live rates table.
-              Kept above the unbounded transactions list on mobile. */}
-          <Box
-            sx={{
-              ...colSx,
-              minHeight: { xs: 340, md: 0 },
-              order: { xs: 2, md: 0 },
-            }}
-          >
-            <MinerRatesTable syncDirection={direction} />
-          </Box>
-
-          {/* Middle column (focus); first on mobile: the market-rate chart with
-              a direction toggle that also filters the Active Rates table. */}
+          {/* Main column: the market-rate chart (its direction toggle drives
+              everything below), the 24h stat strip, then the two liquidity
+              views of that direction — orderbook and the live rates table. */}
           <Box
             sx={{
               ...colSx,
@@ -116,10 +109,46 @@ const DashboardPage: React.FC = () => {
               order: { xs: 1, md: 0 },
             }}
           >
-            <AllwaysMarketRate
-              direction={direction}
-              onDirectionChange={setDirection}
-            />
+            <Box
+              sx={{
+                flex: 1.3,
+                minHeight: { xs: 260, md: 0 },
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <AllwaysMarketRate
+                direction={direction}
+                onDirectionChange={setDirection}
+              />
+            </Box>
+            <StatsStrip />
+            {/* Orderbook is desktop-only: the stacked mobile layout already
+                runs long, and the rates table carries the same liquidity. */}
+            {!isStacked && (
+              <Box
+                sx={{
+                  flex: 0.8,
+                  minHeight: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  pt: 1,
+                }}
+              >
+                <OrderbookDepth direction={direction} embedded />
+              </Box>
+            )}
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: { xs: 340, md: 0 },
+                display: 'flex',
+                flexDirection: 'column',
+                pt: 1.5,
+              }}
+            >
+              <MinerRatesTable syncDirection={direction} />
+            </Box>
           </Box>
 
           {/* Right column; last on mobile (its list is unbounded):

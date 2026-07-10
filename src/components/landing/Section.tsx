@@ -39,7 +39,6 @@ const Section: React.FC<Props> = ({
             letterSpacing: '-0.03em',
             color: 'text.primary',
             mb: { xs: 4, md: 6 },
-            maxWidth: 700,
             display: 'block',
           }}
         >

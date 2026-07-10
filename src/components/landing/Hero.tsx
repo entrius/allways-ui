@@ -19,21 +19,64 @@ const Hero: React.FC = () => {
         backgroundColor: 'background.default',
       }}
     >
-      {/* Mesh background art */}
+      {/* Brand background: a soft blue wash drifting in from the top right
+          (matches the Allways social art) instead of the old mesh photo. */}
       <Box
         aria-hidden
         sx={{
           position: 'absolute',
           inset: 0,
-          backgroundImage: 'url(/hero/allways-1.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center right',
-          backgroundRepeat: 'no-repeat',
-          opacity: mode === 'dark' ? 0.18 : 0.22,
-          filter: mode === 'dark' ? 'invert(1)' : 'none',
+          background:
+            mode === 'dark'
+              ? 'radial-gradient(1100px 640px at 88% 18%, rgba(0, 82, 255, 0.18), transparent 65%)'
+              : 'radial-gradient(1100px 640px at 88% 18%, rgba(0, 82, 255, 0.10), transparent 65%), linear-gradient(120deg, rgba(0, 82, 255, 0) 55%, rgba(0, 82, 255, 0.05) 100%)',
           pointerEvents: 'none',
         }}
       />
+      {/* Thin concentric circle line-work, cropped by the hero edge like the
+          brand header art. */}
+      <Box
+        aria-hidden
+        component="svg"
+        viewBox="0 0 1200 800"
+        preserveAspectRatio="xMaxYMid slice"
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          opacity: mode === 'dark' ? 0.5 : 1,
+        }}
+      >
+        <circle
+          cx="1050"
+          cy="240"
+          r="330"
+          fill="none"
+          stroke="#0052ff"
+          strokeOpacity="0.22"
+          strokeWidth="1"
+        />
+        <circle
+          cx="985"
+          cy="540"
+          r="420"
+          fill="none"
+          stroke="#0052ff"
+          strokeOpacity="0.14"
+          strokeWidth="1"
+        />
+        <circle
+          cx="1180"
+          cy="620"
+          r="260"
+          fill="none"
+          stroke="#0052ff"
+          strokeOpacity="0.18"
+          strokeWidth="1"
+        />
+      </Box>
 
       <Box
         sx={{
@@ -61,9 +104,11 @@ const Hero: React.FC = () => {
             maxWidth: 1100,
           }}
         >
-          Universal
+          Any asset
           <br />
-          transaction layer
+          <Box component="span" sx={{ color: 'primary.main' }}>
+            to any asset.
+          </Box>
         </Typography>
 
         <Typography
@@ -76,8 +121,9 @@ const Hero: React.FC = () => {
             lineHeight: 1.5,
           }}
         >
-          Building trustless peer to peer transactions between all digital
-          assets. No custodian. No wrapped assets.
+          A direct, liquid market between any two assets. Choose what you send,
+          what arrives, and where it lands. No account, no exchange, no hoops in
+          between.
         </Typography>
 
         <Stack
@@ -87,7 +133,7 @@ const Hero: React.FC = () => {
         >
           <Button
             component={RouterLink}
-            to="/swap"
+            to="/dashboard"
             variant="contained"
             size="large"
             sx={{
@@ -104,30 +150,6 @@ const Hero: React.FC = () => {
               '&:hover': {
                 backgroundColor: 'var(--color-primary)',
                 boxShadow: 'none',
-              },
-            }}
-          >
-            Exchange
-          </Button>
-          <Button
-            component={RouterLink}
-            to="/dashboard"
-            variant="outlined"
-            size="large"
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.8rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              borderRadius: 0,
-              px: 4,
-              py: 1.5,
-              borderColor: 'divider',
-              color: 'text.primary',
-              '&:hover': {
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                backgroundColor: 'transparent',
               },
             }}
           >
@@ -153,6 +175,22 @@ const Hero: React.FC = () => {
           </Button>
         </Stack>
       </Box>
+
+      {/* Bottom-right mono sign-off, echoing the brand header art. */}
+      <Typography
+        sx={{
+          position: 'absolute',
+          right: { xs: 16, md: 48 },
+          bottom: { xs: 12, md: 24 },
+          display: { xs: 'none', sm: 'block' },
+          fontFamily: FONTS.mono,
+          fontSize: '0.7rem',
+          letterSpacing: '0.12em',
+          color: 'text.disabled',
+        }}
+      >
+        Universal transaction layer
+      </Typography>
     </Box>
   );
 };

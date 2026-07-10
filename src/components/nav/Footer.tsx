@@ -99,9 +99,6 @@ const Footer: React.FC = () => {
                 <Box component={RouterLink} to="/dashboard" sx={linkSx}>
                   Dashboard
                 </Box>
-                <Box component={RouterLink} to="/swap" sx={linkSx}>
-                  Exchange
-                </Box>
                 <Box component={RouterLink} to="/agents" sx={linkSx}>
                   Agents
                 </Box>

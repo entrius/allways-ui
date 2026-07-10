@@ -29,22 +29,40 @@ const AgentTeaser: React.FC = () => {
             spacing={{ xs: 3, md: 4 }}
             sx={{ p: { xs: 3, md: 5 } }}
           >
+            {/* Thin circle line-work, same family as the hero background. */}
             <Box
               aria-hidden
-              component="img"
-              src="/hero/allways-3.png"
-              alt=""
+              component="svg"
+              viewBox="0 0 600 300"
+              preserveAspectRatio="xMaxYMid slice"
               sx={{
                 position: 'absolute',
-                right: { xs: -40, md: -20 },
-                top: '50%',
-                transform: 'translateY(-50%)',
-                height: { xs: 180, md: 260 },
-                opacity: mode === 'dark' ? 0.06 : 0.05,
-                filter: mode === 'dark' ? 'invert(1)' : 'none',
+                inset: 0,
+                width: '100%',
+                height: '100%',
                 pointerEvents: 'none',
+                opacity: mode === 'dark' ? 0.5 : 1,
               }}
-            />
+            >
+              <circle
+                cx="540"
+                cy="90"
+                r="150"
+                fill="none"
+                stroke="#0052ff"
+                strokeOpacity="0.2"
+                strokeWidth="1"
+              />
+              <circle
+                cx="470"
+                cy="230"
+                r="190"
+                fill="none"
+                stroke="#0052ff"
+                strokeOpacity="0.12"
+                strokeWidth="1"
+              />
+            </Box>
 
             <Stack
               sx={{ flex: 1, position: 'relative', zIndex: 1 }}

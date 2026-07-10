@@ -1,10 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   Box,
   IconButton,
-  MenuItem,
-  Select,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -16,164 +13,85 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useMiners } from '../../api';
+import { useMiners, type Miner } from '../../api';
+import {
+  decomposeDirection,
+  directionLabel,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { formatRate } from '../../utils/format';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
-const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
+// The non-hub side of a miner's pair (canonical order pins SOL as source, so
+// this is normally destChain), lowercased — or null if the miner has no pair.
+const minerSpoke = (m: Miner): string | null => {
+  const chains = [m.sourceChain, m.destChain]
+    .map((c) => c?.toLowerCase())
+    .filter((c): c is string => !!c && c !== 'sol');
+  return chains[0] ?? null;
+};
+
+// Depth of market for the page's active direction: hittable collateral grouped
+// by quoted rate, best rate first, with a cumulative running total. Follows the
+// Active Rates table's direction semantics — forward = SOL→spoke (m.rate),
+// reverse = spoke→SOL (m.counterRate); both quote "dest per 1 source", so
+// higher is always the better rate.
+const OrderbookDepth: React.FC<{
+  direction: Direction;
+  embedded?: boolean;
+}> = ({ direction, embedded }) => {
   const theme = useTheme();
-
-  const SOL_COLOR = theme.palette.asset.sol;
-  const BTC_COLOR = theme.palette.asset.btc;
-
-  const BtcIcon = ({ size = 16 }: { size?: number }) => (
-    <svg viewBox="0 0 32 32" width={size} height={size}>
-      <circle cx="16" cy="16" r="16" fill={BTC_COLOR} />
-      <path
-        fill="var(--color-white)"
-        fillRule="evenodd"
-        d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.92-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.533 2.147-4.148.986-5.32.695l.95-3.805c1.172.293 4.929.872 4.37 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.696 3.61 2.733z"
-      />
-    </svg>
-  );
-
-  const AssetIcon = ({
-    asset,
-    size = 16,
-  }: {
-    asset: string;
-    size?: number;
-  }) => {
-    if (asset.toUpperCase() === 'BTC') return <BtcIcon size={size} />;
-    return (
-      <Box
-        sx={{
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          backgroundColor: theme.palette.text.secondary,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Typography
-          sx={{
-            fontSize: size * 0.6,
-            color: theme.palette.background.paper,
-            fontWeight: 'bold',
-          }}
-        >
-          {asset[0]?.toUpperCase()}
-        </Typography>
-      </Box>
-    );
-  };
+  const { data: miners, isLoading } = useMiners();
+  const { spoke, leg } = decomposeDirection(direction);
 
   const headerSx = {
     fontFamily: FONTS.mono,
-    fontSize: '0.65rem',
+    fontSize: '0.62rem',
     color: theme.palette.text.secondary,
     borderBottom: `1px solid ${theme.palette.divider}`,
     backgroundColor: theme.palette.background.default,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
+    px: 1,
+    py: 0.5,
   };
 
   const cellSx = {
     fontFamily: FONTS.mono,
-    fontSize: '0.75rem',
+    fontSize: '0.72rem',
     borderBottom: `1px solid ${theme.palette.divider}`,
+    px: 1,
+    py: 0.5,
+    fontVariantNumeric: 'tabular-nums' as const,
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   };
-
-  const { data: miners, isLoading } = useMiners();
-  type Direction = 'forward' | 'reverse';
-  type DirectionOption = {
-    asset: string;
-    direction: Direction;
-    key: string;
-    label: string;
-  };
-  const [selectedKey, setSelectedKey] = useState<string>('');
-
-  const directionOptions = useMemo<DirectionOption[]>(() => {
-    const seen = new Map<string, DirectionOption>();
-    miners?.forEach((m) => {
-      const s = m.sourceChain?.toLowerCase();
-      const d = m.destChain?.toLowerCase();
-      if (!s || d !== 'sol' || s === 'sol') return;
-      const asset = s.toUpperCase();
-      const fwd = m.rate ? parseFloat(m.rate) : 0;
-      const rev = m.counterRate ? parseFloat(m.counterRate) : 0;
-      if (fwd > 0) {
-        const key = `${asset}>forward`;
-        if (!seen.has(key))
-          seen.set(key, {
-            asset,
-            direction: 'forward',
-            key,
-            label: `${asset} → SOL`,
-          });
-      }
-      if (rev > 0) {
-        const key = `${asset}>reverse`;
-        if (!seen.has(key))
-          seen.set(key, {
-            asset,
-            direction: 'reverse',
-            key,
-            label: `SOL → ${asset}`,
-          });
-      }
-    });
-    return Array.from(seen.values()).sort((a, b) =>
-      a.label.localeCompare(b.label),
-    );
-  }, [miners]);
-
-  useEffect(() => {
-    if (directionOptions.length === 0) return;
-    if (!directionOptions.find((o) => o.key === selectedKey)) {
-      setSelectedKey(directionOptions[0].key);
-    }
-  }, [directionOptions, selectedKey]);
-
-  const selected = directionOptions.find((o) => o.key === selectedKey) ?? null;
 
   const depthData = useMemo(() => {
-    if (!miners?.length || !selected) return [];
-    const asset = selected.asset.toLowerCase();
-    const groups: Record<string, number> = {}; // key = rate, val = collateral SOL
-
-    miners.forEach((m) => {
-      // Only miners whose collateral is hittable right now count as
-      // depth. Inactive miners still have a quote on-chain but no one
-      // can take it; exchanging miners have their collateral locked
-      // in a swap; reserved miners have it locked by a pending swap.
-      // This panel answers "what rate can I actually use right now?".
+    const groups: Record<string, number> = {}; // key = rate level, val = SOL
+    (miners ?? []).forEach((m) => {
+      // Only collateral hittable right now counts as depth: inactive miners
+      // can't be traded with, exchanging/reserved miners have theirs locked.
+      if (minerSpoke(m) !== spoke) return;
       if (!m.isActive || m.hasActiveSwap || m.isReserved) return;
       if (!m.collateral) return;
-      const s = m.sourceChain?.toLowerCase();
-      const d = m.destChain?.toLowerCase();
-      if (s !== asset || d !== 'sol') return;
       const capacitySol = parseInt(m.collateral, 10) / 1e9;
-      if (isNaN(capacitySol) || capacitySol <= 0) return;
-      const raw = selected.direction === 'forward' ? m.rate : m.counterRate;
+      if (!Number.isFinite(capacitySol) || capacitySol <= 0) return;
+      const raw = leg === 'reverse' ? m.counterRate : m.rate;
       const r = raw ? parseFloat(raw) : 0;
-      if (!isFinite(r) || r <= 0) return;
-      // This key is the price LEVEL — it groups miners, sorts the book, and is
-      // rendered verbatim. At 2dp every BTC-scale quote (~0.0021 SOL) rounded to
-      // "0.00", collapsing the whole book into a single bogus level.
+      if (!Number.isFinite(r) || r <= 0) return;
+      // formatRate is the price LEVEL key — it groups miners, sorts the book,
+      // and is rendered verbatim (2dp would collapse BTC-scale quotes to 0.00).
       const key = formatRate(r);
       groups[key] = (groups[key] || 0) + capacitySol;
     });
 
-    // Best rate first: forward wants highest TAO/asset, reverse wants lowest.
-    const rates = Object.keys(groups).sort((a, b) =>
-      selected.direction === 'forward'
-        ? parseFloat(b) - parseFloat(a)
-        : parseFloat(a) - parseFloat(b),
+    // Both legs quote "dest per 1 source" — more output per unit in is always
+    // better, so best-first is highest-first for every direction.
+    const rates = Object.keys(groups).sort(
+      (a, b) => parseFloat(b) - parseFloat(a),
     );
 
     let cum = 0;
@@ -182,7 +100,7 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
       cum += capacity;
       return { rate: key, capacity, cumCapacity: cum };
     });
-  }, [miners, selected]);
+  }, [miners, spoke, leg]);
 
   const maxCum = useMemo(
     () =>
@@ -190,9 +108,12 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
     [depthData],
   );
 
-  return isLoading || !miners ? (
-    <OrderbookDepthSkeleton />
-  ) : (
+  // Monochrome depth bars, matching the house chart style.
+  const barColor = `color-mix(in srgb, ${theme.palette.text.primary} 10%, transparent)`;
+
+  if (isLoading || !miners) return <OrderbookDepthSkeleton />;
+
+  return (
     <Box
       sx={{
         height: '100%',
@@ -205,76 +126,49 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: embedded ? 'flex-end' : 'space-between',
-          mb: 2,
+          justifyContent: 'space-between',
+          mb: 1,
         }}
       >
-        {!embedded && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography
-              variant="h6"
-              sx={{ fontFamily: FONTS.heading, fontWeight: 700 }}
-            >
-              Depth of Market
-            </Typography>
-            <Tooltip
-              title={
-                <Stack spacing={0.5} sx={{ maxWidth: 250 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                    What is this?
-                  </Typography>
-                  <Typography variant="body2">
-                    This orderbook visualizes the cumulative liquidity available
-                    across all active miners at various exchange rates.
-                  </Typography>
-                  <Typography variant="body2">
-                    The background bars form a volume profile: the market
-                    equilibrium point is where the left and right profiles match
-                    in width.
-                  </Typography>
-                </Stack>
-              }
-              arrow
-              placement="right"
-            >
-              <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
-                <InfoOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        )}
-
-        {directionOptions.length > 0 && (
-          <Select
-            size="small"
-            value={selectedKey}
-            onChange={(e) => setSelectedKey(e.target.value as string)}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Typography
             sx={{
-              width: 160,
-              height: 32,
               fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              color: 'text.primary',
-              borderRadius: 0,
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: theme.palette.border.light,
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
+              fontSize: '0.7rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'text.secondary',
             }}
           >
-            {directionOptions.map((opt) => (
-              <MenuItem
-                key={opt.key}
-                value={opt.key}
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.75rem' }}
-              >
-                {opt.label}
-              </MenuItem>
-            ))}
-          </Select>
+            Orderbook
+          </Typography>
+          <Tooltip
+            title={
+              <Box sx={{ maxWidth: 260 }}>
+                Liquidity you can hit right now for the selected direction: idle
+                miners' collateral grouped by quoted rate, best rate first. The
+                bar behind each row is the cumulative capacity walking down the
+                book.
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        {!embedded && (
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.65rem',
+              color: 'text.disabled',
+            }}
+          >
+            {directionLabel(direction)}
+          </Typography>
         )}
       </Box>
 
@@ -282,6 +176,9 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
         sx={{
           flex: 1,
           minHeight: 0,
+          // Vertical scroll only — the fixed table layout below guarantees the
+          // columns always fit the column width.
+          overflowX: 'hidden',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
             background: theme.palette.border.light,
@@ -289,99 +186,43 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
           },
         }}
       >
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={headerSx}>
-                <Tooltip
-                  title={`Quoted rate for ${selected?.label ?? 'this direction'} (SOL per 1 ${selected?.asset ?? 'asset'}).`}
-                  arrow
-                  placement="top"
-                >
-                  <span
-                    style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
-                  >
-                    Rate (SOL)
-                  </span>
-                </Tooltip>
+              <TableCell sx={{ ...headerSx, width: '34%' }}>Rate</TableCell>
+              <TableCell sx={{ ...headerSx, width: '36%' }} align="right">
+                Capacity (SOL)
               </TableCell>
-              <TableCell sx={headerSx} align="right">
-                <Tooltip
-                  title="Capacity at this exact rate, denominated in SOL collateral."
-                  arrow
-                  placement="top"
-                >
-                  <span
-                    style={{ cursor: 'pointer', borderBottom: '1px dotted' }}
-                  >
-                    Capacity (SOL)
-                  </span>
-                </Tooltip>
-              </TableCell>
-              <TableCell sx={headerSx} align="right">
-                <Tooltip
-                  title="Cumulative capacity walking from the best rate down."
-                  arrow
-                  placement="top"
-                >
-                  <Box
-                    sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 0.75,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {selected?.direction === 'reverse' ? (
-                      <>
-                        <AssetIcon asset="SOL" /> {'→'}{' '}
-                        <AssetIcon asset={selected.asset} />
-                      </>
-                    ) : selected ? (
-                      <>
-                        <AssetIcon asset={selected.asset} /> {'→'}{' '}
-                        <AssetIcon asset="SOL" />
-                      </>
-                    ) : (
-                      <span>Cumulative</span>
-                    )}
-                  </Box>
-                </Tooltip>
+              <TableCell sx={{ ...headerSx, width: '30%' }} align="right">
+                Cumulative
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {depthData.map((row) => {
               const pct = (row.cumCapacity / maxCum) * 100;
-              const isBtc = selected?.asset.toUpperCase() === 'BTC';
-              const assetThemeColor = isBtc
-                ? BTC_COLOR
-                : theme.palette.primary.main;
-              const fillColor =
-                selected?.direction === 'forward' ? assetThemeColor : SOL_COLOR;
-              const gradColor = `color-mix(in srgb, ${fillColor} 14%, transparent)`;
-
               return (
                 <TableRow
                   key={row.rate}
                   sx={{
                     backgroundColor: 'transparent',
-                    backgroundImage: `linear-gradient(to left, ${gradColor} ${pct}%, transparent ${pct}%)`,
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                    },
+                    backgroundImage: `linear-gradient(to left, ${barColor} ${pct}%, transparent ${pct}%)`,
+                    '&:hover': { backgroundColor: 'action.hover' },
                   }}
                 >
                   <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
                     {row.rate}
                   </TableCell>
                   <TableCell
-                    sx={{ ...cellSx, color: 'text.primary' }}
+                    sx={{ ...cellSx, color: 'text.secondary' }}
                     align="right"
                   >
                     {row.capacity.toFixed(2)}
                   </TableCell>
-                  <TableCell sx={{ ...cellSx, color: fillColor }} align="right">
+                  <TableCell
+                    sx={{ ...cellSx, color: 'text.primary', fontWeight: 600 }}
+                    align="right"
+                  >
                     {row.cumCapacity.toFixed(2)}
                   </TableCell>
                 </TableRow>
@@ -395,13 +236,13 @@ const OrderbookDepth: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                   sx={{
                     textAlign: 'center',
                     borderBottom: 'none',
-                    py: 4,
+                    py: 3,
                     fontFamily: FONTS.mono,
-                    fontSize: '0.8rem',
+                    fontSize: '0.72rem',
                     color: 'text.secondary',
                   }}
                 >
-                  No depth data available
+                  No open liquidity for {directionLabel(direction)}
                 </TableCell>
               </TableRow>
             )}

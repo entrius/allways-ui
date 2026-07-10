@@ -86,11 +86,18 @@ const getSortValue = (
   }
 };
 
-const columns: { key: SortKey; label: string; align?: 'right' | 'center' }[] = [
-  { key: 'uid', label: 'UID' },
-  { key: 'rate', label: 'Rate' },
-  { key: 'collateral', label: 'Capacity', align: 'right' },
-  { key: 'status', label: 'Status' },
+// Widths are percentages for the fixed table layout, so the table always fits
+// its container instead of growing a horizontal scrollbar.
+const columns: {
+  key: SortKey;
+  label: string;
+  align?: 'right' | 'center';
+  width: string;
+}[] = [
+  { key: 'uid', label: 'UID', width: '34%' },
+  { key: 'rate', label: 'Rate', width: '26%' },
+  { key: 'collateral', label: 'Capacity', align: 'right', width: '22%' },
+  { key: 'status', label: 'Status', align: 'center', width: '18%' },
 ];
 
 const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
@@ -113,13 +120,14 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
     syncDirection ?? 'SOL-BTC',
   );
 
+  // Monochrome status scale: the more tradeable, the darker the dot.
   const statusInfo = (miner: Miner) => {
     if (!miner.isActive) return { color: disabled, label: 'Inactive' };
     if (miner.hasActiveSwap)
-      return { color: theme.palette.status.fulfilled, label: 'Exchanging' };
+      return { color: theme.palette.text.secondary, label: 'Exchanging' };
     if (miner.isReserved)
-      return { color: theme.palette.status.active, label: 'Reserved' };
-    return { color: theme.palette.primary.main, label: 'Available' };
+      return { color: theme.palette.text.secondary, label: 'Reserved' };
+    return { color: theme.palette.text.primary, label: 'Available' };
   };
 
   const headerSx = {
@@ -139,6 +147,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
     borderBottom: `1px solid ${theme.palette.divider}`,
     px: { xs: 0.75, sm: 1 },
     fontVariantNumeric: 'tabular-nums' as const,
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   };
 
   const { data: miners, isLoading } = useMiners();
@@ -337,12 +348,12 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                   color: theme.palette.text.secondary,
                 },
                 '& .Mui-selected': {
-                  backgroundColor: `${theme.palette.primary.main}22 !important`,
-                  color: `${theme.palette.primary.main} !important`,
-                  borderColor: `${theme.palette.primary.main} !important`,
+                  backgroundColor: `${theme.palette.text.primary} !important`,
+                  color: `${theme.palette.background.paper} !important`,
+                  borderColor: `${theme.palette.text.primary} !important`,
                 },
                 '& .Mui-selected + .MuiToggleButton-root': {
-                  borderLeftColor: `${theme.palette.primary.main} !important`,
+                  borderLeftColor: `${theme.palette.text.primary} !important`,
                 },
               }}
             >
@@ -358,6 +369,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
         sx={{
           flex: 1,
           minHeight: 0,
+          // Vertical scroll only — the fixed table layout below guarantees the
+          // columns always fit the column width.
+          overflowX: 'hidden',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
             background: theme.palette.border.light,
@@ -365,11 +379,15 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
           },
         }}
       >
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
           <TableHead>
             <TableRow>
               {visibleColumns.map((col) => (
-                <TableCell key={col.key} align={col.align} sx={headerSx}>
+                <TableCell
+                  key={col.key}
+                  align={col.align}
+                  sx={{ ...headerSx, width: col.width }}
+                >
                   <TableSortLabel
                     active={sortKey === col.key}
                     direction={sortKey === col.key ? sortDir : 'asc'}
@@ -403,14 +421,14 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                     '&:hover': { backgroundColor: 'background.paper' },
                     transition: 'background-color 0.15s, opacity 0.15s',
                     backgroundColor: highlight
-                      ? `${theme.palette.primary.main}12`
+                      ? theme.palette.action.selected
                       : 'transparent',
                     opacity: dimmed ? 0.3 : 1,
                   }}
                 >
                   {/* UID only — the hotkey is searchable (and lives on the
                       miner detail page) but doesn't earn a row line here. */}
-                  <TableCell sx={{ ...cellSx, minWidth: { xs: 0, sm: 92 } }}>
+                  <TableCell sx={cellSx}>
                     <Stack spacing={0.25}>
                       {/* uid is null when the hotkey isn't registered on the
                           metagraph — show an explicit dash, never a fake 0. */}
@@ -465,33 +483,20 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                   </TableCell>
 
                   {!isMobile && (
-                    <TableCell sx={cellSx}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.75,
-                        }}
-                      >
+                    <TableCell sx={cellSx} align="center">
+                      {/* Dot only — the label lives in the tooltip. The full
+                          text made this column wider than the dashboard's
+                          narrow rates column and truncated the header. */}
+                      <Tooltip title={status.label} arrow placement="left">
                         <Box
                           sx={{
                             width: 8,
                             height: 8,
                             backgroundColor: status.color,
-                            flexShrink: 0,
+                            display: 'inline-block',
                           }}
                         />
-                        <Typography
-                          sx={{
-                            fontFamily: FONTS.mono,
-                            fontSize: '0.7rem',
-                            color: 'text.secondary',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {status.label}
-                        </Typography>
-                      </Box>
+                      </Tooltip>
                     </TableCell>
                   )}
                 </TableRow>

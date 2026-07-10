@@ -5,6 +5,7 @@ export { default as OrderbookDepth } from './OrderbookDepth';
 export { default as RatesTicker } from './RatesTicker';
 export { default as ReservationsTracker } from './ReservationsTracker';
 export { default as StatsPanel } from './StatsPanel';
+export { default as StatsStrip } from './StatsStrip';
 export { default as SwapTracker } from './SwapTracker';
 export { default as TabbedPanel } from './TabbedPanel';
 export * from './Skeletons';

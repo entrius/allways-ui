@@ -37,7 +37,7 @@ const BlockIndicator: React.FC = () => {
 
   const flash = keyframes`
     0%   { transform: scale(1); color: ${theme.palette.text.secondary}; }
-    40%  { transform: scale(1.25); color: ${theme.palette.primary.main}; }
+    40%  { transform: scale(1.25); color: ${theme.palette.text.primary}; }
     100% { transform: scale(1); color: ${theme.palette.text.secondary}; }
   `;
 
@@ -71,7 +71,10 @@ const BlockIndicator: React.FC = () => {
           color: 'text.secondary',
         }}
       >
-        updated {display ?? '—'}
+        {/* "last event", not "updated": the timestamp is the most recent
+            on-chain event, not this page's refresh — "updated 6h ago" read as
+            a stale dashboard when the network was merely quiet. */}
+        last event {display ?? '—'}
       </Box>
     </Stack>
   );

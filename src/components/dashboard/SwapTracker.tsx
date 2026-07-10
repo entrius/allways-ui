@@ -40,23 +40,18 @@ const STATUS_PROGRESS: Record<string, number> = {
 const getStatusColor = (
   status: string,
   palette: {
-    status: {
-      active: string;
-      fulfilled: string;
-      completed: string;
-      timedOut: string;
-    };
+    text: { primary: string; secondary: string };
   },
 ): string => {
-  // Terminal states pop with semantic color — completion green / timeout red.
-  // In-flight states keep their muted blue tints.
+  // Mostly monochrome, but terminal outcomes keep semantic color — completed
+  // green / timed-out red. In-flight states stay neutral.
   const map: Record<string, string> = {
-    ACTIVE: palette.status.active,
-    FULFILLED: palette.status.fulfilled,
+    ACTIVE: palette.text.secondary,
+    FULFILLED: palette.text.secondary,
     COMPLETED: 'var(--color-success)',
     TIMED_OUT: 'var(--color-danger)',
   };
-  return map[status] ?? palette.status.active;
+  return map[status] ?? palette.text.secondary;
 };
 
 const useDebounce = (value: string, delay: number) => {
