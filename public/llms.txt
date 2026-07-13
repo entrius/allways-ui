@@ -126,15 +126,17 @@ As a swap user (not a miner) the **coldkey** signs the TAO source transfer; the 
 
 Every direction needs a funded Solana key for fees and the reservation fee, even when the source asset is BTC or TAO.
 
-### 4. (BTC-side only) BTC sending
+### 4. (BTC-side only) sending the BTC leg
 
-For BTC-source swaps the CLI can broadcast BTC if you supply a WIF via env (shell env, a project `.env` walked up from CWD, or `~/.allways/.env`):
+`alw swap now` **reserves** the miner and prints its address + the exact amount — it does **not** broadcast your source funds yet (automatic fund-sending is on the roadmap). Send the BTC yourself from your source wallet to that address, then relay immediately with `alw swap post-tx <hash>`.
+
+Optionally set a WIF via env (shell env, a project `.env` walked up from CWD, or `~/.allways/.env`) — used by lightweight BTC tooling, and by the auto-send flow once it lands:
 
     BTC_MODE=lightweight
-    BTC_NETWORK=mainnet
+    BTC_NETWORK=mainnet          # testnet4 for testnet
     BTC_PRIVATE_KEY=<your_WIF_key>
 
-`lightweight` talks to public Esplora APIs — no Bitcoin node. If `BTC_PRIVATE_KEY` is unset, BTC-source falls back to manual: the CLI prints the miner's address + exact amount, you broadcast, then run `alw swap post-tx <hash>` immediately.
+`lightweight` talks to public Esplora APIs — no Bitcoin node.
 
 ### 5. Configure the CLI
 
@@ -169,7 +171,7 @@ The "You receive" line in a quote is the post-fee amount that lands in your dest
 
 ### Non-interactive (recommended for agents)
 
-`--yes` skips confirmations. Read the flag table before copying.
+`alw swap now` **reserves** the miner and prints the exact amount + address to send to — it does not move your funds. You then broadcast the source deposit yourself (SOL via `solana transfer`, TAO via your coldkey, BTC from your BTC wallet) and relay with `alw swap post-tx <hash>`. `--yes` skips confirmations. Read the flag table before copying.
 
 **BTC → SOL** (send BTC, receive SOL):
 
@@ -180,6 +182,8 @@ The "You receive" line in a quote is the post-fee amount that lands in your dest
       --from-address tb1q... \
       --yes
 
+(`--from-address` is your source address on the source chain: a `tb1q…` on testnet4, `bc1q…` on mainnet.)
+
 **SOL → TAO** (send SOL, receive TAO). `--receive-address` here is a TAO ss58:
 
     alw swap now \
@@ -188,7 +192,7 @@ The "You receive" line in a quote is the post-fee amount that lands in your dest
       --receive-address 5C... \
       --yes
 
-If you already broadcast the source tx yourself, pass `--from-tx-hash <hash>` so the CLI doesn't try to send.
+In every case `alw swap now` only **reserves** — once it prints the miner's address, send the source funds there and run `alw swap post-tx <hash>` promptly (don't sleep in between, or the reservation can lapse).
 
 | Flag | Purpose |
 |---|---|
@@ -197,7 +201,7 @@ If you already broadcast the source tx yourself, pass `--from-tx-hash <hash>` so
 | `--amount <n>` | Source amount, in source-chain units |
 | `--receive-address <addr>` | Where the miner sends to you (on the `--to` chain) |
 | `--from-address <addr>` | Where you broadcast from (required for non-SOL source); must match the pinned sender |
-| `--from-tx-hash <hash>` | Reuse an existing source tx — skip the send step |
+| `--from-tx-hash <hash>` | Attach a source tx you already broadcast (pairs with the forthcoming auto-send flow) |
 | `--yes` | Skip confirmations |
 | `--btc-fee-rate <sat/vB>` | Override BTC fee rate (default: auto-estimated) |
 
@@ -213,7 +217,7 @@ If interrupted before the send:
 
 ### Interactive
 
-`alw swap now` with no flags walks through direction, miner pick, amount, address, bid, send, watch.
+`alw swap now` with no flags walks through direction, miner pick, amount, address, and the bid. You still send the source funds and run `alw swap post-tx` yourself, then `alw view swap <key> --watch`.
 
 ## CLI cheat sheet (real commands only)
 
