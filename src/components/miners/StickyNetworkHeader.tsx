@@ -1,9 +1,9 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { BlockIndicator } from '../index';
 import { useCurrentCrown, useHaltState, useScoringState } from '../../api';
 import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
 import CrownDirectionSegment from './CrownDirectionSegment';
+import Ticker from '../Ticker';
 import { FONTS } from '../../theme';
 
 // Live "time since the validator last flushed crown/rate data". The validator
@@ -92,15 +92,15 @@ const StickyNetworkHeader: React.FC = () => {
           rowGap: { xs: 0.5, sm: 1 },
         }}
       >
-        <BlockIndicator />
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={{ xs: 0.5, sm: 3 }}
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          sx={{ flexWrap: 'wrap', gap: { xs: 0.5, sm: 3 }, flex: { sm: 1 } }}
+        <Box
+          sx={{
+            flex: { sm: 1 },
+            minWidth: 0,
+            width: { xs: '100%', sm: 'auto' },
+          }}
         >
-          {segments}
-        </Stack>
+          <Ticker>{segments}</Ticker>
+        </Box>
         <Stack direction="row" spacing={0.75} alignItems="center">
           <Box
             sx={{
@@ -122,7 +122,7 @@ const StickyNetworkHeader: React.FC = () => {
             >
               paused
             </Typography>
-          ) : scoring?.updatedAt != null && scoring.lastScoredAt > 0 ? (
+          ) : scoring?.updatedAt != null && scoring.lastScored > 0 ? (
             <RefreshIndicator updatedAt={scoring.updatedAt} />
           ) : (
             <Typography

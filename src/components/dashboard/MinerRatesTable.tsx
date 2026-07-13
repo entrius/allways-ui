@@ -105,8 +105,8 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
 }) => {
   const theme = useTheme();
   const disabled = theme.palette.text.disabled || theme.palette.text.secondary;
-  // On phones drop the hotkey + Status column so the table stays compact and
-  // never needs to scroll horizontally.
+  // On phones drop the address line + Status column so the table stays compact
+  // and never needs to scroll horizontally.
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const visibleColumns = isMobile
     ? columns.filter((c) => c.key !== 'status')
@@ -426,8 +426,8 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                     opacity: dimmed ? 0.3 : 1,
                   }}
                 >
-                  {/* UID with the hotkey folded underneath (hotkey hidden on
-                      mobile to keep the table compact). */}
+                  {/* UID only — the hotkey is searchable (and lives on the
+                      miner detail page) but doesn't earn a row line here. */}
                   <TableCell sx={cellSx}>
                     <Stack spacing={0.25}>
                       {/* uid is null when the hotkey isn't registered on the
@@ -435,14 +435,6 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                       <Box component="span" sx={{ color: 'text.primary' }}>
                         {miner.uid ?? '—'}
                       </Box>
-                      {!isMobile && (
-                        <Box
-                          component="span"
-                          sx={{ fontSize: '0.62rem', color: 'text.secondary' }}
-                        >
-                          <CopyableAddress address={miner.hotkey} />
-                        </Box>
-                      )}
                       {!isMobile && miner.solanaPubkey && (
                         <Box
                           component="span"

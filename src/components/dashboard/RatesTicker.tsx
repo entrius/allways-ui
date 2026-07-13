@@ -4,6 +4,7 @@ import { useAllSwaps, useCurrentCrown } from '../../api';
 import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { BlockIndicator } from '../index';
+import Ticker from '../Ticker';
 import CrownDirectionSegment from '../miners/CrownDirectionSegment';
 import { latestEmaRate } from './marketRate';
 import { formatRate } from '../../utils/format';
@@ -38,12 +39,7 @@ const RatesTicker: React.FC = () => {
       }}
     >
       <BlockIndicator />
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={{ xs: 0.5, sm: 3 }}
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        sx={{ flexWrap: 'wrap', gap: { xs: 0.5, md: 3 } }}
-      >
+      <Ticker>
         {DIRECTIONS.map((dir) => {
           const emaRate = latestEmaRate(swaps, dir);
           return (
@@ -98,7 +94,7 @@ const RatesTicker: React.FC = () => {
             </CrownDirectionSegment>
           );
         })}
-      </Stack>
+      </Ticker>
     </Stack>
   );
 };

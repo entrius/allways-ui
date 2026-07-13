@@ -9,4 +9,5 @@ export { default as CrownHistoryPanel } from './CrownHistoryPanel';
 export { default as MinerDetailHeader } from './MinerDetailHeader';
 export { default as CrownRateChart } from './CrownRateChart';
 export { default as MinerSwapHistory } from './MinerSwapHistory';
-export { default as ScoreFactorsStrip } from './ScoreFactorsStrip';
+export { default as ScoringPanel } from './ScoringPanel';
+export { default as RateHistoryTable } from './RateHistoryTable';
