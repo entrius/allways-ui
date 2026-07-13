@@ -12,6 +12,13 @@ import { Box, Stack, useMediaQuery } from '@mui/material';
 
 const GAP = 2; // theme spacing between segments
 
+// Marquee speed. The duration is derived from the measured content width so both
+// strips scroll at the same pixels/second — a fixed duration made the wider
+// dashboard strip (it carries the EMA suffix) look faster than the narrower
+// miners strip. ~22 px/s is a calm pace; MIN keeps very narrow content sane.
+const PX_PER_SEC = 22;
+const MIN_DURATION_SEC = 8;
+
 // One pass of the segments. Two identical copies sit in the animated track and
 // the transform slides exactly one copy-width (-50%), so the loop is seamless
 // regardless of how wide the content is.
@@ -27,6 +34,24 @@ const Ticker: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const items = React.Children.toArray(children);
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [paused, setPaused] = React.useState(false);
+
+  // Measure one copy's width and set the duration to width / PX_PER_SEC, so the
+  // marquee holds a constant visual speed no matter how wide the segments are.
+  const copyRef = React.useRef<HTMLDivElement>(null);
+  const [durationSec, setDurationSec] = React.useState(20);
+  React.useEffect(() => {
+    if (reduced) return;
+    const el = copyRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setDurationSec(Math.max(MIN_DURATION_SEC, w / PX_PER_SEC));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [reduced]);
 
   return (
     <>
@@ -61,15 +86,23 @@ const Ticker: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             sx={{
               display: 'inline-flex',
               width: 'max-content',
-              animation: 'aw-ticker 20s linear infinite',
+              // GPU-composited so the miner header's per-second "last refresh"
+              // re-render can't stutter the scroll (main-thread reflow jitter).
+              willChange: 'transform',
+              animationName: 'aw-ticker',
+              animationDuration: `${durationSec}s`,
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
               animationPlayState: paused ? 'paused' : 'running',
               '@keyframes aw-ticker': {
-                from: { transform: 'translateX(0)' },
-                to: { transform: 'translateX(-50%)' },
+                from: { transform: 'translate3d(0, 0, 0)' },
+                to: { transform: 'translate3d(-50%, 0, 0)' },
               },
             }}
           >
-            <Box sx={COPY_SX}>{items}</Box>
+            <Box ref={copyRef} sx={COPY_SX}>
+              {items}
+            </Box>
             <Box aria-hidden sx={COPY_SX}>
               {items}
             </Box>
