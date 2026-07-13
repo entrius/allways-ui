@@ -15,8 +15,8 @@ const GAP = 2; // theme spacing between segments
 // Marquee speed. The duration is derived from the measured content width so both
 // strips scroll at the same pixels/second — a fixed duration made the wider
 // dashboard strip (it carries the EMA suffix) look faster than the narrower
-// miners strip. ~22 px/s is a calm pace; MIN keeps very narrow content sane.
-const PX_PER_SEC = 22;
+// miners strip. ~25 px/s is a calm pace; MIN keeps very narrow content sane.
+const PX_PER_SEC = 25;
 const MIN_DURATION_SEC = 8;
 
 // One pass of the segments. Two identical copies sit in the animated track and
