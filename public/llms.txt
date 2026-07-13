@@ -14,11 +14,11 @@ collateral and quote exchange rates. Validators verify both legs of each swap.
 The contract slashes collateral (in SOL) on failure and pays the taker. No
 custodian, no wrapped asset, no bridge token.
 
-> **Where to point your wallets right now:** **testnet** (Bittensor netuid 19 +
-> Solana devnet) is the live, usable environment — dry-run here. **Mainnet**
-> (netuid 7) is in internal bring-up. Both use the same Solana program
-> `6JVBEj5w27J2SVjERmv2c7wXgFee9nSSBKUJevHehyBD` — the program id is the same
-> across clusters; only the network differs. Setup blocks for both are below.
+> **Where to point your wallets:** **Mainnet** (Bittensor netuid 7 + Solana
+> mainnet) is the live network — real SOL, BTC, and TAO. **Testnet** (netuid 19 +
+> Solana devnet) mirrors it with free funds for dry-runs. Both use the same Solana
+> program `6JVBEj5w27J2SVjERmv2c7wXgFee9nSSBKUJevHehyBD` — the program id is the
+> same across clusters; only the network differs. Setup blocks for both are below.
 
 ## Resources (skim these first)
 
@@ -140,15 +140,15 @@ Optionally set a WIF via env (shell env, a project `.env` walked up from CWD, or
 
 ### 5. Configure the CLI
 
-**Testnet (live — netuid 19):**
+**Mainnet (live — netuid 7):**
 
-    alw config set env    testnet   # bittensor test + solana devnet + btc testnet4 + netuid 19
+    alw config set env    mainnet   # bittensor finney + solana mainnet + btc mainnet + netuid 7
     alw config set wallet <coldkey-name>
     alw config set hotkey <hotkey-name>
 
-**Mainnet (in bring-up — netuid 7):**
+**Testnet (free dry-runs — netuid 19):**
 
-    alw config set env    mainnet   # bittensor finney + solana mainnet + btc mainnet + netuid 7
+    alw config set env    testnet   # bittensor test + solana devnet + btc testnet4 + netuid 19
 
 `env` resolves the Bittensor network, Solana cluster, BTC network, and netuid together — no program id or RPC to copy (the program id is baked in, same across clusters). Config persists at `~/.allways/config.json`.
 
@@ -179,10 +179,10 @@ The "You receive" line in a quote is the post-fee amount that lands in your dest
       --from btc --to sol \
       --amount 0.001 \
       --receive-address <your-solana-pubkey> \
-      --from-address tb1q... \
+      --from-address bc1q... \
       --yes
 
-(`--from-address` is your source address on the source chain: a `tb1q…` on testnet4, `bc1q…` on mainnet.)
+(`--from-address` is your source address on the source chain: a `bc1q…` on mainnet, `tb1q…` on testnet4.)
 
 **SOL → TAO** (send SOL, receive TAO). `--receive-address` here is a TAO ss58:
 
@@ -274,7 +274,7 @@ Base URL: `https://api.all-ways.io` (testnet: `https://test-api.all-ways.io`). L
 
 ## Testnet
 
-Testnet (Bittensor netuid 19 + Solana devnet) is the recommended place to dry-run. Configure:
+Testnet (Bittensor netuid 19 + Solana devnet) mirrors mainnet with free funds — rehearse a flow here before spending real assets. Configure:
 
     alw config set env testnet
     alw config set wallet <coldkey-name>
