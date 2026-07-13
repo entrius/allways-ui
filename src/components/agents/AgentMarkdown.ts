@@ -73,7 +73,7 @@ custodian, no wrapped asset, no bridge token.
 5. **Relay.** \`alw swap post-tx <hash>\` immediately. Validators verify the deposit (sender, recipient, amount, freshness), submit the claim, and vote to initiate. Status: \`PendingAttestation → Active\`.
 6. **Miner fulfils.** The miner sends 99% of the destination amount to your receive address and marks fulfilled. Status: \`Active → Fulfilled\`.
 7. **Validators confirm.** Both legs verified → vote confirm. Contract skims the 1% fee from miner collateral. Status: \`Fulfilled → Completed\`.
-8. **Timeout / refund.** If the miner doesn't deliver in time, validators vote \`TimedOut\`; the contract slashes 1.1× collateral to the taker in SOL. If the auto-payout fails, \`alw claim <swap-key>\` releases it.
+8. **Timeout / refund.** If the miner doesn't deliver in time, validators vote \`TimedOut\` and the contract pays 1.1× collateral to the taker's pinned SOL identity — **automatically, no action needed**. (A manual \`alw claim\` fallback for a failed auto-payout is coming to the CLI.)
 
 Throughout, poll live state — pre-send via \`alw view reservation\`, post-initiate via \`alw view swap <key> --watch\` or the API.
 
@@ -211,12 +211,14 @@ In every case \`alw swap now\` only **reserves** — once it prints the miner's 
 After it returns a swap key:
 
     alw view swap <key> --watch    # live timeline until Completed or TimedOut
-    alw claim <key>                # if TimedOut, claim the SOL slash
 
-If interrupted before the send:
+On \`TimedOut\`, the 1.1× SOL slash pays your pinned identity automatically — no action needed.
 
-    alw view reservation
-    alw swap resume-reservation [--from-tx-hash <hash>] [--yes]
+If interrupted after the reserve but before the send, check for a still-live reservation and finish it:
+
+    alw view reservation           # still live? send the source funds to the miner, then alw swap post-tx <hash>
+
+If the reservation has lapsed, just re-run \`alw swap now\` (you only forfeit the small reservation fee).
 
 ### Interactive
 
@@ -238,8 +240,8 @@ If interrupted before the send:
 | \`alw swap now [...flags]\` | Run a swap |
 | \`alw swap quote --from <c> --to <c> --amount <n>\` | Preview rate + receive amount |
 | \`alw swap post-tx <tx-hash>\` | Relay your source tx to validators |
-| \`alw swap resume-reservation [...]\` | Resume an interrupted flow |
-| \`alw claim <swap-key> [-y]\` | Claim a SOL slash from a TimedOut swap |
+| \`alw swap resume-reservation [...]\` | Resume an interrupted flow — *not yet wired in the CLI; re-run \`alw swap now\` instead* |
+| \`alw claim <swap-key> [-y]\` | Claim a SOL slash — *not yet wired in the CLI; the TimedOut payout is automatic* |
 
 Miner-only commands (\`alw miner …\`, \`alw collateral …\`) and admin commands are documented at https://docs.all-ways.io/cli.
 
@@ -273,7 +275,7 @@ Base URL: \`https://api.all-ways.io\` (testnet: \`https://test-api.all-ways.io\`
 - **\`BTC_MODE=lightweight requires BTC_PRIVATE_KEY\`** — set the WIF for auto-send, or accept the manual flow (\`alw swap post-tx <hash>\` after sending).
 - **Reservation expired before send** — you only forfeit the small reservation fee. Start a new swap. Live TTL via \`alw view config\`.
 - **BTC tx stuck unconfirmed → reservation timed out → BTC sent but no swap** — fee too low; the tx never confirmed inside the extension budget. Prevention: let the CLI auto-estimate \`--btc-fee-rate\`, or check next-block tiers. If stuck pre-confirmation, RBF up immediately — recovery is only possible while the tx is in mempool.
-- **Miner timed out — where's my refund?** — slashed collateral pays your pinned identity in SOL automatically; if the transfer fails, \`alw claim <swap-key>\` releases it.
+- **Miner timed out — where's my refund?** — the 1.1× slash pays your pinned SOL identity automatically; no action needed. (A manual \`alw claim\` fallback for the rare failed auto-payout is coming to the CLI.)
 
 ## Testnet
 
