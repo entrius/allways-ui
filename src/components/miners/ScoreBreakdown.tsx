@@ -15,20 +15,7 @@ export type ScoreFactorsRow = {
   capacity: number;
   fillRatio: number;
   volShare: number;
-  rateQuality: number;
   reward: number;
-};
-
-// reward = eligible × [0.8·pool·crown·cap·fill + 0.2·pool·vol·quality].
-// The crown slice is the 0.8 term; execution is the remainder, clamped ≥ 0 so
-// float noise in the server-computed reward can't produce a negative band.
-export const scoreSlices = (
-  row: ScoreFactorsRow,
-): { crown: number; execution: number } => {
-  const crown = row.eligible
-    ? 0.8 * POOL_SHARE * row.crownShare * row.capacity * row.fillRatio
-    : 0;
-  return { crown, execution: Math.max(0, row.reward - crown) };
 };
 
 // ApiUtils parses any JSON number that would lose precision as a string —
@@ -101,7 +88,7 @@ const ScoreBreakdown: React.FC<{
         >
           {row.eligible ? '✓' : '✗'}
         </Box>
-        <Muted>{') × [0.8 × '}</Muted>
+        <Muted>{') × '}</Muted>
         <Muted>{pool}</Muted>
         <Muted>{' × crown '}</Muted>
         <Val>{f2(row.crownShare)}</Val>
@@ -109,16 +96,12 @@ const ScoreBreakdown: React.FC<{
         <Val>{f2(row.capacity)}</Val>
         <Muted>{' × fill '}</Muted>
         <Val>{f2(row.fillRatio)}</Val>
-        <Muted>{' + 0.2 × '}</Muted>
-        <Muted>{pool}</Muted>
-        <Muted>{' × vol '}</Muted>
-        <Val>{f2(row.volShare)}</Val>
-        <Muted>{' × quality '}</Muted>
-        <Val>{f2(row.rateQuality)}</Val>
-        <Muted>{'] = '}</Muted>
+        <Muted>{' = '}</Muted>
         <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
           {fmtReward(row.reward)}
         </Box>
+        <Muted>{' · vol '}</Muted>
+        <Val>{f2(row.volShare)}</Val>
       </Box>
     </Stack>
   );
