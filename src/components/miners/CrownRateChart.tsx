@@ -11,6 +11,7 @@ import {
 import {
   ALL_DIRECTIONS,
   decomposeDirection,
+  directionalRateFor,
   useCrownRateHistory,
   useMinerRateHistory,
   type CrownRateHistoryRow,
@@ -32,8 +33,9 @@ const RANGE_SECS: Record<CrownRange, number> = {
 
 // One panel per direction. Monochrome like Network Stats — the line is the
 // theme's primary text shade, the crown reference (miner mode) the disabled
-// shade. Every rate is "to per 1 from" ("1 {from} = {value} {to}") for all
-// four.
+// shade. Every rendered rate is directional "to per 1 from" ("1 {from} =
+// {value} {to}") for all four — seriesByDir converts the canonical stored
+// values at ingest.
 const DIRECTION_META: Record<
   Direction,
   {
@@ -155,23 +157,31 @@ const CrownRateChart: React.FC<{
   const lo = Math.max(0, head - secs + 1);
 
   // {crown, miner} rows per direction, clipped to the shared window so all
-  // four panels cover the same time span.
+  // four panels cover the same time span. Stored rates are canonical "spoke
+  // per 1 SOL"; convert to the panel's directional "to per 1 from" HERE so
+  // every downstream value (line, header, tooltip) shares one scale.
   const seriesByDir = useMemo(() => {
     const inRange = <T extends { t: number }>(arr: T[] | undefined) =>
       (arr ?? []).filter((p) => p.t >= lo && p.t <= head);
-    const strip = (rows: CrownRateHistoryRow[]): RateRow[] =>
-      rows.map((r) => ({ t: r.t, rate: r.rate }));
+    const toDirectional = (
+      dir: Direction,
+      rows: { t: number; rate: number }[],
+    ): RateRow[] =>
+      rows.map((r) => ({ t: r.t, rate: directionalRateFor(dir, r.rate) ?? 0 }));
     const minerFor = (direction: Direction): RateRow[] => {
       if (!minerHotkey) return [];
       const { from, to } = decomposeDirection(direction);
-      return inRange(minerRates ?? [])
-        .filter((r) => r.fromChain === from && r.toChain === to)
-        .map((r) => ({ t: r.t, rate: r.rate }));
+      return toDirectional(
+        direction,
+        inRange(minerRates ?? []).filter(
+          (r) => r.fromChain === from && r.toChain === to,
+        ),
+      );
     };
     return ALL_DIRECTIONS.reduce(
       (acc, dir) => {
         acc[dir] = {
-          crown: strip(inRange(crownByDir[dir])),
+          crown: toDirectional(dir, inRange(crownByDir[dir])),
           miner: minerFor(dir),
         };
         return acc;

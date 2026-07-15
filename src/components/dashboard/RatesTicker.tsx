@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Stack } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
-import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
+import { ALL_DIRECTIONS, rateUnitFor } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { BlockIndicator } from '../index';
 import Ticker from '../Ticker';
@@ -12,9 +12,10 @@ import { formatRate } from '../../utils/format';
 const DIRECTIONS = ALL_DIRECTIONS;
 
 // Mirrors the miners-page StickyNetworkHeader eyebrow — the "updated <ago>"
-// indicator plus the current crown holder and its live rate per direction
-// (uid N @ rate SOL), then the smoothed EMA market rate. No last-refresh /
-// health segment. Both share CrownDirectionSegment; only the EMA suffix is ours.
+// indicator plus the current crown holder and its live directional rate per
+// direction (uid N @ rate TO/FROM), then the smoothed EMA market rate. No
+// last-refresh / health segment. Both share CrownDirectionSegment; only the
+// EMA suffix is ours.
 const RatesTicker: React.FC = () => {
   const { data: crown } = useCurrentCrown();
   const { data: swaps } = useAllSwaps({ limit: 600 });
@@ -86,7 +87,7 @@ const RatesTicker: React.FC = () => {
                         fontWeight: 400,
                       }}
                     >
-                      SOL
+                      {rateUnitFor(dir)}
                     </Box>
                   </Box>
                 </>

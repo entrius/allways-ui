@@ -1,5 +1,10 @@
 import React from 'react';
 import { Box, Stack } from '@mui/material';
+import {
+  directionalRateFor,
+  rateUnitFor,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { formatRate } from '../../utils/format';
 import CrownIcon from './CrownIcon';
@@ -32,8 +37,9 @@ const HoverLine: React.FC<{
 // relative` parent. `x`/`y` are the cell center relative to that parent.
 const CrownGridHoverCard: React.FC<{
   hover: { cell: CellState; x: number; y: number };
+  direction: Direction;
   isDark: boolean;
-}> = ({ hover, isDark }) => {
+}> = ({ hover, direction, isDark }) => {
   const { cell, x, y } = hover;
   const bg = isDark ? 'rgba(8,10,14,0.97)' : 'rgba(255,255,255,0.98)';
   const border = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(9,11,13,0.18)';
@@ -124,7 +130,10 @@ const CrownGridHoverCard: React.FC<{
           })}
         />
         {cell.holderHotkey && (
-          <HoverLine label="rate" value={formatRate(cell.rate)} />
+          <HoverLine
+            label="rate"
+            value={`${formatRate(directionalRateFor(direction, cell.rate) ?? 0)} ${rateUnitFor(direction)}`}
+          />
         )}
         {cell.isTie && (
           <HoverLine

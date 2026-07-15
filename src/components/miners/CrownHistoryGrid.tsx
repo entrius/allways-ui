@@ -542,7 +542,13 @@ const CrownHistoryGrid: React.FC<{
               );
             })}
           </Box>
-          {hover && <CrownGridHoverCard hover={hover} isDark={isDark} />}
+          {hover && (
+            <CrownGridHoverCard
+              hover={hover}
+              direction={direction}
+              isDark={isDark}
+            />
+          )}
         </Box>
         {subjectAbsent && (
           <Stack

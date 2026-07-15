@@ -19,7 +19,11 @@ import {
   type MinerRateHistoryRow,
 } from '../../api';
 import { FONTS } from '../../theme';
-import { formatTimeAgo } from '../../utils/format';
+import {
+  chainSymbol,
+  directionalRate,
+  formatTimeAgo,
+} from '../../utils/format';
 
 const MAX_ROWS = 50;
 
@@ -42,7 +46,9 @@ const pairLabel = (row: MinerRateHistoryRow): string => {
 };
 
 // Chronological table twin of the rate graph above it — every quote this
-// miner posted, newest first. A QuoteRemoved lands as rate 0.
+// miner posted, newest first. A QuoteRemoved lands as rate 0. Stored rates
+// are canonical "spoke per 1 SOL"; each row renders DIRECTIONALLY ("to per 1
+// from" of its own pair), unit-labeled.
 const RateHistoryTable: React.FC<{
   hotkey: string;
   direction: Direction | null;
@@ -170,7 +176,18 @@ const RateHistoryTable: React.FC<{
                       removed
                     </Box>
                   ) : (
-                    fmtRate(row.rate)
+                    <>
+                      {fmtRate(
+                        directionalRate(row.fromChain, row.toChain, row.rate) ??
+                          0,
+                      )}
+                      <Box
+                        component="span"
+                        sx={{ color: 'text.disabled', ml: 0.5 }}
+                      >
+                        {`${chainSymbol(row.toChain)}/${chainSymbol(row.fromChain)}`}
+                      </Box>
+                    </>
                   )}
                 </TableCell>
               </TableRow>

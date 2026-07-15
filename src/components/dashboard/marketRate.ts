@@ -1,6 +1,7 @@
 import type { ActiveSwap } from '../../api/models';
 import {
   decomposeDirection,
+  directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { lamportsToSol } from '../../utils/format';
@@ -11,6 +12,9 @@ export const WINDOW = 100;
 export const EMA_PERIOD = 10;
 
 // `t` is the completion time in unix seconds; `vol` is the SOL numeraire volume.
+// `rate` is DIRECTIONAL ("to per 1 from" of the requested direction) — the
+// canonical stored swap rate is converted at this boundary, BEFORE the EMA /
+// Tukey math, so all downstream chart values share the directional scale.
 export type RatePoint = { t: number; rate: number; vol: number };
 
 const matchesDirection = (s: ActiveSwap, dir: Direction): boolean => {
@@ -39,7 +43,7 @@ export const completedPoints = (
       const vol = s.solAmount ? lamportsToSol(s.solAmount) : 0;
       return {
         t: parseInt(s.completedAt as string, 10),
-        rate: parseFloat(s.rate as string),
+        rate: directionalRateFor(dir, s.rate) ?? 0,
         vol: Number.isFinite(vol) ? vol : 0,
       };
     })
