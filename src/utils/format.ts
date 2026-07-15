@@ -144,6 +144,48 @@ export const formatRateLine = (
 export const chainSymbol = (chain: string): string =>
   CHAIN_DECIMALS[chain.toLowerCase()]?.symbol ?? chain.toUpperCase();
 
+// ── Directional rate display ──
+// Machines store ONE canonical denomination per pair: "dest per 1 canonical
+// source" with the hub pinned as source — the same unit in BOTH direction
+// quotes (see api/models/Miners.ts). Humans always read "what you receive
+// per 1 you send", so a reverse leg inverts at presentation.
+// Mirror of allways.utils.rate.directional_rate / chains.canonical_pair —
+// keep in lockstep.
+
+// canonical_pair ordering: hub is always source; else TAO is dest (legacy
+// non-hub pairs); else alphabetical.
+const canonicalSource = (a: string, b: string): string => {
+  if (a === HUB_CHAIN || b === HUB_CHAIN) return HUB_CHAIN;
+  if (b === 'tao') return a;
+  if (a === 'tao') return b;
+  return a < b ? a : b;
+};
+
+export const isReverseLeg = (fromChain: string, toChain: string): boolean => {
+  const from = fromChain.toLowerCase();
+  return from !== canonicalSource(from, toChain.toLowerCase());
+};
+
+// Canonical stored rate → directional number for the (from → to) leg.
+// null when the input is missing/unparseable; 0 passes through (not offered).
+export const directionalRate = (
+  fromChain: string,
+  toChain: string,
+  canonicalRate: string | number | null | undefined,
+): number | null => {
+  const n =
+    typeof canonicalRate === 'string'
+      ? parseFloat(canonicalRate)
+      : (canonicalRate ?? NaN);
+  if (!Number.isFinite(n)) return null;
+  return n > 0 && isReverseLeg(fromChain, toChain) ? 1 / n : n;
+};
+
+// "BTC/SOL" — the compact unit label matching directionalRate's output
+// ("to per 1 from"). The one source for every rate suffix in the app.
+export const rateUnit = (fromChain: string, toChain: string): string =>
+  `${chainSymbol(toChain)}/${chainSymbol(fromChain)}`;
+
 // ── Time formatting (unix seconds) ──
 // The chain is time-native now: all lifecycle timestamps and windows are unix
 // seconds. These replace the old block-count estimators.

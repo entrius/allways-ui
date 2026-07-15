@@ -11,6 +11,8 @@ import { Box, Typography, useTheme, type Theme } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
 import {
   directionLabel,
+  directionalRateFor,
+  rateUnitFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
@@ -43,14 +45,15 @@ const accentFor = (theme: Theme, index: number) =>
 
 const labelFor = directionLabel;
 
-// The market-rate chart. With one direction it shows that direction's scatter +
-// EMA (with a gradient area fill), live crown reference, and per-timestamp
-// volume with a max-volume marker. With two directions it overlays both on a
-// single shared price scale — the vertical gap between the two EMA lines IS the
-// directional spread — drawing each in its own accent (BTC orange / primary
-// blue) over a shared time x-axis and a shared SOL-volume sub-chart. Both modes
-// run through one option builder; the few visual differences are gated on the
-// number of directions.
+// The market-rate chart. All rates render DIRECTIONALLY ("to per 1 from" —
+// completedPoints converts the canonical stored values; the crown reference is
+// converted here). With one direction it shows that direction's scatter + EMA
+// (with a gradient area fill), live crown reference, and per-timestamp volume
+// with a max-volume marker. With two directions it overlays both on a single
+// shared price scale — only meaningful for same-orientation directions (e.g.
+// SOL→BTC vs SOL→TAO); a forward and its reverse now live on reciprocal
+// scales. Both modes run through one option builder; the few visual
+// differences are gated on the number of directions.
 const MarketRateChart: React.FC<{
   directions: Direction[];
   fill?: boolean;
@@ -110,7 +113,8 @@ const MarketRateChart: React.FC<{
     const prepared = series.map((s, i) => ({
       ...s,
       accent: accentFor(theme, i),
-      crownRate: crown?.[s.dir]?.rate ?? null,
+      // Directional, matching the (already-converted) scatter/EMA scale.
+      crownRate: directionalRateFor(s.dir, crown?.[s.dir]?.rate),
     }));
 
     // One shared price range across every direction's rates + EMAs + crowns, so
@@ -128,8 +132,8 @@ const MarketRateChart: React.FC<{
     // Adaptive y-axis precision: a wide span (e.g. once a far-off crown rate is
     // included) reads fine as integers, but a tight band would collapse every
     // tick to the same rounded value — so show decimals when the span is small.
-    // Below 0.01 a fixed 2dp collapsed a whole BTC-scale axis (~0.0021 SOL) to
-    // "0.00", so scale the decimals to the span's magnitude instead.
+    // Below 0.01 a fixed 2dp collapsed a whole SOL→BTC axis (~0.0021 BTC/SOL)
+    // to "0.00", so scale the decimals to the span's magnitude instead.
     const ySpan = yRange ? yRange.max - yRange.min : 0;
     const yDecimals =
       ySpan <= 0
@@ -185,7 +189,7 @@ const MarketRateChart: React.FC<{
     // Dashed reference line at a direction's live crown rate so the chart shows
     // where "now" sits versus recent fills. Keep the label inside the frame:
     // when the crown sits in the top half, render below it, else above.
-    const crownMarkLine = (rate: number | null, color: string) =>
+    const crownMarkLine = (rate: number | null, unit: string, color: string) =>
       rate != null
         ? {
             silent: true,
@@ -200,7 +204,7 @@ const MarketRateChart: React.FC<{
               color,
               fontFamily: FONTS.mono,
               fontSize: 9,
-              formatter: `crown ${formatRate(rate)} SOL`,
+              formatter: `crown ${formatRate(rate)} ${unit}`,
             },
           }
         : undefined;
@@ -244,7 +248,11 @@ const MarketRateChart: React.FC<{
           },
         }),
         z: 3,
-        markLine: crownMarkLine(s.crownRate, single ? crownColor : s.accent),
+        markLine: crownMarkLine(
+          s.crownRate,
+          rateUnitFor(s.dir),
+          single ? crownColor : s.accent,
+        ),
       },
     ]);
 
@@ -290,13 +298,21 @@ const MarketRateChart: React.FC<{
             }[],
           ) => {
             const t = params[0]?.axisValue;
+            // Rate series carry their direction's unit; single mode names them
+            // 'Rate'/'EMA', so fall back to the lone direction's unit.
+            const fallbackUnit = rateUnitFor(prepared[0].dir);
+            const unitByName = new Map(
+              prepared.map((s) => [labelFor(s.dir), rateUnitFor(s.dir)]),
+            );
             const lines = params
               .map((p) => {
                 const v = Array.isArray(p.value) ? p.value[1] : p.value;
                 const isVolume = p.seriesName === 'Volume';
-                const unit = isVolume ? 'SOL vol' : 'SOL';
+                const unit = isVolume
+                  ? 'SOL vol'
+                  : (unitByName.get(p.seriesName) ?? fallbackUnit);
                 // Volume is an amount (2dp reads fine); a rate needs sig figs
-                // or a BTC leg (~0.0021 SOL) shows as "0.00".
+                // or SOL→BTC (~0.0021 BTC/SOL) shows as "0.00".
                 const shown = isVolume
                   ? Number(v).toFixed(2)
                   : formatRate(Number(v));

@@ -3,7 +3,13 @@ import { Box, Button, Stack, Typography, alpha, useTheme } from '@mui/material';
 import type { MinerStats, Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
-import { formatRate, formatSol, formatUnixTime } from '../../utils/format';
+import {
+  directionalRate,
+  formatRate,
+  formatSol,
+  formatUnixTime,
+  rateUnit,
+} from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
 
@@ -188,18 +194,21 @@ const MinerDetailHeader: React.FC<{
 }> = ({ hotkey, uid, stats, liveMiner, range, onRangeChange }) => {
   const theme = useTheme();
   const crownDirections = stats?.currentCrownDirections ?? [];
-  // On-chain commitment is canonicalized so the hub (SOL) is pinned as source.
-  // `rate` is source→dest; `counterRate` is the reverse leg.
-  const fwdRate = parseFloat(liveMiner?.rate ?? '0');
-  const revRate = parseFloat(liveMiner?.counterRate ?? '0');
+  // On-chain commitment is canonicalized so the hub (SOL) is pinned as source;
+  // both stored rates are canonical "spoke per 1 SOL". Render each leg
+  // DIRECTIONALLY — "to per 1 from" of that leg (the reverse inverts).
+  const src = liveMiner?.sourceChain?.toLowerCase() ?? null;
+  const dst = liveMiner?.destChain?.toLowerCase() ?? null;
+  const fwdRate =
+    src && dst ? (directionalRate(src, dst, liveMiner?.rate) ?? 0) : 0;
+  const revRate =
+    src && dst ? (directionalRate(dst, src, liveMiner?.counterRate) ?? 0) : 0;
   const fwdLabel =
-    liveMiner?.sourceChain && liveMiner?.destChain
-      ? `${liveMiner.sourceChain.toUpperCase()} → ${liveMiner.destChain.toUpperCase()}`
-      : null;
+    src && dst ? `${src.toUpperCase()} → ${dst.toUpperCase()}` : null;
   const revLabel =
-    liveMiner?.sourceChain && liveMiner?.destChain
-      ? `${liveMiner.destChain.toUpperCase()} → ${liveMiner.sourceChain.toUpperCase()}`
-      : null;
+    src && dst ? `${dst.toUpperCase()} → ${src.toUpperCase()}` : null;
+  const fwdUnit = src && dst ? rateUnit(src, dst) : '';
+  const revUnit = src && dst ? rateUnit(dst, src) : '';
 
   return (
     <Box
@@ -317,12 +326,12 @@ const MinerDetailHeader: React.FC<{
               {formatUnixTime(stats.activatedAt)}
             </HeaderField>
           )}
-          {/* Significant figures, not 2dp — a BTC quote (~0.0021 SOL) read "0.00". */}
+          {/* Significant figures, not 2dp — SOL→BTC (~0.0021 BTC/SOL) read "0.00". */}
           {fwdRate > 0 && fwdLabel && (
             <HeaderField label={`quote · ${fwdLabel}`}>
               {formatRate(fwdRate)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                SOL
+                {fwdUnit}
               </Box>
             </HeaderField>
           )}
@@ -330,7 +339,7 @@ const MinerDetailHeader: React.FC<{
             <HeaderField label={`quote · ${revLabel}`}>
               {formatRate(revRate)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                SOL
+                {revUnit}
               </Box>
             </HeaderField>
           )}

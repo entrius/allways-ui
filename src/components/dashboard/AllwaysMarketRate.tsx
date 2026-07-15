@@ -62,7 +62,8 @@ const AllwaysMarketRate: React.FC<{
               <Box sx={{ maxWidth: 280 }}>
                 Executed rate of recently completed swaps (points) with an EMA
                 (line) over the most recent window, plus a dashed line at the
-                live crown rate. X-axis is time, y-axis is rate in SOL.
+                live crown rate. X-axis is time; y-axis is the directional rate
+                — what you receive per 1 you send for the selected direction.
               </Box>
             }
             arrow

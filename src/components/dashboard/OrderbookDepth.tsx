@@ -17,6 +17,8 @@ import { useMiners, type Miner } from '../../api';
 import {
   decomposeDirection,
   directionLabel,
+  directionalRateFor,
+  rateUnitFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
@@ -35,8 +37,9 @@ const minerSpoke = (m: Miner): string | null => {
 // Depth of market for the page's active direction: hittable collateral grouped
 // by quoted rate, best rate first, with a cumulative running total. Follows the
 // Active Rates table's direction semantics — forward = SOL→spoke (m.rate),
-// reverse = spoke→SOL (m.counterRate); both quote "dest per 1 source", so
-// higher is always the better rate.
+// reverse = spoke→SOL (m.counterRate); stored values are canonical and are
+// converted to the DIRECTIONAL "to per 1 from" here, so higher is always the
+// better rate.
 const OrderbookDepth: React.FC<{
   direction: Direction;
   embedded?: boolean;
@@ -80,7 +83,7 @@ const OrderbookDepth: React.FC<{
       const capacitySol = parseInt(m.collateral, 10) / 1e9;
       if (!Number.isFinite(capacitySol) || capacitySol <= 0) return;
       const raw = leg === 'reverse' ? m.counterRate : m.rate;
-      const r = raw ? parseFloat(raw) : 0;
+      const r = directionalRateFor(direction, raw) ?? 0;
       if (!Number.isFinite(r) || r <= 0) return;
       // formatRate is the price LEVEL key — it groups miners, sorts the book,
       // and is rendered verbatim (2dp would collapse BTC-scale quotes to 0.00).
@@ -88,8 +91,8 @@ const OrderbookDepth: React.FC<{
       groups[key] = (groups[key] || 0) + capacitySol;
     });
 
-    // Both legs quote "dest per 1 source" — more output per unit in is always
-    // better, so best-first is highest-first for every direction.
+    // Levels are directional "to per 1 from" — more output per unit in is
+    // always better, so best-first is highest-first for every direction.
     const rates = Object.keys(groups).sort(
       (a, b) => parseFloat(b) - parseFloat(a),
     );
@@ -100,7 +103,7 @@ const OrderbookDepth: React.FC<{
       cum += capacity;
       return { rate: key, capacity, cumCapacity: cum };
     });
-  }, [miners, spoke, leg]);
+  }, [miners, spoke, leg, direction]);
 
   const maxCum = useMemo(
     () =>
@@ -189,7 +192,9 @@ const OrderbookDepth: React.FC<{
         <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ ...headerSx, width: '34%' }}>Rate</TableCell>
+              <TableCell sx={{ ...headerSx, width: '34%' }}>
+                Rate ({rateUnitFor(direction)})
+              </TableCell>
               <TableCell sx={{ ...headerSx, width: '36%' }} align="right">
                 Capacity (SOL)
               </TableCell>

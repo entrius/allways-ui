@@ -1,3 +1,5 @@
+import { directionalRate, rateUnit } from '../../utils/format';
+
 // Each hub↔spoke leg is its own crown/pool: the forward SOL→spoke quotes plus
 // their SOL-hub reverses. Mirrors das-allways' Direction / allways.constants.
 export type Direction = 'SOL-BTC' | 'BTC-SOL' | 'SOL-TAO' | 'TAO-SOL';
@@ -35,6 +37,24 @@ export const decomposeDirection = (
     spoke: forward ? to : from,
     leg: forward ? 'forward' : 'reverse',
   };
+};
+
+// Directional presentation of a canonical stored rate for `dir` — "to per 1
+// from", what the user receives per 1 sent. Stored rates (quotes, swaps,
+// crown, rate history) are ALWAYS canonical "spoke per 1 SOL"; reverse legs
+// invert here, at the presentation boundary.
+export const directionalRateFor = (
+  dir: Direction,
+  rate: string | number | null | undefined,
+): number | null => {
+  const { from, to } = decomposeDirection(dir);
+  return directionalRate(from, to, rate);
+};
+
+// "BTC/SOL" — compact unit for directionalRateFor's output (to per 1 from).
+export const rateUnitFor = (dir: Direction): string => {
+  const { from, to } = decomposeDirection(dir);
+  return rateUnit(from, to);
 };
 
 export type CurrentCrown = {

@@ -1,10 +1,15 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import type { CurrentCrown, Direction } from '../../api/models/MinersDashboard';
+import {
+  directionalRateFor,
+  rateUnitFor,
+  type CurrentCrown,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { formatRate } from '../../utils/format';
 import CrownIcon from './CrownIcon';
 
-// One eyebrow segment: "👑 sol → btc  uid 2 @ 0.0021 SOL". Shared by the miners
+// One eyebrow segment: "👑 sol → btc  uid 2 @ 0.0021 BTC/SOL". Shared by the miners
 // page (StickyNetworkHeader) and the dashboard (RatesTicker), which previously
 // carried byte-identical copies of this markup — so a rate-formatting fix in one
 // silently skipped the other.
@@ -50,9 +55,18 @@ const CrownDirectionSegment: React.FC<{
           }}
         >
           uid {holder.uid}
-          {/* Significant figures, not 2dp: a BTC leg quotes ~0.0021 SOL, which
+          {/* Directional "to per 1 from" via directionalRateFor. Significant
+              figures, not 2dp: SOL→BTC quotes ~0.0021 BTC/SOL, which
               toFixed(2) renders as a flat "0.00". */}
-          {holder.rate != null && <> @ {formatRate(holder.rate)} SOL</>}
+          {holder.rate != null && (
+            <>
+              {' '}
+              @ {formatRate(
+                directionalRateFor(direction, holder.rate) ?? 0,
+              )}{' '}
+              {rateUnitFor(direction)}
+            </>
+          )}
         </Typography>
       ) : (
         <Typography

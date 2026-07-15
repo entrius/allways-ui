@@ -29,7 +29,12 @@ import {
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
-import { formatRate } from '../../utils/format';
+import {
+  HUB_CHAIN,
+  directionalRate,
+  formatRate,
+  rateUnit,
+} from '../../utils/format';
 
 type SortKey = 'uid' | 'rate' | 'collateral' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -62,11 +67,23 @@ const parseRate = (raw: string | null): number => {
 const statusRank = (m: Miner) =>
   !m.isActive ? 3 : m.hasActiveSwap ? 2 : m.isReserved ? 1 : 0;
 
-// The quoted rate for the active leg. Both rates are "dest per 1 source", so a
-// higher value is always more output per unit in — best-first is desc for every
-// direction. forward = SOL→spoke (m.rate); reverse = spoke→SOL (m.counterRate).
-const directionRate = (m: Miner, filter: DirectionFilter): number =>
-  filter === 'reverse' ? parseRate(m.counterRate) : parseRate(m.rate);
+// The leg's (from, to) chains: forward = SOL→spoke (m.rate), reverse =
+// spoke→SOL (m.counterRate). Both STORED values are canonical "spoke per 1
+// SOL" (see api/models/Miners.ts) — never per-direction.
+const legChains = (m: Miner, filter: DirectionFilter): [string, string] => {
+  const spoke = minerSpoke(m) ?? '';
+  return filter === 'reverse' ? [spoke, HUB_CHAIN] : [HUB_CHAIN, spoke];
+};
+
+// The DIRECTIONAL rate for the active leg ("to per 1 from" — what the user
+// receives per 1 sent; the reverse leg inverts the canonical stored value).
+// Higher is always more output per unit in — best-first is desc for every
+// direction.
+const directionRate = (m: Miner, filter: DirectionFilter): number => {
+  const [from, to] = legChains(m, filter);
+  const raw = filter === 'reverse' ? m.counterRate : m.rate;
+  return directionalRate(from, to, raw) ?? 0;
+};
 
 const getSortValue = (
   m: Miner,
@@ -159,9 +176,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
 
   // When the EMA chart's direction flips, re-default the table to the most
-  // advantageous rate first. Both legs quote "dest per source", so more output
-  // is always better → highest first (desc) for every direction. A manual
-  // re-sort persists until the next flip.
+  // advantageous rate first. Rates sort DIRECTIONALLY ("to per 1 from"), so
+  // more output is always better → highest first (desc) for every direction.
+  // A manual re-sort persists until the next flip.
   useEffect(() => {
     setSortKey('rate');
     setSortDir('desc');
@@ -211,21 +228,19 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   const hasSearch = search.trim().length > 0;
 
   const renderRate = (m: Miner) => {
-    const v =
-      directionFilter === 'reverse'
-        ? parseRate(m.counterRate)
-        : parseRate(m.rate);
+    const v = directionRate(m, directionFilter);
     if (v <= 0)
       return (
         <Box component="span" sx={{ color: disabled }}>
           {'—'}
         </Box>
       );
+    const [from, to] = legChains(m, directionFilter);
     return (
       <Box component="span">
         {formatRate(v)}
         <Box component="span" sx={{ color: 'text.secondary', ml: 0.5 }}>
-          SOL
+          {rateUnit(from, to)}
         </Box>
       </Box>
     );

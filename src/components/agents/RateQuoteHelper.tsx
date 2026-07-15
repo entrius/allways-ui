@@ -15,6 +15,7 @@ import {
   ALL_DIRECTIONS,
   decomposeDirection,
   directionLabel,
+  directionalRateFor,
   useMiners,
   type Direction,
 } from '../../api';
@@ -25,10 +26,10 @@ import { formatRate, trimTrailingZeros } from '../../utils/format';
 interface BestQuote {
   uid: number | null;
   hotkey: string;
-  // The miner's quote for the chosen leg, "dest per 1 source" (forward =
-  // m.rate, reverse = m.counterRate — see Miner model docs).
+  // The miner's STORED quote for the chosen leg — canonical "spoke per 1 SOL"
+  // (forward = m.rate, reverse = m.counterRate — see Miner model docs).
   rawRate: string;
-  // Same value, as a number: destSym per 1 sourceSym.
+  // Directional "to per 1 from" of the chosen direction (reverse inverts).
   effectiveRate: number;
   out: string;
 }
@@ -48,9 +49,10 @@ const computeBest = (
 ): BestQuote | null => {
   // A miner serves one hub↔spoke pair; canonical order pins SOL as source, so
   // its spoke is the non-SOL leg. The forward leg (SOL→spoke) is quoted in
-  // m.rate, the reverse (spoke→SOL) in m.counterRate — both "dest per 1
-  // source", so more output per unit in is always the better deal (highest
-  // first). Filter case-insensitively so an API casing change can't zero this.
+  // m.rate, the reverse (spoke→SOL) in m.counterRate — both stored CANONICAL
+  // ("spoke per 1 SOL"). Convert to the directional "to per 1 from" so more
+  // output per unit in is always the better deal (highest first). Filter
+  // case-insensitively so an API casing change can't zero this.
   const { spoke, leg } = decomposeDirection(direction);
   const candidates = miners
     .filter((m) => m.isActive)
@@ -61,7 +63,7 @@ const computeBest = (
       if (minerSpoke !== spoke) return null;
       const r = leg === 'reverse' ? m.counterRate : m.rate;
       if (!r) return null;
-      const parsed = parseFloat(r);
+      const parsed = directionalRateFor(direction, r) ?? 0;
       if (!isFinite(parsed) || parsed <= 0) return null;
       return { uid: m.uid, hotkey: m.hotkey, rawRate: r, parsed };
     })
@@ -173,9 +175,14 @@ const RateQuoteHelper: React.FC = () => {
 
   // The miner row is canonical (sourceChain=sol, destChain=spoke); the leg
   // picks which quote to read (forward = .rate, reverse = .counterRate). Both
-  // are "dest per 1 source", so the best deal is always the highest.
+  // stored values are canonical "spoke per 1 SOL", so the best FORWARD quote
+  // is the highest stored value and the best REVERSE quote the lowest.
   const rateField = leg === 'reverse' ? '.counterRate' : '.rate';
-  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "sol" and (.destChain | ascii_downcase) == "${spoke}") | {uid, rate: ${rateField}, hotkey}' | jq -s 'sort_by(-(.rate | tonumber))[0]'`;
+  const jqSort =
+    leg === 'reverse'
+      ? 'sort_by(.rate | tonumber)'
+      : 'sort_by(-(.rate | tonumber))';
+  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "sol" and (.destChain | ascii_downcase) == "${spoke}") | {uid, rate: ${rateField}, hotkey} | select((.rate // "0" | tonumber) > 0)' | jq -s '${jqSort}[0]'`;
 
   return (
     <HoverCard
