@@ -182,7 +182,7 @@ const RateQuoteHelper: React.FC = () => {
     leg === 'reverse'
       ? 'sort_by(.rate | tonumber)'
       : 'sort_by(-(.rate | tonumber))';
-  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "sol" and (.destChain | ascii_downcase) == "${spoke}") | {uid, rate: ${rateField}, hotkey}' | jq -s '${jqSort}[0]'`;
+  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "sol" and (.destChain | ascii_downcase) == "${spoke}") | {uid, rate: ${rateField}, hotkey} | select((.rate // "0" | tonumber) > 0)' | jq -s '${jqSort}[0]'`;
 
   return (
     <HoverCard

@@ -4,11 +4,11 @@ import type { MinerStats, Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
 import {
-  chainSymbol,
   directionalRate,
   formatRate,
   formatSol,
   formatUnixTime,
+  rateUnit,
 } from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
@@ -207,8 +207,8 @@ const MinerDetailHeader: React.FC<{
     src && dst ? `${src.toUpperCase()} → ${dst.toUpperCase()}` : null;
   const revLabel =
     src && dst ? `${dst.toUpperCase()} → ${src.toUpperCase()}` : null;
-  const fwdUnit = src && dst ? `${chainSymbol(dst)}/${chainSymbol(src)}` : '';
-  const revUnit = src && dst ? `${chainSymbol(src)}/${chainSymbol(dst)}` : '';
+  const fwdUnit = src && dst ? rateUnit(src, dst) : '';
+  const revUnit = src && dst ? rateUnit(dst, src) : '';
 
   return (
     <Box

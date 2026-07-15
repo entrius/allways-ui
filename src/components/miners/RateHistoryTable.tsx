@@ -19,11 +19,7 @@ import {
   type MinerRateHistoryRow,
 } from '../../api';
 import { FONTS } from '../../theme';
-import {
-  chainSymbol,
-  directionalRate,
-  formatTimeAgo,
-} from '../../utils/format';
+import { directionalRate, formatTimeAgo, rateUnit } from '../../utils/format';
 
 const MAX_ROWS = 50;
 
@@ -185,7 +181,7 @@ const RateHistoryTable: React.FC<{
                         component="span"
                         sx={{ color: 'text.disabled', ml: 0.5 }}
                       >
-                        {`${chainSymbol(row.toChain)}/${chainSymbol(row.fromChain)}`}
+                        {rateUnit(row.fromChain, row.toChain)}
                       </Box>
                     </>
                   )}

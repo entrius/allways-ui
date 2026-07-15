@@ -31,9 +31,9 @@ import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
 import {
   HUB_CHAIN,
-  chainSymbol,
   directionalRate,
   formatRate,
+  rateUnit,
 } from '../../utils/format';
 
 type SortKey = 'uid' | 'rate' | 'collateral' | 'status';
@@ -240,7 +240,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       <Box component="span">
         {formatRate(v)}
         <Box component="span" sx={{ color: 'text.secondary', ml: 0.5 }}>
-          {`${chainSymbol(to)}/${chainSymbol(from)}`}
+          {rateUnit(from, to)}
         </Box>
       </Box>
     );

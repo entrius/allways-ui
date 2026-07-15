@@ -1,4 +1,4 @@
-import { chainSymbol, directionalRate } from '../../utils/format';
+import { directionalRate, rateUnit } from '../../utils/format';
 
 // Each hub↔spoke leg is its own crown/pool: the forward SOL→spoke quotes plus
 // their SOL-hub reverses. Mirrors das-allways' Direction / allways.constants.
@@ -54,7 +54,7 @@ export const directionalRateFor = (
 // "BTC/SOL" — compact unit for directionalRateFor's output (to per 1 from).
 export const rateUnitFor = (dir: Direction): string => {
   const { from, to } = decomposeDirection(dir);
-  return `${chainSymbol(to)}/${chainSymbol(from)}`;
+  return rateUnit(from, to);
 };
 
 export type CurrentCrown = {
