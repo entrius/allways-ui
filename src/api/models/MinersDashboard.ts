@@ -92,8 +92,8 @@ export type LeaderboardRow = {
 
 // One validator-written score snapshot per (round, direction) the miner held
 // crown in. Rounds are ~hourly; the API returns them ordered roundTs ASC.
-// reward = eligible × [0.8·pool·crownShare·capacity·fillRatio
-//                    + 0.2·pool·volShare·rateQuality].
+// reward = eligible × pool × crownShare × capacity × fillRatio.
+// volShare is informational — it explains fillRatio, it is not a reward term.
 export type MinerScoreRow = {
   roundTs: number;
   direction: Direction | null;
@@ -104,7 +104,6 @@ export type MinerScoreRow = {
   capacity: number;
   fillRatio: number;
   volShare: number;
-  rateQuality: number;
   reward: number;
 };
 

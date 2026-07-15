@@ -24,7 +24,7 @@ import {
 } from '../../api';
 import { FONTS } from '../../theme';
 import { formatTimeAgo } from '../../utils/format';
-import ScoreBreakdown, { fmtReward, scoreSlices } from './ScoreBreakdown';
+import ScoreBreakdown, { fmtReward } from './ScoreBreakdown';
 
 const PANEL_W = 800;
 const PANEL_H = 180;
@@ -38,7 +38,6 @@ const INNER_H = PANEL_H - MT - MB;
 // Both validated with the dataviz palette validator against the light
 // (#f4f6f8) and dark (#131517) chart surfaces — all checks pass in both modes.
 const CROWN_COLOR = '#0052ff';
-const EXECUTION_COLOR = '#c96a12';
 
 type ScoreSpan = '24h' | '7d' | '30d';
 
@@ -48,12 +47,10 @@ const SPAN_SECS: Record<ScoreSpan, number> = {
   '30d': 2_592_000,
 };
 
-// One aggregated point per roundTs: slice values summed across the directions
-// in view ("All pairs" sums every direction; a single pair carries one row).
+// One aggregated point per roundTs: rewards summed across the directions in
+// view ("All pairs" sums every direction; a single pair carries one row).
 type Round = {
   t: number;
-  crown: number;
-  execution: number;
   total: number;
   rows: MinerScoreRow[];
 };
@@ -198,8 +195,7 @@ const ScoreHistoryChart: React.FC<{
     return `${d} Z`;
   };
 
-  const crownTop = (r: Round) => r.crown;
-  const totalTop = (r: Round) => r.crown + r.execution;
+  const totalTop = (r: Round) => r.total;
 
   const nearestRound = (clientX: number): Round | null => {
     if (!svgRef.current || !rounds.length) return null;
@@ -234,17 +230,6 @@ const ScoreHistoryChart: React.FC<{
   const gridStroke = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(9,11,13,0.06)';
   const axisText = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(9,11,13,0.5)';
 
-  const last = rounds.length ? rounds[rounds.length - 1] : null;
-  // Direct labels sit just past the last point; clamp so "execution" fits.
-  const labelX = last ? Math.min(mapX(last.t) + 8, PANEL_W - 62) : 0;
-  let crownLabelY = last ? mapY(last.crown / 2) : 0;
-  let execLabelY = last ? mapY(last.crown + last.execution / 2) : 0;
-  if (last && crownLabelY - execLabelY < 12) {
-    const mid = (crownLabelY + execLabelY) / 2;
-    execLabelY = mid - 6;
-    crownLabelY = mid + 6;
-  }
-
   return (
     <Box sx={{ position: 'relative' }}>
       <svg
@@ -265,14 +250,6 @@ const ScoreHistoryChart: React.FC<{
           <linearGradient id="scoreCrownFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={CROWN_COLOR} stopOpacity="0.24" />
             <stop offset="100%" stopColor={CROWN_COLOR} stopOpacity="0.05" />
-          </linearGradient>
-          <linearGradient id="scoreExecFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={EXECUTION_COLOR} stopOpacity="0.24" />
-            <stop
-              offset="100%"
-              stopColor={EXECUTION_COLOR}
-              stopOpacity="0.05"
-            />
           </linearGradient>
         </defs>
         {yTicks.map((t, i) => (
@@ -322,32 +299,11 @@ const ScoreHistoryChart: React.FC<{
         />
         {rounds.length >= 2 && (
           <>
-            <path d={bandPath(totalTop, crownTop)} fill="url(#scoreExecFill)" />
-            <path d={bandPath(crownTop, () => 0)} fill="url(#scoreCrownFill)" />
-            {/* Surface-colored separator keeps the stacked bands apart; the
-                crown band's 2px edge rides on top of it. */}
-            <path
-              d={edgePath(crownTop)}
-              fill="none"
-              stroke={surface}
-              strokeWidth="4"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
-            <path
-              d={edgePath(crownTop)}
-              fill="none"
-              stroke={CROWN_COLOR}
-              strokeWidth="2"
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
+            <path d={bandPath(totalTop, () => 0)} fill="url(#scoreCrownFill)" />
             <path
               d={edgePath(totalTop)}
               fill="none"
-              stroke={EXECUTION_COLOR}
+              stroke={CROWN_COLOR}
               strokeWidth="2"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -356,60 +312,14 @@ const ScoreHistoryChart: React.FC<{
           </>
         )}
         {rounds.length === 1 && (
-          <>
-            <circle
-              cx={mapX(rounds[0].t)}
-              cy={mapY(rounds[0].crown)}
-              r="4"
-              fill={CROWN_COLOR}
-              stroke={surface}
-              strokeWidth="2"
-            />
-            <circle
-              cx={mapX(rounds[0].t)}
-              cy={mapY(rounds[0].crown + rounds[0].execution)}
-              r="4"
-              fill={EXECUTION_COLOR}
-              stroke={surface}
-              strokeWidth="2"
-            />
-          </>
-        )}
-        {last && rounds.length >= 2 && (
-          <g>
-            <rect
-              x={labelX}
-              y={crownLabelY - 3}
-              width="6"
-              height="6"
-              fill={CROWN_COLOR}
-            />
-            <text
-              x={labelX + 9}
-              y={crownLabelY + 3}
-              fontFamily="DM Mono"
-              fontSize="9"
-              fill={axisText}
-            >
-              crown
-            </text>
-            <rect
-              x={labelX}
-              y={execLabelY - 3}
-              width="6"
-              height="6"
-              fill={EXECUTION_COLOR}
-            />
-            <text
-              x={labelX + 9}
-              y={execLabelY + 3}
-              fontFamily="DM Mono"
-              fontSize="9"
-              fill={axisText}
-            >
-              execution
-            </text>
-          </g>
+          <circle
+            cx={mapX(rounds[0].t)}
+            cy={mapY(rounds[0].total)}
+            r="4"
+            fill={CROWN_COLOR}
+            stroke={surface}
+            strokeWidth="2"
+          />
         )}
         {hover && (
           <g pointerEvents="none">
@@ -425,17 +335,9 @@ const ScoreHistoryChart: React.FC<{
             />
             <circle
               cx={hover.x}
-              cy={mapY(hover.round.crown)}
+              cy={mapY(hover.round.total)}
               r="3.5"
               fill={CROWN_COLOR}
-              stroke={surface}
-              strokeWidth="1.5"
-            />
-            <circle
-              cx={hover.x}
-              cy={mapY(hover.round.crown + hover.round.execution)}
-              r="3.5"
-              fill={EXECUTION_COLOR}
               stroke={surface}
               strokeWidth="1.5"
             />
@@ -476,44 +378,12 @@ const ScoreHistoryChart: React.FC<{
             })}
             {' · click for breakdown'}
           </Box>
-          {[
-            { label: 'crown', color: CROWN_COLOR, value: hover.round.crown },
-            {
-              label: 'execution',
-              color: EXECUTION_COLOR,
-              value: hover.round.execution,
-            },
-          ].map((s) => (
-            <Stack
-              key={s.label}
-              direction="row"
-              spacing={0.75}
-              alignItems="center"
-            >
-              <svg width="12" height="4" aria-hidden>
-                <line
-                  x1="0"
-                  y1="2"
-                  x2="12"
-                  y2="2"
-                  stroke={s.color}
-                  strokeWidth="2.5"
-                />
-              </svg>
-              <Box component="span" sx={{ fontWeight: 600 }}>
-                {fmtReward(s.value)}
-              </Box>
-              <Box component="span" sx={{ color: 'text.secondary' }}>
-                {s.label}
-              </Box>
-            </Stack>
-          ))}
           <Stack direction="row" spacing={0.75} alignItems="baseline">
             <Box component="span" sx={{ fontWeight: 600 }}>
               {fmtReward(hover.round.total)}
             </Box>
             <Box component="span" sx={{ color: 'text.disabled' }}>
-              total
+              reward
             </Box>
           </Stack>
         </Box>
@@ -574,17 +444,12 @@ const ScoringPanel: React.FC<{
   const rounds = useMemo<Round[]>(() => {
     const byT = new Map<number, Round>();
     for (const row of history ?? []) {
-      const slices = scoreSlices(row);
       const round = byT.get(row.roundTs) ?? {
         t: row.roundTs,
-        crown: 0,
-        execution: 0,
         total: 0,
         rows: [],
       };
-      round.crown += slices.crown;
-      round.execution += slices.execution;
-      round.total += slices.crown + slices.execution;
+      round.total += Number(row.reward);
       round.rows.push(row);
       byT.set(row.roundTs, round);
     }
@@ -791,12 +656,11 @@ const ScoringPanel: React.FC<{
             variant="mono"
             sx={{ fontSize: '0.6rem', color: 'text.disabled' }}
           >
-            reward per round · crown vs execution slice
+            reward per round
           </Typography>
         </Stack>
         <Stack direction="row" spacing={2}>
-          <LegendKey color={CROWN_COLOR} label="crown" />
-          <LegendKey color={EXECUTION_COLOR} label="execution" />
+          <LegendKey color={CROWN_COLOR} label="reward" />
         </Stack>
       </Stack>
 
