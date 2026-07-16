@@ -135,7 +135,7 @@ const DashboardPage: React.FC = () => {
                   pt: 1,
                 }}
               >
-                <OrderbookDepth direction={direction} embedded />
+                <OrderbookDepth direction={direction} />
               </Box>
             )}
             <Box

@@ -42,8 +42,7 @@ const minerSpoke = (m: Miner): string | null => {
 // better rate.
 const OrderbookDepth: React.FC<{
   direction: Direction;
-  embedded?: boolean;
-}> = ({ direction, embedded }) => {
+}> = ({ direction }) => {
   const theme = useTheme();
   const { data: miners, isLoading } = useMiners();
   const { spoke, leg } = decomposeDirection(direction);
