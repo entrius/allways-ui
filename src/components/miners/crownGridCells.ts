@@ -49,12 +49,20 @@ export const buildCells = (
   subjectUid: number | null = null,
   subjectColor: string | null = null,
 ): CellState[] => {
+  // Expand each interval across every cell it spans — rows are [t, endedAt) holds,
+  // not point events; bucketing the start alone painted one cell per hold.
   const byBucket = new Map<number, CrownHistoryRow[]>();
   for (const row of rows) {
-    const b = cellBucket(row.t);
-    const arr = byBucket.get(b) ?? [];
-    arr.push(row);
-    byBucket.set(b, arr);
+    const end = Math.min(row.endedAt || row.t + CELL_SECS, hi + CELL_SECS);
+    for (
+      let b = Math.max(cellBucket(row.t), cellBucket(lo));
+      b < end;
+      b += CELL_SECS
+    ) {
+      const arr = byBucket.get(b) ?? [];
+      arr.push(row);
+      byBucket.set(b, arr);
+    }
   }
   const headBucket = cellBucket(headT);
   const cells: CellState[] = [];
@@ -98,10 +106,17 @@ export const buildTiers = (
 ): { color: Map<string, string>; ordered: TierEntry[] } => {
   const counts = new Map<string, { uid: number | null; count: number }>();
   for (const row of rows) {
-    if (row.t < lo || row.t > hi) continue;
+    const end = Math.min(row.endedAt || row.t + CELL_SECS, hi);
+    if (end < lo || row.t > hi) continue;
+    // Weight by held cells within the window, not interval count — a 37-minute
+    // hold outranks three 10-second ones.
+    const held = Math.max(
+      1,
+      Math.floor((end - Math.max(row.t, lo)) / CELL_SECS),
+    );
     const entry = counts.get(row.hotkey);
-    if (entry) entry.count += 1;
-    else counts.set(row.hotkey, { uid: row.uid ?? null, count: 1 });
+    if (entry) entry.count += held;
+    else counts.set(row.hotkey, { uid: row.uid ?? null, count: held });
   }
   const sorted = Array.from(counts.entries())
     .sort((a, b) => b[1].count - a[1].count)
