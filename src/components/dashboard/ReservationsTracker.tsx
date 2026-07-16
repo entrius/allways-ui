@@ -43,6 +43,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
   const navigate = useNavigate();
   const { data, isLoading } = useReservations();
   const { data: protocol } = useProtocolConstants();
+  const getMinerLabel = useMinerLabel();
   const [searchAddr, setSearchAddr] = useState('');
   const reservations = data ?? [];
   const colors = STATUS_COLORS(theme.palette);
@@ -66,8 +67,6 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
     const addr = searchAddr.trim();
     if (addr) navigate(`/reservations/by-source/${addr}`);
   };
-
-  const getMinerLabel = useMinerLabel();
 
   return (
     <Stack spacing={1.5} sx={{ height: '100%' }}>
