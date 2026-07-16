@@ -162,17 +162,17 @@ const OrderbookDepth: React.FC<{
             </IconButton>
           </Tooltip>
         </Box>
-        {!embedded && (
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.65rem',
-              color: 'text.disabled',
-            }}
-          >
-            {directionLabel(direction)}
-          </Typography>
-        )}
+        {/* Always show the scope — the chart's toggle drives this panel, and
+            without the label that coupling is invisible (QA U3). */}
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.65rem',
+            color: 'text.disabled',
+          }}
+        >
+          {directionLabel(direction)}
+        </Typography>
       </Box>
 
       <TableContainer

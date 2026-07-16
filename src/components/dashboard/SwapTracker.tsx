@@ -15,7 +15,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import {
   useAllSwaps,
-  useMiners,
+  useMinerLabel,
   useSwapDetail,
   useSwapsCount,
 } from '../../api';
@@ -84,9 +84,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
     !exactSwapId,
   );
   const { data: swapsCount } = useSwapsCount();
-  const { data: miners } = useMiners();
-  const minerUid = (hotkey: string | null): number | null | undefined =>
-    hotkey ? miners?.find((m) => m.hotkey === hotkey)?.uid : undefined;
+  const minerLabel = useMinerLabel();
 
   const swaps = exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy;
   const isLoading = exactSwapId ? detailLoading : fuzzyLoading;
@@ -237,7 +235,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                 swap.destAmount && swap.destChain
                   ? formatAmount(swap.destAmount, swap.destChain)
                   : null;
-              const uid = minerUid(swap.minerHotkey);
+              const miner = minerLabel(swap.minerHotkey);
               return (
                 <Box
                   key={swap.swapId}
@@ -335,7 +333,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     {swap.seq != null &&
                       swap.sourceTxHash &&
                       ` · ${shortHash(swap.sourceTxHash)}`}
-                    {uid != null && ` · uid ${uid}`}
+                    {miner != null && ` · ${miner}`}
                   </Typography>
                 </Box>
               );

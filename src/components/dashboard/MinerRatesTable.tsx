@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box,
+  Chip,
   IconButton,
   InputAdornment,
   Stack,
@@ -24,6 +25,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
 import {
   decomposeDirection,
+  directionLabel,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
@@ -272,6 +274,19 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
           >
             Active Rates
           </Typography>
+          {/* The chart's direction toggle scopes this table too — say so. */}
+          <Chip
+            label={directionLabel(syncDirection ?? 'SOL-BTC')}
+            size="small"
+            variant="outlined"
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.6rem',
+              height: 18,
+              borderRadius: 0,
+              color: 'text.secondary',
+            }}
+          />
           <Tooltip
             title={
               <Box sx={{ maxWidth: 280 }}>

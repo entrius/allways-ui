@@ -12,10 +12,9 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import { displayEventType, useLatestEvents } from '../../api';
+import { displayEventType, useLatestEvents, useMinerLabel } from '../../api';
 import { FONTS } from '../../theme';
 import { lamportsToSol, shortHash } from '../../utils/format';
-import CopyableAddress from '../CopyableAddress';
 import { EventFeedSkeleton } from './Skeletons';
 
 const getEventColor = (
@@ -65,6 +64,7 @@ const getEventColor = (
 const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const theme = useTheme();
   const { data: events, isLoading } = useLatestEvents();
+  const minerLabel = useMinerLabel();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -216,7 +216,16 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                     </Typography>
                   )}
                   {event.minerHotkey && (
-                    <CopyableAddress address={event.minerHotkey} />
+                    <Typography
+                      title={event.minerHotkey}
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.65rem',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {minerLabel(event.minerHotkey)}
+                    </Typography>
                   )}
                   {event.solAmount && (
                     <Typography

@@ -141,7 +141,9 @@ const DashboardPage: React.FC = () => {
             <Box
               sx={{
                 flex: 1,
-                minHeight: { xs: 340, md: 0 },
+                // md floor keeps ~4 rows visible so the table never degrades
+                // into a one-row scroll well on short viewports.
+                minHeight: { xs: 340, md: 170 },
                 display: 'flex',
                 flexDirection: 'column',
                 pt: 1.5,
