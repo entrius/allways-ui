@@ -12,8 +12,12 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
-import { useMiners, useProtocolConstants, useReservations } from '../../api';
-import type { Miner, Reservation } from '../../api/models';
+import {
+  useMinerLabel,
+  useProtocolConstants,
+  useReservations,
+} from '../../api';
+import type { Reservation } from '../../api/models';
 import { FONTS } from '../../theme';
 import {
   applyFee,
@@ -38,8 +42,8 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
   const theme = useTheme();
   const navigate = useNavigate();
   const { data, isLoading } = useReservations();
-  const { data: miners } = useMiners();
   const { data: protocol } = useProtocolConstants();
+  const getMinerLabel = useMinerLabel();
   const [searchAddr, setSearchAddr] = useState('');
   const reservations = data ?? [];
   const colors = STATUS_COLORS(theme.palette);
@@ -63,9 +67,6 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
     const addr = searchAddr.trim();
     if (addr) navigate(`/reservations/by-source/${addr}`);
   };
-
-  const minerUid = (hotkey: string): number | null | undefined =>
-    miners?.find((m: Miner) => m.hotkey === hotkey)?.uid;
 
   return (
     <Stack spacing={1.5} sx={{ height: '100%' }}>
@@ -182,9 +183,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
               r.toAmount,
               r.toChain,
             );
-            const uid = minerUid(r.minerHotkey);
-            const minerLabel =
-              uid != null ? `UID ${uid}` : `${r.minerHotkey.slice(0, 6)}…`;
+            const minerLabel = getMinerLabel(r.minerHotkey);
             const remaining =
               r.status === 'ACTIVE' ? formatCountdown(r.reservedUntil) : null;
             return (

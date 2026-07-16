@@ -1,24 +1,19 @@
 import React from 'react';
-import { Box, Stack } from '@mui/material';
-import { useAllSwaps, useCurrentCrown } from '../../api';
-import { ALL_DIRECTIONS, rateUnitFor } from '../../api/models/MinersDashboard';
+import { Stack } from '@mui/material';
+import { useCurrentCrown } from '../../api';
+import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { BlockIndicator } from '../index';
 import Ticker from '../Ticker';
 import CrownDirectionSegment from '../miners/CrownDirectionSegment';
-import { latestEmaRate } from './marketRate';
-import { formatRate } from '../../utils/format';
 
 const DIRECTIONS = ALL_DIRECTIONS;
 
 // Mirrors the miners-page StickyNetworkHeader eyebrow — the "updated <ago>"
 // indicator plus the current crown holder and its live directional rate per
-// direction (uid N @ rate TO/FROM), then the smoothed EMA market rate. No
-// last-refresh / health segment. Both share CrownDirectionSegment; only the
-// EMA suffix is ours.
+// direction (uid N @ rate TO/FROM). No last-refresh / health segment.
 const RatesTicker: React.FC = () => {
   const { data: crown } = useCurrentCrown();
-  const { data: swaps } = useAllSwaps({ limit: 600 });
 
   return (
     <Stack
@@ -41,60 +36,14 @@ const RatesTicker: React.FC = () => {
     >
       <BlockIndicator />
       <Ticker>
-        {DIRECTIONS.map((dir) => {
-          const emaRate = latestEmaRate(swaps, dir);
-          return (
-            <CrownDirectionSegment
-              key={dir}
-              direction={dir}
-              holder={crown?.[dir]}
-              emptyLabel="no crown"
-            >
-              {emaRate != null && (
-                <>
-                  <Box
-                    component="span"
-                    sx={{ color: 'text.disabled', mx: 0.5 }}
-                  >
-                    ·
-                  </Box>
-                  {/* Same size as the rest of the segment — emphasis is
-                      color/weight only, never a different size or font. */}
-                  <Box
-                    component="span"
-                    sx={{
-                      fontSize: { xs: '0.6rem', sm: '0.72rem' },
-                      color: 'text.disabled',
-                    }}
-                  >
-                    EMA
-                  </Box>
-                  <Box
-                    component="span"
-                    sx={{
-                      fontSize: { xs: '0.6rem', sm: '0.72rem' },
-                      fontWeight: 500,
-                      color: 'text.primary',
-                      ml: 0.5,
-                    }}
-                  >
-                    {formatRate(emaRate)}
-                    <Box
-                      component="span"
-                      sx={{
-                        color: 'text.secondary',
-                        ml: 0.25,
-                        fontWeight: 400,
-                      }}
-                    >
-                      {rateUnitFor(dir)}
-                    </Box>
-                  </Box>
-                </>
-              )}
-            </CrownDirectionSegment>
-          );
-        })}
+        {DIRECTIONS.map((dir) => (
+          <CrownDirectionSegment
+            key={dir}
+            direction={dir}
+            holder={crown?.[dir]}
+            emptyLabel="no crown"
+          />
+        ))}
       </Ticker>
     </Stack>
   );
