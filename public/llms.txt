@@ -50,7 +50,7 @@ custodian, no wrapped asset, no bridge token.
   2. **Draw** (`resolve_pool`) — after the pool window closes, a permissionless, stake-weighted lottery picks the winner. A plain unrouted bid has weight 0.
   3. **Finalize** (`finalize_reservation`) — the seat winner names the taker + amounts (bounded by min/max swap and 1.1× collateral), making the reservation live.
   Then you send source funds and relay the tx. View pre-send state via `alw view reservation` (yours) or the API.
-- **Native vs routed.** Bidding directly is "native" and carries zero draw weight — it loses to any validator that bids on the same pool. To reliably win a competitive miner, route through a validator (stake-weighted). The web app does this for you.
+- **Native vs routed.** Bidding directly is "native" and carries zero draw weight — it loses to any validator that bids on the same pool. **The CLI routes through a validator by default**: `alw config set env …` also sets a recommended router, and `alw swap now` asks that validator to enter the pool with its stake weight (it fronts the entry fee) and finalize the won seat with you pinned. `--no-router` self-represents; `--router <hotkey>` overrides per swap. If several routed takers share one window, the router seats them FIFO — losers just re-run.
 - **Statuses (on-chain swap).** `PendingAttestation → Active → Fulfilled → Completed` (happy) or `Active → TimedOut` (1.1× slash to taker).
 - **Fee — 1%, paid via the rate.** Implicit in the price. Send `1.0` worth of value, receive `0.99` worth; the miner does not keep the `0.01` — the contract skims it from the miner's SOL collateral on settlement. Separately, each *bid* pays a small flat reservation fee. Always preview the post-fee receive amount with `alw swap quote`.
 - **Deferred confirmation — relay immediately, don't wait.** Broadcast your source tx, then run `alw swap post-tx <hash>` right away. Validators accept the seen-but-unconfirmed deposit and wait out confirmations server-side, extending your reservation while they accrue. Sleeping before `post-tx` is how you lose the reservation.
@@ -64,13 +64,13 @@ custodian, no wrapped asset, no bridge token.
 ## End-to-end swap flow
 
 1. **Quote.** `alw swap quote` (or read `/miners`). Miners advertise live rates on-chain — no off-chain orderbook.
-2. **Bid.** `alw swap now` bids into the chosen miner's pool and pays the reservation fee. First bid pins the rate.
-3. **Draw + finalize.** A validator cranks the draw; if your bid wins, the router finalizes it with your amounts. The reservation is now live and holds the miner exclusively for the reservation TTL.
+2. **Bid.** `alw swap now` — routed by default: the configured validator enters the pool for you (and fronts the entry fee). First bid pins the rate.
+3. **Draw + finalize.** A validator cranks the draw; the winning router finalizes the seat with your amounts. Expect ~30–90s from bid to a live reservation (pool window + crank). If the CLI reports the pool didn't resolve in time, **re-running is safe and resume-aware** — no funds have moved. The live reservation then holds the miner exclusively for the reservation TTL.
 4. **Send source funds.** Broadcast on the source chain — SOL via your Solana keypair, TAO via your **coldkey**, BTC via your WIF or your own wallet. The source must be the **pinned address** paying the **exact amount** to the miner's address.
 5. **Relay.** `alw swap post-tx <hash>` immediately. Validators verify the deposit (sender, recipient, amount, freshness), submit the claim, and vote to initiate. Status: `PendingAttestation → Active`.
 6. **Miner fulfils.** The miner sends 99% of the destination amount to your receive address and marks fulfilled. Status: `Active → Fulfilled`.
-7. **Validators confirm.** Both legs verified → vote confirm. Contract skims the 1% fee from miner collateral. Status: `Fulfilled → Completed`.
-8. **Timeout / refund.** If the miner doesn't deliver in time, validators vote `TimedOut` and the contract pays 1.1× collateral to the taker's pinned SOL identity — **automatically, no action needed**. (A manual `alw claim` fallback for a failed auto-payout is coming to the CLI.)
+7. **Validators confirm.** Both legs verified → vote confirm (confirmation waits are server-side per chain: SOL ≈ seconds, TAO 6 blocks ≈ 72s, BTC 2 blocks ≈ 20 min). Contract skims the 1% fee from miner collateral. Status: `Fulfilled → Completed`.
+8. **Timeout / refund.** If the miner doesn't deliver in time, validators vote `TimedOut` and the contract pays 1.1× collateral to the taker's pinned SOL identity — **automatically, no action needed**.
 
 Throughout, poll live state — pre-send via `alw view reservation`, post-initiate via `alw view swap <key> --watch` or the API.
 
@@ -111,8 +111,8 @@ The CLI reads `~/.solana/id.json` by default (override with `SOLANA_KEYPAIR_PATH
 
 Standard conventions. Needed to send/receive the TAO leg of TAO swaps (and to register if you mine/validate).
 
-    btcli wallet new_coldkey --wallet.name <coldkey-name>
-    btcli wallet new_hotkey  --wallet.name <coldkey-name> --wallet.hotkey <hotkey-name>
+    btcli wallet new-coldkey --wallet.name <coldkey-name>
+    btcli wallet new-hotkey  --wallet.name <coldkey-name> --wallet.hotkey <hotkey-name>
 
 As a swap user (not a miner) the **coldkey** signs the TAO source transfer; the hotkey isn't used on the happy path.
 
@@ -130,13 +130,12 @@ Every direction needs a funded Solana key for fees and the reservation fee, even
 
 `alw swap now` **reserves** the miner and prints its address + the exact amount — it does **not** broadcast your source funds yet (automatic fund-sending is on the roadmap). Send the BTC yourself from your source wallet to that address, then relay immediately with `alw swap post-tx <hash>`.
 
-Optionally set a WIF via env (shell env, a project `.env` walked up from CWD, or `~/.allways/.env`) — used by lightweight BTC tooling, and by the auto-send flow once it lands:
+Optionally set a WIF via env (shell env, a project `.env` walked up from CWD, or `~/.allways/.env`) — used by the CLI's local BTC signing, and by the auto-send flow once it lands:
 
-    BTC_MODE=lightweight
     BTC_NETWORK=mainnet          # testnet4 for testnet
     BTC_PRIVATE_KEY=<your_WIF_key>
 
-`lightweight` talks to public Esplora APIs — no Bitcoin node.
+BTC access runs over public Esplora APIs — no Bitcoin node (override endpoints with `BTC_ESPLORA_URLS`).
 
 ### 5. Configure the CLI
 
@@ -150,7 +149,7 @@ Optionally set a WIF via env (shell env, a project `.env` walked up from CWD, or
 
     alw config set env    testnet   # bittensor test + solana devnet + btc testnet4 + netuid 19
 
-`env` resolves the Bittensor network, Solana cluster, BTC network, and netuid together — no program id or RPC to copy (the program id is baked in, same across clusters). Config persists at `~/.allways/config.json`.
+`env` resolves the Bittensor network, Solana cluster, BTC network, netuid, **and the recommended router** together — swaps route through that validator by default (see "Native vs routed"). No program id or RPC to copy (the program id is baked in, same across clusters). Config persists at `~/.allways/config.json`; inspect every effective value + its source with `alw config`.
 
 ## Verify the install + scope the system (read-only, no funds spent)
 
@@ -201,11 +200,13 @@ In every case `alw swap now` only **reserves** — once it prints the miner's ad
 | `--amount <n>` | Source amount, in source-chain units |
 | `--receive-address <addr>` | Where the miner sends to you (on the `--to` chain) |
 | `--from-address <addr>` | Where you broadcast from (required for non-SOL source); must match the pinned sender |
-| `--from-tx-hash <hash>` | Attach a source tx you already broadcast (pairs with the forthcoming auto-send flow) |
+| `--from-tx-hash <hash>` | Attach a source tx you already broadcast |
+| `--router <hotkey>` | Route through this validator for this swap (overrides the `router` config) |
+| `--no-router` | Self-represent even when a router is configured (native bid — loses contested draws) |
 | `--yes` | Skip confirmations |
 | `--btc-fee-rate <sat/vB>` | Override BTC fee rate (default: auto-estimated) |
 
-After it returns a swap key:
+Your swap key is `keccak256(source-tx-hash)` — printed by `alw swap post-tx`, and findable via `alw view active-swaps` or `/swaps?search=<your-tx-hash>`:
 
     alw view swap <key> --watch    # live timeline until Completed or TimedOut
 
@@ -217,11 +218,13 @@ If interrupted after the reserve but before the send, check for a still-live res
 
 If the reservation has lapsed, just re-run `alw swap now` (you only forfeit the small reservation fee).
 
-### Interactive
+### Flags are required
 
-`alw swap now` with no flags walks through direction, miner pick, amount, address, and the bid. You still send the source funds and run `alw swap post-tx` yourself, then `alw view swap <key> --watch`.
+`alw swap now` is fully flag-driven — `--from`, `--to`, `--amount`, and `--receive-address` are mandatory (interactive prompts and auto fund-sending are on the roadmap). Missing flags fail fast with a clear message and a non-zero exit.
 
 ## CLI cheat sheet (real commands only)
+
+Every read command (`alw status`, `alw view …`, `alw swap quote`) accepts `--json` for machine-readable output — errors come back as `{"error": …}` with a non-zero exit, so pipelines never parse prose.
 
 | Command | Purpose |
 |---|---|
@@ -237,8 +240,7 @@ If the reservation has lapsed, just re-run `alw swap now` (you only forfeit the 
 | `alw swap now [...flags]` | Run a swap |
 | `alw swap quote --from <c> --to <c> --amount <n>` | Preview rate + receive amount |
 | `alw swap post-tx <tx-hash>` | Relay your source tx to validators |
-| `alw swap resume-reservation [...]` | Resume an interrupted flow — *not yet wired in the CLI; re-run `alw swap now` instead* |
-| `alw claim <swap-key> [-y]` | Claim a SOL slash — *not yet wired in the CLI; the TimedOut payout is automatic* |
+| `alw swap resume-reservation` | Resume an interrupted flow — *deferred (exits 69); re-run `alw swap now` instead* |
 
 Miner-only commands (`alw miner …`, `alw collateral …`) and admin commands are documented at https://docs.all-ways.io/cli.
 
@@ -258,8 +260,11 @@ Base URL: `https://api.all-ways.io` (testnet: `https://test-api.all-ways.io`). L
 | GET | `/events?…` | Filtered contract events |
 | GET | `/reservations/by-source/{address}` | Reservations from a source address |
 | GET | `/reservations/{requestHash}` | Reservation by hash |
-| GET | `/sse` | Server-Sent Events (channels: `connected`, `event`, `miner`, `swap`) |
-| GET | `/llms.txt` | This document |
+| GET | `/swaps/count` | Total swap count |
+| GET | `/protocol/constants` | Live contract parameters over HTTP (the `alw view config` equivalent) |
+| GET | `/sse` | Server-Sent Events (channels: `connected`, `event`, `miner`, `swap`, `reservation`, `head`) |
+
+This document, raw: `https://all-ways.io/llms.txt` (testnet mirror `https://test.all-ways.io/llms.txt`) — served by the dashboard hosts, not the API.
 
 > Amounts are decimal strings in smallest units (lamports for SOL, satoshi for BTC, rao for TAO). Parse with arbitrary-precision libraries — never floats. Rate semantics and exact field names: check Swagger.
 
@@ -269,10 +274,11 @@ Base URL: `https://api.all-ways.io` (testnet: `https://test-api.all-ways.io`). L
 - **`No module named 'bittensor'`** — you're outside the venv. With `pipx`, call `alw` directly; with `pip install -e .`, `source .venv/bin/activate` first.
 - **`Attempt to debit an account but found no record of a prior credit`** — your Solana key is unfunded (or you're pointed at the wrong key). Fund it, and confirm `solana-keygen pubkey` matches.
 - **Empty `alw view miners`** while the dashboard shows miners — you're on the wrong network/cluster. Re-check `alw config` (`env`, `solana-network`, `netuid`).
-- **`BTC_MODE=lightweight requires BTC_PRIVATE_KEY`** — set the WIF for auto-send, or accept the manual flow (`alw swap post-tx <hash>` after sending).
+- **`BTC signing requires the BTC_PRIVATE_KEY env var`** — set the WIF for local BTC signing, or accept the manual flow (send from your own wallet, then `alw swap post-tx <hash>`).
+- **Lost a contested draw** — expected, not an error: another taker's bid won that window. The fee for that bid is spent; **do not send funds**. Re-run `alw swap now` for the next window (routed bids re-queue FIFO; native bids lose to routed ones by design).
 - **Reservation expired before send** — you only forfeit the small reservation fee. Start a new swap. Live TTL via `alw view config`.
 - **BTC tx stuck unconfirmed → reservation timed out → BTC sent but no swap** — fee too low; the tx never confirmed inside the extension budget. Prevention: let the CLI auto-estimate `--btc-fee-rate`, or check next-block tiers. If stuck pre-confirmation, RBF up immediately — recovery is only possible while the tx is in mempool.
-- **Miner timed out — where's my refund?** — the 1.1× slash pays your pinned SOL identity automatically; no action needed. (A manual `alw claim` fallback for the rare failed auto-payout is coming to the CLI.)
+- **Miner timed out — where's my refund?** — the 1.1× slash pays your pinned SOL identity automatically; no action needed. A closed `alw view swap --json` returns `{"found": false, …}` — swaps close on-chain at resolution, so "gone" usually means "finished"; confirm the payout on your SOL balance.
 
 ## Testnet
 
