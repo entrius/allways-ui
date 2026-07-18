@@ -16,13 +16,13 @@ import {
   type SeriesPoint,
 } from '../components';
 import {
+  useCompleteSwapHistory,
   useHistory,
-  useHistoryState,
-  useMinerLeaderboard,
+  useActiveNodeCount,
   useNetworkOverview,
   useStats,
 } from '../api';
-import type { HistoryRow, HistoryStateRow } from '../api/models';
+import type { HistoryRow } from '../api/models';
 import { lamportsToSol } from '../utils/format';
 import { FONTS } from '../theme';
 
@@ -41,7 +41,11 @@ const sol = (v: number) =>
 const compact = (v: number) =>
   Math.abs(v) >= 1000
     ? `${(v / 1000).toFixed(1)}k`
-    : v.toFixed(v >= 10 ? 0 : 1);
+    : v >= 10
+      ? v.toFixed(0)
+      : // Two significant figures so sub-1 axis values stay distinct
+        // instead of collapsing to a column of "0.0"s.
+        Number(v.toPrecision(2)).toString();
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -50,11 +54,6 @@ const ms = (iso: string) => new Date(iso).getTime();
 const histPoints = (
   rows: HistoryRow[] | undefined,
   pick: (r: HistoryRow) => number | null,
-): SeriesPoint[] => (rows ?? []).map((r) => ({ t: ms(r.t), value: pick(r) }));
-
-const statePoints = (
-  rows: HistoryStateRow[] | undefined,
-  pick: (r: HistoryStateRow) => number | null,
 ): SeriesPoint[] => (rows ?? []).map((r) => ({ t: ms(r.t), value: pick(r) }));
 
 // ---------------------------------------------------------------------------
@@ -160,22 +159,14 @@ const NetworkStatsPage: React.FC = () => {
   const { data: stats, isLoading: statsLoading } = useStats();
   // Single continuous all-time daily curve everywhere on this page.
   const { data: history, isLoading: historyLoading } = useHistory('all', 'day');
-  const { data: stateHistory, isLoading: stateLoading } = useHistoryState(
-    'all',
-    'day',
-  );
-  // The daily /history/state bucket reports inFlight as-of the day's right edge
-  // (≈0), not the day's peak. To approximate the PEAK concurrency hit each day
-  // we sample hourly and take the max per day. (A true peak needs a backend
-  // max-concurrency metric; hourly sampling undercounts short-lived bursts.)
-  const { data: stateHourly, isLoading: stateHourlyLoading } = useHistoryState(
-    'all',
-    'hour',
-  );
+  const { data: allSwaps, isLoading: swapsLoading } = useCompleteSwapHistory();
   const { data: overview, isLoading: overviewLoading } =
     useNetworkOverview('all');
-  const { data: leaderboard, isLoading: leaderboardLoading } =
-    useMinerLeaderboard('all');
+  const {
+    data: leaderboard,
+    isLoading: leaderboardLoading,
+    count: distinctActiveNodes,
+  } = useActiveNodeCount();
 
   const c = theme.palette;
   // All chart series use the theme-aware high-contrast foreground so lines are
@@ -307,49 +298,90 @@ const NetworkStatsPage: React.FC = () => {
         type: 'bar',
         unit: 'SOL',
         formatValue: (v) => v.toFixed(4),
-        points: histPoints(history, (r) => lamportsToSol(r.volumeSol) * 0.01),
+        // The API reports the actual per-bucket fee take; only the
+        // cumulative fee column is bogus on prod (see Stats.ts).
+        points: histPoints(history, (r) => lamportsToSol(r.feesSol)),
       },
     ],
     [history, cPrimary],
   );
 
   // --- Network size --------------------------------------------------------
-  const activeNodes = useMemo<ChartSeries[]>(
-    () => [
-      {
-        name: 'Active nodes',
-        color: cPrimary,
-        formatValue: num,
-        points: statePoints(stateHistory, (r) => r.activeNodes),
-      },
-    ],
-    [stateHistory, cPrimary],
-  );
+  // Both charts derive from raw swap [initiatedAt, resolvedAt] intervals.
+  // /history/state can't back either: its activeNodes replays a contract
+  // event stream that misses most activations (it reported 4 nodes while the
+  // miners table had 5 active hotkeys), and its inFlight is sampled at bucket
+  // edges, missing swaps that settle within a bucket entirely.
+  const { activeNodes, peakInFlight } = useMemo(() => {
+    const DAY_MS = 86_400_000;
+    const dayOf = (secs: number) => Math.floor((secs * 1000) / DAY_MS) * DAY_MS;
+    const nowSecs = Date.now() / 1000;
 
-  // Peak concurrent transactions per day = max of the hourly inFlight samples
-  // within each calendar day.
-  const peakInFlight = useMemo<ChartSeries[]>(() => {
-    const byDay = new Map<string, number>();
-    for (const r of stateHourly ?? []) {
-      const day = r.t.slice(0, 10);
-      byDay.set(day, Math.max(byDay.get(day) ?? 0, r.inFlight));
+    const swaps = (allSwaps ?? []).filter((s) => s.initiatedAt != null);
+    // Distinct nodes that served a swap, keyed by the initiation day.
+    const servingByDay = new Map<number, Set<string>>();
+    // +1 at initiation, -1 at resolution (open swaps run to "now"); sweeping
+    // in time order tracks exact concurrency. Day boundaries get zero-delta
+    // checkpoints so a swap spanning a whole quiet day still registers there.
+    const sweep: [number, number][] = [];
+    for (const s of swaps) {
+      const start = Number(s.initiatedAt);
+      const end = s.resolvedAt == null ? nowSecs : Number(s.resolvedAt);
+      sweep.push([start, 1], [end, -1]);
+      if (s.minerHotkey) {
+        const day = dayOf(start);
+        let set = servingByDay.get(day);
+        if (!set) servingByDay.set(day, (set = new Set()));
+        set.add(s.minerHotkey);
+      }
     }
-    const points: SeriesPoint[] = [...byDay.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([day, peak]) => ({
-        t: new Date(`${day}T00:00:00Z`).getTime(),
-        value: peak,
-      }));
-    return [
-      {
-        name: 'Peak concurrent',
-        color: cBtc,
-        type: 'bar',
-        formatValue: num,
-        points,
-      },
-    ];
-  }, [stateHourly, cBtc]);
+    const empty = {
+      activeNodes: [] as ChartSeries[],
+      peakInFlight: [] as ChartSeries[],
+    };
+    if (!sweep.length) return empty;
+
+    const firstDay = dayOf(Math.min(...sweep.map(([t]) => t)));
+    const today = dayOf(nowSecs);
+    const days: number[] = [];
+    for (let t = firstDay; t <= today; t += DAY_MS) {
+      days.push(t);
+      sweep.push([t / 1000, 0]);
+    }
+    // Starts before ends at the same instant, so back-to-back swaps count as
+    // overlapping rather than dipping to zero between them.
+    sweep.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+    const peakByDay = new Map<number, number>();
+    let open = 0;
+    for (const [ts, delta] of sweep) {
+      open += delta;
+      const day = dayOf(ts);
+      peakByDay.set(day, Math.max(peakByDay.get(day) ?? 0, open));
+    }
+
+    return {
+      activeNodes: [
+        {
+          name: 'Serving nodes',
+          color: cPrimary,
+          formatValue: num,
+          points: days.map((t) => ({
+            t,
+            value: servingByDay.get(t)?.size ?? 0,
+          })),
+        },
+      ] as ChartSeries[],
+      peakInFlight: [
+        {
+          name: 'Peak concurrent',
+          color: cBtc,
+          type: 'bar',
+          formatValue: num,
+          points: days.map((t) => ({ t, value: peakByDay.get(t) ?? 0 })),
+        },
+      ] as ChartSeries[],
+    };
+  }, [allSwaps, cPrimary, cBtc]);
 
   // --- Composition: pair mix ----------------------------------------------
   // pct arrives as a string when json-bigint deems the float too precise
@@ -415,7 +447,8 @@ const NetworkStatsPage: React.FC = () => {
                 mt: 0.5,
               }}
             >
-              All-time daily history across the Allways network.
+              All-time daily history across the Allways network. UTC days —
+              today&apos;s bucket is still filling.
             </Typography>
           </Box>
 
@@ -439,8 +472,8 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={6} md={3}>
               <StatCell
                 label="Active Network Nodes"
-                value={num(stats?.activeMiners ?? 0)}
-                loading={statsLoading}
+                value={num(distinctActiveNodes)}
+                loading={leaderboardLoading}
               />
             </Grid>
             <Grid item xs={6} md={3}>
@@ -462,6 +495,7 @@ const NetworkStatsPage: React.FC = () => {
                 info="Running total of completed swap volume (SOL) since launch."
               >
                 <TimeSeriesChart
+                  daily
                   series={cumVolume}
                   loading={historyLoading}
                   formatValue={compact}
@@ -475,7 +509,9 @@ const NetworkStatsPage: React.FC = () => {
                 info="Running total of successfully completed swaps since launch."
               >
                 <TimeSeriesChart
+                  daily
                   series={cumSwaps}
+                  integerY
                   loading={historyLoading}
                   formatValue={compact}
                 />
@@ -492,7 +528,9 @@ const NetworkStatsPage: React.FC = () => {
                 info="Swaps completed each day."
               >
                 <TimeSeriesChart
+                  daily
                   series={dailySwaps}
+                  integerY
                   loading={historyLoading}
                   formatValue={num}
                 />
@@ -505,6 +543,7 @@ const NetworkStatsPage: React.FC = () => {
                 info="Swap volume (SOL) completed each day."
               >
                 <TimeSeriesChart
+                  daily
                   series={dailyVolume}
                   loading={historyLoading}
                   formatValue={compact}
@@ -523,9 +562,12 @@ const NetworkStatsPage: React.FC = () => {
                 info="Average swaps per second each day (daily swaps ÷ seconds in the day)."
               >
                 <TimeSeriesChart
+                  daily
                   series={tps}
                   loading={historyLoading}
-                  formatValue={(v) => v.toFixed(2)}
+                  formatValue={(v) =>
+                    v === 0 ? '0' : Number(v.toPrecision(2)).toString()
+                  }
                 />
               </Panel>
             </Grid>
@@ -536,6 +578,7 @@ const NetworkStatsPage: React.FC = () => {
                 info="Share of resolved swaps that completed successfully each day: completed / (completed + timed-out)."
               >
                 <TimeSeriesChart
+                  daily
                   series={successRate}
                   loading={historyLoading}
                   formatValue={(v) => `${v.toFixed(0)}`}
@@ -549,6 +592,7 @@ const NetworkStatsPage: React.FC = () => {
                 info="Average time from swap initiation to completion each day (log scale)."
               >
                 <TimeSeriesChart
+                  daily
                   series={settlement}
                   loading={historyLoading}
                   formatValue={(v) => v.toFixed(0)}
@@ -568,6 +612,7 @@ const NetworkStatsPage: React.FC = () => {
                 info="Running total of protocol fees: a flat 1% of volume, enforced at the smart contract level."
               >
                 <TimeSeriesChart
+                  daily
                   series={cumFees}
                   loading={historyLoading}
                   formatValue={compact}
@@ -581,6 +626,7 @@ const NetworkStatsPage: React.FC = () => {
                 info="Protocol fees each day: a flat 1% of that day's volume, enforced at the smart contract level."
               >
                 <TimeSeriesChart
+                  daily
                   series={fees}
                   loading={historyLoading}
                   formatValue={(v) => v.toFixed(3)}
@@ -595,11 +641,14 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Active nodes over time"
-                info="Active miner nodes on the network each day."
+                subtitle="distinct nodes serving swaps each day"
+                info="How many distinct nodes served at least one swap each day."
               >
                 <TimeSeriesChart
+                  daily
                   series={activeNodes}
-                  loading={stateLoading}
+                  integerY
+                  loading={swapsLoading}
                   formatValue={num}
                 />
               </Panel>
@@ -608,11 +657,13 @@ const NetworkStatsPage: React.FC = () => {
               <Panel
                 title="Peak concurrent transactions"
                 subtitle="max in-flight hit per day"
-                info="The most swaps in-flight at once each day (sampled hourly)."
+                info="The most swaps in-flight at once each day, computed exactly from every swap's initiation and resolution times."
               >
                 <TimeSeriesChart
+                  daily
                   series={peakInFlight}
-                  loading={stateHourlyLoading}
+                  integerY
+                  loading={swapsLoading}
                   formatValue={num}
                 />
               </Panel>
@@ -731,8 +782,8 @@ const NetworkStatsPage: React.FC = () => {
                   <Grid item xs={6}>
                     <StatCell
                       label="Active miners"
-                      value={num(overview?.activeMiners ?? 0)}
-                      loading={overviewLoading}
+                      value={num(distinctActiveNodes)}
+                      loading={leaderboardLoading}
                     />
                   </Grid>
                 </Grid>

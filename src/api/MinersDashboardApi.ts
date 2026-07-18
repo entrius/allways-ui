@@ -84,6 +84,21 @@ export const useMinerLeaderboard = (range: Range = '30d') =>
     },
   );
 
+// Physical active nodes = distinct active hotkeys. Until the API's
+// COUNT(DISTINCT hotkey) fix for /stats and /network/overview is deployed,
+// their activeMiners counts one row per (hotkey, dest chain), reporting a
+// node once per chain it serves — every "active nodes" display should use
+// this instead so the number matches across pages.
+export const useActiveNodeCount = () => {
+  const query = useMinerLeaderboard('all');
+  return {
+    ...query,
+    count: new Set(
+      (query.data ?? []).filter((m) => m.isActive).map((m) => m.hotkey),
+    ).size,
+  };
+};
+
 export const useMinerStats = (hotkey: string, range: Range = '30d') =>
   useApiQuery<MinerStats>(
     'miner-stats',

@@ -1,6 +1,11 @@
 import React from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { useNetworkOverview, type Range, type PairMix } from '../../api';
+import {
+  useActiveNodeCount,
+  useNetworkOverview,
+  type Range,
+  type PairMix,
+} from '../../api';
 import { lamportsToSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 
@@ -125,6 +130,8 @@ const NetworkOverviewStats: React.FC<{ range?: Range }> = ({
   range = '30d',
 }) => {
   const { data } = useNetworkOverview(range);
+  const { count: activeNodeCount, data: leaderboardData } =
+    useActiveNodeCount();
 
   const volume = data?.volumeSol
     ? lamportsToSol(data.volumeSol).toFixed(1)
@@ -135,8 +142,7 @@ const NetworkOverviewStats: React.FC<{ range?: Range }> = ({
     data?.networkSuccessRate != null
       ? (data.networkSuccessRate * 100).toFixed(0)
       : null;
-  const activeMiners =
-    data?.activeMiners != null ? `${data.activeMiners}` : '—';
+  const activeMiners = leaderboardData != null ? `${activeNodeCount}` : '—';
   const pairMix = data?.pairMix?.slice(0, 2) ?? [];
 
   const tiles: Tile[] = [

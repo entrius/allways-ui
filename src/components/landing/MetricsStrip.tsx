@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Grid, Skeleton, Stack, Typography } from '@mui/material';
-import { useStats } from '../../api';
+import { useActiveNodeCount, useStats } from '../../api';
 import { formatSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { CountUpValue } from '../animated';
@@ -76,6 +76,7 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading, unit }) => (
 
 const MetricsStrip: React.FC = () => {
   const { data: stats, isLoading } = useStats();
+  const { count: activeNodes, isLoading: nodesLoading } = useActiveNodeCount();
   const volume = stats ? formatSol(stats.totalVolumeSol) : '0';
 
   return (
@@ -107,8 +108,8 @@ const MetricsStrip: React.FC = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Metric
               label="Active Network Nodes"
-              value={String(stats?.activeMiners ?? 0)}
-              loading={isLoading}
+              value={String(activeNodes)}
+              loading={nodesLoading}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>

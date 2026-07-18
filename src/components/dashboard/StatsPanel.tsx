@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
-import { useStats } from '../../api';
+import { useActiveNodeCount, useStats } from '../../api';
 import { formatSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { RollingValue } from '../animated';
@@ -48,6 +48,7 @@ const StatCard: React.FC<{ label: string; value: string }> = ({
 
 const StatsPanel: React.FC = () => {
   const { data: stats, isLoading } = useStats();
+  const { count: activeNodes } = useActiveNodeCount();
 
   const volume = stats ? formatSol(stats.totalVolumeSol) : '0';
 
@@ -65,10 +66,7 @@ const StatsPanel: React.FC = () => {
         <StatCard label="Volume (SOL)" value={volume} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard
-          label="Active Network Nodes"
-          value={String(stats.activeMiners)}
-        />
+        <StatCard label="Active Network Nodes" value={String(activeNodes)} />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard
