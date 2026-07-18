@@ -58,6 +58,19 @@ type TimeSeriesChartProps = {
   autoScale?: boolean;
   /** Message shown when every series is empty. */
   emptyLabel?: string;
+  /**
+   * When true, y-axis ticks step by whole numbers — for count series where
+   * fractional gridlines would round to duplicate labels (1, 1, 2, 2…).
+   */
+  integerY?: boolean;
+  /**
+   * When true, points are daily UTC buckets: the x-axis becomes a category
+   * axis (one slot per day, so each column sits centered under its own date
+   * label), dates are formatted in UTC (a bucket stamped 00:00Z must not
+   * display as the previous local day), and today's still-filling bucket is
+   * rendered faded/dashed with an "in progress" tooltip note.
+   */
+  daily?: boolean;
 };
 
 // Spans at or under this render hour:minute labels; longer spans render dates.
@@ -74,6 +87,18 @@ const fmtTime = (ms: number, hourly: boolean) =>
         day: 'numeric',
         year: '2-digit',
       });
+
+const fmtDateUtc = (ms: number) =>
+  new Date(ms).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+
+const utcMidnightToday = () => {
+  const now = new Date();
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+};
 
 const defaultFmt = (v: number) =>
   Math.abs(v) >= 1000
@@ -97,6 +122,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   logScale,
   autoScale,
   emptyLabel = 'no history yet',
+  daily,
+  integerY,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
@@ -147,11 +174,45 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         ),
       { lo: Infinity, hi: -Infinity },
     );
-    const hourly = span.hi > span.lo && span.hi - span.lo <= HOURLY_SPAN_MS;
+    const hourly =
+      !daily && span.hi > span.lo && span.hi - span.lo <= HOURLY_SPAN_MS;
+
+    // Daily mode: one category slot per UTC-day bucket, shared across series
+    // so multi-series charts stay index-aligned. The current UTC day (if
+    // present) is still accumulating — style it as in-progress.
+    const bucketTs = daily
+      ? [...new Set(series.flatMap((s) => s.points.map((p) => p.t)))].sort(
+          (a, b) => a - b,
+        )
+      : [];
+    const inProgressT =
+      daily && bucketTs[bucketTs.length - 1] === utcMidnightToday()
+        ? bucketTs[bucketTs.length - 1]
+        : null;
+    const hasBars = series.some((s) => s.type === 'bar');
 
     const echartsSeries = series.map((s) => {
-      const data = s.points.map((p) => [p.t, p.value]);
+      const byT = daily ? new Map(s.points.map((p) => [p.t, p.value])) : null;
       if ((s.type ?? 'line') === 'bar') {
+        const data = daily
+          ? bucketTs.map((t) => {
+              const v = byT!.get(t) ?? null;
+              // Today's bar is faded with a dashed outline: visibly "still
+              // filling", not a real drop-off.
+              return t === inProgressT
+                ? {
+                    value: v,
+                    itemStyle: {
+                      color: s.color,
+                      opacity: 0.3,
+                      borderColor: s.color,
+                      borderType: 'dashed' as const,
+                      borderWidth: 1,
+                    },
+                  }
+                : v;
+            })
+          : s.points.map((p) => [p.t, p.value]);
         return {
           name: s.name,
           type: 'bar' as const,
@@ -160,6 +221,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           barMaxWidth: 24,
         };
       }
+      const data = daily
+        ? bucketTs.map((t) => byT!.get(t) ?? null)
+        : s.points.map((p) => [p.t, p.value]);
       return {
         name: s.name,
         type: 'line' as const,
@@ -218,20 +282,27 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             fontFamily: FONTS.mono,
             fontSize: 11,
           },
-          axisPointer: { type: 'line', lineStyle: { color: gridColor } },
+          axisPointer:
+            daily && hasBars
+              ? { type: 'shadow' as const }
+              : {
+                  type: 'line' as const,
+                  lineStyle: { color: gridColor },
+                },
           formatter: (
             params: {
-              axisValue: number;
+              axisValue: number | string;
               seriesName: string;
-              value: [number, number | null];
+              value: [number, number | null] | number | null;
               marker?: string;
             }[],
           ) => {
             if (!params.length) return '';
-            const header = `<span style="color:${theme.palette.text.disabled}">${fmtTime(
-              Number(params[0].axisValue),
-              hourly,
-            )}</span>`;
+            const t = Number(params[0].axisValue);
+            const when = daily
+              ? fmtDateUtc(t) + (t === inProgressT ? ' · in progress' : '')
+              : fmtTime(t, hourly);
+            const header = `<span style="color:${theme.palette.text.disabled}">${when}</span>`;
             const lines = params
               .map((p) => {
                 const raw = Array.isArray(p.value) ? p.value[1] : p.value;
@@ -250,33 +321,55 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             return `${header}<br/>${lines}`;
           },
         },
-        xAxis: {
-          type: 'time',
-          boundaryGap: false,
-          axisLine: { lineStyle: { color: gridColor } },
-          axisTick: { show: false },
-          axisLabel: {
-            color: axisColor,
-            fontFamily: FONTS.mono,
-            fontSize: 10,
-            hideOverlap: true,
-            formatter: (v: number) =>
-              hourly
-                ? new Date(v).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                : new Date(v).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                  }),
-          },
-          splitLine: { show: false },
-        },
+        xAxis: daily
+          ? {
+              // Category axis: each day owns a slot, so its label sits
+              // centered directly under its own column instead of at
+              // arbitrary "nice" time ticks.
+              type: 'category' as const,
+              data: bucketTs.map(String),
+              axisLine: { lineStyle: { color: gridColor } },
+              axisTick: { show: false },
+              axisLabel: {
+                color: axisColor,
+                fontFamily: FONTS.mono,
+                fontSize: 10,
+                hideOverlap: true,
+                // Label every day while they fit; fall back to auto-thinning
+                // (still bucket-aligned) on long histories.
+                interval: bucketTs.length <= 14 ? 0 : ('auto' as const),
+                formatter: (v: string) => fmtDateUtc(Number(v)),
+              },
+              splitLine: { show: false },
+            }
+          : {
+              type: 'time' as const,
+              boundaryGap: false,
+              axisLine: { lineStyle: { color: gridColor } },
+              axisTick: { show: false },
+              axisLabel: {
+                color: axisColor,
+                fontFamily: FONTS.mono,
+                fontSize: 10,
+                hideOverlap: true,
+                formatter: (v: number) =>
+                  hourly
+                    ? new Date(v).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : new Date(v).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      }),
+              },
+              splitLine: { show: false },
+            },
         yAxis: {
           // Log scale can't include 0, so drop the min:0 floor when enabled.
           type: logScale ? 'log' : 'value',
           ...(logScale ? {} : autoScale ? { scale: true } : { min: 0 }),
+          ...(integerY && !logScale && { minInterval: 1 }),
           axisLine: { show: false },
           axisTick: { show: false },
           axisLabel: {
@@ -291,7 +384,16 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       },
       true,
     );
-  }, [series, theme, formatValue, noArea, logScale, autoScale]);
+  }, [
+    series,
+    theme,
+    formatValue,
+    noArea,
+    logScale,
+    autoScale,
+    daily,
+    integerY,
+  ]);
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height }}>

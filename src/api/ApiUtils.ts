@@ -20,6 +20,47 @@ const parsePrecise = (data: unknown): unknown => {
   }
 };
 
+// Walks a limit/offset list endpoint (server caps page size) until a short
+// page, concatenating results — for pages that need the complete list, not a
+// window. maxPages bounds the walk; size it generously and move the
+// computation behind a backend rollup before the cap is ever reachable.
+export const useApiQueryAllPages = <TItem>(
+  queryName: string,
+  url: string,
+  pageSize: number,
+  maxPages: number,
+  refetchInterval?: number,
+) => {
+  const baseUrl = import.meta.env.VITE_REACT_APP_BASE_URL;
+
+  return useQuery<TItem[], AxiosError>({
+    queryKey: [queryName, url, 'all-pages'],
+    queryFn: async () => {
+      const requestUrl = baseUrl ? `${baseUrl}${url}` : url;
+      const all: TItem[] = [];
+      for (let page = 0; page < maxPages; page++) {
+        const response = await axios.get(requestUrl, {
+          params: { limit: pageSize, offset: page * pageSize },
+          transformResponse: parsePrecise,
+        });
+        const contentType = String(response.headers['content-type'] ?? '');
+        if (!contentType.includes('application/json')) {
+          throw new Error(
+            `Expected JSON from ${requestUrl}, got ${contentType || 'unknown'}`,
+          );
+        }
+        const items = response.data as TItem[];
+        all.push(...items);
+        if (items.length < pageSize) break;
+      }
+      return all;
+    },
+    retry: false,
+    refetchInterval: refetchInterval ?? false,
+    placeholderData: keepPreviousData,
+  });
+};
+
 export const useApiQuery = <TResponse = void, TSelect = TResponse>(
   queryName: string,
   url: string,
