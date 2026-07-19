@@ -13,13 +13,17 @@ import {
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import SearchIcon from '@mui/icons-material/Search';
-import { useCrownRateHistory, useMiners } from '../../api';
+import {
+  useCompleteSwapHistory,
+  useCrownRateHistory,
+  useMiners,
+} from '../../api';
 import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { formatRate } from '../../utils/format';
+import { formatRate, lamportsToSol } from '../../utils/format';
 import { TickerSymbol } from '../ChainLogo';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import StatsStrip from './StatsStrip';
@@ -29,21 +33,26 @@ import StatsStrip from './StatsStrip';
 export type Spoke = string;
 
 // Robinhood-style range chips: window plus the delta caption it produces.
-type HeroRange = '1H' | '1D' | '1W' | '1M' | 'ALL';
-const RANGES: HeroRange[] = ['1H', '1D', '1W', '1M', 'ALL'];
+// Longer windows (1M/ALL) return once the network has enough history to
+// make them meaningful.
+type HeroRange = '1H' | '1D' | '1W';
+const RANGES: HeroRange[] = ['1H', '1D', '1W'];
 const RANGE_SECS: Record<HeroRange, number> = {
   '1H': 3_600,
   '1D': 86_400,
   '1W': 604_800,
-  '1M': 2_592_000,
-  ALL: 31_536_000,
 };
 const RANGE_CAPTION: Record<HeroRange, string> = {
   '1H': 'past hour',
   '1D': 'past day',
   '1W': 'past week',
-  '1M': 'past month',
-  ALL: 'all time',
+};
+// Volume bar bucket per range — roughly the candle period tradingview would
+// use for the same window.
+const RANGE_VOL_BUCKET_MS: Record<HeroRange, number> = {
+  '1H': 5 * 60_000,
+  '1D': 3_600_000,
+  '1W': 6 * 3_600_000,
 };
 
 // Semantic move colors, used in exactly ONE place — the delta line under the
@@ -55,15 +64,20 @@ const MOVE_COLORS = {
   dark: { up: '#4ade80', down: '#f87171' },
 } as const;
 
-// Directional {t(ms), value} points for one leg's crown history.
+// Directional {t(ms), value} points for one leg's crown history. Rows are
+// interval STARTS (the rate holds until the next row), so the latest rate is
+// extended to "now" — otherwise the line would stop at the last change.
 const toPoints = (
   direction: Direction,
   rows: { t: number; rate: number }[] | undefined,
-) =>
-  (rows ?? []).map((r) => ({
+) => {
+  const pts = (rows ?? []).map((r) => ({
     t: r.t * 1000,
     value: directionalRateFor(direction, r.rate),
   }));
+  if (pts.length) pts.push({ t: Date.now(), value: pts[pts.length - 1].value });
+  return pts;
+};
 
 // One side of the from → to control. Clicking a side lists every chain the
 // network serves; picking one re-resolves the other side to a legal market
@@ -267,6 +281,48 @@ const AllwaysMarketRate: React.FC<{
     () => toPoints(direction, reversed ? revRows : fwdRows),
     [direction, reversed, fwdRows, revRows],
   );
+
+  // Executed-trade prints and volume bars come from the same swap set:
+  // completed swaps for THIS direction inside the window.
+  const { data: allSwaps } = useCompleteSwapHistory();
+  const windowSwaps = useMemo(() => {
+    const cutoff = Date.now() - secs * 1000;
+    const fromC = from.toLowerCase();
+    const toC = to.toLowerCase();
+    return (allSwaps ?? []).filter(
+      (sw) =>
+        sw.status === 'COMPLETED' &&
+        sw.initiatedAt != null &&
+        Number(sw.initiatedAt) * 1000 >= cutoff &&
+        sw.sourceChain?.toLowerCase() === fromC &&
+        sw.destChain?.toLowerCase() === toC,
+    );
+  }, [allSwaps, from, to, secs]);
+
+  const volumePoints = useMemo(() => {
+    const bucketMs = RANGE_VOL_BUCKET_MS[range];
+    const buckets = new Map<number, number>();
+    for (const sw of windowSwaps) {
+      const v = sw.solAmount != null ? lamportsToSol(sw.solAmount) : NaN;
+      if (!Number.isFinite(v)) continue;
+      const t = Number(sw.initiatedAt) * 1000;
+      const b = Math.floor(t / bucketMs) * bucketMs;
+      buckets.set(b, (buckets.get(b) ?? 0) + v);
+    }
+    // Gap-fill every bucket in the window (zeros included) so the bars form
+    // a uniform histogram: constant bin width in every range, and no
+    // single-point series (one lone bar makes echarts size its band to the
+    // whole axis). Bars are centered on their bucket so the trades that
+    // filled the bin sit directly above it.
+    const now = Date.now();
+    const startB = Math.floor((now - secs * 1000) / bucketMs) * bucketMs;
+    const endB = Math.floor(now / bucketMs) * bucketMs;
+    const out: { t: number; value: number }[] = [];
+    for (let b = startB; b <= endB; b += bucketMs) {
+      out.push({ t: b + bucketMs / 2, value: buckets.get(b) ?? 0 });
+    }
+    return out;
+  }, [windowSwaps, range, secs]);
   const last = points.length ? points[points.length - 1].value : null;
   const first = points.length ? points[0].value : null;
   const deltaPct =
@@ -291,6 +347,7 @@ const AllwaysMarketRate: React.FC<{
         color: cLine,
         formatValue: formatRate,
         unit: to,
+        step: true,
         points,
       },
     ],
@@ -451,13 +508,6 @@ const AllwaysMarketRate: React.FC<{
         </Box>
       </Box>
 
-      {/* Symbol stats: the selected direction over the selected window. */}
-      <Box
-        sx={{ display: 'flex', justifyContent: 'center', mt: 0.75, mb: 0.75 }}
-      >
-        <StatsStrip bare direction={direction} secs={secs} rangeLabel={range} />
-      </Box>
-
       {/* Hero chart: best-available (crown) rate over the window. */}
       <Box sx={{ flex: 1, minHeight: 120 }}>
         <TimeSeriesChart
@@ -466,8 +516,17 @@ const AllwaysMarketRate: React.FC<{
           height="100%"
           formatValue={formatRate}
           autoScale
+          noArea
+          market
           emptyLabel="no rate history in this window"
+          volume={volumePoints}
+          volumeFormat={(v) => `${v.toFixed(2)} SOL`}
         />
+      </Box>
+
+      {/* Symbol stats: the selected direction over the selected window. */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 0.75 }}>
+        <StatsStrip bare direction={direction} secs={secs} rangeLabel={range} />
       </Box>
     </Box>
   );
