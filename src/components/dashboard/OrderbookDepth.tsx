@@ -18,7 +18,6 @@ import {
   decomposeDirection,
   directionLabel,
   directionalRateFor,
-  rateUnitFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
@@ -34,44 +33,13 @@ const minerSpoke = (m: Miner): string | null => {
   return chains[0] ?? null;
 };
 
-// Depth of market for the page's active direction: hittable collateral grouped
-// by quoted rate, best rate first, with a cumulative running total. Follows the
-// Active Rates table's direction semantics — forward = SOL→spoke (m.rate),
-// reverse = spoke→SOL (m.counterRate); stored values are canonical and are
-// converted to the DIRECTIONAL "to per 1 from" here, so higher is always the
-// better rate.
-const OrderbookDepth: React.FC<{
-  direction: Direction;
-}> = ({ direction }) => {
-  const theme = useTheme();
-  const { data: miners, isLoading } = useMiners();
+// One side of the book: hittable collateral for a single direction grouped by
+// quoted rate, best rate first, with a cumulative running total. Stored rates
+// are canonical "spoke per 1 SOL" and are converted to the DIRECTIONAL "to per
+// 1 from" here, so higher is always the better rate.
+const useDepth = (miners: Miner[] | undefined, direction: Direction) => {
   const { spoke, leg } = decomposeDirection(direction);
-
-  const headerSx = {
-    fontFamily: FONTS.mono,
-    fontSize: '0.62rem',
-    color: theme.palette.text.secondary,
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.background.default,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-    px: 1,
-    py: 0.5,
-  };
-
-  const cellSx = {
-    fontFamily: FONTS.mono,
-    fontSize: '0.72rem',
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    px: 1,
-    py: 0.5,
-    fontVariantNumeric: 'tabular-nums' as const,
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  };
-
-  const depthData = useMemo(() => {
+  return useMemo(() => {
     const groups: Record<string, number> = {}; // key = rate level, val = SOL
     (miners ?? []).forEach((m) => {
       // Only collateral hittable right now counts as depth: inactive miners
@@ -103,6 +71,16 @@ const OrderbookDepth: React.FC<{
       return { rate: key, capacity, cumCapacity: cum };
     });
   }, [miners, spoke, leg, direction]);
+};
+
+// One direction's ladder — half of the two-sided book.
+const DepthLadder: React.FC<{
+  miners: Miner[] | undefined;
+  direction: Direction;
+}> = ({ miners, direction }) => {
+  const theme = useTheme();
+  const { from, to } = decomposeDirection(direction);
+  const depthData = useDepth(miners, direction);
 
   const maxCum = useMemo(
     () =>
@@ -113,67 +91,39 @@ const OrderbookDepth: React.FC<{
   // Monochrome depth bars, matching the house chart style.
   const barColor = `color-mix(in srgb, ${theme.palette.text.primary} 10%, transparent)`;
 
-  if (isLoading || !miners) return <OrderbookDepthSkeleton />;
+  const headerSx = {
+    fontFamily: FONTS.mono,
+    fontSize: '0.62rem',
+    color: theme.palette.text.secondary,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    backgroundColor: theme.palette.background.default,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    px: 1,
+    py: 0.5,
+  };
+
+  const cellSx = {
+    fontFamily: FONTS.mono,
+    fontSize: '0.72rem',
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    px: 1,
+    py: 0.5,
+    fontVariantNumeric: 'tabular-nums' as const,
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
 
   return (
     <Box
       sx={{
-        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
+        minWidth: 0,
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          mb: 1,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
-            Orderbook
-          </Typography>
-          <Tooltip
-            title={
-              <Box sx={{ maxWidth: 260 }}>
-                Liquidity you can hit right now for the selected direction: idle
-                miners' collateral grouped by quoted rate, best rate first. The
-                bar behind each row is the cumulative capacity walking down the
-                book.
-              </Box>
-            }
-            arrow
-            placement="right"
-          >
-            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
-              <InfoOutlinedIcon sx={{ fontSize: 14 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-        {/* Always show the scope — the chart's toggle drives this panel, and
-            without the label that coupling is invisible (QA U3). */}
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.65rem',
-            color: 'text.disabled',
-          }}
-        >
-          {directionLabel(direction)}
-        </Typography>
-      </Box>
-
       <TableContainer
         sx={{
           flex: 1,
@@ -191,13 +141,15 @@ const OrderbookDepth: React.FC<{
         <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ ...headerSx, width: '34%' }}>
-                Rate ({rateUnitFor(direction)})
+              {/* One sentence instead of caption + unit: rows below complete
+                  it ("1 BTC → 741.89 SOL"). */}
+              <TableCell sx={{ ...headerSx, width: '40%' }}>
+                1 {from.toUpperCase()} → {to.toUpperCase()}
               </TableCell>
-              <TableCell sx={{ ...headerSx, width: '36%' }} align="right">
+              <TableCell sx={{ ...headerSx, width: '32%' }} align="right">
                 Capacity (SOL)
               </TableCell>
-              <TableCell sx={{ ...headerSx, width: '30%' }} align="right">
+              <TableCell sx={{ ...headerSx, width: '28%' }} align="right">
                 Cumulative
               </TableCell>
             </TableRow>
@@ -253,6 +205,95 @@ const OrderbookDepth: React.FC<{
           </TableBody>
         </Table>
       </TableContainer>
+    </Box>
+  );
+};
+
+// Two-sided depth of market for the page's active PAIR: both directions'
+// ladders side by side, so the whole book is visible at once. The chart's
+// direction toggle picks which side is emphasized.
+const OrderbookDepth: React.FC<{
+  direction: Direction;
+}> = ({ direction }) => {
+  const { data: miners, isLoading } = useMiners();
+  const { spoke } = decomposeDirection(direction);
+  const SPOKE = spoke.toUpperCase();
+  const forward = `SOL-${SPOKE}` as Direction;
+  const reverse = `${SPOKE}-SOL` as Direction;
+
+  if (isLoading || !miners) return <OrderbookDepthSkeleton />;
+
+  return (
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 1,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.7rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'text.secondary',
+            }}
+          >
+            Orderbook
+          </Typography>
+          <Tooltip
+            title={
+              <Box sx={{ maxWidth: 260 }}>
+                Liquidity you can hit right now, both directions of the selected
+                pair at once: idle miners' collateral grouped by quoted rate,
+                best rate first. The bar behind each row is the cumulative
+                capacity walking down the book.
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
+              <InfoOutlinedIcon sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        {/* Always show the scope — the chart's toggle drives this panel, and
+            without the label that coupling is invisible (QA U3). */}
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.65rem',
+            color: 'text.disabled',
+          }}
+        >
+          SOL ⇄ {SPOKE}
+        </Typography>
+      </Box>
+
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 2.5,
+        }}
+      >
+        <DepthLadder miners={miners} direction={forward} />
+        <DepthLadder miners={miners} direction={reverse} />
+      </Box>
     </Box>
   );
 };

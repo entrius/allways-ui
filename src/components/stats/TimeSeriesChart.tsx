@@ -43,7 +43,8 @@ export type ChartSeries = {
 type TimeSeriesChartProps = {
   series: ChartSeries[];
   loading?: boolean;
-  height?: number;
+  /** Fixed px height, or '100%' to fill a sized parent. */
+  height?: number | string;
   /** Default value formatter for the y-axis + tooltip (per-series wins). */
   formatValue?: (v: number) => string;
   /** When true, area fill under a single line series is dropped. */

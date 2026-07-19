@@ -25,24 +25,18 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useMiners, type Miner } from '../../api';
 import {
   decomposeDirection,
-  directionLabel,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
-import {
-  HUB_CHAIN,
-  directionalRate,
-  formatRate,
-  rateUnit,
-} from '../../utils/format';
+import { HUB_CHAIN, directionalRate, formatRate } from '../../utils/format';
 
-type SortKey = 'uid' | 'rate' | 'collateral' | 'status';
+type SortKey = 'uid' | 'rateFwd' | 'rateRev' | 'collateral' | 'status';
 type SortDir = 'asc' | 'desc';
-// Which leg of a miner's pair we're quoting: forward = SOL→spoke (m.rate),
-// reverse = spoke→SOL (m.counterRate).
-type DirectionFilter = 'forward' | 'reverse';
+// A leg of a miner's pair: forward = SOL→spoke (m.rate), reverse = spoke→SOL
+// (m.counterRate). Both legs render at once; the leg only picks columns.
+type Leg = 'forward' | 'reverse';
 
 // The non-hub side of a miner's pair (canonical order pins SOL as source, so
 // this is normally destChain), lowercased — or null if the miner has no pair.
@@ -72,52 +66,35 @@ const statusRank = (m: Miner) =>
 // The leg's (from, to) chains: forward = SOL→spoke (m.rate), reverse =
 // spoke→SOL (m.counterRate). Both STORED values are canonical "spoke per 1
 // SOL" (see api/models/Miners.ts) — never per-direction.
-const legChains = (m: Miner, filter: DirectionFilter): [string, string] => {
+const legChains = (m: Miner, leg: Leg): [string, string] => {
   const spoke = minerSpoke(m) ?? '';
-  return filter === 'reverse' ? [spoke, HUB_CHAIN] : [HUB_CHAIN, spoke];
+  return leg === 'reverse' ? [spoke, HUB_CHAIN] : [HUB_CHAIN, spoke];
 };
 
-// The DIRECTIONAL rate for the active leg ("to per 1 from" — what the user
-// receives per 1 sent; the reverse leg inverts the canonical stored value).
-// Higher is always more output per unit in — best-first is desc for every
-// direction.
-const directionRate = (m: Miner, filter: DirectionFilter): number => {
-  const [from, to] = legChains(m, filter);
-  const raw = filter === 'reverse' ? m.counterRate : m.rate;
+// The DIRECTIONAL rate for a leg ("to per 1 from" — what the user receives
+// per 1 sent; the reverse leg inverts the canonical stored value). Higher is
+// always more output per unit in — best-first is desc for every direction.
+const legRate = (m: Miner, leg: Leg): number => {
+  const [from, to] = legChains(m, leg);
+  const raw = leg === 'reverse' ? m.counterRate : m.rate;
   return directionalRate(from, to, raw) ?? 0;
 };
 
-const getSortValue = (
-  m: Miner,
-  key: SortKey,
-  filter: DirectionFilter,
-): string | number => {
+const getSortValue = (m: Miner, key: SortKey): string | number => {
   switch (key) {
     case 'uid':
       // Unregistered miners (uid null) sort after every real uid.
       return m.uid ?? Number.POSITIVE_INFINITY;
-    case 'rate':
-      return directionRate(m, filter);
+    case 'rateFwd':
+      return legRate(m, 'forward');
+    case 'rateRev':
+      return legRate(m, 'reverse');
     case 'collateral':
       return parseInt(m.collateral, 10) || 0;
     case 'status':
       return statusRank(m);
   }
 };
-
-// Widths are percentages for the fixed table layout, so the table always fits
-// its container instead of growing a horizontal scrollbar.
-const columns: {
-  key: SortKey;
-  label: string;
-  align?: 'right' | 'center';
-  width: string;
-}[] = [
-  { key: 'uid', label: 'UID', width: '34%' },
-  { key: 'rate', label: 'Rate', width: '26%' },
-  { key: 'collateral', label: 'Capacity', align: 'right', width: '22%' },
-  { key: 'status', label: 'Status', align: 'center', width: '18%' },
-];
 
 const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   syncDirection,
@@ -127,17 +104,38 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   // On phones drop the address line + Status column so the table stays compact
   // and never needs to scroll horizontally.
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // The page's Market Rate toggle picks the PAIR (spoke) we filter miners to
+  // and which leg's column leads the default sort — both legs' rates always
+  // render side by side.
+  const { spoke, leg: selectedLeg } = decomposeDirection(
+    syncDirection ?? 'SOL-BTC',
+  );
+
+  // Widths are percentages for the fixed table layout, so the table always
+  // fits its container instead of growing a horizontal scrollbar. Headers
+  // spell out what 1 unit sent buys ("1 SOL →" / "1 BTC →").
+  const SPOKE = spoke.toUpperCase();
+  const columns: {
+    key: SortKey;
+    label: string;
+    align?: 'right' | 'center';
+    width: string;
+  }[] = [
+    { key: 'uid', label: 'UID', width: isMobile ? '24%' : '22%' },
+    { key: 'rateFwd', label: '1 SOL →', width: isMobile ? '28%' : '25%' },
+    { key: 'rateRev', label: `1 ${SPOKE} →`, width: isMobile ? '28%' : '25%' },
+    {
+      key: 'collateral',
+      label: 'Capacity (SOL)',
+      align: 'right',
+      width: isMobile ? '20%' : '16%',
+    },
+    { key: 'status', label: 'Status', align: 'center', width: '12%' },
+  ];
   const visibleColumns = isMobile
     ? columns.filter((c) => c.key !== 'status')
     : columns;
-
-  // Direction is driven by the page's Market Rate toggle — no local toggle.
-  // Decompose it into the pair (spoke) we filter miners to and the leg
-  // (forward/reverse) that picks rate vs counterRate. Separating the two is the
-  // whole point: "which pair" and "which way" are independent.
-  const { spoke, leg: directionFilter } = decomposeDirection(
-    syncDirection ?? 'SOL-BTC',
-  );
 
   // Monochrome status scale: the more tradeable, the darker the dot.
   const statusInfo = (miner: Miner) => {
@@ -172,26 +170,30 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   };
 
   const { data: miners, isLoading } = useMiners();
-  const [sortKey, setSortKey] = useState<SortKey>('rate');
+  const [sortKey, setSortKey] = useState<SortKey>('rateFwd');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
 
-  // When the EMA chart's direction flips, re-default the table to the most
-  // advantageous rate first. Rates sort DIRECTIONALLY ("to per 1 from"), so
-  // more output is always better → highest first (desc) for every direction.
-  // A manual re-sort persists until the next flip.
+  // When the EMA chart's direction flips, re-default the sort to that leg's
+  // rate column, most advantageous first. Rates sort DIRECTIONALLY ("to per 1
+  // from"), so more output is always better → highest first (desc). A manual
+  // re-sort persists until the next flip.
   useEffect(() => {
-    setSortKey('rate');
+    setSortKey(selectedLeg === 'reverse' ? 'rateRev' : 'rateFwd');
     setSortDir('desc');
-  }, [syncDirection]);
+  }, [syncDirection, selectedLeg]);
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      setSortDir(key === 'rate' || key === 'collateral' ? 'desc' : 'asc');
+      setSortDir(
+        key === 'rateFwd' || key === 'rateRev' || key === 'collateral'
+          ? 'desc'
+          : 'asc',
+      );
     }
   };
 
@@ -201,10 +203,8 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       // Only nodes on the selected pair (SOL/BTC vs SOL/TAO) — a miner serves
       // one pair, so a SOL/TAO node must not appear under a SOL/BTC view.
       if (minerSpoke(m) !== spoke) return false;
-      const hasQuote =
-        directionFilter === 'reverse'
-          ? parseRate(m.counterRate) > 0
-          : parseRate(m.rate) > 0;
+      // Both legs render, so a quote on either side earns the row.
+      const hasQuote = parseRate(m.rate) > 0 || parseRate(m.counterRate) > 0;
       if (!hasQuote) return false;
       if (statusFilter === 'all') return true;
       if (!m.isActive) return false;
@@ -215,8 +215,8 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       // Primary sort is the chosen column (default: rate, most-advantageous
       // first for the active direction). Ties break toward the most tradeable
       // node (Available → Reserved → Exchanging → Inactive).
-      const av = getSortValue(a, sortKey, directionFilter);
-      const bv = getSortValue(b, sortKey, directionFilter);
+      const av = getSortValue(a, sortKey);
+      const bv = getSortValue(b, sortKey);
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
       if (cmp !== 0) return sortDir === 'asc' ? cmp : -cmp;
       return statusRank(a) - statusRank(b);
@@ -226,23 +226,25 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       miner: m,
       match: String(m.uid) === q || m.hotkey.toLowerCase().includes(q),
     }));
-  }, [miners, sortKey, sortDir, search, spoke, directionFilter, statusFilter]);
+  }, [miners, sortKey, sortDir, search, spoke, statusFilter]);
   const hasSearch = search.trim().length > 0;
 
-  const renderRate = (m: Miner) => {
-    const v = directionRate(m, directionFilter);
+  // "0.00096608 BTC" — the amount 1 unit sent buys on this leg; the header
+  // carries the "1 SOL →" half of the sentence.
+  const renderRate = (m: Miner, leg: Leg) => {
+    const v = legRate(m, leg);
     if (v <= 0)
       return (
         <Box component="span" sx={{ color: disabled }}>
           {'—'}
         </Box>
       );
-    const [from, to] = legChains(m, directionFilter);
+    const [, to] = legChains(m, leg);
     return (
       <Box component="span">
         {formatRate(v)}
         <Box component="span" sx={{ color: 'text.secondary', ml: 0.5 }}>
-          {rateUnit(from, to)}
+          {to.toUpperCase()}
         </Box>
       </Box>
     );
@@ -274,9 +276,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
           >
             Active Rates
           </Typography>
-          {/* The chart's direction toggle scopes this table too — say so. */}
+          {/* The chart's toggle scopes this table to its PAIR — say so. */}
           <Chip
-            label={directionLabel(syncDirection ?? 'SOL-BTC')}
+            label={`SOL ⇄ ${SPOKE}`}
             size="small"
             variant="outlined"
             sx={{
@@ -291,8 +293,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
             title={
               <Box sx={{ maxWidth: 280 }}>
                 Live exchange rates quoted by active network nodes for the
-                selected direction (set by the EMA panel's toggle). Sort by rate
-                or capacity to find the best counterparty.
+                selected pair, both directions at once — each rate column is
+                what 1 unit sent buys. Sort by either rate or capacity to find
+                the best counterparty.
               </Box>
             }
             arrow
@@ -448,7 +451,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                 <TableRow
                   key={miner.hotkey}
                   sx={{
-                    '&:hover': { backgroundColor: 'background.paper' },
+                    '&:hover': { backgroundColor: 'action.hover' },
                     transition: 'background-color 0.15s, opacity 0.15s',
                     backgroundColor: highlight
                       ? theme.palette.action.selected
@@ -477,7 +480,11 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                   </TableCell>
 
                   <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
-                    {renderRate(miner)}
+                    {renderRate(miner, 'forward')}
+                  </TableCell>
+
+                  <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
+                    {renderRate(miner, 'reverse')}
                   </TableCell>
 
                   <TableCell
@@ -502,12 +509,6 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                     >
                       <Box component="span">
                         {formatCollateral(miner.collateral)}
-                        <Box
-                          component="span"
-                          sx={{ color: 'text.secondary', ml: 0.5 }}
-                        >
-                          SOL
-                        </Box>
                       </Box>
                     </Tooltip>
                   </TableCell>

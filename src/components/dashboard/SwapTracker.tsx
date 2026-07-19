@@ -7,6 +7,8 @@ import {
   LinearProgress,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
   useTheme,
@@ -15,10 +17,12 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import {
   useAllSwaps,
+  useCompleteSwapHistory,
   useMinerLabel,
   useSwapDetail,
   useSwapsCount,
 } from '../../api';
+import type { Spoke } from './AllwaysMarketRate';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
 import {
@@ -63,10 +67,17 @@ const useDebounce = (value: string, delay: number) => {
   return debounced;
 };
 
-const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
+const SwapTracker: React.FC<{
+  embedded?: boolean;
+  /** The chart's selected pair — offered as an opt-in list filter. */
+  filterPair?: Spoke;
+}> = ({ embedded, filterPair }) => {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE_SIZE);
+  // Off by default: the tape shows the whole network until the user opts into
+  // the chart's pair. The active option tracks the chart toggle live.
+  const [pairFilterOn, setPairFilterOn] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   // "#N" (or a bare short number) is a transaction-number lookup; a huge
@@ -86,15 +97,49 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const { data: swapsCount } = useSwapsCount();
   const minerLabel = useMinerLabel();
 
-  const swaps = exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy;
-  const isLoading = exactSwapId ? detailLoading : fuzzyLoading;
+  // Pair filtering is client-side (the /swaps endpoint has no chain filter).
+  // A single request caps at 50 rows, which would hide any older swaps of the
+  // filtered pair entirely — so with the filter on (and no search narrowing
+  // things server-side) walk the complete history instead.
+  const usingComplete =
+    pairFilterOn && !!filterPair && !exactSwapId && !debouncedSearch;
+  const { data: completeHistory, isLoading: completeLoading } =
+    useCompleteSwapHistory(usingComplete);
+
+  const fetched = exactSwapId
+    ? detail?.swap
+      ? [detail.swap]
+      : []
+    : usingComplete
+      ? completeHistory
+      : fuzzy;
+  const isLoading = exactSwapId
+    ? detailLoading
+    : usingComplete
+      ? completeLoading
+      : fuzzyLoading;
+
+  const swaps =
+    pairFilterOn && filterPair
+      ? fetched?.filter((s) => {
+          // Either leg of the pair: SOL→spoke or spoke→SOL.
+          const chains = [
+            s.sourceChain?.toLowerCase(),
+            s.destChain?.toLowerCase(),
+          ];
+          return chains.includes('sol') && chains.includes(filterPair);
+        })
+      : fetched;
 
   // Reset limit when search changes
   React.useEffect(() => {
     setLimit(PAGE_SIZE);
   }, [debouncedSearch]);
 
-  const hasMore = !exactSwapId && swaps?.length === limit;
+  // Paging watches the RAW page (a filtered page can be shorter than limit
+  // while more rows exist server-side); the complete-history path has nothing
+  // left to page.
+  const hasMore = !exactSwapId && !usingComplete && fetched?.length === limit;
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = useCallback(() => {
@@ -171,18 +216,65 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
         }}
       />
 
-      {swapsCount != null && (
-        <Typography
+      {(swapsCount != null || filterPair) && (
+        <Box
           sx={{
-            fontFamily: FONTS.mono,
-            fontSize: { xs: '0.58rem', sm: '0.65rem' },
-            color: 'text.secondary',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
             mb: 1,
           }}
         >
-          {swapsCount.totalCount.toLocaleString()} transaction
-          {swapsCount.totalCount === 1 ? '' : 's'} all-time
-        </Typography>
+          {swapsCount != null && (
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: { xs: '0.58rem', sm: '0.65rem' },
+                color: 'text.secondary',
+              }}
+            >
+              {swapsCount.totalCount.toLocaleString()} transaction
+              {swapsCount.totalCount === 1 ? '' : 's'} all-time
+            </Typography>
+          )}
+          {/* Scope toggle: the whole tape, or only the chart's pair. */}
+          {filterPair && (
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={pairFilterOn ? 'pair' : 'all'}
+              onChange={(_, v) => v && setPairFilterOn(v === 'pair')}
+              sx={{
+                '& .MuiToggleButton-root': {
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.56rem',
+                  px: 0.75,
+                  py: 0.25,
+                  height: 20,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  borderRadius: 0,
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.secondary,
+                },
+                '& .Mui-selected': {
+                  backgroundColor: `${theme.palette.text.primary} !important`,
+                  color: `${theme.palette.background.paper} !important`,
+                  borderColor: `${theme.palette.text.primary} !important`,
+                },
+                '& .Mui-selected + .MuiToggleButton-root': {
+                  borderLeftColor: `${theme.palette.text.primary} !important`,
+                },
+              }}
+            >
+              <ToggleButton value="all">All</ToggleButton>
+              <ToggleButton value="pair">
+                SOL ⇄ {filterPair.toUpperCase()}
+              </ToggleButton>
+            </ToggleButtonGroup>
+          )}
+        </Box>
       )}
 
       {!swaps?.length ? (
@@ -203,7 +295,11 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
               fontSize: { xs: '0.72rem', sm: '0.8rem' },
             }}
           >
-            {search ? 'No matching transactions' : 'No transactions yet'}
+            {search
+              ? 'No matching transactions'
+              : pairFilterOn && filterPair
+                ? `No SOL ⇄ ${filterPair.toUpperCase()} transactions yet`
+                : 'No transactions yet'}
           </Typography>
         </Box>
       ) : (
@@ -268,6 +364,11 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         fontSize: { xs: '0.72rem', sm: '0.8rem' },
                         fontWeight: 600,
                         color: 'text.primary',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        minWidth: 0,
+                        flexWrap: 'wrap',
                       }}
                     >
                       {sentLine ?? swapDisplayId(swap)}
@@ -275,11 +376,7 @@ const SwapTracker: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
                         <>
                           <Box
                             component="span"
-                            sx={{
-                              color: 'text.secondary',
-                              mx: 0.5,
-                              fontWeight: 400,
-                            }}
+                            sx={{ color: 'text.secondary', fontWeight: 400 }}
                           >
                             →
                           </Box>
