@@ -16,6 +16,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import {
   useCompleteSwapHistory,
   useCrownRateHistory,
+  useCurrentCrown,
   useMiners,
 } from '../../api';
 import {
@@ -65,17 +66,23 @@ const MOVE_COLORS = {
 } as const;
 
 // Directional {t(ms), value} points for one leg's crown history. Rows are
-// interval STARTS (the rate holds until the next row), so the latest rate is
-// extended to "now" — otherwise the line would stop at the last change.
+// interval STARTS (the rate holds until the next row), so the series is
+// extended to "now" — otherwise the line would stop at the last change. The
+// extension uses the LIVE crown rate when available, not the last history
+// row: history recording can lag behind the live crown, and flat-extending a
+// stale sample would show a "current" price that contradicts the orderbook
+// (which reflects live quotes).
 const toPoints = (
   direction: Direction,
   rows: { t: number; rate: number }[] | undefined,
+  liveRate: number | null,
 ) => {
   const pts = (rows ?? []).map((r) => ({
     t: r.t * 1000,
     value: directionalRateFor(direction, r.rate),
   }));
-  if (pts.length) pts.push({ t: Date.now(), value: pts[pts.length - 1].value });
+  const tip = liveRate ?? (pts.length ? pts[pts.length - 1].value : null);
+  if (tip != null) pts.push({ t: Date.now(), value: tip });
   return pts;
 };
 
@@ -277,9 +284,15 @@ const AllwaysMarketRate: React.FC<{
     secs,
   });
 
+  // Live crown for the selected direction — the same quote source the
+  // orderbook and rates table reflect. It anchors the headline price and the
+  // chart's right edge so all three always agree.
+  const { data: crown } = useCurrentCrown();
+  const liveRate = directionalRateFor(direction, crown?.[direction]?.rate);
+
   const points = useMemo(
-    () => toPoints(direction, reversed ? revRows : fwdRows),
-    [direction, reversed, fwdRows, revRows],
+    () => toPoints(direction, reversed ? revRows : fwdRows, liveRate),
+    [direction, reversed, fwdRows, revRows, liveRate],
   );
 
   // Executed-trade prints and volume bars come from the same swap set:
