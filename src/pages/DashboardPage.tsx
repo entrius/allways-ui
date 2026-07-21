@@ -8,7 +8,6 @@ import {
   OrderbookDepth,
   RatesTicker,
   ReservationsTracker,
-  StatsStrip,
   SwapTracker,
   TabbedPanel,
   Page,
@@ -16,10 +15,11 @@ import {
 } from '../components';
 import { isDirection } from '../api';
 import type { Direction } from '../api/models/MinersDashboard';
+import type { Spoke } from '../components/dashboard/AllwaysMarketRate';
 
 // Opening view when the URL says nothing. Kept off the URL so a bare
-// /dashboard and /dashboard?direction=SOL-BTC render the same thing.
-const DEFAULT_DIRECTION: Direction = 'SOL-BTC';
+// /dashboard and /dashboard?pair=BTC render the same thing.
+const DEFAULT_SPOKE: Spoke = 'btc';
 
 // Card-less column: no surface/border box (cohesive taostats-style); columns
 // are separated by thin dividers + padding instead. Flex column so children
@@ -34,21 +34,32 @@ const colSx = {
 const DashboardPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
 
-  // Shared trade direction — the Market Rate toggle drives both the chart and
-  // the Active Rates table filter. An unrecognised ?direction= falls back to
-  // the default rather than rendering an empty chart.
+  // Shared PAIR — the EMA panel's toggle drives the charts, the two-sided
+  // orderbook, the rates table, and the transaction filter. Legacy
+  // ?direction=SOL-BTC links resolve to their pair; anything unrecognised
+  // falls back to the default rather than rendering empty panels.
+  const pairParam = params.get('pair')?.toLowerCase();
   const directionParam = params.get('direction');
-  const direction: Direction = isDirection(directionParam)
-    ? directionParam
-    : DEFAULT_DIRECTION;
+  // Any chain token is a valid pair — the pair list is open-ended and grows
+  // with registered miners, so the URL must not gate on a hardcoded set.
+  const spoke: Spoke =
+    pairParam && /^[a-z0-9]+$/.test(pairParam) && pairParam !== 'sol'
+      ? pairParam
+      : isDirection(directionParam)
+        ? ((directionParam.toLowerCase().replace('sol', '').replace(/-/g, '') ||
+            DEFAULT_SPOKE) as Spoke)
+        : DEFAULT_SPOKE;
+  // Everything below the charts keys off the pair's forward leg.
+  const forward = `SOL-${spoke.toUpperCase()}` as Direction;
 
-  const setDirection = useCallback(
-    (value: Direction) => {
+  const setSpoke = useCallback(
+    (value: Spoke) => {
       // Clone so unrelated params on the URL survive the write.
       const next = new URLSearchParams(params);
-      if (value === DEFAULT_DIRECTION) next.delete('direction');
-      else next.set('direction', value);
-      // replace: toggling a chart direction is not a navigation step; the back
+      next.delete('direction');
+      if (value === DEFAULT_SPOKE) next.delete('pair');
+      else next.set('pair', value.toUpperCase());
+      // replace: toggling a chart pair is not a navigation step; the back
       // button should leave the dashboard, not walk back through toggles.
       setParams(next, { replace: true });
     },
@@ -117,12 +128,8 @@ const DashboardPage: React.FC = () => {
                 flexDirection: 'column',
               }}
             >
-              <AllwaysMarketRate
-                direction={direction}
-                onDirectionChange={setDirection}
-              />
+              <AllwaysMarketRate spoke={spoke} onSpokeChange={setSpoke} />
             </Box>
-            <StatsStrip />
             {/* Orderbook is desktop-only: the stacked mobile layout already
                 runs long, and the rates table carries the same liquidity. */}
             {!isStacked && (
@@ -135,7 +142,7 @@ const DashboardPage: React.FC = () => {
                   pt: 1,
                 }}
               >
-                <OrderbookDepth direction={direction} />
+                <OrderbookDepth direction={forward} />
               </Box>
             )}
             <Box
@@ -149,7 +156,7 @@ const DashboardPage: React.FC = () => {
                 pt: 1.5,
               }}
             >
-              <MinerRatesTable syncDirection={direction} />
+              <MinerRatesTable syncDirection={forward} />
             </Box>
           </Box>
 
@@ -174,7 +181,7 @@ const DashboardPage: React.FC = () => {
                       Timed Out). Click a row for the full timeline.
                     </Box>
                   ),
-                  node: <SwapTracker embedded />,
+                  node: <SwapTracker embedded filterPair={spoke} />,
                 },
                 {
                   key: 'reservations',

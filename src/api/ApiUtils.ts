@@ -30,6 +30,7 @@ export const useApiQueryAllPages = <TItem>(
   pageSize: number,
   maxPages: number,
   refetchInterval?: number,
+  enabled?: boolean,
 ) => {
   const baseUrl = import.meta.env.VITE_REACT_APP_BASE_URL;
 
@@ -56,6 +57,7 @@ export const useApiQueryAllPages = <TItem>(
       return all;
     },
     retry: false,
+    enabled: enabled ?? true,
     refetchInterval: refetchInterval ?? false,
     placeholderData: keepPreviousData,
   });

@@ -6,13 +6,14 @@ import { type ActiveSwap, type SwapDetail } from './models';
 // The network stats page derives per-day peak concurrency and serving-node
 // counts from each swap's [initiatedAt, resolvedAt] interval — levels the
 // edge-sampled /history/state endpoint can't provide.
-export const useCompleteSwapHistory = () =>
+export const useCompleteSwapHistory = (enabled?: boolean) =>
   useApiQueryAllPages<ActiveSwap>(
     'completeSwapHistory',
     '/swaps',
     50,
     40,
     SSE_FALLBACK_INTERVAL,
+    enabled,
   );
 
 export const useActiveSwaps = () =>

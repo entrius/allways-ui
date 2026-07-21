@@ -1,4 +1,5 @@
 export { default as CopyableAddress } from './CopyableAddress';
+export { ChainLogo, PairLabel, TickerSymbol } from './ChainLogo';
 export { default as BlockIndicator } from './BlockIndicator';
 export { default as BrandMark } from './BrandMark';
 export { default as Card } from './Card';

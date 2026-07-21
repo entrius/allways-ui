@@ -1,16 +1,19 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
-import { useHistory, useStats } from '../../api';
+import { useCompleteSwapHistory } from '../../api';
+import {
+  decomposeDirection,
+  directionLabel,
+  type Direction,
+} from '../../api/models/MinersDashboard';
 import { lamportsToSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 
-// Thin 24h context strip for the chart column: recent volume, activity, and
-// reliability at a glance, from the same /history buckets Network Stats uses.
-const Item: React.FC<{ label: string; value: string; hint: string }> = ({
-  label,
-  value,
-  hint,
-}) => (
+const Item: React.FC<{
+  label: string;
+  value: React.ReactNode;
+  hint: string;
+}> = ({ label, value, hint }) => (
   <Tooltip title={hint} arrow placement="top">
     <Stack direction="row" alignItems="baseline" spacing={0.75}>
       <Typography
@@ -41,36 +44,59 @@ const Item: React.FC<{ label: string; value: string; hint: string }> = ({
   </Tooltip>
 );
 
-const StatsStrip: React.FC = () => {
-  const { data: history } = useHistory('24h', 'hour');
-  const { data: stats } = useStats();
+// Symbol stats for ONE direction over the hero's selected window, computed
+// from the raw swap history so any window works (the /history endpoint only
+// serves fixed network-wide buckets). In-flight is a current level, not
+// windowed.
+const StatsStrip: React.FC<{
+  direction: Direction;
+  /** Window length in seconds (the hero range). */
+  secs: number;
+  /** Chip text for labels, e.g. "1D". */
+  rangeLabel: string;
+  /** No frame — for embedding inside the market hero. */
+  bare?: boolean;
+}> = ({ direction, secs, rangeLabel, bare }) => {
+  const { data: swaps } = useCompleteSwapHistory();
+  const { from, to } = decomposeDirection(direction);
 
-  const day = useMemo(() => {
-    const rows = history ?? [];
+  const stats = useMemo(() => {
+    const cutoff = Date.now() / 1000 - secs;
     let volume = 0;
-    let swaps = 0;
-    let weightedSuccess = 0;
-    let successWeight = 0;
-    for (const r of rows) {
-      const v = lamportsToSol(r.volumeSol);
-      if (Number.isFinite(v)) volume += v;
-      swaps += r.swaps;
-      if (r.successRate != null && r.swaps > 0) {
-        weightedSuccess += r.successRate * r.swaps;
-        successWeight += r.swaps;
+    let completed = 0;
+    let timedOut = 0;
+    let inFlight = 0;
+    for (const s of swaps ?? []) {
+      if (
+        s.sourceChain?.toLowerCase() !== from ||
+        s.destChain?.toLowerCase() !== to
+      )
+        continue;
+      if (s.status === 'ACTIVE' || s.status === 'FULFILLED') inFlight += 1;
+      if (s.initiatedAt == null || Number(s.initiatedAt) < cutoff) continue;
+      if (s.status === 'COMPLETED') {
+        completed += 1;
+        const v = s.solAmount != null ? lamportsToSol(s.solAmount) : NaN;
+        if (Number.isFinite(v)) volume += v;
+      } else if (s.status === 'TIMED_OUT') {
+        timedOut += 1;
       }
     }
     return {
       volume,
-      swaps,
-      success: successWeight > 0 ? weightedSuccess / successWeight : null,
+      completed,
+      inFlight,
+      success:
+        completed + timedOut > 0 ? completed / (completed + timedOut) : null,
     };
-  }, [history]);
+  }, [swaps, from, to, secs]);
 
   const fmtVol = (v: number) =>
     v >= 1000
       ? `${(v / 1000).toFixed(1)}k`
       : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+  const dir = directionLabel(direction);
 
   return (
     <Box
@@ -80,30 +106,36 @@ const StatsStrip: React.FC = () => {
         flexWrap: 'wrap',
         columnGap: 3,
         rowGap: 0.5,
-        py: 1,
-        borderTop: '1px solid',
-        borderColor: 'divider',
+        ...(bare
+          ? {}
+          : {
+              py: 1,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }),
       }}
     >
       <Item
-        label="24h vol"
-        value={`${fmtVol(day.volume)} SOL`}
-        hint="Completed swap volume over the last 24 hours."
+        label={`${rangeLabel} vol`}
+        value={`${fmtVol(stats.volume)} SOL`}
+        hint={`${dir} volume (SOL side) completed over the selected window.`}
       />
       <Item
-        label="24h txns"
-        value={day.swaps.toLocaleString()}
-        hint="Swaps completed over the last 24 hours."
+        label={`${rangeLabel} txns`}
+        value={stats.completed.toLocaleString()}
+        hint={`${dir} swaps completed over the selected window.`}
       />
       <Item
-        label="24h success"
-        value={day.success != null ? `${(day.success * 100).toFixed(1)}%` : '—'}
-        hint="Share of swaps that completed (vs timed out) over the last 24 hours."
+        label={`${rangeLabel} success`}
+        value={
+          stats.success != null ? `${(stats.success * 100).toFixed(1)}%` : '—'
+        }
+        hint={`Share of ${dir} swaps that completed (vs timed out) over the selected window.`}
       />
       <Item
         label="in flight"
-        value={stats ? String(stats.activeSwaps) : '—'}
-        hint="Transactions currently in progress."
+        value={String(stats.inFlight)}
+        hint={`${dir} transactions currently in progress.`}
       />
     </Box>
   );

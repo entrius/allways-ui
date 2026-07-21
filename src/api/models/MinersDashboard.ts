@@ -57,6 +57,13 @@ export const rateUnitFor = (dir: Direction): string => {
   return rateUnit(from, to);
 };
 
+// "BTC per 1 SOL" — explicit phrasing of the same unit for headers and labels
+// where the compact slash form reads ambiguously (which side is the 1?).
+export const rateUnitVerboseFor = (dir: Direction): string => {
+  const { from, to } = decomposeDirection(dir);
+  return `${to.toUpperCase()} per 1 ${from.toUpperCase()}`;
+};
+
 export type CurrentCrown = {
   uid: number | null;
   hotkey: string | null;
