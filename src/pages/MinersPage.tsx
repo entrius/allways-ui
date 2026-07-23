@@ -8,7 +8,6 @@ import {
   NetworkOverviewStats,
   Page,
   SEO,
-  StickyNetworkHeader,
 } from '../components';
 import { isRange, isRateRange, type Range, type RateRange } from '../api';
 
@@ -48,7 +47,6 @@ const MinersPage: React.FC = () => {
         title="Miners"
         description="Public miner dashboard for Allways — crown share, success rate, and swap history"
       />
-      <StickyNetworkHeader />
       <Stack
         sx={{
           px: { xs: 1.5, sm: 2, md: 4 },

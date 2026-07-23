@@ -1,123 +1,123 @@
-import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
-import { useCurrentCrown } from '../../api';
+import React, { useMemo } from 'react';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
+import { useCrownRateHistory, useCurrentCrown } from '../../api';
 import {
+  decomposeDirection,
   directionalRateFor,
-  type CurrentCrown,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { useSpokes } from '../../hooks';
 import { formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
-import { BlockIndicator } from '../index';
+import { BlockIndicator, ChainLogo } from '../index';
 import Ticker from '../Ticker';
+import { MOVE_COLORS } from './AllwaysMarketRate';
 
-// Both legs of each pair, forward first — the strip shows a whole pair at
-// once instead of making the reader mentally invert one leg.
-const PAIRS: { legs: [Direction, Direction] }[] = [
-  { legs: ['SOL-BTC', 'BTC-SOL'] },
-  { legs: ['SOL-TAO', 'TAO-SOL'] },
-];
-
+const DAY_SECS = 86_400;
 const SEGMENT_FONT = { xs: '0.6rem', sm: '0.72rem' } as const;
 
-// "1 SOL → 0.00096608 BTC · uid 236" — the crown rate spelled out as what 1
-// unit sent buys, so the reader never has to work out which side of a
-// "BTC/SOL" unit is the 1.
-const LegQuote: React.FC<{
-  direction: Direction;
-  holder: CurrentCrown | null | undefined;
-}> = ({ direction, holder }) => {
-  const [from, to] = direction.split('-');
-  const rate = directionalRateFor(direction, holder?.rate);
+// One tape segment, broadcast-ticker style: logo, FX symbol, last rate, and
+// the 1D move with its ▲/▼ — the same numbers the watchlist carries, in
+// crawl form.
+const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
+  const theme = useTheme();
+  const { from, to } = decomposeDirection(direction);
+
+  const { data: crown } = useCurrentCrown();
+  const live = directionalRateFor(direction, crown?.[direction]?.rate);
+  const { data: rows } = useCrownRateHistory({
+    direction,
+    secs: DAY_SECS,
+  });
+  const first = rows?.length
+    ? directionalRateFor(direction, rows[0].rate)
+    : null;
+  const last =
+    live ??
+    (rows?.length
+      ? directionalRateFor(direction, rows[rows.length - 1].rate)
+      : null);
+  const chg =
+    first != null && first !== 0 && last != null
+      ? ((last - first) / first) * 100
+      : null;
+
+  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
+  const chgColor =
+    chg == null || chg === 0
+      ? theme.palette.text.secondary
+      : chg > 0
+        ? move.up
+        : move.down;
 
   return (
-    <Typography variant="mono" sx={{ fontSize: SEGMENT_FONT }}>
-      <Box component="span" sx={{ color: 'text.secondary' }}>
-        1 {from}
-      </Box>
-      <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
-        →
-      </Box>
-      {rate != null ? (
-        <>
-          <Box component="span" sx={{ color: 'text.primary', fontWeight: 500 }}>
-            {formatRate(rate)} {to}
-          </Box>
-          {holder?.uid != null && (
-            <Box component="span" sx={{ ml: 0.75, color: 'text.disabled' }}>
-              UID {holder.uid}
-            </Box>
-          )}
-        </>
-      ) : (
-        <Box component="span" sx={{ color: 'text.disabled' }}>
-          no crown
-        </Box>
-      )}
-    </Typography>
-  );
-};
-
-// One pair group: "👑 SOL ⇄ BTC  1 SOL → x BTC · 1 BTC → y SOL" — both
-// directions visible at the same time.
-const PairSegment: React.FC<{
-  legs: [Direction, Direction];
-  crown: Record<Direction, CurrentCrown> | undefined;
-}> = ({ legs, crown }) => {
-  const [, spoke] = legs[0].split('-');
-  return (
-    <Stack
-      direction="row"
-      spacing={1}
-      alignItems="center"
-      sx={{ color: 'text.secondary' }}
-    >
+    <Stack direction="row" spacing={0.75} alignItems="center">
+      <ChainLogo chain={from} size={13} />
       <Typography
         variant="mono"
         sx={{
           fontSize: SEGMENT_FONT,
-          fontFamily: FONTS.mono,
+          color: 'text.secondary',
+          fontWeight: 600,
           letterSpacing: '0.04em',
         }}
       >
-        SOL
-        <Box component="span" sx={{ mx: 0.5, color: 'text.disabled' }}>
-          ⇄
+        {from.toUpperCase()}
+        <Box component="span" sx={{ color: 'text.disabled' }}>
+          /
         </Box>
-        {spoke}
+        {to.toUpperCase()}
       </Typography>
-      {legs.map((dir, i) => (
-        <React.Fragment key={dir}>
-          {i > 0 && (
-            <Box component="span" sx={{ color: 'text.disabled' }}>
-              ·
-            </Box>
-          )}
-          <LegQuote direction={dir} holder={crown?.[dir]} />
-        </React.Fragment>
-      ))}
+      <Typography
+        variant="mono"
+        sx={{
+          fontSize: SEGMENT_FONT,
+          color: 'text.primary',
+          fontWeight: 600,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {last != null ? formatRate(last) : '—'}
+      </Typography>
+      {chg != null && (
+        <Typography
+          variant="mono"
+          sx={{
+            fontSize: SEGMENT_FONT,
+            color: chgColor,
+            fontWeight: 600,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {chg > 0 ? '▲' : chg < 0 ? '▼' : ''} {Math.abs(chg).toFixed(2)}%
+        </Typography>
+      )}
     </Stack>
   );
 };
 
-// Dashboard eyebrow: the "updated <ago>" indicator plus the live crown rates,
-// grouped per pair with both directions shown at once and rates phrased as
-// "1 <from> → <rate> <to>".
+// Market-page eyebrow: the "updated <ago>" indicator pinned left, then the
+// wall-street tape — every route crawling by with its rate and 1D move.
 const RatesTicker: React.FC = () => {
-  const { data: crown } = useCurrentCrown();
+  const spokes = useSpokes();
+  const directions = useMemo<Direction[]>(
+    () =>
+      spokes.flatMap((s) => {
+        const S = s.toUpperCase();
+        return [`SOL-${S}`, `${S}-SOL`] as Direction[];
+      }),
+    [spokes],
+  );
 
   return (
     <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      spacing={{ xs: 0.5, sm: 3 }}
-      alignItems={{ xs: 'flex-start', sm: 'center' }}
+      direction="row"
+      spacing={{ xs: 1.5, sm: 3 }}
+      alignItems="center"
       sx={{
         fontFamily: FONTS.mono,
         fontSize: { xs: '0.6rem', sm: '0.72rem' },
         color: 'text.secondary',
-        flexWrap: 'wrap',
-        gap: { xs: 0.5, sm: 2 },
-        rowGap: { xs: 0.5, sm: 1 },
         pt: { xs: 1, sm: 1.5 },
         pb: { xs: 1, sm: 1.5 },
         mb: { xs: 1.5, sm: 2 },
@@ -125,10 +125,12 @@ const RatesTicker: React.FC = () => {
         borderColor: 'divider',
       }}
     >
-      <BlockIndicator />
+      <Box sx={{ flexShrink: 0 }}>
+        <BlockIndicator />
+      </Box>
       <Ticker>
-        {PAIRS.map((p) => (
-          <PairSegment key={p.legs[0]} legs={p.legs} crown={crown} />
+        {directions.map((d) => (
+          <DirSegment key={d} direction={d} />
         ))}
       </Ticker>
     </Stack>

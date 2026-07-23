@@ -17,7 +17,8 @@ export const docsUrl = (): string =>
     : 'https://test-docs.all-ways.io/';
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', to: '/dashboard' },
+  { label: 'Markets', to: '/market' },
+  { label: 'Transactions', to: '/transactions' },
   { label: 'Miners', to: '/miners' },
   { label: 'Network Stats', to: '/network-stats' },
   { label: 'Agents', to: '/agents' },

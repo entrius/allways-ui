@@ -5,10 +5,9 @@ import { FONTS } from '../../theme';
 import { formatTimeAgo } from '../../utils/format';
 
 // Full-width red banner that mounts above every page when the swap
-// contract is halted. The StickyNetworkHeader does carry a tiny
-// "halted" dot, but during a halt no miner earns crown and the full
-// emission pool recycles — that's significant enough to warrant
-// something unmissable. Renders nothing when not halted.
+// contract is halted. During a halt no miner earns crown and the full
+// emission pool recycles — significant enough to warrant something
+// unmissable. Renders nothing when not halted.
 const HaltBanner: React.FC = () => {
   const { data: halt } = useHaltState();
   if (!halt?.halted) return null;

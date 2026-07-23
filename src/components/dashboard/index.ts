@@ -8,4 +8,5 @@ export { default as StatsPanel } from './StatsPanel';
 export { default as StatsStrip } from './StatsStrip';
 export { default as SwapTracker } from './SwapTracker';
 export { default as TabbedPanel } from './TabbedPanel';
+export { default as PairsRail } from './PairsRail';
 export * from './Skeletons';
