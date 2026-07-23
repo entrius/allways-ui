@@ -1,6 +1,4 @@
 export { default as CrownIcon } from './CrownIcon';
-export { default as CrownDirectionSegment } from './CrownDirectionSegment';
-export { default as StickyNetworkHeader } from './StickyNetworkHeader';
 export { default as NetworkOverviewStats } from './NetworkOverviewStats';
 export { default as MinerLeaderboard } from './MinerLeaderboard';
 export { default as CrownHistoryGrid } from './CrownHistoryGrid';

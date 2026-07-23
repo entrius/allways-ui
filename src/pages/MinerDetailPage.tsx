@@ -15,7 +15,6 @@ import {
   RateHistoryTable,
   ScoringPanel,
   SEO,
-  StickyNetworkHeader,
 } from '../components';
 import {
   useMinerStats,
@@ -89,7 +88,6 @@ const MinerDetailPage: React.FC = () => {
         title={`Miner ${uid ?? shortHotkey(hotkey)}`}
         description={`Allways miner detail · uid ${uid ?? '?'} · ${shortHotkey(hotkey)}`}
       />
-      <StickyNetworkHeader />
       <Stack
         sx={{
           px: { xs: 1.5, sm: 2, md: 4 },

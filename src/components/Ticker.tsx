@@ -17,8 +17,7 @@ import { Box, useMediaQuery } from '@mui/material';
 // layout/paint), and is auto-throttled by the browser in background tabs —
 // the elapsed-time clamp keeps resume jump-free.
 //
-// Shared by the market page (RatesTicker) and the miners page
-// (StickyNetworkHeader) so the two tapes scroll identically.
+// Used by the market page's RatesTicker.
 
 const GAP = 3; // theme spacing between segments
 
