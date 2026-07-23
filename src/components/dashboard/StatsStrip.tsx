@@ -58,10 +58,7 @@ const StatsStrip: React.FC<{
   bare?: boolean;
 }> = ({ directions, secs, rangeLabel, bare }) => {
   const { data: swaps } = useCompleteSwapHistory();
-  const legs = useMemo(
-    () => directions.map(decomposeDirection),
-    [directions],
-  );
+  const legs = useMemo(() => directions.map(decomposeDirection), [directions]);
 
   const stats = useMemo(() => {
     const cutoff = Date.now() / 1000 - secs;
