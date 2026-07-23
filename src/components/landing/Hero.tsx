@@ -153,7 +153,7 @@ const Hero: React.FC = () => {
               },
             }}
           >
-            Open the market
+            Open the markets
           </Button>
           <Button
             component={RouterLink}
