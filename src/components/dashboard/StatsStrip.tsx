@@ -44,21 +44,24 @@ const Item: React.FC<{
   </Tooltip>
 );
 
-// Symbol stats for ONE direction over the hero's selected window, computed
-// from the raw swap history so any window works (the /history endpoint only
-// serves fixed network-wide buckets). In-flight is a current level, not
-// windowed.
+// Symbol stats for a market — one or more directions pooled — over the
+// hero's selected window, computed from the raw swap history so any window
+// works (the /history endpoint only serves fixed network-wide buckets).
+// In-flight is a current level, not windowed.
 const StatsStrip: React.FC<{
-  direction: Direction;
+  directions: Direction[];
   /** Window length in seconds (the hero range). */
   secs: number;
   /** Chip text for labels, e.g. "1D". */
   rangeLabel: string;
   /** No frame — for embedding inside the market hero. */
   bare?: boolean;
-}> = ({ direction, secs, rangeLabel, bare }) => {
+}> = ({ directions, secs, rangeLabel, bare }) => {
   const { data: swaps } = useCompleteSwapHistory();
-  const { from, to } = decomposeDirection(direction);
+  const legs = useMemo(
+    () => directions.map(decomposeDirection),
+    [directions],
+  );
 
   const stats = useMemo(() => {
     const cutoff = Date.now() / 1000 - secs;
@@ -67,11 +70,9 @@ const StatsStrip: React.FC<{
     let timedOut = 0;
     let inFlight = 0;
     for (const s of swaps ?? []) {
-      if (
-        s.sourceChain?.toLowerCase() !== from ||
-        s.destChain?.toLowerCase() !== to
-      )
-        continue;
+      const src = s.sourceChain?.toLowerCase();
+      const dst = s.destChain?.toLowerCase();
+      if (!legs.some((l) => l.from === src && l.to === dst)) continue;
       if (s.status === 'ACTIVE' || s.status === 'FULFILLED') inFlight += 1;
       if (s.initiatedAt == null || Number(s.initiatedAt) < cutoff) continue;
       if (s.status === 'COMPLETED') {
@@ -89,14 +90,19 @@ const StatsStrip: React.FC<{
       success:
         completed + timedOut > 0 ? completed / (completed + timedOut) : null,
     };
-  }, [swaps, from, to, secs]);
+  }, [swaps, legs, secs]);
 
   const fmtVol = (v: number) =>
     v >= 1000
       ? `${(v / 1000).toFixed(1)}k`
       : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-  const dir = directionLabel(direction);
+  // Hint wording: a single leg keeps its arrow label; a pooled market reads
+  // as the two-way pair.
+  const dir =
+    directions.length === 1
+      ? directionLabel(directions[0])
+      : `${legs[0].from.toUpperCase()} ⇄ ${legs[0].to.toUpperCase()}`;
 
   return (
     <Box

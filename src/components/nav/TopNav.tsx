@@ -61,10 +61,18 @@ const TopNav: React.FC = () => {
   const docs = docsUrl();
 
   const isActive = (to: string): boolean => {
-    if (to === '/dashboard') {
+    if (to === '/market') {
+      // Old dashboard links redirect here — highlight through the hop.
       return (
-        location.pathname === '/dashboard' ||
-        location.pathname.startsWith('/swap/')
+        location.pathname === '/market' || location.pathname === '/dashboard'
+      );
+    }
+    if (to === '/transactions') {
+      // Swap and reservation detail pages are the explorer's drill-downs.
+      return (
+        location.pathname === '/transactions' ||
+        location.pathname.startsWith('/swap/') ||
+        location.pathname.startsWith('/reservations/')
       );
     }
     if (to === '/miners') {

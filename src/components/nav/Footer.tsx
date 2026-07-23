@@ -96,8 +96,11 @@ const Footer: React.FC = () => {
             <Stack sx={{ height: '100%' }}>
               <Typography sx={colHeadSx}>Product</Typography>
               <Stack sx={{ flex: 1, justifyContent: 'space-between' }}>
-                <Box component={RouterLink} to="/dashboard" sx={linkSx}>
-                  Dashboard
+                <Box component={RouterLink} to="/market" sx={linkSx}>
+                  Markets
+                </Box>
+                <Box component={RouterLink} to="/transactions" sx={linkSx}>
+                  Transactions
                 </Box>
                 <Box component={RouterLink} to="/agents" sx={linkSx}>
                   Agents

@@ -99,12 +99,25 @@ type TimeSeriesChartProps = {
    * axis, solid faint gridlines, and a compact label/value tooltip.
    */
   market?: boolean;
+  /**
+   * Shaded corridor between two levels (e.g. buy/sell prices) so the gap
+   * reads as a band instead of empty space between lines. Points must share
+   * one timeline (lo ≤ hi). Time-axis charts only.
+   */
+  band?: { t: number; lo: number; hi: number }[];
+  /** Band fill color (pass an 8-digit hex for alpha). */
+  bandColor?: string;
+  /** Drop the multi-series legend — for charts whose surrounding UI already
+   * names and color-codes the series (e.g. the market hero headline). */
+  hideLegend?: boolean;
 };
 
 // Series name for the volume overlay — used to route tooltip formatting.
 const VOLUME_NAME = 'Volume';
-// Internal last-price tag series; hidden from the tooltip.
+// Internal series ('__'-prefixed names are hidden from the tooltip).
 const LAST_TAG_NAME = '__last';
+const BAND_LO_NAME = '__band_lo';
+const BAND_HI_NAME = '__band_hi';
 
 // Spans at or under this render hour:minute labels; longer spans render dates.
 const HOURLY_SPAN_MS = 3 * 24 * 3600 * 1000;
@@ -175,6 +188,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   volume,
   volumeFormat,
   market,
+  band,
+  bandColor,
+  hideLegend,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
@@ -322,19 +338,20 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       };
     });
 
-    // tradingview-style last-price tag: a zero-size point at the newest value
-    // whose label renders as a chip against the price scale. (markLine labels
-    // clip at the grid edge; a scatter label with clip:false does not.)
+    // tradingview-style last-price tags: a zero-size point at each line's
+    // newest value whose label renders as a chip against the price scale,
+    // tinted the line's color so multi-line charts read per-series at the
+    // axis. (markLine labels clip at the grid edge; a scatter label with
+    // clip:false does not.)
     const lastTagSeries = [] as object[];
     if (market) {
-      const prim = primary[0];
-      const lastPt = prim
-        ? [...prim.points].reverse().find((p) => p.value != null)
-        : null;
-      if (prim && lastPt && lastPt.value != null) {
+      primary.forEach((prim, i) => {
+        const lastPt = [...prim.points].reverse().find((p) => p.value != null);
+        if (!lastPt || lastPt.value == null) return;
         const fmtLast = prim.formatValue ?? formatValue ?? defaultFmt;
+        const bg = single ? theme.palette.text.primary : prim.color;
         lastTagSeries.push({
-          name: LAST_TAG_NAME,
+          name: `${LAST_TAG_NAME}_${i}`,
           type: 'scatter' as const,
           data: [[lastPt.t, lastPt.value]],
           symbolSize: 0.1,
@@ -347,13 +364,48 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             formatter: fmtLast(lastPt.value),
             fontFamily: FONTS.mono,
             fontSize: 10,
-            color: theme.palette.background.paper,
-            backgroundColor: theme.palette.text.primary,
+            color: theme.palette.getContrastText(bg),
+            backgroundColor: bg,
             padding: [3, 5, 2, 5],
           },
         });
-      }
+      });
     }
+
+    // Corridor fill: a transparent line at `lo` plus a stacked area of
+    // height (hi - lo) on top of it — the standard echarts band trick. Both
+    // are silent, symbol-less, and '__'-named so tooltips and the legend
+    // ignore them; z 0 keeps the fill under the real lines.
+    const bandSeries =
+      !daily && band?.length
+        ? [
+            {
+              name: BAND_LO_NAME,
+              type: 'line' as const,
+              stack: '__band',
+              step: 'end' as const,
+              data: band.map((p) => [p.t, p.lo]),
+              lineStyle: { opacity: 0 },
+              showSymbol: false,
+              silent: true,
+              z: 0,
+            },
+            {
+              name: BAND_HI_NAME,
+              type: 'line' as const,
+              stack: '__band',
+              step: 'end' as const,
+              data: band.map((p) => [p.t, p.hi - p.lo]),
+              lineStyle: { opacity: 0 },
+              showSymbol: false,
+              silent: true,
+              // action.hover is a ready-made rgba in both themes — a hex
+              // alpha suffix would corrupt MUI's rgba() palette strings.
+              areaStyle: { color: bandColor ?? theme.palette.action.hover },
+              z: 0,
+            },
+          ]
+        : [];
 
     const volumeSeries = vol
       ? [
@@ -374,24 +426,33 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     chart.setOption(
       {
         animation: false,
+        // Multi-series market charts push the plot down to clear the legend,
+        // which sits top-LEFT there — top-right would collide with the
+        // right-hand price scale.
         grid: market
-          ? { left: 8, right: 64, top: 12, bottom: 28 }
+          ? {
+              left: 8,
+              right: 64,
+              top: single || hideLegend ? 12 : 30,
+              bottom: 28,
+            }
           : { left: 56, right: 16, top: 16, bottom: 28 },
-        legend: single
-          ? undefined
-          : {
-              show: true,
-              data: primary.map((s) => s.name),
-              top: 0,
-              right: 8,
-              textStyle: {
-                color: axisColor,
-                fontFamily: FONTS.mono,
-                fontSize: 10,
+        legend:
+          single || hideLegend
+            ? undefined
+            : {
+                show: true,
+                data: primary.map((s) => s.name),
+                top: 0,
+                ...(market ? { left: 8 } : { right: 8 }),
+                textStyle: {
+                  color: axisColor,
+                  fontFamily: FONTS.mono,
+                  fontSize: 10,
+                },
+                itemWidth: 12,
+                itemHeight: 8,
               },
-              itemWidth: 12,
-              itemHeight: 8,
-            },
         tooltip: {
           trigger: 'axis',
           backgroundColor: theme.palette.background.paper,
@@ -455,12 +516,49 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 
             if (market) {
               // tradingview data window: one complete readout per hover —
-              // the price level in effect at t, its change, and the volume
-              // of the bin containing t — regardless of which series the
-              // axis snapped to.
+              // the price level in effect at t for every line, and the
+              // volume of the bin containing t — regardless of which series
+              // the axis snapped to. With one line the readout adds its
+              // change vs the prior sample; with several it instead adds the
+              // delta between the first two lines (the spread), which is the
+              // number multi-line market charts exist to show.
               const rows: string[] = [];
-              const prim = series.find((x) => !x.overlay);
-              if (prim) {
+              const prims = series.filter((x) => !x.overlay);
+              // The value in effect at t: last non-null sample at or before
+              // t (step semantics — a crown rate holds until it changes).
+              const valueAt = (s: ChartSeries): number | null => {
+                let v: number | null = null;
+                for (const pt of s.points) {
+                  if (pt.t > t) break;
+                  if (pt.value != null) v = pt.value;
+                }
+                return v;
+              };
+              if (prims.length >= 2) {
+                const vals = prims.map((s) => ({ s, v: valueAt(s) }));
+                for (const { s, v } of vals) {
+                  if (v == null) continue;
+                  const fmt = s.formatValue ?? formatValue ?? defaultFmt;
+                  const unit = s.unit ? ` ${s.unit}` : '';
+                  rows.push(
+                    `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.color};margin-right:5px"></span><span style="color:${axisColor}">${s.name}</span> <b>${fmt(v)}${unit}</b>`,
+                  );
+                }
+                const [a, b] = vals;
+                if (a.v != null && b.v != null && a.v + b.v !== 0) {
+                  const fmt = a.s.formatValue ?? formatValue ?? defaultFmt;
+                  const unit = a.s.unit ? ` ${a.s.unit}` : '';
+                  const diff = a.v - b.v;
+                  // Spread percent vs the mid, the exchange convention.
+                  const pct = (diff / ((a.v + b.v) / 2)) * 100;
+                  rows.push(
+                    `<span style="color:${axisColor}">Spread</span> <b>${fmt(
+                      Math.abs(diff),
+                    )}${unit} (${Math.abs(pct).toFixed(2)}%)</b>`,
+                  );
+                }
+              } else if (prims[0]) {
+                const prim = prims[0];
                 const fmt = prim.formatValue ?? formatValue ?? defaultFmt;
                 const unit = prim.unit ? ` ${prim.unit}` : '';
                 let idx = -1;
@@ -510,7 +608,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             const lines = params
               .map((p) => {
                 const raw = Array.isArray(p.value) ? p.value[1] : p.value;
-                if (raw == null || p.seriesName === LAST_TAG_NAME) return '';
+                if (raw == null || p.seriesName.startsWith('__')) return '';
                 if (p.seriesName === VOLUME_NAME) {
                   const vfmt = volumeFormat ?? ((v: number) => v.toFixed(2));
                   return `<span style="color:${axisColor}">Vol</span> ${vfmt(
@@ -580,7 +678,13 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             position: market ? ('right' as const) : ('left' as const),
             // Log scale can't include 0, so drop the min:0 floor when enabled.
             type: logScale ? 'log' : 'value',
-            ...(logScale ? {} : autoScale ? { scale: true } : { min: 0 }),
+            ...(logScale
+              ? {}
+              : autoScale
+                ? // scale:true zooms to the data; the boundaryGap keeps the
+                  // extremes off the chart edges (tradingview-style headroom).
+                  { scale: true, boundaryGap: ['8%', '8%'] }
+                : { min: 0 }),
             ...(integerY && !logScale && { minInterval: 1 }),
             axisLine: { show: false },
             axisTick: { show: false },
@@ -611,7 +715,12 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
               ]
             : []),
         ],
-        series: [...echartsSeries, ...volumeSeries, ...lastTagSeries],
+        series: [
+          ...bandSeries,
+          ...echartsSeries,
+          ...volumeSeries,
+          ...lastTagSeries,
+        ],
       },
       true,
     );
@@ -627,6 +736,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     volume,
     volumeFormat,
     market,
+    band,
+    bandColor,
+    hideLegend,
   ]);
 
   return (

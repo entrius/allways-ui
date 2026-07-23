@@ -130,7 +130,7 @@ const ReservationDetailPage: React.FC = () => {
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
         <Typography
           component={RouterLink}
-          to="/dashboard"
+          to="/transactions"
           sx={{
             fontFamily: FONTS.mono,
             fontSize: '0.8rem',
@@ -142,7 +142,7 @@ const ReservationDetailPage: React.FC = () => {
             '&:hover': { color: 'primary.main' },
           }}
         >
-          <ArrowBackIcon sx={{ fontSize: 14 }} /> Dashboard
+          <ArrowBackIcon sx={{ fontSize: 14 }} /> Transactions
         </Typography>
         <Box sx={{ flex: 1 }} />
         <Chip

@@ -133,7 +133,7 @@ const Hero: React.FC = () => {
         >
           <Button
             component={RouterLink}
-            to="/dashboard"
+            to="/market"
             variant="contained"
             size="large"
             sx={{
@@ -153,7 +153,7 @@ const Hero: React.FC = () => {
               },
             }}
           >
-            Open dashboard
+            Open the market
           </Button>
           <Button
             component={RouterLink}

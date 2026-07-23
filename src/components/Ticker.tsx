@@ -1,27 +1,37 @@
 import React from 'react';
-import { Box, Stack, useMediaQuery } from '@mui/material';
+import { Box, useMediaQuery } from '@mui/material';
 
-// Rate-strip layout. Desktop (sm+) is the original wrapping row, untouched.
-// Mobile (xs) becomes an auto-scrolling marquee — the four direction segments
-// loop across one line so the strip never stacks into a tall column. Tap
-// toggles pause so a moving rate can be read, and prefers-reduced-motion
-// degrades to a static, hand-scrollable row (no animation at all).
+// Wall-street tape: the segments crawl across one line at a constant pace on
+// EVERY breakpoint. Hover (or tap) pauses the tape so a moving rate can be
+// read; prefers-reduced-motion degrades to a static, hand-scrollable row (no
+// animation at all).
 //
-// Shared by the dashboard (RatesTicker) and the miners page (StickyNetworkHeader)
-// so the two strips scroll identically.
+// The crawl is a requestAnimationFrame loop writing a transform straight to
+// the track element — deliberately NOT a CSS keyframe animation. Keyframes
+// here would need the slide distance baked into the definition, so every
+// live rate update that nudges a segment's width would mint new keyframes
+// and RESTART the animation (visible stutter, and eventually a dead tape).
+// The rAF loop instead keeps one offset, wraps it modulo the measured
+// copy-width (content changes stay seamless), never touches React state per
+// frame (zero re-renders), moves only `transform` (compositor-only, no
+// layout/paint), and is auto-throttled by the browser in background tabs —
+// the elapsed-time clamp keeps resume jump-free.
+//
+// Shared by the market page (RatesTicker) and the miners page
+// (StickyNetworkHeader) so the two tapes scroll identically.
 
-const GAP = 2; // theme spacing between segments
+const GAP = 3; // theme spacing between segments
 
-// Marquee speed. The duration is derived from the measured content width so both
-// strips scroll at the same pixels/second — a fixed duration made the wider
-// dashboard strip (it carries the EMA suffix) look faster than the narrower
-// miners strip. ~25 px/s is a calm pace; MIN keeps very narrow content sane.
-const PX_PER_SEC = 25;
-const MIN_DURATION_SEC = 8;
+// ~30 px/s is a steady broadcast-ticker crawl.
+const PX_PER_SEC = 30;
+// Clamp per-frame elapsed time (seconds) so returning from a background tab
+// advances one small step instead of leaping the accumulated gap.
+const MAX_FRAME_SEC = 0.1;
 
-// One pass of the segments. Two identical copies sit in the animated track and
-// the transform slides exactly one copy-width (-50%), so the loop is seamless
-// regardless of how wide the content is.
+// One pass of the segments. The track holds enough identical copies to
+// cover the viewport PLUS one spare, so some copy occupies every pixel at
+// every point in the cycle — no blank tail, however narrow the content or
+// wide the screen.
 const COPY_SX = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -33,83 +43,107 @@ const COPY_SX = {
 const Ticker: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const items = React.Children.toArray(children);
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
-  const [paused, setPaused] = React.useState(false);
 
-  // Measure one copy's width and set the duration to width / PX_PER_SEC, so the
-  // marquee holds a constant visual speed no matter how wide the segments are.
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const trackRef = React.useRef<HTMLDivElement>(null);
   const copyRef = React.useRef<HTMLDivElement>(null);
-  const [durationSec, setDurationSec] = React.useState(20);
+
+  // Pause flags live in refs: toggling them must not re-render the tape.
+  const hoverRef = React.useRef(false);
+  const tappedRef = React.useRef(false);
+
+  // Measured copy width, mirrored into a ref for the rAF loop (state only
+  // exists to re-render when the copy COUNT changes).
+  const copyWRef = React.useRef(0);
+  const [copies, setCopies] = React.useState(2);
   React.useEffect(() => {
     if (reduced) return;
-    const el = copyRef.current;
-    if (!el) return;
+    const copyEl = copyRef.current;
+    const boxEl = containerRef.current;
+    if (!copyEl || !boxEl) return;
     const measure = () => {
-      const w = el.getBoundingClientRect().width;
-      if (w > 0) setDurationSec(Math.max(MIN_DURATION_SEC, w / PX_PER_SEC));
+      const w = copyEl.getBoundingClientRect().width;
+      const bw = boxEl.getBoundingClientRect().width;
+      if (w > 0) {
+        copyWRef.current = w;
+        setCopies(Math.max(2, Math.ceil(bw / w) + 1));
+      }
     };
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(el);
+    ro.observe(copyEl);
+    ro.observe(boxEl);
     return () => ro.disconnect();
   }, [reduced]);
 
-  return (
-    <>
-      {/* Desktop / tablet: the original wrapping row. */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        sx={{ display: { xs: 'none', sm: 'flex' }, flexWrap: 'wrap', gap: 3 }}
-      >
-        {items}
-      </Stack>
+  // The crawl itself: one persistent rAF loop, one offset, one transform.
+  React.useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    let offset = 0;
+    let lastTs: number | null = null;
+    const step = (ts: number) => {
+      const dt =
+        lastTs == null ? 0 : Math.min((ts - lastTs) / 1000, MAX_FRAME_SEC);
+      lastTs = ts;
+      const w = copyWRef.current;
+      if (w > 0 && !hoverRef.current && !tappedRef.current) {
+        offset = (offset + PX_PER_SEC * dt) % w;
+        if (trackRef.current) {
+          trackRef.current.style.transform = `translate3d(${-offset}px, 0, 0)`;
+        }
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced]);
 
-      {/* Mobile: marquee, or a static swipeable row when motion is reduced. */}
-      <Box
-        onClick={reduced ? undefined : () => setPaused((p) => !p)}
-        sx={{
-          display: { xs: 'block', sm: 'none' },
-          width: '100%',
-          overflowX: reduced ? 'auto' : 'hidden',
-          WebkitOverflowScrolling: 'touch',
-          // Fade both edges so a clipped segment reads as "more to scroll",
-          // not cut off. Skipped in the static case (nothing is clipped mid-item).
-          maskImage: reduced
-            ? undefined
-            : 'linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%)',
-        }}
-      >
-        {reduced ? (
-          <Box sx={{ ...COPY_SX, whiteSpace: 'nowrap' }}>{items}</Box>
-        ) : (
-          <Box
-            sx={{
-              display: 'inline-flex',
-              width: 'max-content',
-              // GPU-composited so the miner header's per-second "last refresh"
-              // re-render can't stutter the scroll (main-thread reflow jitter).
-              willChange: 'transform',
-              animationName: 'aw-ticker',
-              animationDuration: `${durationSec}s`,
-              animationTimingFunction: 'linear',
-              animationIterationCount: 'infinite',
-              animationPlayState: paused ? 'paused' : 'running',
-              '@keyframes aw-ticker': {
-                from: { transform: 'translate3d(0, 0, 0)' },
-                to: { transform: 'translate3d(-50%, 0, 0)' },
-              },
-            }}
-          >
-            <Box ref={copyRef} sx={COPY_SX}>
+  return (
+    <Box
+      ref={containerRef}
+      onMouseEnter={reduced ? undefined : () => (hoverRef.current = true)}
+      onMouseLeave={reduced ? undefined : () => (hoverRef.current = false)}
+      onClick={
+        reduced ? undefined : () => (tappedRef.current = !tappedRef.current)
+      }
+      sx={{
+        width: '100%',
+        minWidth: 0,
+        overflowX: reduced ? 'auto' : 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        // Fade both edges so a clipped segment reads as "more to come", not
+        // cut off. Skipped in the static case (nothing is clipped mid-item).
+        maskImage: reduced
+          ? undefined
+          : 'linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%)',
+      }}
+    >
+      {reduced ? (
+        <Box sx={{ ...COPY_SX, whiteSpace: 'nowrap' }}>{items}</Box>
+      ) : (
+        <Box
+          ref={trackRef}
+          sx={{
+            display: 'inline-flex',
+            width: 'max-content',
+            // Compositor hint: the transform updates every frame.
+            willChange: 'transform',
+          }}
+        >
+          {Array.from({ length: copies }, (_, i) => (
+            <Box
+              key={i}
+              ref={i === 0 ? copyRef : undefined}
+              aria-hidden={i > 0 || undefined}
+              sx={COPY_SX}
+            >
               {items}
             </Box>
-            <Box aria-hidden sx={COPY_SX}>
-              {items}
-            </Box>
-          </Box>
-        )}
-      </Box>
-    </>
+          ))}
+        </Box>
+      )}
+    </Box>
   );
 };
 

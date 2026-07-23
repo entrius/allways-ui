@@ -2,29 +2,23 @@ import React, { useMemo, useState } from 'react';
 import {
   Box,
   IconButton,
-  InputAdornment,
   Menu,
   MenuItem,
-  TextField,
   Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import SearchIcon from '@mui/icons-material/Search';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import { useCrownRateHistory, useCurrentCrown } from '../../api';
 import {
-  useCompleteSwapHistory,
-  useCrownRateHistory,
-  useCurrentCrown,
-  useMiners,
-} from '../../api';
-import {
+  decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { useSpokes } from '../../hooks';
 import { FONTS } from '../../theme';
-import { formatRate, lamportsToSol } from '../../utils/format';
+import { formatRate } from '../../utils/format';
 import { TickerSymbol } from '../ChainLogo';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import StatsStrip from './StatsStrip';
@@ -33,37 +27,23 @@ import StatsStrip from './StatsStrip';
 // every spoke chain with registered miners gets a market page automatically.
 export type Spoke = string;
 
-// Robinhood-style range chips: window plus the delta caption it produces.
-// Longer windows (1M/ALL) return once the network has enough history to
-// make them meaningful.
-type HeroRange = '1H' | '1D' | '1W';
+// Semantic move colors (up green / down red), shared with the pairs rail's
+// change column. Light mode mirrors index.css --color-success/--color-danger;
+// dark mode brightens both so they read against near-black.
+export const MOVE_COLORS = {
+  light: { up: '#15803d', down: '#b91c1c' },
+  dark: { up: '#4ade80', down: '#f87171' },
+} as const;
+
+// Robinhood-style range chips. Longer windows (1M/ALL) return once the
+// network has enough history to make them meaningful.
+export type HeroRange = '1H' | '1D' | '1W';
 const RANGES: HeroRange[] = ['1H', '1D', '1W'];
-const RANGE_SECS: Record<HeroRange, number> = {
+export const RANGE_SECS: Record<HeroRange, number> = {
   '1H': 3_600,
   '1D': 86_400,
   '1W': 604_800,
 };
-const RANGE_CAPTION: Record<HeroRange, string> = {
-  '1H': 'past hour',
-  '1D': 'past day',
-  '1W': 'past week',
-};
-// Volume bar bucket per range — roughly the candle period tradingview would
-// use for the same window.
-const RANGE_VOL_BUCKET_MS: Record<HeroRange, number> = {
-  '1H': 5 * 60_000,
-  '1D': 3_600_000,
-  '1W': 6 * 3_600_000,
-};
-
-// Semantic move colors, used in exactly ONE place — the delta line under the
-// headline; the chart and range chips stay monochrome like the rest of the
-// site. Light mode mirrors index.css --color-success/--color-danger; dark
-// mode brightens both so they read against near-black.
-const MOVE_COLORS = {
-  light: { up: '#15803d', down: '#b91c1c' },
-  dark: { up: '#4ade80', down: '#f87171' },
-} as const;
 
 // Directional {t(ms), value} points for one leg's crown history. Rows are
 // interval STARTS (the rate holds until the next row), so the series is
@@ -86,26 +66,16 @@ const toPoints = (
   return pts;
 };
 
-// One side of the from → to control. Clicking a side lists every chain the
-// network serves; picking one re-resolves the other side to a legal market
-// (SOL is the hub), so any asset is reachable from either side and the
-// control reads as "anything to anything".
-const SideSelect: React.FC<{
+// One side of the route picker: a dropdown of assets. Picking a side
+// re-resolves the other side to keep the route legal (SOL is the hub, so
+// exactly one side is always SOL).
+const AssetSelect: React.FC<{
   chain: string;
   chains: string[];
   onSelect: (chain: string) => void;
 }> = ({ chain, chains, onSelect }) => {
   const theme = useTheme();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const [query, setQuery] = useState('');
-
-  const close = () => {
-    setAnchor(null);
-    setQuery('');
-  };
-
-  const q = query.trim().toLowerCase();
-  const visible = q ? chains.filter((c) => c.includes(q)) : chains;
 
   return (
     <>
@@ -132,234 +102,119 @@ const SideSelect: React.FC<{
           '&:hover': { backgroundColor: 'action.hover' },
         }}
       >
-        <TickerSymbol chain={chain} logoSize={17} />
+        <TickerSymbol chain={chain} logoSize={16} />
         <KeyboardArrowDownIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
       </Box>
       <Menu
         anchorEl={anchor}
         open={!!anchor}
-        onClose={close}
+        onClose={() => setAnchor(null)}
         slotProps={{
           paper: {
             sx: {
               borderRadius: 0,
               border: `1px solid ${theme.palette.divider}`,
-              minWidth: 180,
+              minWidth: 140,
               mt: 0.5,
             },
           },
         }}
       >
-        {chains.length > 6 && (
-          <Box sx={{ px: 1.25, pt: 0.75, pb: 0.75 }}>
-            <TextField
-              size="small"
-              autoFocus
-              fullWidth
-              placeholder="Search assets..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.stopPropagation()}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon
-                      sx={{ fontSize: 15, color: 'text.secondary' }}
-                    />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.72rem',
-                  borderRadius: 0,
-                  height: 30,
-                  '& fieldset': { borderColor: 'divider' },
-                },
-              }}
-            />
-          </Box>
-        )}
-        {visible.map((c) => (
+        {chains.map((c) => (
           <MenuItem
             key={c}
             selected={c === chain}
             onClick={() => {
               onSelect(c);
-              close();
+              setAnchor(null);
             }}
             sx={{
               fontFamily: FONTS.mono,
               fontSize: '0.75rem',
               fontWeight: 600,
               py: 1,
-              minWidth: 160,
+              minWidth: 120,
             }}
           >
             <TickerSymbol chain={c} logoSize={15} />
           </MenuItem>
         ))}
-        {visible.length === 0 && (
-          <Box
-            sx={{
-              px: 2,
-              py: 1.5,
-              fontFamily: FONTS.mono,
-              fontSize: '0.72rem',
-              color: 'text.disabled',
-            }}
-          >
-            no matching assets
-          </Box>
-        )}
       </Menu>
     </>
   );
 };
 
-// Market-page hero for the selected pair: big live rate with a green/red move
-// over the chosen window, the reverse quote alongside, and the best-available
-// (crown) rate charted over time — the coinbase/robinhood shape, backed by the
-// crown ledger. The from/to side selectors compose the market: each side
-// picks an asset, the other side re-resolves to keep the market legal, and
-// the middle ⇄ swaps them. The spoke is owned by the parent (on the URL).
+// Market-page hero for ONE direction — the instrument people actually trade
+// on Allways (each route has its own crown, miners, and book side). One
+// familiar single-line chart in the direction's natural quote unit ("1 SOL →
+// 0.00097 BTC"); the opposite route is simply another instrument in the
+// pairs rail. The direction is owned by the parent (on the URL).
 const AllwaysMarketRate: React.FC<{
-  spoke: Spoke;
-  onSpokeChange: (spoke: Spoke) => void;
-}> = ({ spoke, onSpokeChange }) => {
+  direction: Direction;
+  onDirectionChange: (direction: Direction) => void;
+  /**
+   * The page shows a PairsRail carrying the quote and key stats — the rail
+   * is the primary readout, so the hero's own price headline and stat strip
+   * render only where the rail doesn't exist (stacked/mobile).
+   */
+  quoteInRail?: boolean;
+  /** Selected window — owned by the page so the rail follows the same
+   * toggle (1W on the chart means 1W vol/chg/stats everywhere). */
+  range: HeroRange;
+  onRangeChange: (range: HeroRange) => void;
+}> = ({ direction, onDirectionChange, quoteInRail, range, onRangeChange }) => {
   const theme = useTheme();
-  const [reversed, setReversed] = useState(false);
-  const [range, setRange] = useState<HeroRange>('1D');
 
-  const SPOKE = spoke.toUpperCase();
-  const forward = `SOL-${SPOKE}` as Direction;
-  const reverse = `${SPOKE}-SOL` as Direction;
-  const direction = reversed ? reverse : forward;
-  const [from, to] = direction.split('-');
-
-  // Every spoke chain with registered miners is a listable pair — the picker
-  // grows on its own as new chains come online.
-  const { data: miners } = useMiners();
-  const spokes = useMemo<Spoke[]>(() => {
-    const found = new Set<string>();
-    (miners ?? []).forEach((m) => {
-      [m.sourceChain, m.destChain]
-        .map((c) => c?.toLowerCase())
-        .filter((c): c is string => !!c && c !== 'sol')
-        .forEach((c) => found.add(c));
-    });
-    found.add(spoke); // never lose the URL-selected pair
-    return found.size > 1 || miners?.length
-      ? [...found].sort()
-      : ['btc', 'tao'];
-  }, [miners, spoke]);
-
-  // A side's menu only offers assets the OTHER side can actually trade
-  // with: SOL (the hub) reaches every spoke; a spoke reaches only SOL. So
-  // with BTC fixed on one side, the opposite menu is exactly [SOL].
+  const { from, to, spoke } = decomposeDirection(direction);
+  const spokes = useSpokes(spoke);
+  // Dependent dropdowns: a side only offers what's legal given the OTHER
+  // side — SOL there means this side picks among spokes; a spoke there
+  // pins this side to SOL (the hub). Orientation flips via the ⇄ between
+  // them, converter-style.
   const optionsFor = (side: 'from' | 'to') => {
-    const other = (side === 'from' ? to : from).toLowerCase();
+    const other = side === 'from' ? to : from;
     return other === 'sol' ? spokes : ['sol'];
   };
-
-  // Options are pre-filtered to legal markets, so a pick maps directly onto
-  // (spoke, orientation) with no correction needed.
   const pickSide = (side: 'from' | 'to', c: string) => {
-    const newFrom = side === 'from' ? c : from.toLowerCase();
-    const newTo = side === 'to' ? c : to.toLowerCase();
-    const newSpoke = newFrom === 'sol' ? newTo : newFrom;
-    if (newSpoke !== spoke) onSpokeChange(newSpoke);
-    setReversed(newFrom !== 'sol');
+    // Options are pre-limited to legal partners, so the pick maps straight
+    // onto a route.
+    const C = c.toUpperCase();
+    const next: Direction =
+      side === 'from'
+        ? c === 'sol'
+          ? (`SOL-${to.toUpperCase()}` as Direction)
+          : (`${C}-SOL` as Direction)
+        : c === 'sol'
+          ? (`${from.toUpperCase()}-SOL` as Direction)
+          : (`SOL-${C}` as Direction);
+    if (next !== direction) onDirectionChange(next);
   };
+  const reversed = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 
   const secs = RANGE_SECS[range];
-  // Both legs load so the flip and the reverse-quote subline are instant.
-  const { data: fwdRows, isLoading: fwdLoading } = useCrownRateHistory({
-    direction: forward,
-    secs,
-  });
-  const { data: revRows, isLoading: revLoading } = useCrownRateHistory({
-    direction: reverse,
-    secs,
-  });
+  const { data: rows, isLoading } = useCrownRateHistory({ direction, secs });
 
-  // Live crown for the selected direction — the same quote source the
-  // orderbook and rates table reflect. It anchors the headline price and the
-  // chart's right edge so all three always agree.
+  // Live crown anchors the headline and the chart's right edge — the same
+  // quote source the orderbook reflects, so they always agree.
   const { data: crown } = useCurrentCrown();
   const liveRate = directionalRateFor(direction, crown?.[direction]?.rate);
 
   const points = useMemo(
-    () => toPoints(direction, reversed ? revRows : fwdRows, liveRate),
-    [direction, reversed, fwdRows, revRows, liveRate],
+    () => toPoints(direction, rows, liveRate),
+    [direction, rows, liveRate],
   );
-
-  // Executed-trade prints and volume bars come from the same swap set:
-  // completed swaps for THIS direction inside the window.
-  const { data: allSwaps } = useCompleteSwapHistory();
-  const windowSwaps = useMemo(() => {
-    const cutoff = Date.now() - secs * 1000;
-    const fromC = from.toLowerCase();
-    const toC = to.toLowerCase();
-    return (allSwaps ?? []).filter(
-      (sw) =>
-        sw.status === 'COMPLETED' &&
-        sw.initiatedAt != null &&
-        Number(sw.initiatedAt) * 1000 >= cutoff &&
-        sw.sourceChain?.toLowerCase() === fromC &&
-        sw.destChain?.toLowerCase() === toC,
-    );
-  }, [allSwaps, from, to, secs]);
-
-  const volumePoints = useMemo(() => {
-    const bucketMs = RANGE_VOL_BUCKET_MS[range];
-    const buckets = new Map<number, number>();
-    for (const sw of windowSwaps) {
-      const v = sw.solAmount != null ? lamportsToSol(sw.solAmount) : NaN;
-      if (!Number.isFinite(v)) continue;
-      const t = Number(sw.initiatedAt) * 1000;
-      const b = Math.floor(t / bucketMs) * bucketMs;
-      buckets.set(b, (buckets.get(b) ?? 0) + v);
-    }
-    // Gap-fill every bucket in the window (zeros included) so the bars form
-    // a uniform histogram: constant bin width in every range, and no
-    // single-point series (one lone bar makes echarts size its band to the
-    // whole axis). Bars are centered on their bucket so the trades that
-    // filled the bin sit directly above it.
-    const now = Date.now();
-    const startB = Math.floor((now - secs * 1000) / bucketMs) * bucketMs;
-    const endB = Math.floor(now / bucketMs) * bucketMs;
-    const out: { t: number; value: number }[] = [];
-    for (let b = startB; b <= endB; b += bucketMs) {
-      out.push({ t: b + bucketMs / 2, value: buckets.get(b) ?? 0 });
-    }
-    return out;
-  }, [windowSwaps, range, secs]);
   const last = points.length ? points[points.length - 1].value : null;
-  const first = points.length ? points[0].value : null;
-  const deltaPct =
-    last != null && first != null && first !== 0
-      ? ((last - first) / first) * 100
-      : null;
-  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
-  const moveColor =
-    deltaPct == null || deltaPct === 0
-      ? theme.palette.text.secondary
-      : deltaPct > 0
-        ? move.up
-        : move.down;
 
-  // Monochrome line, matching the house chart style (text.primary is a hex
-  // value, which the chart's gradient alpha-suffix requires).
+  // One instrument, one line — the house monochrome (a hex value, which the
+  // chart's gradient alpha-suffix requires).
   const cLine = theme.palette.text.primary;
   const series = useMemo<ChartSeries[]>(
     () => [
       {
-        name: `1 ${from} → ${to}`,
+        name: `1 ${from.toUpperCase()} → ${to.toUpperCase()}`,
         color: cLine,
         formatValue: formatRate,
-        unit: to,
+        unit: to.toUpperCase(),
         step: true,
         points,
       },
@@ -376,122 +231,87 @@ const AllwaysMarketRate: React.FC<{
         minHeight: 0,
       }}
     >
-      {/* One compact header row: instrument selectors left, the live price
-          and its move centered, range chips right — no row of its own for
-          the price. */}
+      {/* One compact header row: instrument picker left, range chips right.
+          The quote itself lives in the rail (or, stacked, right here). */}
       <Box
         sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'auto 1fr auto' },
+          display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           columnGap: 2,
           rowGap: 1,
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            justifyContent: { xs: 'center', md: 'flex-start' },
-          }}
-        >
-          <SideSelect
-            chain={from.toLowerCase()}
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+          <AssetSelect
+            chain={from}
             chains={optionsFor('from')}
             onSelect={(c) => pickSide('from', c)}
           />
-          <Tooltip title="Swap sides" arrow>
+          <Tooltip title="Reverse route" arrow>
             <IconButton
               size="small"
-              onClick={() => setReversed((r) => !r)}
+              onClick={() => onDirectionChange(reversed)}
               sx={{ p: 0.5, color: 'text.secondary' }}
             >
               <SwapHorizIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
-          <SideSelect
-            chain={to.toLowerCase()}
+          <AssetSelect
+            chain={to}
             chains={optionsFor('to')}
             onSelect={(c) => pickSide('to', c)}
           />
         </Box>
-        <Box
+        {/* Stacked-only quote: with no rail on screen, the price belongs
+            next to the picker. */}
+        <Typography
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            columnGap: 1.5,
-            rowGap: 0.25,
+            fontFamily: FONTS.mono,
+            fontSize: '1.1rem',
+            fontWeight: 700,
+            lineHeight: 1.1,
+            display: quoteInRail ? { xs: 'flex', md: 'none' } : 'flex',
+            alignItems: 'baseline',
+            columnGap: 0.75,
           }}
         >
-          <Typography
+          <Box
+            component="span"
             sx={{
-              fontFamily: FONTS.mono,
-              fontSize: { xs: '1.1rem', md: '1.35rem' },
-              fontWeight: 700,
-              lineHeight: 1.1,
-              color: 'text.primary',
-              display: 'flex',
-              alignItems: 'baseline',
+              fontSize: '0.8rem',
+              color: 'text.secondary',
+              fontWeight: 500,
+              alignSelf: 'center',
             }}
           >
-            <Box
-              component="span"
-              sx={{
-                fontSize: '0.8rem',
-                color: 'text.secondary',
-                fontWeight: 500,
-                mr: 0.75,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.6,
-                alignSelf: 'center',
-              }}
-            >
-              1 <TickerSymbol chain={from} logoSize={15} /> =
-            </Box>
-            {last != null ? formatRate(last) : '—'}
-            <Box
-              component="span"
-              sx={{
-                fontSize: '0.85rem',
-                color: 'text.secondary',
-                fontWeight: 500,
-                ml: 0.75,
-                alignSelf: 'center',
-              }}
-            >
-              <TickerSymbol chain={to} logoSize={15} />
-            </Box>
-          </Typography>
-          {deltaPct != null && (
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.72rem',
-                color: moveColor,
-                fontWeight: 600,
-              }}
-            >
-              {deltaPct > 0 ? '▲' : deltaPct < 0 ? '▼' : ''}{' '}
-              {Math.abs(deltaPct).toFixed(2)}% {RANGE_CAPTION[range]}
-            </Typography>
-          )}
-        </Box>
+            1 {from.toUpperCase()} =
+          </Box>
+          {last != null ? formatRate(last) : '—'}
+          <Box
+            component="span"
+            sx={{
+              fontSize: '0.8rem',
+              color: 'text.secondary',
+              fontWeight: 500,
+              alignSelf: 'center',
+            }}
+          >
+            {to.toUpperCase()}
+          </Box>
+        </Typography>
         <Box
           sx={{
             display: 'flex',
             gap: 0.5,
-            justifyContent: { xs: 'center', md: 'flex-end' },
+            ml: 'auto',
           }}
         >
           {RANGES.map((r) => (
             <Box
               key={r}
               component="button"
-              onClick={() => setRange(r)}
+              onClick={() => onRangeChange(r)}
               sx={{
                 all: 'unset',
                 cursor: 'pointer',
@@ -521,25 +341,36 @@ const AllwaysMarketRate: React.FC<{
         </Box>
       </Box>
 
-      {/* Hero chart: best-available (crown) rate over the window. */}
+      {/* Hero chart: the direction's crown rate over the window. */}
       <Box sx={{ flex: 1, minHeight: 120 }}>
         <TimeSeriesChart
           series={series}
-          loading={reversed ? revLoading : fwdLoading}
+          loading={isLoading}
           height="100%"
           formatValue={formatRate}
           autoScale
           noArea
           market
           emptyLabel="no rate history in this window"
-          volume={volumePoints}
-          volumeFormat={(v) => `${v.toFixed(2)} SOL`}
         />
       </Box>
 
-      {/* Symbol stats: the selected direction over the selected window. */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 0.75 }}>
-        <StatsStrip bare direction={direction} secs={secs} rangeLabel={range} />
+      {/* Route stats over the selected window. With a rail on the page these
+          live in its Key stats card — keep the strip only where the layout
+          stacks and the rail is gone. */}
+      <Box
+        sx={{
+          display: quoteInRail ? { xs: 'flex', md: 'none' } : 'flex',
+          justifyContent: 'flex-start',
+          mt: 0.75,
+        }}
+      >
+        <StatsStrip
+          bare
+          directions={[direction]}
+          secs={secs}
+          rangeLabel={range}
+        />
       </Box>
     </Box>
   );
