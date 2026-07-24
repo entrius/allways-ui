@@ -219,7 +219,10 @@ const MinerDetailHeader: React.FC<{
                 py: 0.4,
                 border: '1px solid',
                 borderColor: alpha(MOVE_COLORS[theme.palette.mode].up, 0.4),
-                backgroundColor: alpha(MOVE_COLORS[theme.palette.mode].up, 0.08),
+                backgroundColor: alpha(
+                  MOVE_COLORS[theme.palette.mode].up,
+                  0.08,
+                ),
                 fontFamily: FONTS.mono,
                 fontSize: '0.7rem',
                 color: MOVE_COLORS[theme.palette.mode].up,

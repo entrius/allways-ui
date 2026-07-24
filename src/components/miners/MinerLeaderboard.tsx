@@ -49,7 +49,6 @@ const successRatio = (row: LeaderboardRow): number => {
   return total === 0 ? 0 : row.completedSwaps / total;
 };
 
-
 type SortKey =
   | 'uid'
   | 'crownShare'
