@@ -14,8 +14,6 @@ export type ScoreFactorsRow = {
   eligible: boolean;
   crownShare: number;
   capacity: number;
-  fillRatio: number;
-  volShare: number;
   reward: number;
 };
 
@@ -100,14 +98,10 @@ const ScoreBreakdown: React.FC<{
         <Val>{f2(row.crownShare)}</Val>
         <Muted>{' × cap '}</Muted>
         <Val>{f2(row.capacity)}</Val>
-        <Muted>{' × fill '}</Muted>
-        <Val>{f2(row.fillRatio)}</Val>
         <Muted>{' = '}</Muted>
         <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
           {fmtReward(row.reward)}
         </Box>
-        <Muted>{' · vol '}</Muted>
-        <Val>{f2(row.volShare)}</Val>
       </Box>
     </Stack>
   );
