@@ -1,11 +1,16 @@
+import { alpha } from '@mui/material/styles';
 import type { CrownHistoryRow } from '../../api';
 
-export const TIER_PALETTE = [
-  '#0052ff',
-  '#4d7dff',
-  '#7f9eff',
-  '#aebeff',
-  '#d2dafe',
+// Monochrome tier ramp derived from the theme's primary text shade, matching
+// the Network Stats / Crown Rate convention: data encodings carry no fixed
+// accent color, rank is opacity. Steps stay above the grid's ~0.2-alpha
+// "other" cells so the top five holders remain distinguishable.
+export const tierPalette = (fg: string): string[] => [
+  alpha(fg, 1),
+  alpha(fg, 0.78),
+  alpha(fg, 0.6),
+  alpha(fg, 0.44),
+  alpha(fg, 0.3),
 ];
 
 // One grid cell spans this many seconds. Mirrors the old 1-block cadence
@@ -103,6 +108,8 @@ export const buildTiers = (
   rows: CrownHistoryRow[],
   lo: number,
   hi: number,
+  palette: string[],
+  overflowColor: string,
 ): { color: Map<string, string>; ordered: TierEntry[] } => {
   const counts = new Map<string, { uid: number | null; count: number }>();
   for (const row of rows) {
@@ -124,7 +131,7 @@ export const buildTiers = (
       hotkey,
       uid,
       count,
-      color: TIER_PALETTE[idx] ?? '#6b7280',
+      color: palette[idx] ?? overflowColor,
     }));
   const colorMap = new Map<string, string>();
   for (const { hotkey, color } of sorted) colorMap.set(hotkey, color);

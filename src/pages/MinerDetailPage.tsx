@@ -44,7 +44,7 @@ const MinerDetailPage: React.FC = () => {
   const rateRangeParam = params.get('rateRange');
   const rateRange: RateRange = isRateRange(rateRangeParam)
     ? rateRangeParam
-    : '4h';
+    : '24h';
   const crownDirParam = params.get('crownDir');
   const crownDirection = isDirection(crownDirParam) ? crownDirParam : 'SOL-BTC';
   const crownGridRangeParam = params.get('crownGridRange');

@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { useMinerScores, type Direction } from '../../api';
 import { FONTS } from '../../theme';
+import SectionHeading from '../SectionHeading';
 import CrownHistoryGrid from './CrownHistoryGrid';
 import ScoreBreakdown from './ScoreBreakdown';
 
@@ -51,7 +52,7 @@ const CrownHistoryPanel: React.FC<{
   return (
     <Box
       sx={{
-        backgroundColor: 'surface.light',
+        backgroundColor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
         p: { xs: 2, md: 3 },
@@ -64,24 +65,10 @@ const CrownHistoryPanel: React.FC<{
         justifyContent="space-between"
         sx={{ mb: 2.5 }}
       >
-        <Stack direction="row" alignItems="baseline" spacing={1.5}>
-          <Typography
-            variant="monoSmall"
-            sx={{
-              fontSize: '0.7rem',
-              letterSpacing: '0.22em',
-              color: 'text.secondary',
-            }}
-          >
-            Crown History
-          </Typography>
-          <Typography
-            variant="mono"
-            sx={{ fontSize: '0.65rem', color: 'text.disabled' }}
-          >
-            · scoring factors for window
-          </Typography>
-        </Stack>
+        <SectionHeading
+          title="Crown History"
+          subtitle="scoring factors for window"
+        />
         <Typography
           sx={{
             fontFamily: FONTS.mono,

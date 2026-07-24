@@ -19,6 +19,7 @@ import {
   type MinerRateHistoryRow,
 } from '../../api';
 import { FONTS } from '../../theme';
+import SectionHeading from '../SectionHeading';
 import { directionalRate, formatTimeAgo, rateUnit } from '../../utils/format';
 
 const MAX_ROWS = 50;
@@ -69,38 +70,25 @@ const RateHistoryTable: React.FC<{
   return (
     <Box
       sx={{
-        backgroundColor: 'surface.light',
+        backgroundColor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
         p: { xs: 1.5, md: 2.5 },
         mb: 3,
       }}
     >
-      <Typography
-        variant="monoSmall"
-        sx={{
-          fontSize: '0.7rem',
-          letterSpacing: '0.22em',
-          color: 'text.secondary',
-          mb: 1.5,
-        }}
-      >
-        Rate History
-        {direction && (
-          <Box
-            component="span"
-            sx={{ color: 'text.disabled', letterSpacing: '0.08em', ml: 1 }}
-          >
-            · {directionLabel(direction)}
-          </Box>
-        )}
-      </Typography>
+      <Box sx={{ mb: 1.5 }}>
+        <SectionHeading
+          title="Rate History"
+          subtitle={direction ? directionLabel(direction) : undefined}
+        />
+      </Box>
       <TableContainer sx={{ overflowX: 'auto', maxHeight: 420 }}>
         <Table
           size="small"
           stickyHeader
           sx={{
-            '& th': { backgroundColor: 'surface.light' },
+            '& th': { backgroundColor: 'background.paper' },
             '& th, & td': {
               borderColor: 'divider',
               fontSize: { xs: '0.7rem', sm: '0.76rem', md: '0.8rem' },

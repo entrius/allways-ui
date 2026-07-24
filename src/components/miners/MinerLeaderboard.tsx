@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
-  Button,
   Stack,
   Table,
   TableBody,
@@ -19,7 +18,11 @@ import {
   type Range,
 } from '../../api';
 import CrownIcon from './CrownIcon';
+import RangeChips from '../RangeChips';
+import SectionHeading from '../SectionHeading';
 import SortHeader, { type SortDir } from './SortHeader';
+import { tierPalette } from './crownGridCells';
+import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 import { FONTS } from '../../theme';
 import { formatSol, lamportsToSol, shortHotkey } from '../../utils/format';
 
@@ -45,14 +48,6 @@ const successRatio = (row: LeaderboardRow): number => {
   const total = row.completedSwaps + row.timedOutSwaps;
   return total === 0 ? 0 : row.completedSwaps / total;
 };
-
-const TIER_COLORS = [
-  'primary.main',
-  '#4d7dff',
-  '#7f9eff',
-  '#aebeff',
-  '#d2dafe',
-];
 
 type SortKey =
   | 'uid'
@@ -110,16 +105,22 @@ const MinerLeaderboard: React.FC<{
     [baseRows],
   );
 
+  // Monochrome opacity ramp like the Network Stats pair-mix bars — no fixed
+  // accent color for data encodings.
+  const tierColors = useMemo(
+    () => tierPalette(theme.palette.text.primary),
+    [theme.palette.text.primary],
+  );
   const tierByHotkey = useMemo(() => {
     // Crown-share-desc tier coloring stays stable regardless of active sort —
     // tier is a property of the miner's standing, not the table view order.
     const ranked = [...baseRows].sort((a, b) => b.crownShare - a.crownShare);
     const map = new Map<string, string>();
     ranked.forEach((row, idx) => {
-      map.set(row.hotkey, TIER_COLORS[Math.min(idx, TIER_COLORS.length - 1)]);
+      map.set(row.hotkey, tierColors[Math.min(idx, tierColors.length - 1)]);
     });
     return map;
-  }, [baseRows]);
+  }, [baseRows, tierColors]);
 
   // Numeric query → exact uid match (typing "3" shouldn't surface uid 30,
   // 31, ...). Anything non-numeric falls through to hotkey substring.
@@ -157,7 +158,7 @@ const MinerLeaderboard: React.FC<{
   return (
     <Box
       sx={{
-        backgroundColor: 'surface.light',
+        backgroundColor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
         p: { xs: 1.5, md: 2.5 },
@@ -171,16 +172,10 @@ const MinerLeaderboard: React.FC<{
         spacing={1.5}
         sx={{ mb: 1.5 }}
       >
-        <Typography
-          variant="monoSmall"
-          sx={{
-            fontSize: '0.7rem',
-            letterSpacing: '0.22em',
-            color: 'text.secondary',
-          }}
-        >
-          Miner Leaderboard
-        </Typography>
+        <SectionHeading
+          title="Miner Leaderboard"
+          subtitle="crown share, collateral and volume per miner"
+        />
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           spacing={1}
@@ -217,34 +212,7 @@ const MinerLeaderboard: React.FC<{
               {filteredRows.length} of {baseRows.length} shown
             </Typography>
           )}
-          <Stack
-            direction="row"
-            spacing={0.5}
-            sx={{ width: { xs: '100%', sm: 'auto' } }}
-          >
-            {RANGES.map((r) => (
-              <Button
-                key={r}
-                size="small"
-                variant={r === range ? 'contained' : 'outlined'}
-                onClick={() => onRangeChange(r)}
-                sx={{
-                  // Fill the row evenly on mobile (own line); natural width on desktop.
-                  flex: { xs: 1, sm: 'none' },
-                  minWidth: 0,
-                  px: 1.25,
-                  py: 0.5,
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.65rem',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  borderColor: 'divider',
-                }}
-              >
-                {r}
-              </Button>
-            ))}
-          </Stack>
+          <RangeChips value={range} options={RANGES} onChange={onRangeChange} />
         </Stack>
       </Stack>
       <Box sx={{ overflowX: 'auto', mx: { xs: -1.5, md: 0 } }}>
@@ -326,10 +294,10 @@ const MinerLeaderboard: React.FC<{
                 topShare > 0
                   ? Math.round((row.crownShare / topShare) * 100)
                   : 0;
-              const tierColor = tierByHotkey.get(row.hotkey) ?? TIER_COLORS[4];
+              const tierColor = tierByHotkey.get(row.hotkey) ?? tierColors[4];
               const successColor =
                 row.completedSwaps === 0 && row.timedOutSwaps > 0
-                  ? 'error.main'
+                  ? MOVE_COLORS[theme.palette.mode].down
                   : 'text.primary';
               const wearsCrown = row.currentCrownDirections.length > 0;
               return (

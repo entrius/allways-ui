@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button, Stack, Typography, alpha, useTheme } from '@mui/material';
+import { Box, Stack, Typography, alpha, useTheme } from '@mui/material';
 import type { MinerStats, Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
@@ -12,6 +12,8 @@ import {
 } from '../../utils/format';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
+import RangeChips from '../RangeChips';
+import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 // 30d is the deepest window; the API clamps everything to ~30d
 // (MAX_LOOKBACK_BLOCKS) so crown_holders stays prunable, which made the old
@@ -101,36 +103,6 @@ const PerformanceMetric: React.FC<{
   </Box>
 );
 
-const RangeChips: React.FC<{
-  range: Range;
-  onRangeChange: (r: Range) => void;
-}> = ({ range, onRangeChange }) => (
-  <Stack direction="row" spacing={0.5}>
-    {RANGES.map((r) => (
-      <Button
-        key={r}
-        size="small"
-        variant="text"
-        onClick={() => onRangeChange(r)}
-        sx={{
-          minWidth: 0,
-          px: 1.25,
-          py: 0.3,
-          fontFamily: FONTS.mono,
-          fontSize: '0.62rem',
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: r === range ? 'primary.main' : 'text.disabled',
-          fontWeight: r === range ? 600 : 400,
-          '&:hover': { backgroundColor: 'transparent', color: 'text.primary' },
-        }}
-      >
-        {r}
-      </Button>
-    ))}
-  </Stack>
-);
-
 const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   stats,
 }) => {
@@ -213,7 +185,7 @@ const MinerDetailHeader: React.FC<{
   return (
     <Box
       sx={{
-        backgroundColor: 'surface.light',
+        backgroundColor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
         borderLeft: '2px solid',
@@ -246,15 +218,18 @@ const MinerDetailHeader: React.FC<{
                 px: 1,
                 py: 0.4,
                 border: '1px solid',
-                borderColor: alpha(theme.palette.success.main, 0.4),
-                backgroundColor: alpha(theme.palette.success.main, 0.08),
+                borderColor: alpha(MOVE_COLORS[theme.palette.mode].up, 0.4),
+                backgroundColor: alpha(
+                  MOVE_COLORS[theme.palette.mode].up,
+                  0.08,
+                ),
                 fontFamily: FONTS.mono,
                 fontSize: '0.7rem',
-                color: 'success.main',
+                color: MOVE_COLORS[theme.palette.mode].up,
                 letterSpacing: '0.05em',
               }}
             >
-              <CrownIcon size={12} color={theme.palette.success.main} />
+              <CrownIcon size={12} color={MOVE_COLORS[theme.palette.mode].up} />
               {crownDirections.map((d) => d.replace('-', '→')).join('  ')}
             </Stack>
           )}
@@ -388,7 +363,11 @@ const MinerDetailHeader: React.FC<{
             >
               Performance · last {range}
             </Typography>
-            <RangeChips range={range} onRangeChange={onRangeChange} />
+            <RangeChips
+              value={range}
+              options={RANGES}
+              onChange={onRangeChange}
+            />
           </Stack>
           <PerformanceGrid stats={stats} />
         </Box>
