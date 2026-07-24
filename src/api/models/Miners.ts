@@ -24,6 +24,9 @@ export type Miner = {
   rate: string | null;
   counterRate: string | null;
   collateral: string;
+  // Largest swap this miner can actually back, in lamports: collateral / 1.10, and "0" when
+  // inactive however good the quote looks. Read this, not `rate`, to judge available depth.
+  fundableUpTo: string;
   isActive: boolean;
   isReserved: boolean;
   hasActiveSwap: boolean;
