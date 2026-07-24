@@ -1,7 +1,8 @@
 import React from 'react';
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, useTheme } from '@mui/material';
 import { ALL_DIRECTIONS } from '../../api';
 import { FONTS } from '../../theme';
+import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 // Each direction gets an equal slice of emission — derive the pool share from
 // the registry instead of hardcoding it so adding a pair updates the math.
@@ -50,6 +51,7 @@ const ScoreBreakdown: React.FC<{
   row: ScoreFactorsRow;
   label?: string;
 }> = ({ row, label }) => {
+  const theme = useTheme();
   const pool = f2(POOL_SHARE);
   return (
     <Stack
@@ -84,7 +86,11 @@ const ScoreBreakdown: React.FC<{
         <Muted>eligible(</Muted>
         <Box
           component="span"
-          sx={{ color: row.eligible ? 'success.main' : 'text.disabled' }}
+          sx={{
+            color: row.eligible
+              ? MOVE_COLORS[theme.palette.mode].up
+              : 'text.disabled',
+          }}
         >
           {row.eligible ? '✓' : '✗'}
         </Box>

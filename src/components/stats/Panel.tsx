@@ -1,7 +1,6 @@
 import React from 'react';
-import { Box, Tooltip, Typography } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { FONTS } from '../../theme';
+import { Box } from '@mui/material';
+import SectionHeading from '../SectionHeading';
 
 /**
  * Bordered stat/chart card used across the stats-style pages (Network Stats,
@@ -39,46 +38,7 @@ const Panel: React.FC<{
         gap: 1,
       }}
     >
-      <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'text.primary',
-            }}
-          >
-            {title}
-          </Typography>
-          {info && (
-            <Tooltip title={info} arrow enterTouchDelay={0}>
-              <InfoOutlinedIcon
-                sx={{
-                  fontSize: '0.85rem',
-                  color: 'text.disabled',
-                  cursor: 'help',
-                  '&:hover': { color: 'text.secondary' },
-                }}
-              />
-            </Tooltip>
-          )}
-        </Box>
-        {subtitle && (
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.62rem',
-              color: 'text.secondary',
-              mt: 0.25,
-            }}
-          >
-            {subtitle}
-          </Typography>
-        )}
-      </Box>
+      <SectionHeading title={title} subtitle={subtitle} info={info} />
       {headerRight}
     </Box>
     {children}

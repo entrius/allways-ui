@@ -5,7 +5,6 @@ import {
   CrownRateChart,
   CrownTimeLeaderboard,
   MinerLeaderboard,
-  NetworkOverviewStats,
   Page,
   SEO,
 } from '../components';
@@ -26,7 +25,7 @@ const MinersPage: React.FC = () => {
   const rateRangeParam = params.get('rateRange');
   const rateRange: RateRange = isRateRange(rateRangeParam)
     ? rateRangeParam
-    : '4h';
+    : '24h';
 
   const setParam = useCallback(
     (key: string, value: string | undefined) => {
@@ -56,7 +55,6 @@ const MinersPage: React.FC = () => {
           width: '100%',
         }}
       >
-        <NetworkOverviewStats range={range} />
         <MinerLeaderboard
           range={range}
           onRangeChange={(r) => setParam('range', r)}

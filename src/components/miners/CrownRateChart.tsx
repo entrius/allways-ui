@@ -1,13 +1,6 @@
 import React, { useMemo } from 'react';
-import {
-  Box,
-  Grid,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-  useTheme,
-} from '@mui/material';
+import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   ALL_DIRECTIONS,
   decomposeDirection,
@@ -16,19 +9,24 @@ import {
   useMinerRateHistory,
   type CrownRateHistoryRow,
   type Direction,
+  type RateRange,
 } from '../../api';
-import { Panel, TimeSeriesChart, type ChartSeries } from '../stats';
+import { TimeSeriesChart, type ChartSeries } from '../stats';
+import RangeChips from '../RangeChips';
+import SectionHeading from '../SectionHeading';
 import { FONTS } from '../../theme';
 
-type CrownRange = '1h' | '4h' | '24h' | '4d';
+type CrownRange = RateRange;
 
+// The leaderboard's lookback set, so the whole page shares one range
+// vocabulary. The crown rate line reads crown_holders, which alw-utils prunes
+// at ~4d (RATE_MAX_SECS) — 7d/30d requests get clamped server-side and render
+// the data that exists.
 const RANGE_SECS: Record<CrownRange, number> = {
   '1h': 3600,
-  '4h': 14_400,
   '24h': 86_400,
-  // Matches the API's RATE_MAX_SECS cap — the crown rate line reads
-  // crown_holders, which alw-utils prunes, so the widest chip stops at ~4d.
-  '4d': 345_600,
+  '7d': 604_800,
+  '30d': 2_592_000,
 };
 
 // One panel per direction. Monochrome like Network Stats — the line is the
@@ -71,13 +69,14 @@ const DIRECTION_META: Record<
   },
 };
 
+// Full-precision plain decimal — the rate is never rounded, clipped, or
+// shown in scientific notation.
 const fmt = (n: number): string => {
-  if (n === 0) return '0';
-  const abs = Math.abs(n);
-  if (abs >= 100) return n.toFixed(0);
-  if (abs >= 1) return n.toFixed(2);
-  if (abs >= 0.001) return n.toFixed(4);
-  return n.toExponential(1);
+  const s = String(n);
+  if (!s.includes('e')) return s;
+  // Values JS stringifies exponentially (below 1e-7) get expanded by hand.
+  const digits = Math.max(0, 15 - Math.floor(Math.log10(Math.abs(n))));
+  return n.toFixed(Math.min(20, digits)).replace(/\.?0+$/, '');
 };
 
 type RateRow = { t: number; rate: number };
@@ -230,57 +229,40 @@ const CrownRateChart: React.FC<{
     ? 'this miner over time · crown shown dashed for reference'
     : 'best rate per direction, over time';
 
+  // One bordered card containing all four direction charts, mirroring the
+  // Crown Time panel's shape: shared header + chips, direction blocks inside.
   return (
-    <Box sx={{ mb: 3 }}>
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
+        p: { xs: 2, md: 2.5 },
+        mb: 3,
+      }}
+    >
       <Stack
         direction="row"
         justifyContent="space-between"
         alignItems="center"
         sx={{ mb: 2 }}
       >
-        <Box>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
-            {title}
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.62rem',
-              color: 'text.disabled',
-              mt: 0.25,
-            }}
-          >
-            {tagline}
-          </Typography>
-        </Box>
-        <ToggleButtonGroup
-          exclusive
-          size="small"
+        <SectionHeading title={title} subtitle={tagline} />
+        <RangeChips
           value={range}
-          onChange={(_e, v) => v && onRangeChange(v)}
-        >
-          {(Object.keys(RANGE_SECS) as CrownRange[]).map((r) => (
-            <ToggleButton
-              key={r}
-              value={r}
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-            >
-              {r}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+          options={Object.keys(RANGE_SECS) as CrownRange[]}
+          onChange={onRangeChange}
+        />
       </Stack>
 
-      <Grid container spacing={2}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+          columnGap: 4,
+          rowGap: 3,
+        }}
+      >
         {ALL_DIRECTIONS.map((dir) => {
           const meta = DIRECTION_META[dir];
           const s = seriesByDir[dir];
@@ -288,34 +270,64 @@ const CrownRateChart: React.FC<{
           const latest = primary.length
             ? primary[primary.length - 1].rate
             : null;
+          const info = minerMode
+            ? `This miner's quoted ${meta.label} rate over time; the network's best (crown) rate is dashed for reference.`
+            : `Best ${meta.label} rate quoted by any active miner over time.`;
           return (
-            <Grid item xs={12} md={6} key={dir}>
-              <Panel
-                title={meta.label}
-                subtitle={meta.caption}
-                info={
-                  minerMode
-                    ? `This miner's quoted ${meta.label} rate over time; the network's best (crown) rate is dashed for reference.`
-                    : `Best ${meta.label} rate quoted by any active miner over time.`
-                }
-                headerRight={
-                  latest != null ? (
-                    <LatestRate direction={dir} rate={latest} />
-                  ) : undefined
-                }
+            <Box key={dir} sx={{ minWidth: 0 }}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="baseline"
+                sx={{ mb: 1 }}
               >
-                <TimeSeriesChart
-                  series={chartSeries(dir)}
-                  height={180}
-                  formatValue={fmt}
-                  autoScale
-                  emptyLabel="no rate history yet"
-                />
-              </Panel>
-            </Grid>
+                <Box>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        letterSpacing: '0.06em',
+                        color: 'text.primary',
+                      }}
+                    >
+                      {meta.label}
+                    </Typography>
+                    <Tooltip title={info} arrow enterTouchDelay={0}>
+                      <InfoOutlinedIcon
+                        sx={{
+                          fontSize: '0.85rem',
+                          color: 'text.disabled',
+                          cursor: 'help',
+                          '&:hover': { color: 'text.secondary' },
+                        }}
+                      />
+                    </Tooltip>
+                  </Stack>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.62rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {meta.caption}
+                  </Typography>
+                </Box>
+                {latest != null && <LatestRate direction={dir} rate={latest} />}
+              </Stack>
+              <TimeSeriesChart
+                series={chartSeries(dir)}
+                height={180}
+                formatValue={fmt}
+                autoScale
+                emptyLabel="no rate history yet"
+              />
+            </Box>
           );
         })}
-      </Grid>
+      </Box>
     </Box>
   );
 };

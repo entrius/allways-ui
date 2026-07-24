@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-  useTheme,
-} from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { useCrownTime } from '../../api';
 import {
   ALL_DIRECTIONS,
@@ -15,18 +8,23 @@ import {
 import type { CrownTimeRow, Direction } from '../../api/models';
 import { shortHotkey } from '../../utils/format';
 import { FONTS } from '../../theme';
+import RangeChips from '../RangeChips';
+import SectionHeading from '../SectionHeading';
 
 // Crown time is a step function that only changes on events, so we measure it
 // as real duration held (seconds) on the unix axis — not a count of 12s ticks.
 // This panel is the time-native replacement for the old per-cell crown grid.
 
-type RangeKey = '1h' | '4h' | '24h' | '4d';
+// The leaderboard's lookback set, so the whole page shares one range
+// vocabulary. Crown time reads crown_holders, which alw-utils prunes at ~4d —
+// 7d/30d windows render the data that exists.
+type RangeKey = '1h' | '24h' | '7d' | '30d';
 
 const RANGES: { key: RangeKey; secs: number }[] = [
   { key: '1h', secs: 3600 },
-  { key: '4h', secs: 14_400 },
   { key: '24h', secs: 86_400 },
-  { key: '4d', secs: 345_600 },
+  { key: '7d', secs: 604_800 },
+  { key: '30d', secs: 2_592_000 },
 ];
 
 const fmtDuration = (secs: number): string => {
@@ -156,7 +154,6 @@ const DirectionColumn: React.FC<{
 };
 
 const CrownTimeLeaderboard: React.FC = () => {
-  const theme = useTheme();
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
 
@@ -168,6 +165,7 @@ const CrownTimeLeaderboard: React.FC = () => {
         backgroundColor: 'background.paper',
         p: { xs: 2, md: 2.5 },
         mt: 2,
+        mb: 3,
       }}
     >
       <Stack
@@ -176,50 +174,15 @@ const CrownTimeLeaderboard: React.FC = () => {
         alignItems="center"
         sx={{ mb: 2 }}
       >
-        <Box>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'text.primary',
-            }}
-          >
-            Crown Time
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.62rem',
-              color: 'text.secondary',
-            }}
-          >
-            time each miner held the best rate · share of window
-          </Typography>
-        </Box>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <SectionHeading
+          title="Crown Time"
+          subtitle="time each miner held the best rate · share of window"
+        />
+        <RangeChips
           value={range}
-          onChange={(_, v) => v && setRange(v)}
-          sx={{
-            '& .MuiToggleButton-root': {
-              fontFamily: FONTS.mono,
-              fontSize: '0.62rem',
-              py: 0.25,
-              px: 1,
-              color: theme.palette.text.secondary,
-            },
-          }}
-        >
-          {RANGES.map((r) => (
-            <ToggleButton key={r.key} value={r.key}>
-              {r.key}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+          options={RANGES.map((r) => r.key)}
+          onChange={setRange}
+        />
       </Stack>
       <Box
         sx={{

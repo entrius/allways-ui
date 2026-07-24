@@ -5,8 +5,6 @@ import {
   Popover,
   Select,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   alpha,
   useTheme,
@@ -25,6 +23,9 @@ import {
 import { FONTS } from '../../theme';
 import { formatTimeAgo } from '../../utils/format';
 import ScoreBreakdown, { fmtReward } from './ScoreBreakdown';
+import RangeChips from '../RangeChips';
+import SectionHeading from '../SectionHeading';
+import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 const PANEL_W = 800;
 const PANEL_H = 180;
@@ -34,10 +35,6 @@ const MT = 14;
 const MB = 22;
 const INNER_W = PANEL_W - ML - MR;
 const INNER_H = PANEL_H - MT - MB;
-
-// Both validated with the dataviz palette validator against the light
-// (#f4f6f8) and dark (#131517) chart surfaces — all checks pass in both modes.
-const CROWN_COLOR = '#0052ff';
 
 type ScoreSpan = '24h' | '7d' | '30d';
 
@@ -111,12 +108,15 @@ const GateChip: React.FC<{ state: 'eligible' | 'ineligible' | 'none' }> = ({
   state,
 }) => {
   const theme = useTheme();
+  // The app's shared semantic green (markets movers, terminal swap statuses),
+  // not MUI's default success shade.
+  const up = MOVE_COLORS[theme.palette.mode].up;
   const styles =
     state === 'eligible'
       ? {
-          color: 'success.main',
-          borderColor: alpha(theme.palette.success.main, 0.4),
-          backgroundColor: alpha(theme.palette.success.main, 0.08),
+          color: up,
+          borderColor: alpha(up, 0.4),
+          backgroundColor: alpha(up, 0.08),
         }
       : {
           color: 'text.disabled',
@@ -161,7 +161,12 @@ const ScoreHistoryChart: React.FC<{
   onRoundClick: (round: Round, clientX: number, clientY: number) => void;
 }> = ({ rounds, lo, hi, spanSecs, isDark, onRoundClick }) => {
   const theme = useTheme();
-  const surface = theme.palette.surface.light;
+  // Dot outlines cut against the panel background, which is background.paper
+  // like every other stats card.
+  const surface = theme.palette.background.paper;
+  // Monochrome like the Network Stats charts — the reward line is the theme's
+  // primary text shade, not a fixed accent color.
+  const lineColor = theme.palette.text.primary;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [hover, setHover] = useState<ChartHover>(null);
 
@@ -248,8 +253,8 @@ const ScoreHistoryChart: React.FC<{
       >
         <defs>
           <linearGradient id="scoreCrownFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={CROWN_COLOR} stopOpacity="0.24" />
-            <stop offset="100%" stopColor={CROWN_COLOR} stopOpacity="0.05" />
+            <stop offset="0%" stopColor={lineColor} stopOpacity="0.24" />
+            <stop offset="100%" stopColor={lineColor} stopOpacity="0.05" />
           </linearGradient>
         </defs>
         {yTicks.map((t, i) => (
@@ -303,7 +308,7 @@ const ScoreHistoryChart: React.FC<{
             <path
               d={edgePath(totalTop)}
               fill="none"
-              stroke={CROWN_COLOR}
+              stroke={lineColor}
               strokeWidth="2"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -316,7 +321,7 @@ const ScoreHistoryChart: React.FC<{
             cx={mapX(rounds[0].t)}
             cy={mapY(rounds[0].total)}
             r="4"
-            fill={CROWN_COLOR}
+            fill={lineColor}
             stroke={surface}
             strokeWidth="2"
           />
@@ -337,7 +342,7 @@ const ScoreHistoryChart: React.FC<{
               cx={hover.x}
               cy={mapY(hover.round.total)}
               r="3.5"
-              fill={CROWN_COLOR}
+              fill={lineColor}
               stroke={surface}
               strokeWidth="1.5"
             />
@@ -489,7 +494,7 @@ const ScoringPanel: React.FC<{
   return (
     <Box
       sx={{
-        backgroundColor: 'surface.light',
+        backgroundColor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
         p: { xs: 2, md: 3 },
@@ -502,24 +507,10 @@ const ScoringPanel: React.FC<{
         justifyContent="space-between"
         sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1.5 }}
       >
-        <Stack direction="row" alignItems="baseline" spacing={1.5}>
-          <Typography
-            variant="monoSmall"
-            sx={{
-              fontSize: '0.7rem',
-              letterSpacing: '0.22em',
-              color: 'text.secondary',
-            }}
-          >
-            Scoring
-          </Typography>
-          <Typography
-            variant="mono"
-            sx={{ fontSize: '0.65rem', color: 'text.disabled' }}
-          >
-            · validator score snapshots per round
-          </Typography>
-        </Stack>
+        <SectionHeading
+          title="Scoring"
+          subtitle="validator score snapshots per round"
+        />
         <Stack direction="row" alignItems="center" spacing={1.5}>
           <Select
             size="small"
@@ -560,22 +551,11 @@ const ScoringPanel: React.FC<{
               </MenuItem>
             ))}
           </Select>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
+          <RangeChips
             value={span}
-            onChange={(_e, v) => v && setSpan(v)}
-          >
-            {(Object.keys(SPAN_SECS) as ScoreSpan[]).map((s) => (
-              <ToggleButton
-                key={s}
-                value={s}
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-              >
-                {s}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+            options={Object.keys(SPAN_SECS) as ScoreSpan[]}
+            onChange={setSpan}
+          />
         </Stack>
       </Stack>
 
@@ -660,7 +640,7 @@ const ScoringPanel: React.FC<{
           </Typography>
         </Stack>
         <Stack direction="row" spacing={2}>
-          <LegendKey color={CROWN_COLOR} label="reward" />
+          <LegendKey color={theme.palette.text.primary} label="reward" />
         </Stack>
       </Stack>
 

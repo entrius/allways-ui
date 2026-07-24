@@ -95,7 +95,7 @@ const CrownGridHoverCard: React.FC<{
           {cell.holderHotkey ? (
             <Box
               component="span"
-              sx={{ fontWeight: 600, color: 'primary.main' }}
+              sx={{ fontWeight: 600, color: 'text.primary' }}
             >
               uid {cell.holderUid ?? '?'}
             </Box>
@@ -136,11 +136,7 @@ const CrownGridHoverCard: React.FC<{
           />
         )}
         {cell.isTie && (
-          <HoverLine
-            label="status"
-            valueColor={isDark ? '#ffcf66' : '#b45309'}
-            value="tied"
-          />
+          <HoverLine label="status" valueColor="text.primary" value="tied" />
         )}
         {cell.isCurrent && (
           <HoverLine

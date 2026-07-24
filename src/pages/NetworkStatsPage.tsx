@@ -11,6 +11,7 @@ import {
   Page,
   Panel,
   SEO,
+  StatCell,
   TimeSeriesChart,
   type ChartSeries,
   type SeriesPoint,
@@ -76,77 +77,6 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   >
     {children}
   </Typography>
-);
-
-const StatCell: React.FC<{
-  label: string;
-  value: string;
-  unit?: string;
-  loading?: boolean;
-}> = ({ label, value, unit, loading }) => (
-  <Box
-    sx={{
-      borderRadius: 0,
-      border: '1px solid',
-      borderColor: 'divider',
-      backgroundColor: 'background.paper',
-      p: { xs: 2, md: 2.25 },
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 1,
-      justifyContent: 'space-between',
-    }}
-  >
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.62rem',
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: 'text.secondary',
-      }}
-    >
-      {label}
-    </Typography>
-    <Box
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: { xs: '1.6rem', md: '2rem' },
-        fontWeight: 700,
-        lineHeight: 1,
-        color: 'text.primary',
-        display: 'flex',
-        alignItems: 'baseline',
-        gap: 0.5,
-      }}
-    >
-      {loading ? (
-        <Skeleton
-          variant="rectangular"
-          width={100}
-          height={28}
-          sx={{ bgcolor: 'action.hover' }}
-        />
-      ) : (
-        <>
-          {value}
-          {unit && (
-            <Box
-              component="span"
-              sx={{
-                fontSize: { xs: '1rem', md: '1.25rem' },
-                color: 'text.secondary',
-                fontWeight: 500,
-              }}
-            >
-              {unit}
-            </Box>
-          )}
-        </>
-      )}
-    </Box>
-  </Box>
 );
 
 // ---------------------------------------------------------------------------

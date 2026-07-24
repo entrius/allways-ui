@@ -20,11 +20,14 @@ import {
 import { FONTS } from '../../theme';
 import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
+import RangeChips from '../RangeChips';
+import SectionHeading from '../SectionHeading';
 import {
   CELL_SECS,
   buildCells,
   buildTiers,
   cellBucket,
+  tierPalette,
   type CellState,
 } from './crownGridCells';
 
@@ -150,11 +153,19 @@ const CrownHistoryGrid: React.FC<{
   });
   const rows = useMemo(() => data ?? [], [data]);
   const isLocked = lockedUid != null;
-  const subjectColor = theme.palette.primary.main;
+  const subjectColor = theme.palette.text.primary;
   const { color: tierColors, ordered: tierLegend } = useMemo(
     () =>
-      isLocked ? { color: new Map(), ordered: [] } : buildTiers(rows, lo, hi),
-    [rows, lo, hi, isLocked],
+      isLocked
+        ? { color: new Map(), ordered: [] }
+        : buildTiers(
+            rows,
+            lo,
+            hi,
+            tierPalette(theme.palette.text.primary),
+            otherColor,
+          ),
+    [rows, lo, hi, isLocked, theme.palette.text.primary, otherColor],
   );
   const cells = useMemo(
     () =>
@@ -216,7 +227,7 @@ const CrownHistoryGrid: React.FC<{
     <Box
       sx={{
         position: 'relative',
-        backgroundColor: embedded ? 'transparent' : 'surface.light',
+        backgroundColor: embedded ? 'transparent' : 'background.paper',
         border: embedded ? 'none' : '1px solid',
         borderColor: 'divider',
         p: embedded ? 0 : { xs: 2, md: 3 },
@@ -230,27 +241,10 @@ const CrownHistoryGrid: React.FC<{
         sx={{ mb: 2.5 }}
       >
         {!embedded && (
-          <Stack direction="row" alignItems="baseline" spacing={1.5}>
-            <Typography
-              variant="monoSmall"
-              sx={{
-                fontSize: '0.7rem',
-                letterSpacing: '0.22em',
-                color: 'text.secondary',
-              }}
-            >
-              Crown History
-            </Typography>
-            <Typography
-              variant="mono"
-              sx={{
-                fontSize: '0.65rem',
-                color: 'text.disabled',
-              }}
-            >
-              per cell · who held the best rate
-            </Typography>
-          </Stack>
+          <SectionHeading
+            title="Crown History"
+            subtitle="per cell · who held the best rate"
+          />
         )}
         <Stack direction="row" spacing={1.5} alignItems="center">
           <ToggleButtonGroup
@@ -270,31 +264,11 @@ const CrownHistoryGrid: React.FC<{
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
+          <RangeChips
             value={range}
-            onChange={(_e, v) => v && onRangeChange(v)}
-          >
-            <ToggleButton
-              value="1h"
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-            >
-              1h
-            </ToggleButton>
-            <ToggleButton
-              value="2h"
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-            >
-              2h
-            </ToggleButton>
-            <ToggleButton
-              value="4h"
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-            >
-              4h
-            </ToggleButton>
-          </ToggleButtonGroup>
+            options={['1h', '2h', '4h'] as const}
+            onChange={onRangeChange}
+          />
         </Stack>
       </Stack>
       <Stack
@@ -674,7 +648,7 @@ const CrownHistoryGrid: React.FC<{
                       border: 'none',
                       cursor: 'pointer',
                       borderLeft: '1px solid',
-                      borderLeftColor: 'rgba(0,82,255,0.4)',
+                      borderLeftColor: alpha(theme.palette.primary.main, 0.4),
                       '&:hover': { color: 'text.primary' },
                     }}
                   >

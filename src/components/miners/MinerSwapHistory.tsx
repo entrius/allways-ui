@@ -7,27 +7,24 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useMinerSwaps } from '../../api';
 import { FONTS } from '../../theme';
+import SectionHeading from '../SectionHeading';
 import {
   formatTimeAgo,
   lamportsToSol,
   swapDisplayId,
 } from '../../utils/format';
 
+// Mirrors the transaction tape (SwapTracker): in-flight states stay neutral,
+// only terminal outcomes keep semantic color — completed green / timed-out red.
 const STATUS_COLOR: Record<string, string> = {
-  COMPLETED: 'success.main',
-  TIMED_OUT: 'error.main',
-  FULFILLED: 'status.fulfilled',
-  ACTIVE: 'status.active',
-};
-
-const PILL_BORDER: Record<string, string> = {
-  COMPLETED: 'rgba(21,128,61,0.5)',
-  TIMED_OUT: 'rgba(185,28,28,0.5)',
+  COMPLETED: 'var(--color-success)',
+  TIMED_OUT: 'var(--color-danger)',
+  FULFILLED: 'text.secondary',
+  ACTIVE: 'text.secondary',
 };
 
 // Both bounds are unix-SECONDS strings ("1783562486"), not date strings. `new Date(secs)` parses that
@@ -62,23 +59,18 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
   return (
     <Box
       sx={{
-        backgroundColor: 'surface.light',
+        backgroundColor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
         p: { xs: 1.5, md: 2.5 },
       }}
     >
-      <Typography
-        variant="monoSmall"
-        sx={{
-          fontSize: '0.7rem',
-          letterSpacing: '0.22em',
-          color: 'text.secondary',
-          mb: 1.5,
-        }}
-      >
-        Swap History
-      </Typography>
+      <Box sx={{ mb: 1.5 }}>
+        <SectionHeading
+          title="Swap History"
+          subtitle="this miner's recent swaps"
+        />
+      </Box>
       <TableContainer sx={{ overflowX: 'auto' }}>
         <Table
           size="small"
@@ -167,8 +159,8 @@ const MinerSwapHistory: React.FC<{ hotkey: string }> = ({ hotkey }) => {
                         letterSpacing: '0.08em',
                         textTransform: 'uppercase',
                         border: '1px solid',
-                        borderColor: PILL_BORDER[row.status] ?? 'divider',
-                        color: STATUS_COLOR[row.status] ?? 'text.primary',
+                        borderColor: 'divider',
+                        color: STATUS_COLOR[row.status] ?? 'text.secondary',
                       }}
                     >
                       {row.status.replace('_', ' ').toLowerCase()}

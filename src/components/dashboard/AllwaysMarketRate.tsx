@@ -20,6 +20,7 @@ import { useSpokes } from '../../hooks';
 import { FONTS } from '../../theme';
 import { formatRate } from '../../utils/format';
 import { TickerSymbol } from '../ChainLogo';
+import RangeChips from '../RangeChips';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import StatsStrip from './StatsStrip';
 
@@ -35,14 +36,17 @@ export const MOVE_COLORS = {
   dark: { up: '#4ade80', down: '#f87171' },
 } as const;
 
-// Robinhood-style range chips. Longer windows (1M/ALL) return once the
-// network has enough history to make them meaningful.
-export type HeroRange = '1H' | '1D' | '1W';
-const RANGES: HeroRange[] = ['1H', '1D', '1W'];
+// Robinhood-style range chips. The rate-history endpoint reads through a 1y
+// cap (downsampled ≤1500 points), so 1M is bounded only by what exists: the
+// alw-utils prune cron keeps ~35d of crown_holders, and a young network shows
+// however much has accumulated. ALL can follow once retention grows past 1M.
+export type HeroRange = '1H' | '1D' | '1W' | '1M';
+const RANGES: HeroRange[] = ['1H', '1D', '1W', '1M'];
 export const RANGE_SECS: Record<HeroRange, number> = {
   '1H': 3_600,
   '1D': 86_400,
   '1W': 604_800,
+  '1M': 2_592_000,
 };
 
 // Directional {t(ms), value} points for one leg's crown history. Rows are
@@ -300,44 +304,8 @@ const AllwaysMarketRate: React.FC<{
             {to.toUpperCase()}
           </Box>
         </Typography>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 0.5,
-            ml: 'auto',
-          }}
-        >
-          {RANGES.map((r) => (
-            <Box
-              key={r}
-              component="button"
-              onClick={() => onRangeChange(r)}
-              sx={{
-                all: 'unset',
-                cursor: 'pointer',
-                fontFamily: FONTS.mono,
-                fontSize: '0.65rem',
-                letterSpacing: '0.05em',
-                px: 1,
-                py: 0.4,
-                color:
-                  range === r
-                    ? theme.palette.background.paper
-                    : theme.palette.text.secondary,
-                backgroundColor:
-                  range === r ? theme.palette.text.primary : 'transparent',
-                fontWeight: 600,
-                '&:hover': {
-                  backgroundColor:
-                    range === r
-                      ? theme.palette.text.primary
-                      : theme.palette.action.hover,
-                },
-              }}
-            >
-              {r}
-            </Box>
-          ))}
+        <Box sx={{ ml: 'auto' }}>
+          <RangeChips value={range} options={RANGES} onChange={onRangeChange} />
         </Box>
       </Box>
 
