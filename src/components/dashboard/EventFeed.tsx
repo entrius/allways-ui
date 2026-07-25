@@ -129,18 +129,20 @@ const EventFeed: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
           },
         }}
       >
-        <Stack spacing={0}>
+        <Stack spacing={1}>
           {events?.map((event) => {
             const label = displayEventType(event);
             return (
               <Box
                 key={event.id}
                 sx={{
-                  px: 1,
-                  py: { xs: 1.75, sm: 1.25 },
+                  // House card treatment, matching the transactions tab.
+                  px: { xs: 1.25, sm: 1.5 },
+                  py: { xs: 1.5, sm: 1.25 },
                   borderRadius: 0,
-                  borderBottom: '1px solid',
+                  border: '1px solid',
                   borderColor: 'divider',
+                  backgroundColor: 'background.paper',
                   transition: 'background-color 0.15s',
                   '&:hover': { backgroundColor: 'action.hover' },
                 }}
