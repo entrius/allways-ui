@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as echarts from 'echarts/core';
 import { EffectScatterChart, ScatterChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
@@ -11,6 +11,11 @@ import { MOVE_COLORS, RANGE_SECS, type HeroRange } from './AllwaysMarketRate';
 import RangeChips from '../RangeChips';
 import { FONTS } from '../../theme';
 import { formatAmount, formatDurationSecs } from '../../utils/format';
+import {
+  applyTxFilters,
+  countActiveFilters,
+  filtersFromParams,
+} from './txFilters';
 
 echarts.use([
   ScatterChart,
@@ -96,12 +101,33 @@ const TransactionsPulse: React.FC = () => {
   const { data: recent, isLoading: recentLoading } = useAllSwaps({ limit: 50 });
   const { data: history } = useCompleteSwapHistory();
 
+  // The chart obeys the same URL-backed find filters as the tape, so both
+  // always show one filtered dataset.
+  const [searchParams] = useSearchParams();
+  const filters = useMemo(
+    () => filtersFromParams(searchParams),
+    [searchParams],
+  );
+  const filtersActive = countActiveFilters(filters) > 0;
+  // An active date filter takes over the chart's time window — otherwise a
+  // past date range and a "last N from now" lookback can have an empty
+  // intersection (blank chart while the tape shows matches). The range chips
+  // only rule when no dates are set.
+  const dateFromSec = filters.dateFrom
+    ? Date.parse(`${filters.dateFrom}T00:00:00`) / 1000
+    : null;
+  const dateToSec = filters.dateTo
+    ? Date.parse(`${filters.dateTo}T23:59:59`) / 1000
+    : null;
+  const hasDateWindow = dateFromSec != null || dateToSec != null;
+
   const swaps = useMemo(() => {
     const byId = new Map<string, ActiveSwap>();
     for (const s of history ?? []) byId.set(s.swapId, s);
     for (const s of recent ?? []) byId.set(s.swapId, s);
-    return [...byId.values()];
-  }, [history, recent]);
+    const all = [...byId.values()];
+    return filtersActive ? applyTxFilters(all, filters) : all;
+  }, [history, recent, filters, filtersActive]);
 
   const hasInFlight = useMemo(
     () => swaps.some((s) => !TERMINAL.has(s.status)),
@@ -126,7 +152,8 @@ const TransactionsPulse: React.FC = () => {
   }, [hasInFlight]);
 
   const { completed, timedOut, inFlight, medianSecs } = useMemo(() => {
-    const windowStart = nowSec - RANGE_SECS[range];
+    // Date-filtered rows are already cut to their window by applyTxFilters.
+    const windowStart = hasDateWindow ? -Infinity : nowSec - RANGE_SECS[range];
     const completed: PulseDatum[] = [];
     const timedOut: PulseDatum[] = [];
     const inFlight: PulseDatum[] = [];
@@ -167,7 +194,7 @@ const TransactionsPulse: React.FC = () => {
       ? settled[Math.floor(settled.length / 2)]
       : null;
     return { completed, timedOut, inFlight, medianSecs };
-  }, [swaps, nowSec, range]);
+  }, [swaps, nowSec, range, hasDateWindow]);
 
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -204,8 +231,17 @@ const TransactionsPulse: React.FC = () => {
     const axisColor = theme.palette.text.secondary;
     const gridColor = theme.palette.divider;
 
-    const xMin = nowSec - RANGE_SECS[range];
-    const wideWindow = range === '1W' || range === '1M';
+    // A date filter pins the x-window to its own bounds; the range chips
+    // only apply without one. An open-ended bound falls back to the data.
+    const times = [...completed, ...timedOut, ...inFlight].map(
+      (d) => d.value[0],
+    );
+    const xMax = dateToSec ?? nowSec;
+    const xMin = hasDateWindow
+      ? (dateFromSec ??
+        (times.length ? Math.min(...times) - 900 : xMax - RANGE_SECS[range]))
+      : nowSec - RANGE_SECS[range];
+    const wideWindow = xMax - xMin > 172_800;
 
     const maxDur = Math.max(
       0,
@@ -257,7 +293,7 @@ const TransactionsPulse: React.FC = () => {
         {
           type: 'value',
           min: xMin,
-          max: nowSec,
+          max: xMax,
           axisLabel: {
             color: axisColor,
             fontFamily: FONTS.mono,
@@ -329,7 +365,17 @@ const TransactionsPulse: React.FC = () => {
         },
       ],
     });
-  }, [completed, timedOut, inFlight, nowSec, range, theme]);
+  }, [
+    completed,
+    timedOut,
+    inFlight,
+    nowSec,
+    range,
+    theme,
+    hasDateWindow,
+    dateFromSec,
+    dateToSec,
+  ]);
 
   const total = completed.length + timedOut.length;
   const successPct = total

@@ -45,9 +45,10 @@ const TransactionsPage: React.FC = () => {
               row-level record. */}
           <TransactionsPulse />
           {/* The tape fills whatever height the pulse leaves; on mobile the
-              page scrolls, so give it a real minimum instead. */}
+              page scrolls, so give it a real minimum instead. Embedded: the
+              pulse already heads the page, no "Transactions" title needed. */}
           <Box sx={{ flex: 1, minHeight: { xs: 480, md: 0 } }}>
-            <SwapTracker />
+            <SwapTracker embedded />
           </Box>
         </Box>
       </Stack>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
   Box,
   IconButton,
@@ -36,6 +36,18 @@ import {
   lamportsToSol,
   swapDisplayId,
 } from '../../utils/format';
+import {
+  applyTxFilters,
+  countActiveFilters,
+  EMPTY_FILTERS,
+  filtersFromParams,
+  filtersToParams,
+  isTerminal,
+  solNotional,
+  toNum,
+  type StatusFilter,
+  type TxFilters,
+} from './txFilters';
 
 const PAGE_SIZE = 25;
 
@@ -105,20 +117,6 @@ const DEFAULT_DIR: Record<SortCol, SortDir> = {
   status: 'asc',
 };
 
-const toNum = (v: string | null): number => {
-  const n = v ? parseInt(v, 10) : NaN;
-  return Number.isFinite(n) ? n : 0;
-};
-
-// Size ranks on the SOL leg (the network numeraire), so amounts stay
-// comparable across pairs.
-const solNotional = (s: ActiveSwap): number =>
-  toNum(
-    s.sourceChain?.toLowerCase() === 'sol'
-      ? s.sourceAmount
-      : (s.destAmount ?? s.solAmount),
-  );
-
 // Settle duration; in-flight swaps rank on elapsed-so-far.
 const settleSecs = (s: ActiveSwap, nowSec: number): number => {
   const start = toNum(s.initiatedAt);
@@ -126,9 +124,6 @@ const settleSecs = (s: ActiveSwap, nowSec: number): number => {
   const end = toNum(s.resolvedAt ?? s.completedAt) || nowSec;
   return Math.max(0, end - start);
 };
-
-const pairKey = (s: ActiveSwap): string =>
-  `${s.sourceChain ?? ''}→${s.destChain ?? ''}`;
 
 // Compact wall-clock stamp for a table cell: "Jul 24 09:15". Event
 // timestamps carry seconds — lifecycle steps are often seconds apart.
@@ -146,9 +141,6 @@ const exactTime = (unix: string | null, withSecs?: boolean): string => {
   )}`;
 };
 
-const isTerminal = (s: ActiveSwap): boolean =>
-  s.status === 'COMPLETED' || s.status === 'TIMED_OUT';
-
 // Live elapsed readout for in-flight rows: "0:34", "12:07", "1:02:07".
 const formatClock = (secs: number): string => {
   const s = Math.max(0, Math.floor(secs));
@@ -160,54 +152,10 @@ const formatClock = (secs: number): string => {
     : `${m}:${String(r).padStart(2, '0')}`;
 };
 
-// Kraken-style find-a-transaction filters: exact route, outcome, date range,
-// and SOL-notional amount range. All client-side over the complete history.
-type StatusFilter = 'all' | 'completed' | 'timed_out' | 'in_flight';
-type TxFilters = {
-  pair: string; // 'all' or a pairKey
-  status: StatusFilter;
-  dateFrom: string; // yyyy-mm-dd or ''
-  dateTo: string;
-  minSol: string; // decimal SOL or ''
-  maxSol: string;
-};
-const EMPTY_FILTERS: TxFilters = {
-  pair: 'all',
-  status: 'all',
-  dateFrom: '',
-  dateTo: '',
-  minSol: '',
-  maxSol: '',
-};
-
-const countActiveFilters = (f: TxFilters): number =>
-  Object.entries(f).filter(
-    ([k, v]) => v !== EMPTY_FILTERS[k as keyof TxFilters],
-  ).length;
-
-const applyTxFilters = (rows: ActiveSwap[], f: TxFilters): ActiveSwap[] => {
-  // Date bounds are local-day inclusive.
-  const from = f.dateFrom ? Date.parse(`${f.dateFrom}T00:00:00`) / 1000 : null;
-  const to = f.dateTo ? Date.parse(`${f.dateTo}T23:59:59`) / 1000 : null;
-  const minSol = f.minSol ? parseFloat(f.minSol) : null;
-  const maxSol = f.maxSol ? parseFloat(f.maxSol) : null;
-  return rows.filter((s) => {
-    if (f.pair !== 'all' && pairKey(s) !== f.pair) return false;
-    if (f.status === 'completed' && s.status !== 'COMPLETED') return false;
-    if (f.status === 'timed_out' && s.status !== 'TIMED_OUT') return false;
-    if (f.status === 'in_flight' && isTerminal(s)) return false;
-    const t = toNum(s.initiatedAt);
-    if (from != null && (!t || t < from)) return false;
-    if (to != null && (!t || t > to)) return false;
-    const sol = solNotional(s) / 1e9;
-    if (minSol != null && Number.isFinite(minSol) && sol < minSol) return false;
-    if (maxSol != null && Number.isFinite(maxSol) && sol > maxSol) return false;
-    return true;
-  });
-};
-
-// Compact mono field treatment for the filter panel's inputs/selects.
-const filterFieldSx = (theme: Theme) => ({
+// Compact mono field treatment for the filter panel's inputs/selects. An
+// ACTIVE (non-default) field carries a solid primary border so it's obvious
+// at a glance which filters are narrowing the list.
+const filterFieldSx = (theme: Theme, active?: boolean) => ({
   '& .MuiOutlinedInput-root': {
     fontFamily: FONTS.mono,
     fontSize: '0.65rem',
@@ -215,8 +163,15 @@ const filterFieldSx = (theme: Theme) => ({
     borderRadius: 0,
     height: 28,
     backgroundColor: 'background.default',
-    '& fieldset': { borderColor: theme.palette.divider },
-    '&:hover fieldset': { borderColor: theme.palette.border.light },
+    '& fieldset': {
+      borderColor: active ? theme.palette.text.primary : theme.palette.divider,
+      ...(active && { borderWidth: 2 }),
+    },
+    '&:hover fieldset': {
+      borderColor: active
+        ? theme.palette.text.primary
+        : theme.palette.border.light,
+    },
     '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
   },
   '& .MuiOutlinedInput-input': { py: 0 },
@@ -251,11 +206,13 @@ const SortHeader: React.FC<{
   </Box>
 );
 
-// A filter-panel input with its small uppercase mono caption.
-const FilterField: React.FC<{ label: string; children: React.ReactNode }> = ({
-  label,
-  children,
-}) => (
+// A filter-panel input with its small uppercase mono caption; the caption
+// goes bold-primary while its filter is active.
+const FilterField: React.FC<{
+  label: string;
+  active?: boolean;
+  children: React.ReactNode;
+}> = ({ label, active, children }) => (
   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
     <Typography
       sx={{
@@ -263,7 +220,8 @@ const FilterField: React.FC<{ label: string; children: React.ReactNode }> = ({
         fontSize: '0.56rem',
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
-        color: 'text.secondary',
+        color: active ? 'text.primary' : 'text.secondary',
+        fontWeight: active ? 700 : 400,
       }}
     >
       {label}
@@ -356,26 +314,44 @@ const SwapTracker: React.FC<{
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE_SIZE);
-  const [sortCol, setSortCol] = useState<SortCol>('num');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [filters, setFilters] = useState<TxFilters>(EMPTY_FILTERS);
 
+  // The URL query string is the source of truth for filters and sort, so
+  // any filtered/sorted view is shareable and the pulse chart reads the
+  // exact same state. Defaults are omitted from the URL.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = React.useMemo(
+    () => filtersFromParams(searchParams),
+    [searchParams],
+  );
+  const setFilters = (next: TxFilters) =>
+    setSearchParams(filtersToParams(next, searchParams), { replace: true });
+  const setFilter = <K extends keyof TxFilters>(key: K, value: TxFilters[K]) =>
+    setFilters({ ...filters, [key]: value });
+
+  const sortParam = searchParams.get('sort') as SortCol | null;
+  const sortCol: SortCol =
+    sortParam && sortParam in DEFAULT_DIR ? sortParam : 'num';
+  const sortDir: SortDir = searchParams.get('dir') === 'asc' ? 'asc' : 'desc';
   // Click the active column to flip direction; a new column starts at its
   // natural direction.
   const handleSort = (col: SortCol) => {
-    if (col === sortCol) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    const nextDir: SortDir =
+      col === sortCol ? (sortDir === 'asc' ? 'desc' : 'asc') : DEFAULT_DIR[col];
+    const p = new URLSearchParams(searchParams);
+    if (col === 'num' && nextDir === 'desc') {
+      p.delete('sort');
+      p.delete('dir');
     } else {
-      setSortCol(col);
-      setSortDir(DEFAULT_DIR[col]);
+      p.set('sort', col);
+      if (nextDir === 'asc') p.set('dir', 'asc');
+      else p.delete('dir');
     }
+    setSearchParams(p, { replace: true });
   };
   const isDefaultSort = sortCol === 'num' && sortDir === 'desc';
   const debouncedSearch = useDebounce(search, 300);
 
   const activeFilters = countActiveFilters(filters);
-  const setFilter = <K extends keyof TxFilters>(key: K, value: TxFilters[K]) =>
-    setFilters((prev) => ({ ...prev, [key]: value }));
 
   // A 1s clock that drives the live counters (Settle elapsed, "Xs ago") on
   // in-flight rows. Only ticks while something is actually in flight, and
@@ -529,14 +505,60 @@ const SwapTracker: React.FC<{
     return () => clearInterval(id);
   }, [hasInFlightRows]);
 
-  // Every route that appears in the loaded data, for the pair dropdown.
-  const pairOptions = React.useMemo(() => {
-    const routes = new Set<string>();
+  // Every route that appears in the loaded data drives the two dependent
+  // From/To dropdowns (markets-composer style): each side only offers chains
+  // that form a real route with the other side's pick.
+  const routes = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: { src: string; dst: string }[] = [];
     for (const s of completeHistory ?? fetched ?? []) {
-      if (s.sourceChain && s.destChain) routes.add(pairKey(s));
+      const src = s.sourceChain?.toLowerCase();
+      const dst = s.destChain?.toLowerCase();
+      if (!src || !dst || seen.has(`${src}→${dst}`)) continue;
+      seen.add(`${src}→${dst}`);
+      list.push({ src, dst });
     }
-    return [...routes].sort();
+    return list;
   }, [completeHistory, fetched]);
+  const fromOptions = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          routes
+            .filter(
+              (r) => filters.toChain === 'all' || r.dst === filters.toChain,
+            )
+            .map((r) => r.src),
+        ),
+      ].sort(),
+    [routes, filters.toChain],
+  );
+  const toOptions = React.useMemo(
+    () =>
+      [
+        ...new Set(
+          routes
+            .filter(
+              (r) => filters.fromChain === 'all' || r.src === filters.fromChain,
+            )
+            .map((r) => r.dst),
+        ),
+      ].sort(),
+    [routes, filters.fromChain],
+  );
+  // Picking one side resets the other when the combination stops being a
+  // real route (e.g. From TAO forces To off BTC).
+  const pickChain = (side: 'fromChain' | 'toChain', value: string) => {
+    const next = { ...filters, [side]: value };
+    if (
+      next.fromChain !== 'all' &&
+      next.toChain !== 'all' &&
+      !routes.some((r) => r.src === next.fromChain && r.dst === next.toChain)
+    ) {
+      next[side === 'fromChain' ? 'toChain' : 'fromChain'] = 'all';
+    }
+    setFilters(next);
+  };
 
   // Reset limit when search changes
   React.useEffect(() => {
@@ -644,24 +666,49 @@ const SwapTracker: React.FC<{
             gap: 1,
           }}
         >
-          <FilterField label="Pair">
+          {/* Dependent From/To chain pickers, markets-composer style: each
+              side only offers real routes given the other side's pick. */}
+          <FilterField label="From" active={filters.fromChain !== 'all'}>
             <TextField
               select
               SelectProps={{ native: true }}
               size="small"
-              value={filters.pair}
-              onChange={(e) => setFilter('pair', e.target.value)}
-              sx={{ width: 140, ...filterFieldSx(theme) }}
+              value={filters.fromChain}
+              onChange={(e) => pickChain('fromChain', e.target.value)}
+              sx={{
+                width: 96,
+                ...filterFieldSx(theme, filters.fromChain !== 'all'),
+              }}
             >
               <option value="all">ALL</option>
-              {pairOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p.toUpperCase()}
+              {fromOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c.toUpperCase()}
                 </option>
               ))}
             </TextField>
           </FilterField>
-          <FilterField label="Status">
+          <FilterField label="To" active={filters.toChain !== 'all'}>
+            <TextField
+              select
+              SelectProps={{ native: true }}
+              size="small"
+              value={filters.toChain}
+              onChange={(e) => pickChain('toChain', e.target.value)}
+              sx={{
+                width: 96,
+                ...filterFieldSx(theme, filters.toChain !== 'all'),
+              }}
+            >
+              <option value="all">ALL</option>
+              {toOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c.toUpperCase()}
+                </option>
+              ))}
+            </TextField>
+          </FilterField>
+          <FilterField label="Status" active={filters.status !== 'all'}>
             <TextField
               select
               SelectProps={{ native: true }}
@@ -670,7 +717,10 @@ const SwapTracker: React.FC<{
               onChange={(e) =>
                 setFilter('status', e.target.value as StatusFilter)
               }
-              sx={{ width: 130, ...filterFieldSx(theme) }}
+              sx={{
+                width: 130,
+                ...filterFieldSx(theme, filters.status !== 'all'),
+              }}
             >
               <option value="all">ALL</option>
               <option value="completed">COMPLETED</option>
@@ -678,25 +728,25 @@ const SwapTracker: React.FC<{
               <option value="in_flight">IN FLIGHT</option>
             </TextField>
           </FilterField>
-          <FilterField label="From">
+          <FilterField label="From date" active={!!filters.dateFrom}>
             <TextField
               type="date"
               size="small"
               value={filters.dateFrom}
               onChange={(e) => setFilter('dateFrom', e.target.value)}
-              sx={{ width: 140, ...filterFieldSx(theme) }}
+              sx={{ width: 140, ...filterFieldSx(theme, !!filters.dateFrom) }}
             />
           </FilterField>
-          <FilterField label="To">
+          <FilterField label="To date" active={!!filters.dateTo}>
             <TextField
               type="date"
               size="small"
               value={filters.dateTo}
               onChange={(e) => setFilter('dateTo', e.target.value)}
-              sx={{ width: 140, ...filterFieldSx(theme) }}
+              sx={{ width: 140, ...filterFieldSx(theme, !!filters.dateTo) }}
             />
           </FilterField>
-          <FilterField label="Min (SOL)">
+          <FilterField label="Min (SOL)" active={!!filters.minSol}>
             <TextField
               type="number"
               size="small"
@@ -704,10 +754,10 @@ const SwapTracker: React.FC<{
               inputProps={{ min: 0, step: 0.1 }}
               value={filters.minSol}
               onChange={(e) => setFilter('minSol', e.target.value)}
-              sx={{ width: 90, ...filterFieldSx(theme) }}
+              sx={{ width: 90, ...filterFieldSx(theme, !!filters.minSol) }}
             />
           </FilterField>
-          <FilterField label="Max (SOL)">
+          <FilterField label="Max (SOL)" active={!!filters.maxSol}>
             <TextField
               type="number"
               size="small"
@@ -715,7 +765,7 @@ const SwapTracker: React.FC<{
               inputProps={{ min: 0, step: 0.1 }}
               value={filters.maxSol}
               onChange={(e) => setFilter('maxSol', e.target.value)}
-              sx={{ width: 90, ...filterFieldSx(theme) }}
+              sx={{ width: 90, ...filterFieldSx(theme, !!filters.maxSol) }}
             />
           </FilterField>
           {activeFilters > 0 && (
@@ -726,18 +776,23 @@ const SwapTracker: React.FC<{
                 all: 'unset',
                 cursor: 'pointer',
                 fontFamily: FONTS.mono,
-                fontSize: '0.56rem',
+                fontSize: '0.6rem',
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                color: 'text.secondary',
+                fontWeight: 600,
+                // Inverted chip — the loudest element in the bar whenever
+                // any filter is narrowing the list.
+                color: theme.palette.background.paper,
+                backgroundColor: theme.palette.text.primary,
                 height: 28,
                 display: 'flex',
                 alignItems: 'center',
-                px: 0.5,
-                '&:hover': { color: 'text.primary' },
+                px: 1,
+                whiteSpace: 'nowrap',
+                '&:hover': { opacity: 0.85 },
               }}
             >
-              Clear
+              ✕ Clear
             </Box>
           )}
           {swapsCount != null && (
@@ -752,8 +807,23 @@ const SwapTracker: React.FC<{
                 whiteSpace: 'nowrap',
               }}
             >
-              {swapsCount.totalCount.toLocaleString()} transaction
-              {swapsCount.totalCount === 1 ? '' : 's'} all-time
+              {/* With filters live, the same slot shows the match count over
+                  the total (compact, so the row never wraps). */}
+              {activeFilters > 0 && swaps != null ? (
+                <>
+                  <Box component="span" sx={{ color: 'text.primary' }}>
+                    {swaps.length.toLocaleString()} match
+                    {swaps.length === 1 ? '' : 'es'}
+                  </Box>
+                  {' / '}
+                  {swapsCount.totalCount.toLocaleString()}
+                </>
+              ) : (
+                <>
+                  {swapsCount.totalCount.toLocaleString()} transaction
+                  {swapsCount.totalCount === 1 ? '' : 's'} all-time
+                </>
+              )}
             </Typography>
           )}
         </Box>
