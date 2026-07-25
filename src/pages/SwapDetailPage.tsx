@@ -13,6 +13,7 @@ import {
   displayEventType,
   useMinerByHotkey,
   useProtocolConstants,
+  useReservation,
   useSwapDetail,
 } from '../api';
 import { FONTS } from '../theme';
@@ -72,6 +73,12 @@ const SwapDetailPage: React.FC = () => {
   const { data, isLoading } = useSwapDetail(swapId ?? '');
   const { data: protocol } = useProtocolConstants();
   const { data: miner } = useMinerByHotkey(data?.swap?.minerHotkey ?? '');
+  // While the swap is live its reservation still exists and carries the
+  // user's PROVEN source-chain wallet (validators verified the deposit
+  // sender against it). Pruned after settlement.
+  const { data: reservation } = useReservation(
+    data?.swap?.reservationRequestHash ?? '',
+  );
 
   if (isLoading) {
     return (
@@ -478,10 +485,24 @@ const SwapDetailPage: React.FC = () => {
         //   miner sends dest funds    → user's dest-chain address
         // The miner hotkey is the subnet identity, never a funds address (TAO
         // settles from the miner's coldkey), so it is not used here.
-        const sentFrom = swap.userSourceAddress ?? swap.userAddress;
+        // "From" is the wallet the source funds actually came from: the
+        // explicit per-leg field, else the reservation's proven from-wallet,
+        // else — only when the source leg IS Solana — the protocol address.
+        // A non-SOL source leg with no proven wallet shows no From at all
+        // rather than a protocol address masquerading as one.
+        const sentFrom =
+          swap.userSourceAddress ??
+          reservation?.userFromAddress ??
+          (swap.sourceChain?.toLowerCase() === 'sol' ? swap.userAddress : null);
         const sentTo = swap.minerSourceAddress;
         const recvFrom = swap.minerDestAddress;
-        const recvTo = swap.userDestAddress ?? swap.userAddress;
+        // Same chain-aware rule as the sending leg: the protocol (SOL)
+        // address only stands in for the receive "To" when the dest leg IS
+        // Solana. A non-SOL destination with no explicit address shows no To
+        // rather than a Solana address masquerading as one.
+        const recvTo =
+          swap.userDestAddress ??
+          (swap.destChain?.toLowerCase() === 'sol' ? swap.userAddress : null);
         const sentAmount =
           swap.sourceAmount && swap.sourceChain
             ? formatAmount(swap.sourceAmount, swap.sourceChain)
@@ -570,6 +591,33 @@ const SwapDetailPage: React.FC = () => {
         );
       })()}
 
+      {/* Details — the raw identifiers behind the swap */}
+      <Card>
+        <SectionTitle>Details</SectionTitle>
+        <Stack spacing={1}>
+          {swap.userAddress && (
+            <LabelAddr label="User" address={swap.userAddress} />
+          )}
+          {swap.swapKey && (
+            <LabelValue label="Swap key" value={swap.swapKey} copyable />
+          )}
+          <LabelValue label="Internal ID" value={swap.swapId} copyable />
+          {swap.solAmount && (
+            <LabelValue
+              label="SOL notional"
+              value={`${lamportsToSol(swap.solAmount).toFixed(4)} SOL`}
+            />
+          )}
+          {swap.reservationRequestHash && (
+            <LabelValue
+              label="Reservation"
+              value={swap.reservationRequestHash}
+              copyable
+            />
+          )}
+        </Stack>
+      </Card>
+
       {/* Event History */}
       {events.length > 0 && (
         <Card>
@@ -602,6 +650,17 @@ const SwapDetailPage: React.FC = () => {
                     },
                   }}
                 />
+                {/* Exact wall-clock time of the event, then the slot. */}
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.65rem',
+                    color: 'text.secondary',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {event.blockTime ? formatUnixTime(event.blockTime) : '—'}
+                </Typography>
                 <Typography
                   sx={{
                     fontFamily: FONTS.mono,

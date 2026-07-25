@@ -343,7 +343,8 @@ const MarketRateChart: React.FC<{
             axisLabel: yAxisLabel,
             axisLine: { show: false },
             axisTick: { show: false },
-            splitLine: { lineStyle: { color: gridColor, type: 'dashed' } },
+            // Solid, matching the markets hero's grid style.
+            splitLine: { lineStyle: { color: gridColor, type: 'solid' } },
           },
           {
             // Hidden overlay axis for volume: 4× the tallest bar keeps the

@@ -694,11 +694,10 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
               fontSize: 10,
               formatter: (v: number) => (formatValue ?? defaultFmt)(v),
             },
+            // Solid gridlines — the one house chart-background style,
+            // matching the markets hero everywhere.
             splitLine: {
-              lineStyle: {
-                color: gridColor,
-                type: market ? ('solid' as const) : ('dashed' as const),
-              },
+              lineStyle: { color: gridColor, type: 'solid' as const },
             },
           },
           ...(vol

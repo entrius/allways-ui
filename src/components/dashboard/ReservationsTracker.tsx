@@ -166,7 +166,7 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
           },
         }}
       >
-        <Stack spacing={0}>
+        <Stack spacing={1}>
           {filtered.map((r: Reservation) => {
             const statusColor = colors[r.status] ?? colors.ACTIVE;
             const sendLabel =
@@ -192,17 +192,22 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
                 component={RouterLink}
                 to={`/reservations/${r.requestHash}`}
                 sx={{
-                  px: 1,
-                  py: { xs: 1.75, sm: 1.25 },
+                  // House card treatment, matching the transactions tab.
+                  px: { xs: 1.25, sm: 1.5 },
+                  py: { xs: 1.5, sm: 1.25 },
                   borderRadius: 0,
-                  borderBottom: '1px solid',
+                  border: '1px solid',
                   borderColor: 'divider',
+                  backgroundColor: 'background.paper',
                   textDecoration: 'none',
                   color: 'inherit',
                   display: 'block',
                   cursor: 'pointer',
-                  transition: 'background-color 0.15s',
-                  '&:hover': { backgroundColor: 'action.hover' },
+                  transition: 'background-color 0.15s, border-color 0.15s',
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                    borderColor: 'border.light',
+                  },
                 }}
               >
                 <Stack
