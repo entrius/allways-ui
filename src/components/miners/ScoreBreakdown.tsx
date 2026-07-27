@@ -47,8 +47,9 @@ const ScoreBreakdown: React.FC<{
 }> = ({ row, label }) => {
   const theme = useTheme();
   // The pool is volume-weighted per round, so it comes from the row — never
-  // re-derived here. Rounds scored before the validator recorded it read '—'.
-  const pool = row.pool === null ? '—' : f2(row.pool);
+  // re-derived here. Rounds scored before the validator recorded it read '—',
+  // as does an API too old to send the field at all (loose == catches both).
+  const pool = row.pool == null ? '—' : f2(row.pool);
   return (
     <Stack
       direction="row"
