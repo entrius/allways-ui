@@ -126,6 +126,10 @@ export type MinerScoreRow = {
   fromChain: string;
   toChain: string;
   eligible: boolean;
+  // The direction's emission pool for the round — volume-weighted, so it varies
+  // per round and per direction. Null on rounds the validator scored before it
+  // recorded the pool.
+  pool: number | null;
   crownShare: number;
   capacity: number;
   reward: number;

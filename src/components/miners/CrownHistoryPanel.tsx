@@ -76,7 +76,7 @@ const CrownHistoryPanel: React.FC<{
             color: 'text.disabled',
           }}
         >
-          eligible × pool·crown·cap·fill
+          eligible × pool·crown·cap
         </Typography>
       </Stack>
 
