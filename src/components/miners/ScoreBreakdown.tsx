@@ -1,17 +1,13 @@
 import React from 'react';
 import { Box, Stack, useTheme } from '@mui/material';
-import { ALL_DIRECTIONS } from '../../api';
 import { FONTS } from '../../theme';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
-
-// Each direction gets an equal slice of emission — derive the pool share from
-// the registry instead of hardcoding it so adding a pair updates the math.
-export const POOL_SHARE = 1 / ALL_DIRECTIONS.length;
 
 // The factor fields shared by MinerScoreRow (history) and
 // CurrentMinerScoreRow (live tip) — everything but the timestamp key.
 export type ScoreFactorsRow = {
   eligible: boolean;
+  pool: number | null;
   crownShare: number;
   capacity: number;
   reward: number;
@@ -50,7 +46,9 @@ const ScoreBreakdown: React.FC<{
   label?: string;
 }> = ({ row, label }) => {
   const theme = useTheme();
-  const pool = f2(POOL_SHARE);
+  // The pool is volume-weighted per round, so it comes from the row — never
+  // re-derived here. Rounds scored before the validator recorded it read '—'.
+  const pool = row.pool === null ? '—' : f2(row.pool);
   return (
     <Stack
       direction="row"
@@ -92,8 +90,8 @@ const ScoreBreakdown: React.FC<{
         >
           {row.eligible ? '✓' : '✗'}
         </Box>
-        <Muted>{') × '}</Muted>
-        <Muted>{pool}</Muted>
+        <Muted>{') × pool '}</Muted>
+        <Val>{pool}</Val>
         <Muted>{' × crown '}</Muted>
         <Val>{f2(row.crownShare)}</Val>
         <Muted>{' × cap '}</Muted>
