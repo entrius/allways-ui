@@ -70,8 +70,8 @@ const Footer: React.FC = () => {
                 lineHeight: 1.5,
               }}
             >
-              Universal transaction layer. Trustless peer to peer transactions
-              on Bittensor Subnet 7.
+              Universal transaction layer. Native peer to peer transactions on
+              Bittensor Subnet 7 — no wrapped tokens, no bridges, no custodian.
             </Typography>
             <Typography
               sx={{
@@ -83,12 +83,14 @@ const Footer: React.FC = () => {
                 lineHeight: 1.55,
               }}
             >
-              Allways is permissionless, open-source, beta software. The
-              protocol facilitates trustless peer to peer transactions — the
-              creators and contributors do not custody, control, or intermediate
-              any funds. All code is open source and should be responsibly
-              reviewed before any use. Use at your own risk. No warranty. Not
-              financial advice.
+              Allways is permissionless, open-source, beta software. Swaps
+              settle directly between counterparty wallets; the protocol never
+              takes custody of user funds, and the protocol fee is charged
+              against miner collateral rather than any user transfer. Validator
+              operators, including those run by the project, verify swap
+              outcomes but cannot redirect or receive any transferred amount.
+              All code is open source and should be responsibly reviewed before
+              any use. Use at your own risk. No warranty. Not financial advice.
             </Typography>
           </Grid>
 
