@@ -10,7 +10,7 @@ export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 ## TL;DR
 
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for
-trustless native swaps between independent assets, settled on a **Solana
+native swaps between independent assets, settled on a **Solana
 program**. It is **hub-and-spoke with SOL as the hub**: the launch pairs are
 **SOL↔BTC** and **SOL↔TAO**, so every swap has a SOL leg. Miners post **SOL**
 collateral and quote exchange rates. Validators verify both legs of each swap.
@@ -37,7 +37,7 @@ custodian, no wrapped asset, no bridge token.
 
 ## Why agents use it
 
-- **Trustless.** SOL collateral guarantees delivery; the contract slashes on failure.
+- **Collateral-backed.** Every swap is backed by SOL collateral worth its full value; if delivery fails, the contract slashes that collateral and repays the taker.
 - **Best rate.** Dynamic pricing — quotes update every block.
 - **Subnet-native.** Settles in real SOL, BTC, and TAO. No IOUs.
 - **Open + agentic.** Public API, SSE feeds, open-source CLI, scriptable end-to-end.
@@ -299,7 +299,7 @@ Parameters drift — always check \`alw view config\`, and \`alw view miners\` /
 
 ## Disclaimer
 
-Allways is permissionless, open-source, beta software. The protocol facilitates trustless peer-to-peer transactions — the creators and contributors do not custody, control, or intermediate any funds. Use at your own risk. No warranty. Not financial advice.
+Allways is permissionless, open-source, beta software. Swaps settle directly between counterparty wallets; the protocol never takes custody of user funds, and the protocol fee is charged against miner collateral rather than any user transfer. Validator operators, including those run by the project, verify swap outcomes but cannot redirect or receive any transferred amount. Use at your own risk. No warranty. Not financial advice.
 
 ## Sources of truth
 
