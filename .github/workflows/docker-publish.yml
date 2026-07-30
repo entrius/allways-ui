@@ -43,11 +43,12 @@ jobs:
           push: true
           tags: ${{ steps.build.outputs.tags }}
 
-      # for notifying of image publish or failure (same pattern as das deploy.yml)
+      # for notifying of image publish or failure (same pattern as das deploy.yml).
+      # Success pings TEST only — prod deploys are announced by release.yml's promotion ping.
       - name: Notify Publish Failure
         if: failure()
         run: curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" -d "content=💩 UI image build failed on ${{ github.ref == 'refs/heads/main' && 'PROD' || 'TEST (isaiah)' }} environment"
 
       - name: Discord Success Post
-        if: success()
-        run: curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" -d "content=🚀 UI image pushed on ${{ github.ref == 'refs/heads/main' && 'PROD' || 'TEST (isaiah)' }} environment — watchtower deploys in ~3 min"
+        if: success() && github.ref != 'refs/heads/main'
+        run: curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" -d "content=🚀 UI image pushed on TEST (isaiah) environment — watchtower deploys in ~3 min"
