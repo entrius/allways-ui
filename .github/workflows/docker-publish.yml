@@ -43,17 +43,11 @@ jobs:
           push: true
           tags: ${{ steps.build.outputs.tags }}
 
-      # Env is explicit in every ping — TEST rolls to the isaiah box via watchtower.
-      - name: Notify Discord (success)
-        if: success()
-        run: |
-          ENV_LABEL="${{ github.ref == 'refs/heads/main' && 'PROD (aw-ui:latest)' || 'TEST — isaiah box (aw-ui:test)' }}"
-          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" -H "Content-Type: application/json" \
-            -d "{\"content\": \"🖥️ **allways-ui** image pushed · **${ENV_LABEL}** · \`${GITHUB_SHA::7}\` — watchtower deploys within ~3 min.\"}"
-
-      - name: Notify Discord (failure)
+      # for notifying of image publish or failure (same pattern as das deploy.yml)
+      - name: Notify Publish Failure
         if: failure()
-        run: |
-          ENV_LABEL="${{ github.ref == 'refs/heads/main' && 'PROD' || 'TEST — isaiah box' }}"
-          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" -H "Content-Type: application/json" \
-            -d "{\"content\": \"💀 **allways-ui** image build FAILED · **${ENV_LABEL}** · \`${GITHUB_SHA::7}\` — ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
+        run: curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" -d "content=💩 UI image build failed on ${{ github.ref == 'refs/heads/main' && 'PROD' || 'TEST (isaiah)' }} environment"
+
+      - name: Discord Success Post
+        if: success()
+        run: curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" -d "content=🚀 UI image pushed on ${{ github.ref == 'refs/heads/main' && 'PROD' || 'TEST (isaiah)' }} environment — watchtower deploys in ~3 min"
