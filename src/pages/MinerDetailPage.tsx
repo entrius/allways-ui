@@ -76,7 +76,10 @@ const MinerDetailPage: React.FC = () => {
 
   const { data: stats } = useMinerStats(hotkey, range);
   const { data: miners } = useMiners();
-  const liveMiner = miners?.find((m) => m.hotkey === hotkey) ?? null;
+  // One row per (miner, pair) — keep them all so every pair's quotes and
+  // chain addresses render, not just the first (dest_chain ASC → btc) row.
+  const livePairs = miners?.filter((m) => m.hotkey === hotkey) ?? [];
+  const liveMiner = livePairs[0] ?? null;
   // Prefer stats.uid; fall back to the live-miners list (always populated)
   // so the page header doesn't render "uid ?" while stats is loading or on
   // an older API that doesn't include uid in the stats response.
@@ -120,7 +123,7 @@ const MinerDetailPage: React.FC = () => {
           hotkey={hotkey}
           uid={uid}
           stats={stats}
-          liveMiner={liveMiner}
+          pairs={livePairs}
           range={range}
           onRangeChange={(r) => setParam('range', r)}
         />

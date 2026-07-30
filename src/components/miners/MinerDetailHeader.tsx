@@ -160,27 +160,41 @@ const MinerDetailHeader: React.FC<{
   hotkey: string;
   uid: number | null;
   stats: MinerStats | undefined;
-  liveMiner: Miner | null;
+  pairs: Miner[];
   range: Range;
   onRangeChange: (r: Range) => void;
-}> = ({ hotkey, uid, stats, liveMiner, range, onRangeChange }) => {
+}> = ({ hotkey, uid, stats, pairs, range, onRangeChange }) => {
   const theme = useTheme();
   const crownDirections = stats?.currentCrownDirections ?? [];
+  // Per-miner columns agree across a miner's pair rows; the first is
+  // representative for identity fields.
+  const liveMiner = pairs[0] ?? null;
   // On-chain commitment is canonicalized so the hub (SOL) is pinned as source;
   // both stored rates are canonical "spoke per 1 SOL". Render each leg
   // DIRECTIONALLY — "to per 1 from" of that leg (the reverse inverts).
-  const src = liveMiner?.sourceChain?.toLowerCase() ?? null;
-  const dst = liveMiner?.destChain?.toLowerCase() ?? null;
-  const fwdRate =
-    src && dst ? (directionalRate(src, dst, liveMiner?.rate) ?? 0) : 0;
-  const revRate =
-    src && dst ? (directionalRate(dst, src, liveMiner?.counterRate) ?? 0) : 0;
-  const fwdLabel =
-    src && dst ? `${src.toUpperCase()} → ${dst.toUpperCase()}` : null;
-  const revLabel =
-    src && dst ? `${dst.toUpperCase()} → ${src.toUpperCase()}` : null;
-  const fwdUnit = src && dst ? rateUnit(src, dst) : '';
-  const revUnit = src && dst ? rateUnit(dst, src) : '';
+  const quotes = pairs.flatMap((p) => {
+    const src = p.sourceChain?.toLowerCase();
+    const dst = p.destChain?.toLowerCase();
+    if (!src || !dst) return [];
+    return [
+      [src, dst, p.rate] as const,
+      [dst, src, p.counterRate] as const,
+    ].flatMap(([from, to, raw]) => {
+      const rate = directionalRate(from, to, raw) ?? 0;
+      if (rate <= 0) return [];
+      return {
+        label: `${from.toUpperCase()} → ${to.toUpperCase()}`,
+        rate,
+        unit: rateUnit(from, to),
+      };
+    });
+  });
+  const addresses = new Map<string, string>();
+  for (const p of pairs) {
+    if (p.sourceChain && p.sourceAddress)
+      addresses.set(p.sourceChain, p.sourceAddress);
+    if (p.destChain && p.destAddress) addresses.set(p.destChain, p.destAddress);
+  }
 
   return (
     <Box
@@ -302,40 +316,23 @@ const MinerDetailHeader: React.FC<{
             </HeaderField>
           )}
           {/* Significant figures, not 2dp — SOL→BTC (~0.0021 BTC/SOL) read "0.00". */}
-          {fwdRate > 0 && fwdLabel && (
-            <HeaderField label={`quote · ${fwdLabel}`}>
-              {formatRate(fwdRate)}
+          {quotes.map((q) => (
+            <HeaderField key={q.label} label={`quote · ${q.label}`}>
+              {formatRate(q.rate)}
               <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                {fwdUnit}
+                {q.unit}
               </Box>
             </HeaderField>
-          )}
-          {revRate > 0 && revLabel && (
-            <HeaderField label={`quote · ${revLabel}`}>
-              {formatRate(revRate)}
-              <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                {revUnit}
-              </Box>
-            </HeaderField>
-          )}
-          {liveMiner?.sourceChain && liveMiner?.sourceAddress && (
-            <HeaderField label={`${liveMiner.sourceChain} address`}>
+          ))}
+          {[...addresses].map(([chain, address]) => (
+            <HeaderField key={chain} label={`${chain} address`}>
               <CopyableAddress
-                address={liveMiner.sourceAddress}
+                address={address}
                 fontSize="0.85rem"
                 color="text.primary"
               />
             </HeaderField>
-          )}
-          {liveMiner?.destChain && liveMiner?.destAddress && (
-            <HeaderField label={`${liveMiner.destChain} address`}>
-              <CopyableAddress
-                address={liveMiner.destAddress}
-                fontSize="0.85rem"
-                color="text.primary"
-              />
-            </HeaderField>
-          )}
+          ))}
         </Box>
 
         <Box
