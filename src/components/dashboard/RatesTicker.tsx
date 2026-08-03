@@ -9,7 +9,7 @@ import {
 import { useSpokes } from '../../hooks';
 import { formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
-import { BlockIndicator, ChainLogo } from '../index';
+import { ChainLogo } from '../index';
 import Ticker from '../Ticker';
 import { MOVE_COLORS } from './AllwaysMarketRate';
 
@@ -125,9 +125,6 @@ const RatesTicker: React.FC = () => {
         borderColor: 'divider',
       }}
     >
-      <Box sx={{ flexShrink: 0 }}>
-        <BlockIndicator />
-      </Box>
       <Ticker>
         {directions.map((d) => (
           <DirSegment key={d} direction={d} />

@@ -27,9 +27,13 @@ export type CellState = {
   holderHotkey: string | null;
   holderUid: number | null;
   rate: number;
+  // More than one holder shares this cell (a rate band or a dead-heat).
   isTie: boolean;
   isCurrent: boolean;
   color: string | null;
+  // Every holder overlapping this cell, dominant (highest credit) first —
+  // feeds the hover card's per-member share list.
+  holders: CrownHistoryRow[];
 };
 
 export type TierEntry = {
@@ -42,8 +46,8 @@ export type TierEntry = {
 // Build per-cell rows for the [lo, hi] window (unix seconds, stepped by
 // CELL_SECS). When `subjectUid` is set, every cell shows whether *that* uid held
 // the crown (subjectColor or null), not the actual winner — used on the
-// per-miner page where the page locks to its own uid. Otherwise the top
-// alphabetical holder wins and gets tier color.
+// per-miner page where the page locks to its own uid. Otherwise the dominant
+// (highest-credit) holder wins the cell and gets tier color.
 export const buildCells = (
   rows: CrownHistoryRow[],
   lo: number,
@@ -73,7 +77,12 @@ export const buildCells = (
   const cells: CellState[] = [];
   for (let b = cellBucket(lo); b <= hi; b += CELL_SECS) {
     const here = byBucket.get(b) ?? [];
-    here.sort((a, c) => a.hotkey.localeCompare(c.hotkey));
+    // Dominant first: highest credit wins the cell, hotkey as a deterministic
+    // tie-break (also the whole sort for pre-credit APIs, matching old order).
+    here.sort(
+      (a, c) =>
+        (c.credit ?? 1) - (a.credit ?? 1) || a.hotkey.localeCompare(c.hotkey),
+    );
     if (subjectUid != null) {
       const mine = here.find((r) => r.uid === subjectUid);
       cells.push({
@@ -84,6 +93,7 @@ export const buildCells = (
         isTie: mine != null && here.length > 1,
         isCurrent: b === headBucket,
         color: mine ? subjectColor : null,
+        holders: here,
       });
       continue;
     }
@@ -96,6 +106,7 @@ export const buildCells = (
       isTie: here.length > 1,
       isCurrent: b === headBucket,
       color: winner?.hotkey ? (tiers.get(winner.hotkey) ?? otherColor) : null,
+      holders: here,
     });
   }
   return cells;
@@ -116,11 +127,11 @@ export const buildTiers = (
     const end = Math.min(row.endedAt || row.t + CELL_SECS, hi);
     if (end < lo || row.t > hi) continue;
     // Weight by held cells within the window, not interval count — a 37-minute
-    // hold outranks three 10-second ones.
-    const held = Math.max(
-      1,
-      Math.floor((end - Math.max(row.t, lo)) / CELL_SECS),
-    );
+    // hold outranks three 10-second ones. Scale by credit so a band's sliver
+    // members don't rank alongside its dominant holder.
+    const held =
+      Math.max(1, Math.floor((end - Math.max(row.t, lo)) / CELL_SECS)) *
+      (row.credit ?? 1);
     const entry = counts.get(row.hotkey);
     if (entry) entry.count += held;
     else counts.set(row.hotkey, { uid: row.uid ?? null, count: held });

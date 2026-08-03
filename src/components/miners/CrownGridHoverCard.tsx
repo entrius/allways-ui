@@ -135,9 +135,30 @@ const CrownGridHoverCard: React.FC<{
             value={`${formatRate(directionalRateFor(direction, cell.rate) ?? 0)} ${rateUnitFor(direction)}`}
           />
         )}
-        {cell.isTie && (
-          <HoverLine label="status" valueColor="text.primary" value="tied" />
-        )}
+        {cell.isTie &&
+          (cell.holders[0]?.credit != null ? (
+            // Rate band: list members with their credit share, dominant first.
+            <HoverLine
+              label="band"
+              valueColor="text.primary"
+              value={
+                <Stack spacing={0.25}>
+                  {cell.holders.slice(0, 4).map((h) => (
+                    <Box component="span" key={`${h.hotkey}-${h.t}`}>
+                      uid {h.uid ?? '?'} · {Math.round((h.credit ?? 0) * 100)}%
+                    </Box>
+                  ))}
+                  {cell.holders.length > 4 && (
+                    <Box component="span" sx={{ color: 'text.disabled' }}>
+                      +{cell.holders.length - 4} more
+                    </Box>
+                  )}
+                </Stack>
+              }
+            />
+          ) : (
+            <HoverLine label="status" valueColor="text.primary" value="tied" />
+          ))}
         {cell.isCurrent && (
           <HoverLine
             label="status"
