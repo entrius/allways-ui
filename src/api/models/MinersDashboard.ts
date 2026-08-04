@@ -64,10 +64,21 @@ export const rateUnitVerboseFor = (dir: Direction): string => {
   return `${to.toUpperCase()} per 1 ${from.toUpperCase()}`;
 };
 
+export type CurrentCrownHolder = {
+  hotkey: string;
+  uid: number | null;
+  // Fraction of the direction's crown this member holds; a band sums to 1.0.
+  credit: number;
+};
+
 export type CurrentCrown = {
+  // Dominant (highest-credit) band holder. `rate` is always the band's anchor
+  // (best) rate, so single-rate readers like the ticker stay correct.
   uid: number | null;
   hotkey: string | null;
   rate: number | null;
+  // Every band member with its credit, dominant first. Absent on older APIs.
+  holders?: CurrentCrownHolder[];
 };
 
 export type CurrentCrownMap = Record<Direction, CurrentCrown>;
@@ -80,6 +91,9 @@ export type CrownHistoryRow = {
   hotkey: string;
   uid: number | null;
   rate: number;
+  // Holder's fraction of this interval's crown. Absent on older APIs — readers
+  // treat missing as an even split among the interval's rows.
+  credit?: number;
 };
 
 // One miner's crown time within a window: seconds held (tie-credited) and that

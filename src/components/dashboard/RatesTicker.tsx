@@ -9,7 +9,7 @@ import {
 import { useSpokes } from '../../hooks';
 import { formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
-import { BlockIndicator, ChainLogo } from '../index';
+import { ChainLogo } from '../index';
 import Ticker from '../Ticker';
 import { MOVE_COLORS } from './AllwaysMarketRate';
 
@@ -96,8 +96,8 @@ const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
   );
 };
 
-// Market-page eyebrow: the "updated <ago>" indicator pinned left, then the
-// wall-street tape — every route crawling by with its rate and 1D move.
+// Market-page eyebrow: the wall-street tape — every route crawling by with
+// its rate and 1D move.
 const RatesTicker: React.FC = () => {
   const spokes = useSpokes();
   const directions = useMemo<Direction[]>(
@@ -125,9 +125,6 @@ const RatesTicker: React.FC = () => {
         borderColor: 'divider',
       }}
     >
-      <Box sx={{ flexShrink: 0 }}>
-        <BlockIndicator />
-      </Box>
       <Ticker>
         {directions.map((d) => (
           <DirSegment key={d} direction={d} />
