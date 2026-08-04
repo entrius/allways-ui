@@ -75,8 +75,8 @@ const trimToMinDecimals = (value: string, minDecimals: number): string => {
   return padded ? `${intPart}.${padded}` : intPart;
 };
 
-// SOL is the hub/numeraire; BTC and TAO are spoke chains whose amounts still
-// render on the source/dest legs of a swap.
+// SOL is the hub/numeraire; BTC, TAO, and ETH are spoke chains whose amounts
+// still render on the source/dest legs of a swap.
 const CHAIN_DECIMALS: Record<
   string,
   { exp: number; digits: number; symbol: string }
@@ -84,6 +84,7 @@ const CHAIN_DECIMALS: Record<
   btc: { exp: 1e8, digits: 8, symbol: 'BTC' },
   tao: { exp: 1e9, digits: 4, symbol: 'TAO' },
   sol: { exp: 1e9, digits: 4, symbol: 'SOL' },
+  eth: { exp: 1e18, digits: 6, symbol: 'ETH' },
 };
 
 // The hub chain — the numeraire. Rates and cross-quotes pin this as the base.
@@ -261,6 +262,12 @@ const BTC_TX_URL_TEMPLATE =
   (import.meta.env.VITE_EXPLORER_BTC_TX_URL as string | undefined) ??
   'https://mempool.space/tx/{hash}';
 
+// ETH tx hashes stay 0x-prefixed (that's their canonical form). Override with
+// VITE_EXPLORER_ETH_TX_URL (e.g. a sepolia explorer) via any {hash} template.
+const ETH_TX_URL_TEMPLATE =
+  (import.meta.env.VITE_EXPLORER_ETH_TX_URL as string | undefined) ??
+  'https://etherscan.io/tx/{hash}';
+
 export const normalizeTxHash = (
   chain: string | null | undefined,
   hash: string,
@@ -270,7 +277,14 @@ export const normalizeTxHash = (
 export const explorerTxUrl = (
   chain: string | null | undefined,
   hash: string,
-): string | null =>
-  hash && (chain ?? '').toLowerCase() === 'btc'
-    ? BTC_TX_URL_TEMPLATE.replace('{hash}', hash.replace(/^0x/i, ''))
-    : null;
+): string | null => {
+  if (!hash) return null;
+  switch ((chain ?? '').toLowerCase()) {
+    case 'btc':
+      return BTC_TX_URL_TEMPLATE.replace('{hash}', hash.replace(/^0x/i, ''));
+    case 'eth':
+      return ETH_TX_URL_TEMPLATE.replace('{hash}', hash);
+    default:
+      return null;
+  }
+};

@@ -2,7 +2,13 @@ import { directionalRate, rateUnit } from '../../utils/format';
 
 // Each hub↔spoke leg is its own crown/pool: the forward SOL→spoke quotes plus
 // their SOL-hub reverses. Mirrors das-allways' Direction / allways.constants.
-export type Direction = 'SOL-BTC' | 'BTC-SOL' | 'SOL-TAO' | 'TAO-SOL';
+export type Direction =
+  | 'SOL-BTC'
+  | 'BTC-SOL'
+  | 'SOL-TAO'
+  | 'TAO-SOL'
+  | 'SOL-ETH'
+  | 'ETH-SOL';
 export type Range = '1h' | '24h' | '7d' | '30d' | '90d' | 'all';
 
 // Canonical render order — pairs kept together, forward leg first.
@@ -11,6 +17,8 @@ export const ALL_DIRECTIONS: Direction[] = [
   'BTC-SOL',
   'SOL-TAO',
   'TAO-SOL',
+  'SOL-ETH',
+  'ETH-SOL',
 ];
 
 // 'SOL-BTC' → 'SOL → BTC'

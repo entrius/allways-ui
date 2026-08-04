@@ -67,6 +67,18 @@ const DIRECTION_META: Record<
     to: 'SOL',
     caption: 'SOL per 1 TAO',
   },
+  'SOL-ETH': {
+    label: 'SOL → ETH',
+    from: 'SOL',
+    to: 'ETH',
+    caption: 'ETH per 1 SOL',
+  },
+  'ETH-SOL': {
+    label: 'ETH → SOL',
+    from: 'ETH',
+    to: 'SOL',
+    caption: 'SOL per 1 ETH',
+  },
 };
 
 // Full-precision plain decimal — the rate is never rounded, clipped, or
@@ -130,6 +142,8 @@ const CrownRateChart: React.FC<{
   const btcSol = useCrownRateHistory({ direction: 'BTC-SOL', secs }).data;
   const solTao = useCrownRateHistory({ direction: 'SOL-TAO', secs }).data;
   const taoSol = useCrownRateHistory({ direction: 'TAO-SOL', secs }).data;
+  const solEth = useCrownRateHistory({ direction: 'SOL-ETH', secs }).data;
+  const ethSol = useCrownRateHistory({ direction: 'ETH-SOL', secs }).data;
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
 
   const crownByDir = useMemo<
@@ -140,8 +154,10 @@ const CrownRateChart: React.FC<{
       'BTC-SOL': btcSol,
       'SOL-TAO': solTao,
       'TAO-SOL': taoSol,
+      'SOL-ETH': solEth,
+      'ETH-SOL': ethSol,
     }),
-    [solBtc, btcSol, solTao, taoSol],
+    [solBtc, btcSol, solTao, taoSol, solEth, ethSol],
   );
 
   // Use reduce instead of `Math.max(...arr)` to avoid spreading large arrays.
