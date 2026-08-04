@@ -4,7 +4,7 @@ import { useMiners } from '../api';
 // Every spoke chain with registered miners is a listable pair — the list
 // grows on its own as new chains come online. `pin` (a URL-selected pair)
 // is always included so a deep link never loses its market; until miners
-// load, the two launch pairs stand in.
+// load, the launch pairs stand in.
 export const useSpokes = (pin?: string): string[] => {
   const { data: miners } = useMiners();
   return useMemo(() => {
@@ -18,6 +18,6 @@ export const useSpokes = (pin?: string): string[] => {
     if (pin) found.add(pin);
     return found.size > (pin ? 1 : 0) || miners?.length
       ? [...found].sort()
-      : ['btc', 'tao'];
+      : ['btc', 'eth', 'tao'];
   }, [miners, pin]);
 };
