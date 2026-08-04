@@ -96,8 +96,8 @@ const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
   );
 };
 
-// Market-page eyebrow: the "updated <ago>" indicator pinned left, then the
-// wall-street tape — every route crawling by with its rate and 1D move.
+// Market-page eyebrow: the wall-street tape — every route crawling by with
+// its rate and 1D move.
 const RatesTicker: React.FC = () => {
   const spokes = useSpokes();
   const directions = useMemo<Direction[]>(

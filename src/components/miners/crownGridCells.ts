@@ -76,13 +76,25 @@ export const buildCells = (
   const headBucket = cellBucket(headT);
   const cells: CellState[] = [];
   for (let b = cellBucket(lo); b <= hi; b += CELL_SECS) {
-    const here = byBucket.get(b) ?? [];
+    const bucketRows = byBucket.get(b) ?? [];
     // Dominant first: highest credit wins the cell, hotkey as a deterministic
     // tie-break (also the whole sort for pre-credit APIs, matching old order).
-    here.sort(
+    bucketRows.sort(
       (a, c) =>
         (c.credit ?? 1) - (a.credit ?? 1) || a.hotkey.localeCompare(c.hotkey),
     );
+    // A cell spanning an interval boundary holds rows from both intervals, so
+    // the same hotkey can appear twice with different credits. Keep only its
+    // best row: duplicates would inflate the hover list past 100% and flag a
+    // one-miner cell as tied.
+    const seen = new Set<string>();
+    const here: CrownHistoryRow[] = [];
+    for (const row of bucketRows) {
+      if (!seen.has(row.hotkey)) {
+        seen.add(row.hotkey);
+        here.push(row);
+      }
+    }
     if (subjectUid != null) {
       const mine = here.find((r) => r.uid === subjectUid);
       cells.push({
