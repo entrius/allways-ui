@@ -63,18 +63,18 @@ export const useApiQueryAllPages = <TItem>(
   });
 };
 
-export const useApiQuery = <TResponse = void, TSelect = TResponse>(
+// Query options shared by useApiQuery and useQueries callers (dynamic
+// query-per-item fan-outs) so both hit the API identically.
+export const apiQueryOptions = <TResponse>(
   queryName: string,
   url: string,
   refetchInterval?: number,
   queryParams?: Record<string, string | number | undefined>,
-  enabled?: boolean,
 ) => {
   const baseUrl = import.meta.env.VITE_REACT_APP_BASE_URL;
-
-  return useQuery<TResponse, AxiosError, TSelect>({
-    queryKey: [queryName, url, queryParams],
-    queryFn: async () => {
+  return {
+    queryKey: [queryName, url, queryParams] as const,
+    queryFn: async (): Promise<TResponse> => {
       const requestUrl = baseUrl ? `${baseUrl}${url}` : url;
       const response = await axios.get(requestUrl, {
         params: queryParams,
@@ -88,9 +88,20 @@ export const useApiQuery = <TResponse = void, TSelect = TResponse>(
       }
       return response.data;
     },
-    retry: false,
-    enabled: enabled ?? true,
-    refetchInterval: refetchInterval ?? false,
+    retry: false as const,
+    refetchInterval: (refetchInterval ?? false) as number | false,
     placeholderData: keepPreviousData,
-  });
+  };
 };
+
+export const useApiQuery = <TResponse = void, TSelect = TResponse>(
+  queryName: string,
+  url: string,
+  refetchInterval?: number,
+  queryParams?: Record<string, string | number | undefined>,
+  enabled?: boolean,
+) =>
+  useQuery<TResponse, AxiosError, TSelect>({
+    ...apiQueryOptions<TResponse>(queryName, url, refetchInterval, queryParams),
+    enabled: enabled ?? true,
+  });

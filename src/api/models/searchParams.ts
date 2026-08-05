@@ -1,4 +1,5 @@
-import { ALL_DIRECTIONS, type Direction, type Range } from './MinersDashboard';
+import { type Direction, type Range } from './MinersDashboard';
+import { allDirections } from './chains';
 
 // Crown-grid window mode lives only on the URL — not on any API contract —
 // so the type lives here next to the search-param guards that read it.
@@ -19,7 +20,7 @@ export const isRange = (v: string | null): v is Range =>
   RANGES.includes((v ?? '') as Range);
 
 export const isDirection = (v: string | null): v is Direction =>
-  ALL_DIRECTIONS.includes((v ?? '') as Direction);
+  allDirections().includes(v ?? '');
 
 export const isCrownRange = (v: string | null): v is CrownRange =>
   CROWN_RANGES.includes((v ?? '') as CrownRange);

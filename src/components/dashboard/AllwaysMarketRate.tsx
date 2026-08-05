@@ -23,6 +23,7 @@ import { TickerSymbol } from '../ChainLogo';
 import RangeChips from '../RangeChips';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import StatsStrip from './StatsStrip';
+import { hubChain } from '../../api/models/chains';
 
 // The non-SOL side of a pair. A string, not a union: pairs are open-ended —
 // every spoke chain with registered miners gets a market page automatically.
@@ -177,7 +178,7 @@ const AllwaysMarketRate: React.FC<{
   // them, converter-style.
   const optionsFor = (side: 'from' | 'to') => {
     const other = side === 'from' ? to : from;
-    return other === 'sol' ? spokes : ['sol'];
+    return other === hubChain() ? spokes : [hubChain()];
   };
   const pickSide = (side: 'from' | 'to', c: string) => {
     // Options are pre-limited to legal partners, so the pick maps straight
@@ -185,10 +186,10 @@ const AllwaysMarketRate: React.FC<{
     const C = c.toUpperCase();
     const next: Direction =
       side === 'from'
-        ? c === 'sol'
+        ? c === hubChain()
           ? (`SOL-${to.toUpperCase()}` as Direction)
           : (`${C}-SOL` as Direction)
-        : c === 'sol'
+        : c === hubChain()
           ? (`${from.toUpperCase()}-SOL` as Direction)
           : (`SOL-${C}` as Direction);
     if (next !== direction) onDirectionChange(next);

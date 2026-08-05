@@ -30,7 +30,8 @@ import {
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
-import { HUB_CHAIN, directionalRate, formatRate } from '../../utils/format';
+import { directionalRate, formatRate } from '../../utils/format';
+import { hubChain } from '../../api/models/chains';
 
 type SortKey = 'uid' | 'rateFwd' | 'rateRev' | 'collateral' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -43,7 +44,7 @@ type Leg = 'forward' | 'reverse';
 const minerSpoke = (m: Miner): string | null => {
   const chains = [m.sourceChain, m.destChain]
     .map((c) => c?.toLowerCase())
-    .filter((c): c is string => !!c && c !== 'sol');
+    .filter((c): c is string => !!c && c !== hubChain());
   return chains[0] ?? null;
 };
 // Open = idle/tradeable now; Active = also reserved/exchanging; All = + inactive.
@@ -68,7 +69,8 @@ const statusRank = (m: Miner) =>
 // SOL" (see api/models/Miners.ts) — never per-direction.
 const legChains = (m: Miner, leg: Leg): [string, string] => {
   const spoke = minerSpoke(m) ?? '';
-  return leg === 'reverse' ? [spoke, HUB_CHAIN] : [HUB_CHAIN, spoke];
+  const hub = hubChain();
+  return leg === 'reverse' ? [spoke, hub] : [hub, spoke];
 };
 
 // The DIRECTIONAL rate for a leg ("to per 1 from" — what the user receives

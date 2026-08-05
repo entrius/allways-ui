@@ -1,13 +1,11 @@
 // public/llms.txt is GENERATED from this constant (vite emit-llms-txt plugin) —
-// never edit it by hand. Asset lists below derive from ALL_DIRECTIONS so a new
-// spoke needs no edits here.
-import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
+// never edit it by hand. Asset lists below derive from the chains registry so
+// a new spoke needs no edits here.
+import { allDirections, chainInfo, spokeChains } from '../../api/models/chains';
 
-const dirs = ALL_DIRECTIONS.map((d) => d.toLowerCase());
-const spokes = [...new Set(dirs.flatMap((d) => d.split('-')))].filter(
-  (c) => c !== 'sol',
-);
-const sym = (c: string) => c.toUpperCase();
+const dirs = allDirections().map((d) => d.toLowerCase());
+const spokes = spokeChains();
+const sym = (c: string) => chainInfo(c)?.symbol ?? c.toUpperCase();
 const withAnd = (xs: string[]) =>
   xs.length > 1
     ? `${xs.slice(0, -1).join(', ')}, and ${xs[xs.length - 1]}`

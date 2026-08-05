@@ -18,7 +18,7 @@ import type {
   ScoringState,
 } from './models';
 
-const CROWN_REFRESH_MS = 12_000;
+export const CROWN_REFRESH_MS = 12_000;
 
 export const useCurrentCrown = () =>
   useApiQuery<CurrentCrownMap>('crown', '/crown', CROWN_REFRESH_MS);

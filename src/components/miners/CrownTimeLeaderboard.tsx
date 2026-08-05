@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { useCrownTime } from '../../api';
-import {
-  ALL_DIRECTIONS,
-  directionLabel,
-} from '../../api/models/MinersDashboard';
+import { useCrownTime, useDirections } from '../../api';
+import { directionLabel } from '../../api/models/MinersDashboard';
 import type { CrownTimeRow, Direction } from '../../api/models';
 import { shortHotkey } from '../../utils/format';
 import { FONTS } from '../../theme';
@@ -154,6 +151,7 @@ const DirectionColumn: React.FC<{
 };
 
 const CrownTimeLeaderboard: React.FC = () => {
+  const directions = useDirections();
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
 
@@ -192,7 +190,7 @@ const CrownTimeLeaderboard: React.FC = () => {
           rowGap: 3,
         }}
       >
-        {ALL_DIRECTIONS.map((dir) => (
+        {directions.map((dir) => (
           <DirectionColumn key={dir} direction={dir} seconds={seconds} />
         ))}
       </Box>

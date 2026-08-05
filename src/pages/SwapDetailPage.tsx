@@ -39,6 +39,7 @@ import {
   swapDisplayId,
 } from '../utils/format';
 import { type ContractEvent } from '../api/models';
+import { hubChain } from '../api/models/chains';
 import ExtensionChip, {
   deriveSwapExtensionStatus,
 } from '../components/ExtensionChip';
@@ -493,7 +494,9 @@ const SwapDetailPage: React.FC = () => {
         const sentFrom =
           swap.userSourceAddress ??
           reservation?.userFromAddress ??
-          (swap.sourceChain?.toLowerCase() === 'sol' ? swap.userAddress : null);
+          (swap.sourceChain?.toLowerCase() === hubChain()
+            ? swap.userAddress
+            : null);
         const sentTo = swap.minerSourceAddress;
         const recvFrom = swap.minerDestAddress;
         // Same chain-aware rule as the sending leg: the protocol (SOL)
@@ -502,7 +505,9 @@ const SwapDetailPage: React.FC = () => {
         // rather than a Solana address masquerading as one.
         const recvTo =
           swap.userDestAddress ??
-          (swap.destChain?.toLowerCase() === 'sol' ? swap.userAddress : null);
+          (swap.destChain?.toLowerCase() === hubChain()
+            ? swap.userAddress
+            : null);
         const sentAmount =
           swap.sourceAmount && swap.sourceChain
             ? formatAmount(swap.sourceAmount, swap.sourceChain)

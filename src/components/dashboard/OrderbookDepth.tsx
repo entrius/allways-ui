@@ -23,13 +23,14 @@ import {
 import { FONTS } from '../../theme';
 import { formatRate } from '../../utils/format';
 import { OrderbookDepthSkeleton } from './Skeletons';
+import { hubChain } from '../../api/models/chains';
 
 // The non-hub side of a miner's pair (canonical order pins SOL as source, so
 // this is normally destChain), lowercased — or null if the miner has no pair.
 const minerSpoke = (m: Miner): string | null => {
   const chains = [m.sourceChain, m.destChain]
     .map((c) => c?.toLowerCase())
-    .filter((c): c is string => !!c && c !== 'sol');
+    .filter((c): c is string => !!c && c !== hubChain());
   return chains[0] ?? null;
 };
 

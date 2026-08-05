@@ -11,7 +11,7 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  ALL_DIRECTIONS,
+  useDirections,
   directionLabel,
   useCrownHistory,
   useScoringState,
@@ -87,6 +87,7 @@ const CrownHistoryGrid: React.FC<{
   onWindowChange,
 }) => {
   const theme = useTheme();
+  const directions = useDirections();
   const isDark = theme.palette.mode === 'dark';
   // Theme-aware neutrals — without these, empty/other cells render as
   // near-white on light surfaces and disappear.
@@ -254,7 +255,7 @@ const CrownHistoryGrid: React.FC<{
             onChange={(_e, v) => v && onDirectionChange(v)}
             sx={{ '& .MuiToggleButton-root': { borderColor: 'divider' } }}
           >
-            {ALL_DIRECTIONS.map((d) => (
+            {directions.map((d) => (
               <ToggleButton
                 key={d}
                 value={d}

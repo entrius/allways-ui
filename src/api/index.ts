@@ -1,4 +1,5 @@
 export * from './ApiUtils';
+export * from './ChainsApi';
 export * from './EventsApi';
 export * from './MinersApi';
 export * from './MinersDashboardApi';

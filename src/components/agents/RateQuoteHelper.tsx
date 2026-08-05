@@ -12,7 +12,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import { FONTS } from '../../theme';
 import {
-  ALL_DIRECTIONS,
+  useDirections,
   decomposeDirection,
   directionLabel,
   directionalRateFor,
@@ -22,6 +22,7 @@ import {
 import { useCopy } from '../../hooks';
 import HoverCard from '../HoverCard';
 import { formatRate, trimTrailingZeros } from '../../utils/format';
+import { hubChain } from '../../api/models/chains';
 
 interface BestQuote {
   uid: number | null;
@@ -59,7 +60,7 @@ const computeBest = (
     .map((m) => {
       const src = (m.sourceChain ?? '').toLowerCase();
       const dst = (m.destChain ?? '').toLowerCase();
-      const minerSpoke = src === 'sol' ? dst : src;
+      const minerSpoke = src === hubChain() ? dst : src;
       if (minerSpoke !== spoke) return null;
       const r = leg === 'reverse' ? m.counterRate : m.rate;
       if (!r) return null;
@@ -155,8 +156,9 @@ const CopyRow: React.FC<CopyRowProps> = ({ label, value }) => {
 };
 
 const RateQuoteHelper: React.FC = () => {
+  const directions = useDirections();
   const { data: miners } = useMiners();
-  const [direction, setDirection] = useState<Direction>('SOL-BTC');
+  const [direction, setDirection] = useState<Direction>(directions[0]);
   const [amountStr, setAmountStr] = useState('0.01');
   const amount = parseFloat(amountStr) || 0;
 
@@ -231,7 +233,7 @@ const RateQuoteHelper: React.FC = () => {
             }}
             InputProps={{ sx: { fontFamily: FONTS.mono, borderRadius: 0 } }}
           >
-            {ALL_DIRECTIONS.map((d) => (
+            {directions.map((d) => (
               <MenuItem key={d} value={d}>
                 {directionLabel(d)}
               </MenuItem>
