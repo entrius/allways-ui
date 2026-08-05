@@ -97,7 +97,9 @@ const AMOUNT_MIN_DECIMALS = 2;
 export const formatAmount = (raw: string | number, chain: string): string => {
   const config = CHAIN_DECIMALS[chain.toLowerCase()];
   if (!config) return String(raw);
-  const val = typeof raw === 'string' ? parseInt(raw, 10) : raw;
+  // Number, not parseInt: wei-scale strings can arrive in scientific notation,
+  // which parseInt reads as its mantissa ("1e+21" -> 1).
+  const val = typeof raw === 'string' ? Number(raw) : raw;
   const fixed = (val / config.exp).toFixed(config.digits);
   return `${trimToMinDecimals(fixed, AMOUNT_MIN_DECIMALS)} ${config.symbol}`;
 };
@@ -110,11 +112,15 @@ export const applyFee = (
   feeDivisor: number | undefined,
 ): string | null => {
   if (raw === null || raw === undefined) return null;
-  const val = typeof raw === 'string' ? parseInt(raw, 10) : raw;
-  if (!Number.isFinite(val) || !feeDivisor || feeDivisor <= 0)
-    return String(val);
-  const net = Math.floor(val - val / feeDivisor);
-  return String(net);
+  if (!feeDivisor || feeDivisor <= 0) return String(raw);
+  try {
+    // BigInt end-to-end: doubles overflow at wei scale and String(1e21) turns
+    // scientific, which downstream parseInt would read as "1".
+    const gross = BigInt(raw);
+    return String(gross - gross / BigInt(feeDivisor));
+  } catch {
+    return String(raw);
+  }
 };
 
 // Returns "1 BTC = N SOL" computed from on-chain amounts. Always quotes the
@@ -248,7 +254,7 @@ export const formatUnixTime = (
 // Solana explorer link for a transaction signature. VITE_EXPLORER_SOLANA_TX_URL
 // can override with any template containing {sig}.
 const SOLANA_TX_URL_TEMPLATE =
-  (import.meta.env.VITE_EXPLORER_SOLANA_TX_URL as string | undefined) ??
+  (import.meta.env?.VITE_EXPLORER_SOLANA_TX_URL as string | undefined) ??
   'https://explorer.solana.com/tx/{sig}';
 
 export const explorerSignatureUrl = (signature: string): string =>
@@ -259,13 +265,13 @@ export const explorerSignatureUrl = (signature: string): string =>
 // Normalize for display and linking. VITE_EXPLORER_BTC_TX_URL can override
 // (e.g. a testnet4 explorer) with any template containing {hash}.
 const BTC_TX_URL_TEMPLATE =
-  (import.meta.env.VITE_EXPLORER_BTC_TX_URL as string | undefined) ??
+  (import.meta.env?.VITE_EXPLORER_BTC_TX_URL as string | undefined) ??
   'https://mempool.space/tx/{hash}';
 
 // ETH tx hashes stay 0x-prefixed (that's their canonical form). Override with
 // VITE_EXPLORER_ETH_TX_URL (e.g. a sepolia explorer) via any {hash} template.
 const ETH_TX_URL_TEMPLATE =
-  (import.meta.env.VITE_EXPLORER_ETH_TX_URL as string | undefined) ??
+  (import.meta.env?.VITE_EXPLORER_ETH_TX_URL as string | undefined) ??
   'https://etherscan.io/tx/{hash}';
 
 export const normalizeTxHash = (
@@ -283,7 +289,10 @@ export const explorerTxUrl = (
     case 'btc':
       return BTC_TX_URL_TEMPLATE.replace('{hash}', hash.replace(/^0x/i, ''));
     case 'eth':
-      return ETH_TX_URL_TEMPLATE.replace('{hash}', hash);
+      return ETH_TX_URL_TEMPLATE.replace(
+        '{hash}',
+        /^0x/i.test(hash) ? hash : `0x${hash}`,
+      );
     default:
       return null;
   }

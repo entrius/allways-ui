@@ -521,8 +521,8 @@ const SwapDetailPage: React.FC = () => {
         // Slippage the user accepted: how far the delivered fill fell below the promised quote.
         const slippagePct =
           netRecv && swap.deliveredAmount
-            ? ((parseInt(netRecv, 10) - parseInt(swap.deliveredAmount, 10)) /
-                parseInt(netRecv, 10)) *
+            ? ((Number(netRecv) - Number(swap.deliveredAmount)) /
+                Number(netRecv)) *
               100
             : null;
         const slippageLabel =
