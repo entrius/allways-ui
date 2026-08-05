@@ -1,5 +1,27 @@
-// IMPORTANT: when this constant changes, update public/llms.txt to match.
-// They are intentionally hand-mirrored so /llms.txt is statically servable.
+// public/llms.txt is GENERATED from this constant (vite emit-llms-txt plugin) —
+// never edit it by hand. Asset lists below derive from ALL_DIRECTIONS so a new
+// spoke needs no edits here.
+import { ALL_DIRECTIONS } from '../../api/models/MinersDashboard';
+
+const dirs = ALL_DIRECTIONS.map((d) => d.toLowerCase());
+const spokes = [...new Set(dirs.flatMap((d) => d.split('-')))].filter(
+  (c) => c !== 'sol',
+);
+const sym = (c: string) => c.toUpperCase();
+const withAnd = (xs: string[]) =>
+  xs.length > 1
+    ? `${xs.slice(0, -1).join(', ')}, and ${xs[xs.length - 1]}`
+    : xs[0];
+const pairList = withAnd(spokes.map((c) => `**SOL↔${sym(c)}**`));
+const assetList = withAnd(['SOL', ...spokes.map(sym)]);
+const directionList = dirs.map((d) => `\`${d.replace('-', '→')}\``).join(', ');
+const fundingRows = [
+  `| ${spokes.map((c) => `\`sol→${c}\``).join(' / ')} | Solana key: \`amount SOL + fees + reservation fee\` | your ${spokes.map(sym).join(' / ')} address |`,
+  ...spokes.map(
+    (c) =>
+      `| \`${c}→sol\` | ${sym(c)} wallet: \`amount + network fee\`; Solana key: fees + reservation fee | your SOL pubkey |`,
+  ),
+].join('\n');
 
 export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 
@@ -12,13 +34,13 @@ export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for
 native swaps between independent assets, settled on a **Solana
 program**. It is **hub-and-spoke with SOL as the hub**: the launch pairs are
-**SOL↔BTC** and **SOL↔TAO**, so every swap has a SOL leg. Miners post **SOL**
+${pairList}, so every swap has a SOL leg. Miners post **SOL**
 collateral and quote exchange rates. Validators verify both legs of each swap.
 The contract slashes collateral (in SOL) on failure and pays the taker. No
 custodian, no wrapped asset, no bridge token.
 
 > **Where to point your wallets:** **Mainnet** (Bittensor netuid 7 + Solana
-> mainnet) is the live network — real SOL, BTC, and TAO. **Testnet** (netuid 19 +
+> mainnet) is the live network — real ${assetList}. **Testnet** (netuid 19 +
 > Solana devnet) mirrors it with free funds for dry-runs. Both use the same Solana
 > program \`6JVBEj5w27J2SVjERmv2c7wXgFee9nSSBKUJevHehyBD\` — the program id is the
 > same across clusters; only the network differs. Setup blocks for both are below.
@@ -39,14 +61,14 @@ custodian, no wrapped asset, no bridge token.
 
 - **Collateral-backed.** Every swap is backed by SOL collateral worth its full value; if delivery fails, the contract slashes that collateral and repays the taker.
 - **Best rate.** Dynamic pricing — quotes update every block.
-- **Subnet-native.** Settles in real SOL, BTC, and TAO. No IOUs.
+- **Subnet-native.** Settles in real ${assetList}. No IOUs.
 - **Open + agentic.** Public API, SSE feeds, open-source CLI, scriptable end-to-end.
 
 > **Code is law.** This doc is a quickstart, not a spec. Review everything end-to-end before any non-trivial swap — the on-chain program (\`smart-contracts/solana/programs/allways_swap_manager\`, an Anchor program), the validator and miner code, the CLI, and the constants under \`allways/constants.py\`. The contract is the only authority that matters; everything below is convenience and may lag the source. Source of truth: https://github.com/entrius/allways at the version you installed.
 
 ## Concepts you actually need
 
-- **Hub-and-spoke.** SOL is the numéraire. Directions: \`sol→btc\`, \`btc→sol\`, \`sol→tao\`, \`tao→sol\`. Rates read as "destination per 1 SOL" for hub→spoke and its reverse for spoke→hub. Collateral, the reservation fee, and swap sizing are all in SOL.
+- **Hub-and-spoke.** SOL is the numéraire. Directions: ${directionList}. Rates read as "destination per 1 SOL" for hub→spoke and its reverse for spoke→hub. Collateral, the reservation fee, and swap sizing are all in SOL.
 - **Actors.** Miners post SOL collateral and quote live per-direction rates on-chain — active and quoting *before any swap exists*. Takers pick a pair and an amount. Validators verify both legs and vote. The contract enforces slash / timeout / payout.
 - **Reservation lifecycle (two-phase).** A miner is secured *before* amounts are named:
   1. **Bid** (\`open_or_request\`) — you (or a validator on your behalf) bid into a per-miner pool and pay a small, non-refundable SOL **reservation fee**. The first bid pins the miner's rate for the pool window. A bid carries no taker and no amounts.
@@ -123,9 +145,7 @@ As a swap user (not a miner) the **coldkey** signs the TAO source transfer; the 
 
 | Direction | Fund | Receive address |
 |---|---|---|
-| \`sol→btc\` / \`sol→tao\` | Solana key: \`amount SOL + fees + reservation fee\` | your BTC / TAO address |
-| \`btc→sol\` | BTC wallet: \`amount + BTC fee\`; Solana key: fees + reservation fee | your SOL pubkey |
-| \`tao→sol\` | coldkey: \`amount TAO + extrinsic fee\`; Solana key: fees + reservation fee | your SOL pubkey |
+${fundingRows}
 
 Every direction needs a funded Solana key for fees and the reservation fee, even when the source asset is BTC or TAO.
 
