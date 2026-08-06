@@ -9,7 +9,7 @@ import {
 } from './models/chains';
 import type { Direction } from './models';
 
-const CHAINS_REFRESH_MS = 300_000;
+const CHAINS_REFRESH_MS = 3_600_000;
 
 // Live chain metadata from das, seeded from the committed snapshot so a das
 // outage still renders the known chains. The fetch also updates the module
