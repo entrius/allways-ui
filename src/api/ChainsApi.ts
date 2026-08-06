@@ -34,5 +34,5 @@ export const useChains = () =>
 // Reactive direction list — re-derives when das serves a changed chain set.
 export const useDirections = (): Direction[] => {
   const { data } = useChains();
-  return useMemo(() => allDirections(), [data]);
+  return useMemo(() => allDirections(data), [data]);
 };

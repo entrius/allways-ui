@@ -37,10 +37,12 @@ export const spokeChains = (): string[] =>
   registry.filter((c) => !c.hub).map((c) => c.id);
 
 // Canonical render order — pairs kept together, forward (hub→spoke) leg first.
-export const allDirections = (): string[] => {
-  const hub = hubChain();
-  return spokeChains().flatMap((s) => [
-    `${hub}-${s}`.toUpperCase(),
-    `${s}-${hub}`.toUpperCase(),
-  ]);
+export const allDirections = (chains: ChainInfo[] = registry): string[] => {
+  const hub = chains.find((c) => c.hub)!.id;
+  return chains
+    .filter((c) => !c.hub)
+    .flatMap((c) => [
+      `${hub}-${c.id}`.toUpperCase(),
+      `${c.id}-${hub}`.toUpperCase(),
+    ]);
 };
