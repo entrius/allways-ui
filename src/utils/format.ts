@@ -1,3 +1,5 @@
+import { chainInfo, hubChain } from '../api/models/chains';
+
 export const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
 
@@ -75,27 +77,21 @@ const trimToMinDecimals = (value: string, minDecimals: number): string => {
   return padded ? `${intPart}.${padded}` : intPart;
 };
 
-// SOL is the hub/numeraire; BTC, TAO, and ETH are spoke chains whose amounts
-// still render on the source/dest legs of a swap.
-const CHAIN_DECIMALS: Record<
-  string,
-  { exp: number; digits: number; symbol: string }
-> = {
-  btc: { exp: 1e8, digits: 8, symbol: 'BTC' },
-  tao: { exp: 1e9, digits: 4, symbol: 'TAO' },
-  sol: { exp: 1e9, digits: 4, symbol: 'SOL' },
-  eth: { exp: 1e18, digits: 6, symbol: 'ETH' },
+// Per-chain render config from the das-served chain registry (seeded, then
+// refreshed live) — the UI has no chain table of its own.
+const chainCfg = (chain: string | null | undefined) => {
+  const c = chainInfo(chain);
+  return c
+    ? { exp: 10 ** c.decimals, digits: c.displayDigits, symbol: c.symbol }
+    : undefined;
 };
-
-// The hub chain — the numeraire. Rates and cross-quotes pin this as the base.
-export const HUB_CHAIN = 'sol';
 
 // Min display precision so a clean "0.2 SOL" renders as "0.20 SOL" rather
 // than dropping the trailing zero entirely.
 const AMOUNT_MIN_DECIMALS = 2;
 
 export const formatAmount = (raw: string | number, chain: string): string => {
-  const config = CHAIN_DECIMALS[chain.toLowerCase()];
+  const config = chainCfg(chain);
   if (!config) return String(raw);
   // Number, not parseInt: wei-scale strings can arrive in scientific notation,
   // which parseInt reads as its mantissa ("1e+21" -> 1).
@@ -124,7 +120,7 @@ export const applyFee = (
 };
 
 // Returns "1 BTC = N SOL" computed from on-chain amounts. Always quotes the
-// non-hub leg in SOL terms so the unit is consistent regardless of direction.
+// non-hub leg in hub terms so the unit is consistent regardless of direction.
 export const formatRateLine = (
   fromAmount: string | null,
   fromChain: string | null,
@@ -132,24 +128,24 @@ export const formatRateLine = (
   toChain: string | null,
 ): string | null => {
   if (!fromAmount || !fromChain || !toAmount || !toChain) return null;
-  const fromCfg = CHAIN_DECIMALS[fromChain.toLowerCase()];
-  const toCfg = CHAIN_DECIMALS[toChain.toLowerCase()];
+  const fromCfg = chainCfg(fromChain);
+  const toCfg = chainCfg(toChain);
   if (!fromCfg || !toCfg) return null;
   const fromHuman = parseInt(fromAmount, 10) / fromCfg.exp;
   const toHuman = parseInt(toAmount, 10) / toCfg.exp;
   if (!Number.isFinite(fromHuman) || !Number.isFinite(toHuman) || toHuman === 0)
     return null;
-  const fromIsHub = fromChain.toLowerCase() === HUB_CHAIN;
+  const fromIsHub = fromChain.toLowerCase() === hubChain();
   const hubSide = fromIsHub ? fromHuman : toHuman;
   const otherSide = fromIsHub ? toHuman : fromHuman;
   const otherSym = (fromIsHub ? toChain : fromChain).toUpperCase();
   if (otherSide === 0) return null;
   const ratio = hubSide / otherSide;
-  return `1 ${otherSym} = ${formatRate(ratio)} SOL`;
+  return `1 ${otherSym} = ${formatRate(ratio)} ${chainSymbol(hubChain())}`;
 };
 
 export const chainSymbol = (chain: string): string =>
-  CHAIN_DECIMALS[chain.toLowerCase()]?.symbol ?? chain.toUpperCase();
+  chainCfg(chain)?.symbol ?? chain.toUpperCase();
 
 // ── Directional rate display ──
 // Machines store ONE canonical denomination per pair: "dest per 1 canonical
@@ -159,12 +155,11 @@ export const chainSymbol = (chain: string): string =>
 // Mirror of allways.utils.rate.directional_rate / chains.canonical_pair —
 // keep in lockstep.
 
-// canonical_pair ordering: hub is always source; else TAO is dest (legacy
-// non-hub pairs); else alphabetical.
+// canonical_pair ordering: hub is always source; non-hub pairs (none exist —
+// every pair is hub↔spoke) order alphabetically.
 const canonicalSource = (a: string, b: string): string => {
-  if (a === HUB_CHAIN || b === HUB_CHAIN) return HUB_CHAIN;
-  if (b === 'tao') return a;
-  if (a === 'tao') return b;
+  const hub = hubChain();
+  if (a === hub || b === hub) return hub;
   return a < b ? a : b;
 };
 
@@ -251,49 +246,37 @@ export const formatUnixTime = (
   return new Date(ts * 1000).toLocaleString();
 };
 
-// Solana explorer link for a transaction signature. VITE_EXPLORER_SOLANA_TX_URL
-// can override with any template containing {sig}.
-const SOLANA_TX_URL_TEMPLATE =
-  (import.meta.env?.VITE_EXPLORER_SOLANA_TX_URL as string | undefined) ??
-  'https://explorer.solana.com/tx/{sig}';
-
-export const explorerSignatureUrl = (signature: string): string =>
-  SOLANA_TX_URL_TEMPLATE.replace('{sig}', signature);
-
-// BTC tx hashes are bare hex; the reservation-extension event types its hash as
-// a Hash, so it arrives 0x-prefixed and a mempool link built from it 404s.
-// Normalize for display and linking. VITE_EXPLORER_BTC_TX_URL can override
-// (e.g. a testnet4 explorer) with any template containing {hash}.
-const BTC_TX_URL_TEMPLATE =
-  (import.meta.env?.VITE_EXPLORER_BTC_TX_URL as string | undefined) ??
-  'https://mempool.space/tx/{hash}';
-
-// ETH tx hashes stay 0x-prefixed (that's their canonical form). Override with
-// VITE_EXPLORER_ETH_TX_URL (e.g. a sepolia explorer) via any {hash} template.
-const ETH_TX_URL_TEMPLATE =
-  (import.meta.env?.VITE_EXPLORER_ETH_TX_URL as string | undefined) ??
-  'https://etherscan.io/tx/{hash}';
-
+// Hash spelling is a family trait, not a chain trait: UTXO explorers want bare
+// hex (a 0x-prefixed Hash-typed event value 404s), EVM hashes are canonically
+// 0x-prefixed. Normalize for display and linking.
 export const normalizeTxHash = (
   chain: string | null | undefined,
   hash: string,
-): string =>
-  (chain ?? '').toLowerCase() === 'btc' ? hash.replace(/^0x/i, '') : hash;
+): string => {
+  switch (chainInfo(chain)?.family) {
+    case 'utxo':
+      return hash.replace(/^0x/i, '');
+    case 'evm':
+      return /^0x/i.test(hash) ? hash : `0x${hash}`;
+    default:
+      return hash;
+  }
+};
 
+// Explorer link from the das-served {hash} template — network-aware on the
+// server side, so the UI never knows networks exist. Null when the chain has
+// no explorer (or isn't known).
 export const explorerTxUrl = (
   chain: string | null | undefined,
   hash: string,
 ): string | null => {
   if (!hash) return null;
-  switch ((chain ?? '').toLowerCase()) {
-    case 'btc':
-      return BTC_TX_URL_TEMPLATE.replace('{hash}', hash.replace(/^0x/i, ''));
-    case 'eth':
-      return ETH_TX_URL_TEMPLATE.replace(
-        '{hash}',
-        /^0x/i.test(hash) ? hash : `0x${hash}`,
-      );
-    default:
-      return null;
-  }
+  const template = chainInfo(chain)?.explorerTx;
+  return template
+    ? template.replace('{hash}', normalizeTxHash(chain, hash))
+    : null;
 };
+
+// Hub explorer link for a transaction signature (Solana program txs).
+export const explorerSignatureUrl = (signature: string): string =>
+  explorerTxUrl(hubChain(), signature) ?? '';

@@ -1,0 +1,48 @@
+{
+  "chains": [
+    {
+      "id": "sol",
+      "symbol": "SOL",
+      "name": "Solana",
+      "decimals": 9,
+      "displayDigits": 4,
+      "family": "sol",
+      "hub": true,
+      "logo": "/chains/logos/sol.png",
+      "explorerTx": "https://solscan.io/tx/{hash}"
+    },
+    {
+      "id": "btc",
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "decimals": 8,
+      "displayDigits": 8,
+      "family": "utxo",
+      "hub": false,
+      "logo": "/chains/logos/btc.png",
+      "explorerTx": "https://mempool.space/tx/{hash}"
+    },
+    {
+      "id": "tao",
+      "symbol": "TAO",
+      "name": "Bittensor",
+      "decimals": 9,
+      "displayDigits": 4,
+      "family": "ss58",
+      "hub": false,
+      "logo": "/chains/logos/tao.png",
+      "explorerTx": "https://taostats.io/extrinsic/{hash}"
+    },
+    {
+      "id": "eth",
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "decimals": 18,
+      "displayDigits": 6,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/eth.png",
+      "explorerTx": "https://etherscan.io/tx/{hash}"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useMiners } from '../api';
+import { hubChain, spokeChains } from '../api/models/chains';
 
 // Every spoke chain with registered miners is a listable pair — the list
 // grows on its own as new chains come online. `pin` (a URL-selected pair)
@@ -12,12 +13,12 @@ export const useSpokes = (pin?: string): string[] => {
     (miners ?? []).forEach((m) => {
       [m.sourceChain, m.destChain]
         .map((c) => c?.toLowerCase())
-        .filter((c): c is string => !!c && c !== 'sol')
+        .filter((c): c is string => !!c && c !== hubChain())
         .forEach((c) => found.add(c));
     });
     if (pin) found.add(pin);
     return found.size > (pin ? 1 : 0) || miners?.length
       ? [...found].sort()
-      : ['btc', 'eth', 'tao'];
+      : [...spokeChains()].sort();
   }, [miners, pin]);
 };

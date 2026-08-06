@@ -1,3 +1,4 @@
+export * from './chains';
 export * from './Events';
 export * from './Miners';
 export * from './MinersDashboard';

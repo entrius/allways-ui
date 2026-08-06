@@ -1,4 +1,5 @@
 import type { ActiveSwap } from '../../api/models';
+import { hubChain } from '../../api/models/chains';
 
 // The transactions explorer's find filters. The URL query string is the
 // single source of truth: SwapTracker writes it, SwapTracker AND
@@ -81,7 +82,7 @@ export const toNum = (v: string | null): number => {
 // comparable across pairs.
 export const solNotional = (s: ActiveSwap): number =>
   toNum(
-    s.sourceChain?.toLowerCase() === 'sol'
+    s.sourceChain?.toLowerCase() === hubChain()
       ? s.sourceAmount
       : (s.destAmount ?? s.solAmount),
   );

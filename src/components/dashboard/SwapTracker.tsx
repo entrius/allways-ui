@@ -36,6 +36,7 @@ import {
   lamportsToSol,
   swapDisplayId,
 } from '../../utils/format';
+import { hubChain } from '../../api/models/chains';
 import {
   applyTxFilters,
   countActiveFilters,
@@ -1001,7 +1002,7 @@ const SwapTracker: React.FC<{
                         const fromWallet =
                           swap.userSourceAddress ??
                           res?.userFromAddress ??
-                          (sourceChain?.toLowerCase() === 'sol'
+                          (sourceChain?.toLowerCase() === hubChain()
                             ? swap.userAddress
                             : null);
                         return fromWallet ? (
@@ -1045,7 +1046,7 @@ const SwapTracker: React.FC<{
                         // address only stands in when the dest leg IS Solana.
                         const toWallet =
                           swap.userDestAddress ??
-                          (destChain?.toLowerCase() === 'sol'
+                          (destChain?.toLowerCase() === hubChain()
                             ? swap.userAddress
                             : null);
                         return toWallet ? (

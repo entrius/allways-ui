@@ -11,6 +11,7 @@ import { MOVE_COLORS, RANGE_SECS, type HeroRange } from './AllwaysMarketRate';
 import RangeChips from '../RangeChips';
 import { FONTS } from '../../theme';
 import { formatAmount, formatDurationSecs } from '../../utils/format';
+import { hubChain } from '../../api/models/chains';
 import {
   applyTxFilters,
   countActiveFilters,
@@ -45,7 +46,7 @@ type PulseDatum = {
 // Dot area tracks the swap's SOL-leg notional so big transactions read big.
 const sizeFor = (swap: ActiveSwap): number => {
   const lamports =
-    swap.sourceChain?.toLowerCase() === 'sol'
+    swap.sourceChain?.toLowerCase() === hubChain()
       ? swap.sourceAmount
       : (swap.destAmount ?? swap.solAmount);
   const sol = lamports ? parseInt(lamports, 10) / 1e9 : 0;

@@ -1,16 +1,19 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useQueries } from '@tanstack/react-query';
 import {
-  ALL_DIRECTIONS,
+  apiQueryOptions,
+  CROWN_REFRESH_MS,
   decomposeDirection,
   directionalRateFor,
-  useCrownRateHistory,
+  useDirections,
   useMinerRateHistory,
   type CrownRateHistoryRow,
   type Direction,
   type RateRange,
 } from '../../api';
+import { chainSymbol } from '../../utils/format';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import RangeChips from '../RangeChips';
 import SectionHeading from '../SectionHeading';
@@ -29,56 +32,14 @@ const RANGE_SECS: Record<CrownRange, number> = {
   '30d': 2_592_000,
 };
 
-// One panel per direction. Monochrome like Network Stats — the line is the
-// theme's primary text shade, the crown reference (miner mode) the disabled
-// shade. Every rendered rate is directional "to per 1 from" ("1 {from} =
-// {value} {to}") for all four — seriesByDir converts the canonical stored
-// values at ingest.
-const DIRECTION_META: Record<
-  Direction,
-  {
-    label: string;
-    from: string;
-    to: string;
-    caption: string;
-  }
-> = {
-  'SOL-BTC': {
-    label: 'SOL → BTC',
-    from: 'SOL',
-    to: 'BTC',
-    caption: 'BTC per 1 SOL',
-  },
-  'BTC-SOL': {
-    label: 'BTC → SOL',
-    from: 'BTC',
-    to: 'SOL',
-    caption: 'SOL per 1 BTC',
-  },
-  'SOL-TAO': {
-    label: 'SOL → TAO',
-    from: 'SOL',
-    to: 'TAO',
-    caption: 'TAO per 1 SOL',
-  },
-  'TAO-SOL': {
-    label: 'TAO → SOL',
-    from: 'TAO',
-    to: 'SOL',
-    caption: 'SOL per 1 TAO',
-  },
-  'SOL-ETH': {
-    label: 'SOL → ETH',
-    from: 'SOL',
-    to: 'ETH',
-    caption: 'ETH per 1 SOL',
-  },
-  'ETH-SOL': {
-    label: 'ETH → SOL',
-    from: 'ETH',
-    to: 'SOL',
-    caption: 'SOL per 1 ETH',
-  },
+// Labels generated from the direction's own legs — nothing chain-specific.
+// Every rendered rate is directional "to per 1 from" ("1 {from} = {value}
+// {to}"); seriesByDir converts the canonical stored values at ingest.
+const dirMeta = (dir: Direction) => {
+  const { from, to } = decomposeDirection(dir);
+  const f = chainSymbol(from);
+  const t = chainSymbol(to);
+  return { label: `${f} → ${t}`, from: f, to: t, caption: `${t} per 1 ${f}` };
 };
 
 // Full-precision plain decimal — the rate is never rounded, clipped, or
@@ -98,7 +59,7 @@ const LatestRate: React.FC<{ direction: Direction; rate: number }> = ({
   direction,
   rate,
 }) => {
-  const meta = DIRECTION_META[direction];
+  const meta = dirMeta(direction);
   return (
     <Stack
       direction="row"
@@ -131,50 +92,46 @@ const CrownRateChart: React.FC<{
   minerHotkey?: string;
 }> = ({ range, onRangeChange, minerHotkey }) => {
   const theme = useTheme();
+  const directions = useDirections();
   const secs = RANGE_SECS[range];
   const minerMode = !!minerHotkey;
   // Monochrome, matching the Network Stats charts.
   const cLine = theme.palette.text.primary;
   const cReference = theme.palette.text.disabled;
 
-  // One fixed hook per direction (order is stable, so the rules of hooks hold).
-  const solBtc = useCrownRateHistory({ direction: 'SOL-BTC', secs }).data;
-  const btcSol = useCrownRateHistory({ direction: 'BTC-SOL', secs }).data;
-  const solTao = useCrownRateHistory({ direction: 'SOL-TAO', secs }).data;
-  const taoSol = useCrownRateHistory({ direction: 'TAO-SOL', secs }).data;
-  const solEth = useCrownRateHistory({ direction: 'SOL-ETH', secs }).data;
-  const ethSol = useCrownRateHistory({ direction: 'ETH-SOL', secs }).data;
+  // One query per derived direction — the panel count follows /chains.
+  const crownRows = useQueries({
+    queries: directions.map((direction) =>
+      apiQueryOptions<CrownRateHistoryRow[]>(
+        'crown-rate-history',
+        '/crown/rate-history',
+        CROWN_REFRESH_MS,
+        { direction, seconds: secs },
+      ),
+    ),
+    combine: (results) => results.map((r) => r.data),
+  });
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
 
   const crownByDir = useMemo<
     Record<Direction, CrownRateHistoryRow[] | undefined>
   >(
-    () => ({
-      'SOL-BTC': solBtc,
-      'BTC-SOL': btcSol,
-      'SOL-TAO': solTao,
-      'TAO-SOL': taoSol,
-      'SOL-ETH': solEth,
-      'ETH-SOL': ethSol,
-    }),
-    [solBtc, btcSol, solTao, taoSol, solEth, ethSol],
+    () => Object.fromEntries(directions.map((dir, i) => [dir, crownRows[i]])),
+    [directions, crownRows],
   );
 
   // Use reduce instead of `Math.max(...arr)` to avoid spreading large arrays.
   const head = useMemo(() => {
     const maxT = (arr: { t: number }[] | undefined) =>
       (arr ?? []).reduce((m, p) => (p.t > m ? p.t : m), 0);
-    return ALL_DIRECTIONS.reduce(
-      (m, dir) => Math.max(m, maxT(crownByDir[dir])),
-      0,
-    );
-  }, [crownByDir]);
+    return directions.reduce((m, dir) => Math.max(m, maxT(crownByDir[dir])), 0);
+  }, [directions, crownByDir]);
   const lo = Math.max(0, head - secs + 1);
 
   // {crown, miner} rows per direction, clipped to the shared window so all
-  // four panels cover the same time span. Stored rates are canonical "spoke
-  // per 1 SOL"; convert to the panel's directional "to per 1 from" HERE so
-  // every downstream value (line, header, tooltip) shares one scale.
+  // panels cover the same time span. Stored rates are canonical "spoke per 1
+  // SOL"; convert to the panel's directional "to per 1 from" HERE so every
+  // downstream value (line, header, tooltip) shares one scale.
   const seriesByDir = useMemo(() => {
     const inRange = <T extends { t: number }>(arr: T[] | undefined) =>
       (arr ?? []).filter((p) => p.t >= lo && p.t <= head);
@@ -193,7 +150,7 @@ const CrownRateChart: React.FC<{
         ),
       );
     };
-    return ALL_DIRECTIONS.reduce(
+    return directions.reduce(
       (acc, dir) => {
         acc[dir] = {
           crown: toDirectional(dir, inRange(crownByDir[dir])),
@@ -203,10 +160,10 @@ const CrownRateChart: React.FC<{
       },
       {} as Record<Direction, { crown: RateRow[]; miner: RateRow[] }>,
     );
-  }, [crownByDir, minerRates, minerHotkey, lo, head]);
+  }, [directions, crownByDir, minerRates, minerHotkey, lo, head]);
 
   const chartSeries = (dir: Direction): ChartSeries[] => {
-    const meta = DIRECTION_META[dir];
+    const meta = dirMeta(dir);
     const s = seriesByDir[dir];
     const points = (rows: RateRow[]) =>
       rows.map((r) => ({ t: r.t * 1000, value: r.rate }));
@@ -245,8 +202,8 @@ const CrownRateChart: React.FC<{
     ? 'this miner over time · crown shown dashed for reference'
     : 'best rate per direction, over time';
 
-  // One bordered card containing all four direction charts, mirroring the
-  // Crown Time panel's shape: shared header + chips, direction blocks inside.
+  // One bordered card containing all direction charts, mirroring the Crown
+  // Time panel's shape: shared header + chips, direction blocks inside.
   return (
     <Box
       sx={{
@@ -279,8 +236,8 @@ const CrownRateChart: React.FC<{
           rowGap: 3,
         }}
       >
-        {ALL_DIRECTIONS.map((dir) => {
-          const meta = DIRECTION_META[dir];
+        {directions.map((dir) => {
+          const meta = dirMeta(dir);
           const s = seriesByDir[dir];
           const primary = minerMode ? s.miner : s.crown;
           const latest = primary.length

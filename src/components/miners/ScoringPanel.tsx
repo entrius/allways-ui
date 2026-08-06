@@ -10,7 +10,7 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  ALL_DIRECTIONS,
+  useDirections,
   directionLabel,
   isDirection,
   useCurrentMinerScores,
@@ -422,6 +422,7 @@ const ScoringPanel: React.FC<{
   onDirectionChange: (d: Direction | null) => void;
 }> = ({ hotkey, stats, direction, onDirectionChange }) => {
   const theme = useTheme();
+  const directions = useDirections();
   const isDark = theme.palette.mode === 'dark';
 
   const [span, setSpan] = useState<ScoreSpan>('7d');
@@ -485,11 +486,11 @@ const ScoringPanel: React.FC<{
   const sortedTipRows = useMemo(() => {
     const order = (r: CurrentMinerScoreRow) => {
       const dir = rowDirection(r);
-      const idx = dir ? ALL_DIRECTIONS.indexOf(dir) : -1;
-      return idx === -1 ? ALL_DIRECTIONS.length : idx;
+      const idx = dir ? directions.indexOf(dir) : -1;
+      return idx === -1 ? directions.length : idx;
     };
     return [...tipRows].sort((a, b) => order(a) - order(b));
-  }, [tipRows]);
+  }, [tipRows, directions]);
 
   return (
     <Box
@@ -541,7 +542,7 @@ const ScoringPanel: React.FC<{
             >
               All pairs
             </MenuItem>
-            {ALL_DIRECTIONS.map((d) => (
+            {directions.map((d) => (
               <MenuItem
                 key={d}
                 value={d}
