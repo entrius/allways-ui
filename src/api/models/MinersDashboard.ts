@@ -173,6 +173,9 @@ export type MinerRateHistoryRow = {
   rate: number;
   fromChain: string;
   toChain: string;
+  // The quote's collateral chain — two same-direction series (sol- and
+  // tao-backed) move independently; group by it before charting.
+  backing: string;
 };
 
 export type PairMix = { pair: string; pct: number };

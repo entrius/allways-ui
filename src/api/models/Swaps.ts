@@ -10,7 +10,18 @@ export type ActiveSwap = {
   userAddress: string | null;
   minerHotkey: string | null;
   minerPubkey: string | null;
+  // Backing-leg notional in the backing's smallest unit (lamports for 'sol',
+  // rao for 'tao'); the field name predates the backing dimension.
   solAmount: string | null;
+  // The swap's collateral chain ('sol' | 'tao'); null on pre-v3 rows.
+  backing: string | null;
+  // SwapTimedOut verdict (absolute, backing units): what moved locally, what
+  // the backing chain owes, and to whom. For 'tao' this is the verdict, not
+  // confirmed settlement — the vault applies it minutes later.
+  slashAmount: string | null;
+  penalty: string | null;
+  reimbursement: string | null;
+  payee: string | null;
   sourceChain: string | null;
   destChain: string | null;
   sourceAmount: string | null;

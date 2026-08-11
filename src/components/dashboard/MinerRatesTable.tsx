@@ -451,7 +451,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
               const dimmed = hasSearch && !match;
               return (
                 <TableRow
-                  key={miner.hotkey}
+                  // Backing joins the key: a miner may stand a sol- AND a
+                  // tao-backed quote on the same pair, one row each.
+                  key={`${miner.hotkey}:${miner.backing}`}
                   sx={{
                     '&:hover': { backgroundColor: 'action.hover' },
                     transition: 'background-color 0.15s, opacity 0.15s',
@@ -469,6 +471,19 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                           metagraph — show an explicit dash, never a fake 0. */}
                       <Box component="span" sx={{ color: 'text.primary' }}>
                         {miner.uid ?? '—'}
+                        {miner.backing && miner.backing !== 'sol' && (
+                          <Box
+                            component="span"
+                            sx={{
+                              ml: 0.5,
+                              fontSize: '0.6rem',
+                              color: 'text.disabled',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {miner.backing} bond
+                          </Box>
+                        )}
                       </Box>
                       {!isMobile && miner.solanaPubkey && (
                         <Box
