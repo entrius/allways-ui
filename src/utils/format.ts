@@ -1,4 +1,4 @@
-import { chainInfo, hubChain, hubLeg } from '../api/models/chains';
+import { chainInfo, hubChain, hubChains, hubLeg } from '../api/models/chains';
 
 export const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
@@ -41,6 +41,48 @@ export const formatSol = (lamports: string | number) => {
 // formatted string) is needed. Display-side callers should prefer formatSol.
 export const lamportsToSol = (lamports: string | number) =>
   (typeof lamports === 'string' ? parseFloat(lamports) : lamports) / 1e9;
+
+// Per-asset sibling of formatSol: `raw` smallest units of `chain` → human
+// string at fixed `digits`, no symbol. Matches formatSol exactly for 'sol'.
+export const formatUnits = (
+  raw: string | number,
+  chain: string,
+  digits = 2,
+): string => {
+  const exp = 10 ** (chainInfo(chain)?.decimals ?? 9);
+  const val = typeof raw === 'string' ? Number(raw) : raw;
+  return (val / exp).toFixed(digits);
+};
+
+// Numeric smallest-units → human, the per-asset lamportsToSol.
+export const unitsToHuman = (raw: string | number, chain: string): number =>
+  (typeof raw === 'string' ? Number(raw) : raw) /
+  10 ** (chainInfo(chain)?.decimals ?? 9);
+
+// A das per-backing aggregate: one key per hub chain, each value in that
+// backing's OWN smallest unit. NEVER summed across keys.
+export type BackingMap = Record<string, string>;
+
+// Render entries for a per-backing map, in hub-priority order: the sol entry
+// always (so sol-only data keeps its legacy look), other backings only when
+// non-zero. Falls back to the legacy sol scalar when the map is absent —
+// the defensive path for a das that predates the per-backing fields.
+export const backingEntries = (
+  map: BackingMap | null | undefined,
+  legacySol?: string | number | null,
+): { chain: string; amount: string }[] => {
+  if (!map)
+    return [{ chain: 'sol', amount: formatSol(legacySol ?? 0) }];
+  const hubs = hubChains();
+  const order = [
+    ...hubs,
+    ...Object.keys(map).filter((k) => !hubs.includes(k)),
+  ];
+  return order
+    .filter((c) => c in map)
+    .filter((c) => c === 'sol' || Number(map[c]) !== 0)
+    .map((c) => ({ chain: c, amount: formatUnits(map[c], c) }));
+};
 
 export const formatNumber = (n: number, decimals = 2) =>
   n.toLocaleString(undefined, {

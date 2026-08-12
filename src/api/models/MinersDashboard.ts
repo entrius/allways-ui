@@ -118,6 +118,9 @@ export type LeaderboardRow = {
   completedSwaps: number;
   timedOutSwaps: number;
   volumeSol: string;
+  // Completed volume per backing, each in its own smallest unit (absent on
+  // older das); never sum across keys.
+  volumeByBacking?: Record<string, string>;
   collateral: string;
   isActive: boolean;
   currentCrownDirections: Direction[];
@@ -154,6 +157,9 @@ export type MinerStats = {
   timedOutSwaps: number;
   successRate: number;
   volumeSol: string;
+  // Completed volume per backing, each in its own smallest unit (absent on
+  // older das); never sum across keys.
+  volumeByBacking?: Record<string, string>;
   avgFulfillSec: number | null;
   avgCompleteSec: number | null;
   crownShare: number;
@@ -179,12 +185,19 @@ export type PairMix = { pair: string; pct: number };
 
 export type NetworkOverview = {
   volumeSol: string;
+  // Per-backing counterparts of the *Sol scalars (absent on older das):
+  // each key in its own smallest unit — never sum across keys.
+  volumeByBacking?: Record<string, string>;
   totalSwaps: number;
   networkSuccessRate: number;
   activeMiners: number;
   pairMix: PairMix[];
   scoringWindowVolumeSol: string;
+  scoringWindowVolumeByBacking?: Record<string, string>;
   maxSwapAmount: string;
+  // Per-hub swap-size bounds keyed by backing, each in that hub's own
+  // smallest unit; "0" = unset. maxSwapAmount stays the legacy sol max.
+  swapBounds?: Record<string, { min: string; max: string }>;
 };
 
 export type HaltState = { halted: boolean; asOf: number };

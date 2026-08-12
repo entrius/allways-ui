@@ -11,7 +11,8 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { formatRate, lamportsToSol } from '../../utils/format';
+import { canonicalSource, formatRate } from '../../utils/format';
+import { hubLegVolume } from './marketRate';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
 import StatsStrip from './StatsStrip';
@@ -101,9 +102,11 @@ const DirectionRow: React.FC<{
     secs,
   });
 
-  // 1D volume (SOL side) of this route's completed swaps — one shared
-  // swap-history query across all rows, filtered per direction.
+  // Windowed volume (the pair's hub-leg side, one denomination per route) of
+  // this route's completed swaps — one shared swap-history query across all
+  // rows, filtered per direction.
   const { from, to } = decomposeDirection(direction);
+  const hub = canonicalSource(from, to);
   const { data: swaps } = useCompleteSwapHistory();
   const vol = useMemo(() => {
     const cutoff = Date.now() / 1000 - secs;
@@ -117,11 +120,11 @@ const DirectionRow: React.FC<{
         s.destChain?.toLowerCase() !== to
       )
         continue;
-      const v = s.solAmount != null ? lamportsToSol(s.solAmount) : NaN;
+      const v = hubLegVolume(s, hub);
       if (Number.isFinite(v)) sum += v;
     }
     return sum;
-  }, [swaps, from, to, secs]);
+  }, [swaps, from, to, hub, secs]);
   const first = rows?.length
     ? directionalRateFor(direction, rows[0].rate)
     : null;
@@ -299,7 +302,7 @@ const PairsRail: React.FC<{
           </Typography>
         </Tooltip>
         <Tooltip
-          title={`SOL value of this route's completed transactions over the selected window (${range}).`}
+          title={`Hub-side value of this route's completed transactions over the selected window (${range}), in the pair's hub asset.`}
           arrow
         >
           <Typography sx={{ ...railLabelSx, minWidth: 44, textAlign: 'right' }}>

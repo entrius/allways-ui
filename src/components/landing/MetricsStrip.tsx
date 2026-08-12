@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Grid, Skeleton, Stack, Typography } from '@mui/material';
 import { useActiveNodeCount, useStats } from '../../api';
-import { formatSol } from '../../utils/format';
+import { backingEntries, chainSymbol } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { CountUpValue } from '../animated';
 
@@ -10,9 +10,18 @@ interface MetricProps {
   value: string;
   loading?: boolean;
   unit?: string;
+  // Multi-denomination readout ("12.34 SOL + 5.00 TAO") — used instead of
+  // value/unit when a stat is a per-backing map. Entries are never summed.
+  segments?: { value: string; unit: string }[];
 }
 
-const Metric: React.FC<MetricProps> = ({ label, value, loading, unit }) => (
+const Metric: React.FC<MetricProps> = ({
+  label,
+  value,
+  loading,
+  unit,
+  segments,
+}) => (
   <Stack
     sx={{
       p: { xs: 2.5, md: 3 },
@@ -54,21 +63,35 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading, unit }) => (
           sx={{ bgcolor: 'action.hover' }}
         />
       ) : (
-        <>
-          <CountUpValue value={value} />
-          {unit && (
-            <Box
-              component="span"
-              sx={{
-                fontSize: { xs: '1.5rem', md: '2rem' },
-                color: 'text.secondary',
-                fontWeight: 500,
-              }}
-            >
-              {unit}
-            </Box>
-          )}
-        </>
+        (segments ?? [{ value, unit }]).map((seg, i) => (
+          <React.Fragment key={seg.unit ?? i}>
+            {i > 0 && (
+              <Box
+                component="span"
+                sx={{
+                  fontSize: { xs: '1.5rem', md: '2rem' },
+                  color: 'text.disabled',
+                  fontWeight: 500,
+                }}
+              >
+                +
+              </Box>
+            )}
+            <CountUpValue value={seg.value} />
+            {seg.unit && (
+              <Box
+                component="span"
+                sx={{
+                  fontSize: { xs: '1.5rem', md: '2rem' },
+                  color: 'text.secondary',
+                  fontWeight: 500,
+                }}
+              >
+                {seg.unit}
+              </Box>
+            )}
+          </React.Fragment>
+        ))
       )}
     </Box>
   </Stack>
@@ -77,7 +100,13 @@ const Metric: React.FC<MetricProps> = ({ label, value, loading, unit }) => (
 const MetricsStrip: React.FC = () => {
   const { data: stats, isLoading } = useStats();
   const { count: activeNodes, isLoading: nodesLoading } = useActiveNodeCount();
-  const volume = stats ? formatSol(stats.totalVolumeSol) : '0';
+  // Per-backing volume, two columns ("X SOL + Y TAO") — never summed. Falls
+  // back to the legacy SOL scalar on an older das.
+  const volumeSegs = stats
+    ? backingEntries(stats.totalVolumeByBacking, stats.totalVolumeSol).map(
+        (e) => ({ value: e.amount, unit: chainSymbol(e.chain) }),
+      )
+    : [{ value: '0', unit: 'SOL' }];
 
   return (
     <Box
@@ -100,8 +129,8 @@ const MetricsStrip: React.FC = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Metric
               label="Volume"
-              value={volume}
-              unit="SOL"
+              value=""
+              segments={volumeSegs}
               loading={isLoading}
             />
           </Grid>

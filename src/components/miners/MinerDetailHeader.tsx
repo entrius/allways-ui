@@ -4,12 +4,15 @@ import type { MinerStats, Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
 import {
+  backingEntries,
+  chainSymbol,
   directionalRate,
   formatRate,
-  formatSol,
+  formatUnits,
   formatUnixTime,
   rateUnit,
 } from '../../utils/format';
+import { hubChains } from '../../api/models/chains';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
 import RangeChips from '../RangeChips';
@@ -106,7 +109,11 @@ const PerformanceMetric: React.FC<{
 const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   stats,
 }) => {
-  const volume = stats?.volumeSol ? formatSol(stats.volumeSol) : '—';
+  // Per-backing volume — "X SOL + Y TAO", never summed; legacy SOL scalar
+  // when the das map is absent.
+  const volumeEntries = stats
+    ? backingEntries(stats.volumeByBacking, stats.volumeSol)
+    : null;
   const successPct =
     stats && stats.totalSwaps > 0
       ? `${(stats.successRate * 100).toFixed(0)}%`
@@ -134,15 +141,26 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
       <PerformanceMetric
         label="Volume"
         value={
-          <>
-            {volume}
-            <Box
-              component="span"
-              sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
-            >
-              SOL
-            </Box>
-          </>
+          volumeEntries ? (
+            volumeEntries.map((e, i) => (
+              <React.Fragment key={e.chain}>
+                {i > 0 && (
+                  <Box component="span" sx={{ color: 'text.disabled' }}>
+                    {' + '}
+                  </Box>
+                )}
+                {e.amount}
+                <Box
+                  component="span"
+                  sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
+                >
+                  {chainSymbol(e.chain)}
+                </Box>
+              </React.Fragment>
+            ))
+          ) : (
+            '—'
+          )
         }
       />
       <PerformanceMetric
@@ -189,6 +207,23 @@ const MinerDetailHeader: React.FC<{
       };
     });
   });
+  // One bond purse per backing, each in ITS OWN asset — a tao purse is rao,
+  // never piped through the SOL formatter. Same-backing rows share a purse,
+  // so keep the max; stats.collateral stands in when no live rows exist.
+  const purseMap = new Map<string, string>();
+  for (const p of pairs) {
+    const b = (p.backing ?? 'sol').toLowerCase();
+    const prev = purseMap.get(b);
+    if (prev == null || Number(p.collateral) > Number(prev))
+      purseMap.set(b, p.collateral);
+  }
+  if (purseMap.size === 0 && stats?.collateral)
+    purseMap.set('sol', stats.collateral);
+  const hubOrder = hubChains();
+  const purses = [...purseMap.entries()].sort(
+    (a, b) => hubOrder.indexOf(a[0]) - hubOrder.indexOf(b[0]),
+  );
+
   const addresses = new Map<string, string>();
   for (const p of pairs) {
     if (p.sourceChain && p.sourceAddress)
@@ -302,12 +337,24 @@ const MinerDetailHeader: React.FC<{
               <CopyableAddress address={liveMiner.solanaPubkey} />
             </HeaderField>
           )}
-          {stats?.collateral && (
+          {purses.length > 0 && (
             <HeaderField label="collateral">
-              {formatSol(stats.collateral)}
-              <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                SOL
-              </Box>
+              {purses.map(([backing, amount], i) => (
+                <React.Fragment key={backing}>
+                  {i > 0 && (
+                    <Box component="span" sx={{ color: 'text.disabled' }}>
+                      {' + '}
+                    </Box>
+                  )}
+                  {formatUnits(amount, backing)}
+                  <Box
+                    component="span"
+                    sx={{ color: 'text.disabled', ml: 0.4 }}
+                  >
+                    {chainSymbol(backing)}
+                  </Box>
+                </React.Fragment>
+              ))}
             </HeaderField>
           )}
           {stats?.activatedAt != null && (

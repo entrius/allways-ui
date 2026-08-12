@@ -30,7 +30,12 @@ import {
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
-import { directionalRate, formatRate } from '../../utils/format';
+import {
+  chainSymbol,
+  directionalRate,
+  formatRate,
+  formatUnits,
+} from '../../utils/format';
 
 type SortKey = 'uid' | 'rateFwd' | 'rateRev' | 'collateral' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -40,9 +45,11 @@ type Leg = 'forward' | 'reverse';
 // Open = idle/tradeable now; Active = also reserved/exchanging; All = + inactive.
 type StatusFilter = 'open' | 'active' | 'all';
 
-const formatCollateral = (lamports: string) => {
-  const sol = parseInt(lamports, 10) / 1e9;
-  return sol.toFixed(2);
+// Collateral is denominated in the ROW'S backing (lamports or rao) — render
+// it in that asset, with the symbol, never as an implied SOL figure.
+const formatCollateral = (m: Miner) => {
+  const backing = (m.backing ?? 'sol').toLowerCase();
+  return `${formatUnits(m.collateral, backing)} ${chainSymbol(backing)}`;
 };
 
 const parseRate = (raw: string | null): number => {
@@ -123,7 +130,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
     { key: 'rateRev', label: `1 ${SPOKE} →`, width: isMobile ? '28%' : '25%' },
     {
       key: 'collateral',
-      label: 'Capacity (SOL)',
+      label: 'Capacity',
       align: 'right',
       width: isMobile ? '20%' : '16%',
     },
@@ -511,15 +518,16 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                             maxWidth: 240,
                           }}
                         >
-                          Total SOL collateral backing this node — caps exchange
-                          size and is what gets slashed on failure to deliver.
+                          Total collateral backing this quote, in its backing
+                          asset — caps exchange size and is what gets slashed
+                          on failure to deliver.
                         </Box>
                       }
                       arrow
                       placement="top"
                     >
                       <Box component="span">
-                        {formatCollateral(miner.collateral)}
+                        {formatCollateral(miner)}
                       </Box>
                     </Tooltip>
                   </TableCell>

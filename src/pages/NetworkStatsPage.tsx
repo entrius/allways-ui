@@ -24,7 +24,7 @@ import {
   useStats,
 } from '../api';
 import type { HistoryRow } from '../api/models';
-import { lamportsToSol } from '../utils/format';
+import { backingEntries, chainSymbol, lamportsToSol } from '../utils/format';
 import { FONTS } from '../theme';
 
 // ---------------------------------------------------------------------------
@@ -338,7 +338,15 @@ const NetworkStatsPage: React.FC = () => {
     [leaderboard],
   );
 
-  const volumeTotal = stats ? lamportsToSol(stats.totalVolumeSol) : 0;
+  // Per-backing volume segments — "X SOL + Y TAO", never summed; legacy SOL
+  // scalar when the das map is absent.
+  const volumeSegments = backingEntries(
+    stats?.totalVolumeByBacking,
+    stats?.totalVolumeSol ?? 0,
+  ).map((e) => ({
+    value: sol(Number(e.amount)),
+    unit: chainSymbol(e.chain),
+  }));
 
   return (
     <Page title="Network Stats">
@@ -394,8 +402,7 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={6} md={3}>
               <StatCell
                 label="Volume"
-                value={sol(volumeTotal)}
-                unit="SOL"
+                segments={volumeSegments}
                 loading={statsLoading}
               />
             </Grid>
@@ -777,7 +784,12 @@ const NetworkStatsPage: React.FC = () => {
                             {m.isActive ? '' : ' (inactive)'}
                           </Box>
                           <Box component="span" sx={{ color: 'text.primary' }}>
-                            {sol(lamportsToSol(m.volumeSol))} SOL
+                            {backingEntries(m.volumeByBacking, m.volumeSol)
+                              .map(
+                                (e) =>
+                                  `${sol(Number(e.amount))} ${chainSymbol(e.chain)}`,
+                              )
+                              .join(' + ')}
                           </Box>
                         </Box>
                       ))}
