@@ -37,9 +37,14 @@ const fmtRate = (raw: number): string => {
 
 const pairLabel = (row: MinerRateHistoryRow): string => {
   const dir = `${row.fromChain}-${row.toChain}`.toUpperCase();
-  return isDirection(dir)
+  const label = isDirection(dir)
     ? directionLabel(dir)
     : `${row.fromChain.toUpperCase()} → ${row.toChain.toUpperCase()}`;
+  // A non-sol backing distinguishes the tao-bonded twin of a direction the
+  // miner also quotes sol-bonded.
+  return row.backing && row.backing !== 'sol'
+    ? `${label} · ${row.backing.toUpperCase()} bond`
+    : label;
 };
 
 // Chronological table twin of the rate graph above it — every quote this
@@ -128,7 +133,9 @@ const RateHistoryTable: React.FC<{
               </TableRow>
             )}
             {rows.map((row) => (
-              <TableRow key={`${row.t}-${row.fromChain}-${row.toChain}`}>
+              <TableRow
+                key={`${row.t}-${row.fromChain}-${row.toChain}-${row.backing}`}
+              >
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
                   <Tooltip
                     title={new Date(row.t * 1000).toLocaleString()}

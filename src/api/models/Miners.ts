@@ -16,6 +16,9 @@ export type Miner = {
   // the metagraph (or the indexer couldn't resolve it).
   uid: number | null;
   hotkey: string;
+  // The quote's collateral chain ('sol' | 'tao'). Part of the row's identity:
+  // one miner may stand a sol- AND a tao-backed quote on the same direction.
+  backing: string;
   solanaPubkey: string | null;
   sourceChain: string | null;
   sourceAddress: string | null;
@@ -24,8 +27,9 @@ export type Miner = {
   rate: string | null;
   counterRate: string | null;
   collateral: string;
-  // Largest swap this miner can actually back, in lamports: collateral / 1.10, and "0" when
-  // inactive however good the quote looks. Read this, not `rate`, to judge available depth.
+  // Largest swap this miner can actually back — bond / 1.10 in the BACKING
+  // asset's smallest unit (lamports for 'sol', rao for 'tao'), and "0" when
+  // that purse is inactive. Read this, not `rate`, to judge available depth.
   fundableUpTo: string;
   isActive: boolean;
   isReserved: boolean;
