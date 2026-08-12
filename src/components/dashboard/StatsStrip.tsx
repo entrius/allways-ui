@@ -6,7 +6,8 @@ import {
   directionLabel,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { lamportsToSol } from '../../utils/format';
+import { canonicalSource, chainSymbol } from '../../utils/format';
+import { hubLegVolume } from './marketRate';
 import { FONTS } from '../../theme';
 
 const Item: React.FC<{
@@ -59,6 +60,9 @@ const StatsStrip: React.FC<{
 }> = ({ directions, secs, rangeLabel, bare }) => {
   const { data: swaps } = useCompleteSwapHistory();
   const legs = useMemo(() => directions.map(decomposeDirection), [directions]);
+  // Every direction here shares one pair, so its hub leg is the strip's one
+  // volume denomination — never a sum across backings.
+  const hub = canonicalSource(legs[0].from, legs[0].to);
 
   const stats = useMemo(() => {
     const cutoff = Date.now() / 1000 - secs;
@@ -74,7 +78,7 @@ const StatsStrip: React.FC<{
       if (s.initiatedAt == null || Number(s.initiatedAt) < cutoff) continue;
       if (s.status === 'COMPLETED') {
         completed += 1;
-        const v = s.solAmount != null ? lamportsToSol(s.solAmount) : NaN;
+        const v = hubLegVolume(s, hub);
         if (Number.isFinite(v)) volume += v;
       } else if (s.status === 'TIMED_OUT') {
         timedOut += 1;
@@ -87,7 +91,7 @@ const StatsStrip: React.FC<{
       success:
         completed + timedOut > 0 ? completed / (completed + timedOut) : null,
     };
-  }, [swaps, legs, secs]);
+  }, [swaps, legs, hub, secs]);
 
   const fmtVol = (v: number) =>
     v >= 1000
@@ -120,8 +124,8 @@ const StatsStrip: React.FC<{
     >
       <Item
         label={`${rangeLabel} vol`}
-        value={`${fmtVol(stats.volume)} SOL`}
-        hint={`${dir} volume (SOL side) completed over the selected window.`}
+        value={`${fmtVol(stats.volume)} ${chainSymbol(hub)}`}
+        hint={`${dir} volume (${chainSymbol(hub)} side) completed over the selected window.`}
       />
       <Item
         label={`${rangeLabel} txns`}

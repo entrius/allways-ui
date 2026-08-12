@@ -13,7 +13,7 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useMiners, type Miner } from '../../api';
+import { useMiners, minerServesPair, type Miner } from '../../api';
 import {
   decomposeDirection,
   directionLabel,
@@ -21,18 +21,14 @@ import {
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { formatRate } from '../../utils/format';
+import {
+  canonicalSource,
+  chainSymbol,
+  formatRate,
+  unitsToHuman,
+} from '../../utils/format';
+import { hubChains } from '../../api/models/chains';
 import { OrderbookDepthSkeleton } from './Skeletons';
-import { hubChain } from '../../api/models/chains';
-
-// The non-hub side of a miner's pair (canonical order pins SOL as source, so
-// this is normally destChain), lowercased — or null if the miner has no pair.
-const minerSpoke = (m: Miner): string | null => {
-  const chains = [m.sourceChain, m.destChain]
-    .map((c) => c?.toLowerCase())
-    .filter((c): c is string => !!c && c !== hubChain());
-  return chains[0] ?? null;
-};
 
 // Price grouping, shared by both books and expressed as a share of the price
 // so one control reads the same on a 0.00096 book and a 715 book: levels
@@ -52,7 +48,7 @@ const AUTO_FIT_ROWS = 6;
 // quoted rate, best rate first, with a cumulative running total. Only
 // collateral hittable this instant counts — active miners that are not
 // reserved or mid-swap — so the top of the book always agrees with the
-// chart's crown price. Stored rates are canonical "spoke per 1 SOL" and are
+// chart's crown price. Stored rates are canonical "spoke per 1 anchor", and
 // converted to the DIRECTIONAL "to per 1 from" here, so higher is always the
 // better rate.
 const useDepth = (
@@ -60,19 +56,22 @@ const useDepth = (
   direction: Direction,
   group: DepthGroup,
 ) => {
-  const { spoke, leg } = decomposeDirection(direction);
+  const { from, to, leg } = decomposeDirection(direction);
   return useMemo(() => {
-    const entries: { r: number; cap: number }[] = [];
+    // Capacity is tracked PER BACKING (its own asset, human units) — a sol-
+    // and a tao-backed quote on the same level never sum into one number.
+    const entries: { r: number; backing: string; cap: number }[] = [];
     (miners ?? []).forEach((m) => {
-      if (minerSpoke(m) !== spoke) return;
+      if (!minerServesPair(m, from, to)) return;
       if (!m.isActive || m.hasActiveSwap || m.isReserved) return;
       if (!m.collateral) return;
-      const capacitySol = parseInt(m.collateral, 10) / 1e9;
-      if (!Number.isFinite(capacitySol) || capacitySol <= 0) return;
+      const backing = (m.backing ?? 'sol').toLowerCase();
+      const cap = unitsToHuman(m.collateral, backing);
+      if (!Number.isFinite(cap) || cap <= 0) return;
       const raw = leg === 'reverse' ? m.counterRate : m.rate;
       const r = directionalRateFor(direction, raw) ?? 0;
       if (!Number.isFinite(r) || r <= 0) return;
-      entries.push({ r, cap: capacitySol });
+      entries.push({ r, backing, cap });
     });
     if (!entries.length) return [];
 
@@ -82,12 +81,14 @@ const useDepth = (
     const base = Math.pow(10, Math.floor(Math.log10(best)) - 4);
     const bucketize = (mult: number) => {
       const tick = base * mult;
-      const buckets = new Map<number, number>();
+      const buckets = new Map<number, Record<string, number>>();
       for (const e of entries) {
         // Floor to the tick (epsilon dodges float drift), so a level's label
         // never overstates the rate a taker would get.
         const b = Math.floor(e.r / tick + 1e-9) * tick;
-        buckets.set(b, (buckets.get(b) ?? 0) + e.cap);
+        const caps = buckets.get(b) ?? {};
+        caps[e.backing] = (caps[e.backing] ?? 0) + e.cap;
+        buckets.set(b, caps);
       }
       return buckets;
     };
@@ -104,16 +105,29 @@ const useDepth = (
     // Levels are directional "to per 1 from" — more output per unit in is
     // always better, so best-first is highest-first for every direction.
     const rates = [...buckets.keys()].sort((a, b) => b - a);
-    let cum = 0;
+    const cum: Record<string, number> = {};
     return rates.map((r) => {
-      const capacity = buckets.get(r) ?? 0;
-      cum += capacity;
-      return { rate: formatRate(r), capacity, cumCapacity: cum };
+      const caps = buckets.get(r) ?? {};
+      for (const [b, v] of Object.entries(caps)) cum[b] = (cum[b] ?? 0) + v;
+      return { rate: formatRate(r), caps, cumCaps: { ...cum } };
     });
-  }, [miners, spoke, leg, direction, group]);
+  }, [miners, from, to, leg, direction, group]);
 };
 
 // One direction's ladder — half of the two-sided book.
+// "1.20 SOL + 4.00 TAO" — a level's per-backing capacities, hub-priority
+// order, zero entries dropped. Never a cross-denomination sum.
+const fmtCaps = (caps: Record<string, number>): string => {
+  const order = hubChains();
+  return (
+    Object.entries(caps)
+      .filter(([, v]) => v > 0)
+      .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
+      .map(([b, v]) => `${v.toFixed(2)} ${chainSymbol(b)}`)
+      .join(' + ') || '0.00'
+  );
+};
+
 const DepthLadder: React.FC<{
   miners: Miner[] | undefined;
   direction: Direction;
@@ -123,10 +137,12 @@ const DepthLadder: React.FC<{
   const { from, to } = decomposeDirection(direction);
   const depthData = useDepth(miners, direction, group);
 
+  // Depth bars need one scalar; size them on the pair's anchor backing (the
+  // dominant purse) — other backings still show in the level's text.
+  const anchor = canonicalSource(from, to);
   const maxCum = useMemo(
-    () =>
-      depthData.reduce((m, r) => (r.cumCapacity > m ? r.cumCapacity : m), 1),
-    [depthData],
+    () => depthData.reduce((m, r) => Math.max(m, r.cumCaps[anchor] ?? 0), 1),
+    [depthData, anchor],
   );
 
   // Monochrome depth bars, matching the house chart style.
@@ -188,7 +204,7 @@ const DepthLadder: React.FC<{
                 1 {from.toUpperCase()} → {to.toUpperCase()}
               </TableCell>
               <TableCell sx={{ ...headerSx, width: '32%' }} align="right">
-                Capacity (SOL)
+                Capacity
               </TableCell>
               <TableCell sx={{ ...headerSx, width: '28%' }} align="right">
                 Cumulative
@@ -197,7 +213,7 @@ const DepthLadder: React.FC<{
           </TableHead>
           <TableBody>
             {depthData.map((row) => {
-              const pct = (row.cumCapacity / maxCum) * 100;
+              const pct = ((row.cumCaps[anchor] ?? 0) / maxCum) * 100;
               return (
                 <TableRow
                   key={row.rate}
@@ -214,13 +230,13 @@ const DepthLadder: React.FC<{
                     sx={{ ...cellSx, color: 'text.secondary' }}
                     align="right"
                   >
-                    {row.capacity.toFixed(2)}
+                    {fmtCaps(row.caps)}
                   </TableCell>
                   <TableCell
                     sx={{ ...cellSx, color: 'text.primary', fontWeight: 600 }}
                     align="right"
                   >
-                    {row.cumCapacity.toFixed(2)}
+                    {fmtCaps(row.cumCaps)}
                   </TableCell>
                 </TableRow>
               );
@@ -260,10 +276,15 @@ const OrderbookDepth: React.FC<{
   // Price grouping shared by both ladders (percent-of-price, so one control
   // fits both scales); auto coarsens each side until it fits the panel.
   const [group, setGroup] = useState<DepthGroup>(null);
-  const { spoke } = decomposeDirection(direction);
-  const SPOKE = spoke.toUpperCase();
-  const forward = `SOL-${SPOKE}` as Direction;
-  const reverse = `${SPOKE}-SOL` as Direction;
+  // Both ladders come from the SELECTED pair's own legs — canonical
+  // (anchor→spoke) first — never rebuilt around a hardcoded hub.
+  const { from, to, leg } = decomposeDirection(direction);
+  const forward = (
+    leg === 'forward' ? `${from}-${to}` : `${to}-${from}`
+  ).toUpperCase() as Direction;
+  const reverse = (
+    leg === 'forward' ? `${to}-${from}` : `${from}-${to}`
+  ).toUpperCase() as Direction;
 
   if (isLoading || !miners) return <OrderbookDepthSkeleton />;
 

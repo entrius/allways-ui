@@ -24,19 +24,18 @@ import SortHeader, { type SortDir } from './SortHeader';
 import { tierPalette } from './crownGridCells';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 import { FONTS } from '../../theme';
-import { formatSol, lamportsToSol, shortHotkey } from '../../utils/format';
+import {
+  backingEntries,
+  chainSymbol,
+  formatSol,
+  shortHotkey,
+} from '../../utils/format';
 
 // 1h is the live scoring window (SCORING_WINDOW_SECS) and the default view.
 // 30d is the deepest window; the API clamps everything to ~30d
 // (MAX_LOOKBACK_SECS) so crown_holders stays prunable, which made the old
 // 90d/all chips return identical data to 30d.
 const RANGES: Range[] = ['1h', '24h', '7d', '30d'];
-
-const formatVolume = (raw: string): string => {
-  const v = lamportsToSol(raw);
-  if (!Number.isFinite(v) || v === 0) return '0.00';
-  return v.toFixed(2);
-};
 
 const formatSuccess = (row: LeaderboardRow): string => {
   const total = row.completedSwaps + row.timedOutSwaps;
@@ -374,7 +373,9 @@ const MinerLeaderboard: React.FC<{
                     {formatSuccess(row)}
                   </TableCell>
                   <TableCell sx={{ fontFamily: FONTS.mono }}>
-                    {formatVolume(row.volumeSol)} SOL
+                    {backingEntries(row.volumeByBacking, row.volumeSol)
+                      .map((e) => `${e.amount} ${chainSymbol(e.chain)}`)
+                      .join(' + ')}
                   </TableCell>
                   <TableCell>
                     <Box

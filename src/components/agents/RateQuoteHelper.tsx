@@ -16,19 +16,19 @@ import {
   decomposeDirection,
   directionLabel,
   directionalRateFor,
+  minerServesPair,
   useMiners,
   type Direction,
 } from '../../api';
 import { useCopy } from '../../hooks';
 import HoverCard from '../HoverCard';
 import { formatRate, trimTrailingZeros } from '../../utils/format';
-import { hubChain } from '../../api/models/chains';
 
 interface BestQuote {
   uid: number | null;
   hotkey: string;
-  // The miner's STORED quote for the chosen leg — canonical "spoke per 1 SOL"
-  // (forward = m.rate, reverse = m.counterRate — see Miner model docs).
+  // The miner's STORED quote for the chosen leg — canonical "spoke per 1
+  // anchor" (forward = m.rate, reverse = m.counterRate — see Miner model).
   rawRate: string;
   // Directional "to per 1 from" of the chosen direction (reverse inverts).
   effectiveRate: number;
@@ -48,20 +48,16 @@ const computeBest = (
   direction: Direction,
   amount: number,
 ): BestQuote | null => {
-  // A miner serves one hub↔spoke pair; canonical order pins SOL as source, so
-  // its spoke is the non-SOL leg. The forward leg (SOL→spoke) is quoted in
-  // m.rate, the reverse (spoke→SOL) in m.counterRate — both stored CANONICAL
-  // ("spoke per 1 SOL"). Convert to the directional "to per 1 from" so more
-  // output per unit in is always the better deal (highest first). Filter
-  // case-insensitively so an API casing change can't zero this.
-  const { spoke, leg } = decomposeDirection(direction);
+  // Rows are canonical — the pair's hub anchor pinned as sourceChain, both
+  // stored quotes "spoke per 1 anchor" (forward = m.rate, reverse =
+  // m.counterRate). Match the whole PAIR, never the spoke alone: two hubs
+  // can serve the same spoke. Directional "to per 1 from" makes more output
+  // per unit in always the better deal (highest first).
+  const { from, to, leg } = decomposeDirection(direction);
   const candidates = miners
     .filter((m) => m.isActive)
     .map((m) => {
-      const src = (m.sourceChain ?? '').toLowerCase();
-      const dst = (m.destChain ?? '').toLowerCase();
-      const minerSpoke = src === hubChain() ? dst : src;
-      if (minerSpoke !== spoke) return null;
+      if (!minerServesPair(m, from, to)) return null;
       const r = leg === 'reverse' ? m.counterRate : m.rate;
       if (!r) return null;
       const parsed = directionalRateFor(direction, r) ?? 0;
@@ -168,6 +164,7 @@ const RateQuoteHelper: React.FC = () => {
   );
 
   const { from, to, spoke, leg } = decomposeDirection(direction);
+  const anchor = leg === 'forward' ? from : to;
   const sourceSym = from.toUpperCase();
   const destSym = to.toUpperCase();
 
@@ -175,16 +172,16 @@ const RateQuoteHelper: React.FC = () => {
     ? `alw swap now --auto --yes --from ${from} --to ${to} --amount ${amount} --receive-address <your-${to}-address> --from-address <your-${from}-address>`
     : `# no active miner quoting ${sourceSym} -> ${destSym} right now`;
 
-  // The miner row is canonical (sourceChain=sol, destChain=spoke); the leg
+  // The miner row is canonical (sourceChain=anchor, destChain=spoke); the leg
   // picks which quote to read (forward = .rate, reverse = .counterRate). Both
-  // stored values are canonical "spoke per 1 SOL", so the best FORWARD quote
-  // is the highest stored value and the best REVERSE quote the lowest.
+  // stored values are canonical "spoke per 1 anchor", so the best FORWARD
+  // quote is the highest stored value and the best REVERSE quote the lowest.
   const rateField = leg === 'reverse' ? '.counterRate' : '.rate';
   const jqSort =
     leg === 'reverse'
       ? 'sort_by(.rate | tonumber)'
       : 'sort_by(-(.rate | tonumber))';
-  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "sol" and (.destChain | ascii_downcase) == "${spoke}") | {uid, rate: ${rateField}, hotkey} | select((.rate // "0" | tonumber) > 0)' | jq -s '${jqSort}[0]'`;
+  const curlCmd = `curl -s https://api.all-ways.io/miners | jq '.[] | select(.isActive and (.sourceChain | ascii_downcase) == "${anchor}" and (.destChain | ascii_downcase) == "${spoke}") | {uid, rate: ${rateField}, hotkey} | select((.rate // "0" | tonumber) > 0)' | jq -s '${jqSort}[0]'`;
 
   return (
     <HoverCard

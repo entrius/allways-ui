@@ -10,6 +10,7 @@ import {
   SEO,
 } from '../components';
 import { isDirection } from '../api';
+import { hubChain } from '../api/models/chains';
 import type { Direction } from '../api/models/MinersDashboard';
 import type { HeroRange } from '../components/dashboard/AllwaysMarketRate';
 
@@ -30,16 +31,19 @@ const MarketPage: React.FC = () => {
   const [range, setRange] = useState<HeroRange>('1D');
 
   // Shared INSTRUMENT — the watchlist and the hero's picker both drive it.
-  // Legacy links resolve too: ?direction=SOL-BTC directly, ?pair=BTC to the
-  // pair's forward route; anything unrecognised falls back to the default
-  // rather than rendering empty panels.
+  // Legacy links resolve too: ?direction=SOL-BTC directly, ?pair=BTC to that
+  // pair's forward route under the primary hub; anything unrecognised falls
+  // back to the default rather than rendering empty panels.
   const dirParam =
     (params.get('dir') ?? params.get('direction'))?.toUpperCase() ?? null;
   const pairParam = params.get('pair')?.toUpperCase();
+  const legacyDir = pairParam
+    ? `${hubChain().toUpperCase()}-${pairParam}`
+    : null;
   const direction: Direction = isDirection(dirParam)
     ? dirParam
-    : pairParam && /^[A-Z0-9]+$/.test(pairParam) && pairParam !== 'SOL'
-      ? (`SOL-${pairParam}` as Direction)
+    : isDirection(legacyDir)
+      ? legacyDir
       : DEFAULT_DIRECTION;
 
   const setDirection = useCallback(

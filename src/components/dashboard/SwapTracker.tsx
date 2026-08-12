@@ -44,7 +44,7 @@ import {
   filtersFromParams,
   filtersToParams,
   isTerminal,
-  solNotional,
+  backingNotional,
   toNum,
   type StatusFilter,
   type TxFilters,
@@ -475,7 +475,7 @@ const SwapTracker: React.FC<{
           return (a.seq ?? -1) - (b.seq ?? -1);
         case 'input':
         case 'output':
-          return solNotional(a) - solNotional(b);
+          return backingNotional(a) - backingNotional(b);
         case 'miner':
           return String(minerLabel(a.minerHotkey) ?? '￿').localeCompare(
             String(minerLabel(b.minerHotkey) ?? '￿'),

@@ -9,7 +9,8 @@
       "family": "sol",
       "hub": true,
       "logo": "/chains/logos/sol.png",
-      "explorerTx": "https://solscan.io/tx/{hash}"
+      "explorerTx": "https://solscan.io/tx/{hash}",
+      "coingeckoId": "solana"
     },
     {
       "id": "btc",
@@ -20,7 +21,8 @@
       "family": "utxo",
       "hub": false,
       "logo": "/chains/logos/btc.png",
-      "explorerTx": "https://mempool.space/tx/{hash}"
+      "explorerTx": "https://mempool.space/tx/{hash}",
+      "coingeckoId": "bitcoin"
     },
     {
       "id": "tao",
@@ -29,9 +31,10 @@
       "decimals": 9,
       "displayDigits": 4,
       "family": "ss58",
-      "hub": false,
+      "hub": true,
       "logo": "/chains/logos/tao.png",
-      "explorerTx": "https://taostats.io/extrinsic/{hash}"
+      "explorerTx": "https://taostats.io/extrinsic/{hash}",
+      "coingeckoId": "bittensor"
     },
     {
       "id": "eth",
@@ -42,7 +45,32 @@
       "family": "evm",
       "hub": false,
       "logo": "/chains/logos/eth.png",
-      "explorerTx": "https://etherscan.io/tx/{hash}"
+      "explorerTx": "https://etherscan.io/tx/{hash}",
+      "coingeckoId": "ethereum"
+    },
+    {
+      "id": "arbusdc",
+      "symbol": "USDC",
+      "name": "USDC (Arbitrum)",
+      "decimals": 6,
+      "displayDigits": 2,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/arbusdc.png",
+      "explorerTx": "https://arbiscan.io/tx/{hash}",
+      "coingeckoId": "usd-coin"
+    },
+    {
+      "id": "hype",
+      "symbol": "HYPE",
+      "name": "Hyperliquid",
+      "decimals": 18,
+      "displayDigits": 4,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/hype.png",
+      "explorerTx": "https://hyperevmscan.io/tx/{hash}",
+      "coingeckoId": "hyperliquid"
     }
   ]
 }

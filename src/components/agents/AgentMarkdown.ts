@@ -1,24 +1,45 @@
 // public/llms.txt is GENERATED from this constant (vite emit-llms-txt plugin) —
-// never edit it by hand. Asset lists below derive from the chains registry so
-// a new spoke needs no edits here.
-import { allDirections, chainInfo, spokeChains } from '../../api/models/chains';
+// never edit it by hand. Asset, hub, and pair lists below derive from the
+// chains registry so a new spoke or hub needs no edits here.
+import {
+  allDirections,
+  chainInfo,
+  chainList,
+  hubChains,
+} from '../../api/models/chains';
 
 const dirs = allDirections().map((d) => d.toLowerCase());
-const spokes = spokeChains();
+const chains = chainList();
+const hubs = hubChains();
 const sym = (c: string) => chainInfo(c)?.symbol ?? c.toUpperCase();
 const withAnd = (xs: string[]) =>
-  xs.length > 1
+  xs.length > 2
     ? `${xs.slice(0, -1).join(', ')}, and ${xs[xs.length - 1]}`
-    : xs[0];
-const pairList = withAnd(spokes.map((c) => `**SOL↔${sym(c)}**`));
-const assetList = withAnd(['SOL', ...spokes.map(sym)]);
+    : xs.join(' and ');
+// allDirections emits [forward, reverse] per pair — even indexes are the
+// canonical (hub-anchored) legs, one per pair.
+const pairs = dirs
+  .filter((_, i) => i % 2 === 0)
+  .map((d) => d.split('-') as [string, string]);
+const pairList = withAnd(pairs.map(([a, b]) => `**${sym(a)}↔${sym(b)}**`));
+const assetList = withAnd(chains.map((c) => sym(c.id)));
+const hubList = withAnd(hubs.map(sym));
+const hubOr = hubs.map(sym).join(' or ');
+const chainIdList = chains.map((c) => `\`${c.id}\``).join(', ');
 const directionList = dirs.map((d) => `\`${d.replace('-', '→')}\``).join(', ');
+const solSourceExamples = dirs
+  .filter((d) => d.startsWith('sol-'))
+  .slice(0, 2)
+  .map((d) => `\`${d.replace('-', '→')}\``)
+  .join(', ');
+const nonSolSourceExamples = dirs
+  .filter((d) => !d.startsWith('sol-'))
+  .slice(0, 2)
+  .map((d) => `\`${d.replace('-', '→')}\``)
+  .join(', ');
 const fundingRows = [
-  `| ${spokes.map((c) => `\`sol→${c}\``).join(' / ')} | Solana key: \`amount SOL + fees + reservation fee\` | your ${spokes.map(sym).join(' / ')} address |`,
-  ...spokes.map(
-    (c) =>
-      `| \`${c}→sol\` | ${sym(c)} wallet: \`amount + network fee\`; Solana key: fees + reservation fee | your SOL pubkey |`,
-  ),
+  `| SOL source (${solSourceExamples}, …) | Solana key: \`amount SOL + fees + reservation fee\` | your destination-asset address |`,
+  `| non-SOL source (${nonSolSourceExamples}, …) | source-asset wallet: \`amount + network fee\`; Solana key: fees + reservation fee | your destination-asset address |`,
 ].join('\n');
 
 export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
@@ -31,11 +52,12 @@ export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for
 native swaps between independent assets, settled on a **Solana
-program**. It is **hub-and-spoke with SOL as the hub**: the launch pairs are
-${pairList}, so every swap has a SOL leg. Miners post **SOL**
-collateral and quote exchange rates. Validators verify both legs of each swap.
-The contract slashes collateral (in SOL) on failure and pays the taker. No
-custodian, no wrapped asset, no bridge token.
+program**. It is **hub-and-spoke with ${hubList} as hubs**: the pairs are
+${pairList}, so every swap has a hub leg. Miners post collateral in a hub
+asset (${hubOr} — the swap's **backing**) and quote exchange rates.
+Validators verify both legs of each swap. On failure the protocol slashes
+that backing and pays the taker in the same asset. No custodian, no wrapped
+asset, no bridge token.
 
 > **Where to point your wallets:** **Mainnet** (Bittensor netuid 7 + Solana
 > mainnet) is the live network — real ${assetList}. **Testnet** (netuid 19 +
@@ -57,7 +79,7 @@ custodian, no wrapped asset, no bridge token.
 
 ## Why agents use it
 
-- **Collateral-backed.** Every swap is backed by SOL collateral worth its full value; if delivery fails, the contract slashes that collateral and repays the taker.
+- **Collateral-backed.** Every swap is backed by hub-asset collateral (${hubOr}) worth its full value; if delivery fails, the protocol slashes that collateral and repays the taker in the same asset.
 - **Best rate.** Dynamic pricing — quotes update every block.
 - **Subnet-native.** Settles in real ${assetList}. No IOUs.
 - **Open + agentic.** Public API, SSE feeds, open-source CLI, scriptable end-to-end.
@@ -66,19 +88,19 @@ custodian, no wrapped asset, no bridge token.
 
 ## Concepts you actually need
 
-- **Hub-and-spoke.** SOL is the numéraire. Directions: ${directionList}. Rates read as "destination per 1 SOL" for hub→spoke and its reverse for spoke→hub. Collateral, the reservation fee, and swap sizing are all in SOL.
-- **Actors.** Miners post SOL collateral and quote live per-direction rates on-chain — active and quoting *before any swap exists*. Takers pick a pair and an amount. Validators verify both legs and vote. The contract enforces slash / timeout / payout.
+- **Hub-and-spoke.** Every pair has a hub leg (${hubList}; the higher-priority hub anchors a hub↔hub pair) — that leg is the pair's numéraire and the swap's backing. Directions: ${directionList}. Rates read as "destination per 1 hub-anchor" for the forward leg; the reverse leg inverts. Collateral and swap sizing are in the backing; the reservation fee is always SOL (bids settle on Solana on every pair).
+- **Actors.** Miners post hub-asset collateral (${hubOr}) and quote live per-direction rates on-chain — active and quoting *before any swap exists*. Takers pick a pair and an amount. Validators verify both legs and vote. The contract enforces slash / timeout / payout.
 - **Reservation lifecycle (two-phase).** A miner is secured *before* amounts are named:
   1. **Bid** (\`open_or_request\`) — you (or a validator on your behalf) bid into a per-miner pool and pay a small, non-refundable SOL **reservation fee**. The first bid pins the miner's rate for the pool window. A bid carries no taker and no amounts.
   2. **Draw** (\`resolve_pool\`) — after the pool window closes, a permissionless, stake-weighted lottery picks the winner. A plain unrouted bid has weight 0.
   3. **Finalize** (\`finalize_reservation\`) — the seat winner names the taker + amounts (bounded by min/max swap and 1.1× collateral), making the reservation live.
   Then you send source funds and relay the tx. View pre-send state via \`alw view reservation\` (yours) or the API.
 - **Native vs routed.** Bidding directly is "native" and carries zero draw weight — it loses to any validator that bids on the same pool. **The CLI routes through a validator by default**: \`alw config set env …\` also sets a recommended router, and \`alw swap now\` asks that validator to enter the pool with its stake weight (it fronts the entry fee) and finalize the won seat with you pinned. \`--no-router\` self-represents; \`--router <hotkey>\` overrides per swap. If several routed takers share one window, the router seats them FIFO — losers just re-run.
-- **Statuses (on-chain swap).** \`PendingAttestation → Active → Fulfilled → Completed\` (happy) or \`Active → TimedOut\` (1.1× slash to taker).
-- **Fee — 1%, paid via the rate.** Implicit in the price. Send \`1.0\` worth of value, receive \`0.99\` worth; the miner does not keep the \`0.01\` — the contract skims it from the miner's SOL collateral on settlement. Separately, each *bid* pays a small flat reservation fee. Always preview the post-fee receive amount with \`alw swap quote\`.
+- **Statuses (on-chain swap).** \`PendingAttestation → Active → Fulfilled → Completed\` (happy) or \`Active → TimedOut\` (1.1× slash to taker, in the swap's backing).
+- **Fee — 1%, paid via the rate.** Implicit in the price. Send \`1.0\` worth of value, receive \`0.99\` worth; the miner does not keep the \`0.01\` — the protocol skims it from the miner's collateral (in the swap's backing) on settlement. Separately, each *bid* pays a small flat reservation fee. Always preview the post-fee receive amount with \`alw swap quote\`.
 - **Deferred confirmation — relay immediately, don't wait.** Broadcast your source tx, then run \`alw swap post-tx <hash>\` right away. Validators accept the seen-but-unconfirmed deposit and wait out confirmations server-side, extending your reservation while they accrue. Sleeping before \`post-tx\` is how you lose the reservation.
 - **BTC fees still gate the source leg.** A BTC-source tx must actually confirm within the extension budget. Set the fee too low and it sits in mempool past the deadline; when it finally mines it lands in the miner's address with no live reservation to credit it against, and the funds are gone. Let the CLI auto-estimate \`--btc-fee-rate\` unless you've checked current mempool tiers (e.g. https://mempool.space).
-- **Slash payouts are SOL.** A timeout refund pays the taker's pinned identity in SOL.
+- **Slash payouts are in the swap's backing.** A timeout refund pays the taker's pinned identity in the backing asset: a sol-backed swap refunds SOL, a tao-backed swap TAO.
 - **Sender verification.** Validators reject any source tx whose on-chain sender doesn't match the address pinned in your reservation. Broadcast only from that address.
 - **Live parameters — read before assuming.** All bounds and windows (reservation fee, min/max swap, min/max collateral, reservation TTL, finalize window, fulfillment timeout, extension budget, consensus threshold) are on-chain and readable via \`alw view config\` or the API. Don't hardcode them.
 
@@ -93,7 +115,7 @@ custodian, no wrapped asset, no bridge token.
 5. **Relay.** \`alw swap post-tx <hash>\` immediately. Validators verify the deposit (sender, recipient, amount, freshness), submit the claim, and vote to initiate. Status: \`PendingAttestation → Active\`.
 6. **Miner fulfils.** The miner sends 99% of the destination amount to your receive address and marks fulfilled. Status: \`Active → Fulfilled\`.
 7. **Validators confirm.** Both legs verified → vote confirm (confirmation waits are server-side per chain: SOL ≈ seconds, TAO 6 blocks ≈ 72s, BTC 2 blocks ≈ 20 min). Contract skims the 1% fee from miner collateral. Status: \`Fulfilled → Completed\`.
-8. **Timeout / refund.** If the miner doesn't deliver in time, validators vote \`TimedOut\` and the contract pays 1.1× collateral to the taker's pinned SOL identity — **automatically, no action needed**.
+8. **Timeout / refund.** If the miner doesn't deliver in time, validators vote \`TimedOut\` and the protocol pays 1.1× collateral — in the swap's backing asset — to the taker's pinned identity, **automatically, no action needed**.
 
 Throughout, poll live state — pre-send via \`alw view reservation\`, post-initiate via \`alw view swap <key> --watch\` or the API.
 
@@ -120,7 +142,7 @@ Verify:
     alw --help
     btcli --help
 
-### 2. Solana keypair (required — every swap has a SOL leg)
+### 2. Solana keypair (required — the orderbook settles on Solana)
 
 The contract is on Solana, so on-chain actions are signed by a Solana keypair, separate from your Bittensor wallet. Takers use it to bid, finalize, pay fees, and as their identity for SOL-source swaps.
 
@@ -216,7 +238,7 @@ In every case \`alw swap now\` only **reserves** — once it prints the miner's 
 
 | Flag | Purpose |
 |---|---|
-| \`--from <chain>\` | Source chain (\`sol\`, \`btc\`, \`tao\`) |
+| \`--from <chain>\` | Source chain (${chainIdList}) |
 | \`--to <chain>\` | Destination chain |
 | \`--amount <n>\` | Source amount, in source-chain units |
 | \`--receive-address <addr>\` | Where the miner sends to you (on the \`--to\` chain) |
@@ -231,7 +253,7 @@ Your swap key is \`keccak256(source-tx-hash)\` — printed by \`alw swap post-tx
 
     alw view swap <key> --watch    # live timeline until Completed or TimedOut
 
-On \`TimedOut\`, the 1.1× SOL slash pays your pinned identity automatically — no action needed.
+On \`TimedOut\`, the 1.1× slash pays your pinned identity automatically, in the swap's backing asset — no action needed.
 
 If interrupted after the reserve but before the send, check for a still-live reservation and finish it:
 
@@ -299,7 +321,7 @@ This document, raw: \`https://all-ways.io/llms.txt\` (testnet mirror \`https://t
 - **Lost a contested draw** — expected, not an error: another taker's bid won that window. The fee for that bid is spent; **do not send funds**. Re-run \`alw swap now\` for the next window (routed bids re-queue FIFO; native bids lose to routed ones by design).
 - **Reservation expired before send** — you only forfeit the small reservation fee. Start a new swap. Live TTL via \`alw view config\`.
 - **BTC tx stuck unconfirmed → reservation timed out → BTC sent but no swap** — fee too low; the tx never confirmed inside the extension budget. Prevention: let the CLI auto-estimate \`--btc-fee-rate\`, or check next-block tiers. If stuck pre-confirmation, RBF up immediately — recovery is only possible while the tx is in mempool.
-- **Miner timed out — where's my refund?** — the 1.1× slash pays your pinned SOL identity automatically; no action needed. A closed \`alw view swap --json\` returns \`{"found": false, …}\` — swaps close on-chain at resolution, so "gone" usually means "finished"; confirm the payout on your SOL balance.
+- **Miner timed out — where's my refund?** — the 1.1× slash pays your pinned identity automatically, in the swap's backing asset; no action needed. A closed \`alw view swap --json\` returns \`{"found": false, …}\` — swaps close on-chain at resolution, so "gone" usually means "finished"; confirm the payout on your SOL balance.
 
 ## Testnet
 

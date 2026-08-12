@@ -11,9 +11,9 @@ import { MOVE_COLORS, RANGE_SECS, type HeroRange } from './AllwaysMarketRate';
 import RangeChips from '../RangeChips';
 import { FONTS } from '../../theme';
 import { formatAmount, formatDurationSecs } from '../../utils/format';
-import { hubChain } from '../../api/models/chains';
 import {
   applyTxFilters,
+  backingNotional,
   countActiveFilters,
   filtersFromParams,
 } from './txFilters';
@@ -43,14 +43,11 @@ type PulseDatum = {
   timeoutAt: number | null;
 };
 
-// Dot area tracks the swap's SOL-leg notional so big transactions read big.
+// Dot area tracks the swap's backing-leg notional (its numeraire, human
+// units) so big transactions read big on any backing.
 const sizeFor = (swap: ActiveSwap): number => {
-  const lamports =
-    swap.sourceChain?.toLowerCase() === hubChain()
-      ? swap.sourceAmount
-      : (swap.destAmount ?? swap.solAmount);
-  const sol = lamports ? parseInt(lamports, 10) / 1e9 : 0;
-  return Math.min(16, 4 + 4 * Math.sqrt(Math.max(0, sol)));
+  const notional = backingNotional(swap);
+  return Math.min(16, 4 + 4 * Math.sqrt(Math.max(0, notional)));
 };
 
 const routeFor = (swap: ActiveSwap): string | null =>

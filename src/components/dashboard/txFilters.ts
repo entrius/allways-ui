@@ -1,5 +1,5 @@
 import type { ActiveSwap } from '../../api/models';
-import { hubChain } from '../../api/models/chains';
+import { unitsToHuman } from '../../utils/format';
 
 // The transactions explorer's find filters. The URL query string is the
 // single source of truth: SwapTracker writes it, SwapTracker AND
@@ -78,14 +78,19 @@ export const toNum = (v: string | null): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// Size ranks/filters on the SOL leg (the network numeraire), so amounts stay
-// comparable across pairs.
-export const solNotional = (s: ActiveSwap): number =>
-  toNum(
-    s.sourceChain?.toLowerCase() === hubChain()
+// Size ranks/filters on the swap's BACKING leg (its numeraire), in that
+// backing's HUMAN units — sol- and tao-backed swaps rank on comparable
+// scales, and an EVM leg's wei can never leak into the ranking.
+export const backingNotional = (s: ActiveSwap): number => {
+  const backing = (s.backing ?? 'sol').toLowerCase();
+  const raw =
+    s.sourceChain?.toLowerCase() === backing
       ? s.sourceAmount
-      : (s.destAmount ?? s.solAmount),
-  );
+      : s.destChain?.toLowerCase() === backing
+        ? s.destAmount
+        : s.solAmount;
+  return unitsToHuman(toNum(raw), backing);
+};
 
 export const isTerminal = (s: ActiveSwap): boolean =>
   s.status === 'COMPLETED' || s.status === 'TIMED_OUT';
@@ -110,9 +115,11 @@ export const applyTxFilters = (
     const t = toNum(s.initiatedAt);
     if (from != null && (!t || t < from)) return false;
     if (to != null && (!t || t > to)) return false;
-    const sol = solNotional(s) / 1e9;
-    if (minSol != null && Number.isFinite(minSol) && sol < minSol) return false;
-    if (maxSol != null && Number.isFinite(maxSol) && sol > maxSol) return false;
+    const notional = backingNotional(s);
+    if (minSol != null && Number.isFinite(minSol) && notional < minSol)
+      return false;
+    if (maxSol != null && Number.isFinite(maxSol) && notional > maxSol)
+      return false;
     return true;
   });
 };

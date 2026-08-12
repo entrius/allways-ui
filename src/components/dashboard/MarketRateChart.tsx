@@ -10,13 +10,14 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Typography, useTheme, type Theme } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
 import {
+  decomposeDirection,
   directionLabel,
   directionalRateFor,
   rateUnitFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { formatRate } from '../../utils/format';
+import { canonicalSource, chainSymbol, formatRate } from '../../utils/format';
 import {
   EMA_PERIOD,
   completedPoints,
@@ -167,7 +168,8 @@ const MarketRateChart: React.FC<{
         ? { min: xMin - xPad, max: xMax + xPad }
         : {};
 
-    // Volume is the SOL numeraire for both directions, so it shares one axis.
+    // Volume is the pair's hub leg for both directions (same asset either
+    // way), so it shares one axis.
     const maxVol = Math.max(
       0,
       ...prepared.flatMap((s) => s.vol.map((v) => v.vol)),
@@ -308,8 +310,9 @@ const MarketRateChart: React.FC<{
               .map((p) => {
                 const v = Array.isArray(p.value) ? p.value[1] : p.value;
                 const isVolume = p.seriesName === 'Volume';
+                const { from, to } = decomposeDirection(prepared[0].dir);
                 const unit = isVolume
-                  ? 'SOL vol'
+                  ? `${chainSymbol(canonicalSource(from, to))} vol`
                   : (unitByName.get(p.seriesName) ?? fallbackUnit);
                 // Volume is an amount (2dp reads fine); a rate needs sig figs
                 // or SOL→BTC (~0.0021 BTC/SOL) shows as "0.00".

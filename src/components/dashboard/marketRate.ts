@@ -4,18 +4,37 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { lamportsToSol } from '../../utils/format';
+import { canonicalSource, unitsToHuman } from '../../utils/format';
 
 // How many of the most recent completed swaps feed the chart, and the EMA
 // smoothing window over that series. Shared by the chart and the ticker.
 export const WINDOW = 100;
 export const EMA_PERIOD = 10;
 
-// `t` is the completion time in unix seconds; `vol` is the SOL numeraire volume.
-// `rate` is DIRECTIONAL ("to per 1 from" of the requested direction) — the
-// canonical stored swap rate is converted at this boundary, BEFORE the EMA /
-// Tukey math, so all downstream chart values share the directional scale.
+// `t` is the completion time in unix seconds; `vol` is the PAIR'S hub-leg
+// volume in that hub's human units — one denomination per direction, never a
+// sum across backings. `rate` is DIRECTIONAL ("to per 1 from"), converted at
+// this boundary BEFORE the EMA / Tukey math.
 export type RatePoint = { t: number; rate: number; vol: number };
+
+// The hub-leg amount of a swap, in the hub's human units. Falls back to the
+// backing notional (the same asset on any hub-anchored pair) when leg
+// amounts are missing.
+export const hubLegVolume = (
+  s: Pick<
+    ActiveSwap,
+    'sourceChain' | 'destChain' | 'sourceAmount' | 'destAmount' | 'solAmount'
+  >,
+  hub: string,
+): number => {
+  const raw =
+    s.sourceChain?.toLowerCase() === hub
+      ? s.sourceAmount
+      : s.destChain?.toLowerCase() === hub
+        ? s.destAmount
+        : s.solAmount;
+  return raw != null ? unitsToHuman(raw, hub) : 0;
+};
 
 const matchesDirection = (s: ActiveSwap, dir: Direction): boolean => {
   const src = s.sourceChain?.toLowerCase();
@@ -31,6 +50,8 @@ export const completedPoints = (
   dir: Direction,
 ): RatePoint[] => {
   if (!swaps) return [];
+  const { from, to } = decomposeDirection(dir);
+  const hub = canonicalSource(from, to);
   return swaps
     .filter(
       (s) =>
@@ -40,7 +61,7 @@ export const completedPoints = (
         matchesDirection(s, dir),
     )
     .map((s) => {
-      const vol = s.solAmount ? lamportsToSol(s.solAmount) : 0;
+      const vol = hubLegVolume(s, hub);
       return {
         t: parseInt(s.completedAt as string, 10),
         rate: directionalRateFor(dir, s.rate) ?? 0,
@@ -86,7 +107,8 @@ export const ema = (values: number[], period: number): number[] => {
   return out;
 };
 
-// Total SOL volume per exact timestamp so each bar sits under its swap point(s).
+// Total hub-leg volume per exact timestamp so each bar sits under its swap
+// point(s) — one denomination per direction (the pair's hub asset).
 export const volumeByTime = (
   pts: RatePoint[],
 ): { t: number; vol: number }[] => {

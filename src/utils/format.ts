@@ -1,4 +1,4 @@
-import { chainInfo, hubChain } from '../api/models/chains';
+import { chainInfo, hubChain, hubChains, hubLeg } from '../api/models/chains';
 
 export const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
@@ -41,6 +41,44 @@ export const formatSol = (lamports: string | number) => {
 // formatted string) is needed. Display-side callers should prefer formatSol.
 export const lamportsToSol = (lamports: string | number) =>
   (typeof lamports === 'string' ? parseFloat(lamports) : lamports) / 1e9;
+
+// Per-asset sibling of formatSol: `raw` smallest units of `chain` → human
+// string at fixed `digits`, no symbol. Matches formatSol exactly for 'sol'.
+export const formatUnits = (
+  raw: string | number,
+  chain: string,
+  digits = 2,
+): string => {
+  const exp = 10 ** (chainInfo(chain)?.decimals ?? 9);
+  const val = typeof raw === 'string' ? Number(raw) : raw;
+  return (val / exp).toFixed(digits);
+};
+
+// Numeric smallest-units → human, the per-asset lamportsToSol.
+export const unitsToHuman = (raw: string | number, chain: string): number =>
+  (typeof raw === 'string' ? Number(raw) : raw) /
+  10 ** (chainInfo(chain)?.decimals ?? 9);
+
+// A das per-backing aggregate: one key per hub chain, each value in that
+// backing's OWN smallest unit. NEVER summed across keys.
+export type BackingMap = Record<string, string>;
+
+// Render entries for a per-backing map, in hub-priority order: the sol entry
+// always (so sol-only data keeps its legacy look), other backings only when
+// non-zero. Falls back to the legacy sol scalar when the map is absent —
+// the defensive path for a das that predates the per-backing fields.
+export const backingEntries = (
+  map: BackingMap | null | undefined,
+  legacySol?: string | number | null,
+): { chain: string; amount: string }[] => {
+  if (!map) return [{ chain: 'sol', amount: formatSol(legacySol ?? 0) }];
+  const hubs = hubChains();
+  const order = [...hubs, ...Object.keys(map).filter((k) => !hubs.includes(k))];
+  return order
+    .filter((c) => c in map)
+    .filter((c) => c === 'sol' || Number(map[c]) !== 0)
+    .map((c) => ({ chain: c, amount: formatUnits(map[c], c) }));
+};
 
 export const formatNumber = (n: number, decimals = 2) =>
   n.toLocaleString(undefined, {
@@ -120,7 +158,8 @@ export const applyFee = (
 };
 
 // Returns "1 BTC = N SOL" computed from on-chain amounts. Always quotes the
-// non-hub leg in hub terms so the unit is consistent regardless of direction.
+// non-anchor leg in the PAIR'S hub terms ("1 BTC = N TAO" on a btc↔tao card)
+// so the unit is consistent regardless of direction.
 export const formatRateLine = (
   fromAmount: string | null,
   fromChain: string | null,
@@ -135,13 +174,14 @@ export const formatRateLine = (
   const toHuman = parseInt(toAmount, 10) / toCfg.exp;
   if (!Number.isFinite(fromHuman) || !Number.isFinite(toHuman) || toHuman === 0)
     return null;
-  const fromIsHub = fromChain.toLowerCase() === hubChain();
+  const hub = canonicalSource(fromChain.toLowerCase(), toChain.toLowerCase());
+  const fromIsHub = fromChain.toLowerCase() === hub;
   const hubSide = fromIsHub ? fromHuman : toHuman;
   const otherSide = fromIsHub ? toHuman : fromHuman;
   const otherSym = (fromIsHub ? toChain : fromChain).toUpperCase();
   if (otherSide === 0) return null;
   const ratio = hubSide / otherSide;
-  return `1 ${otherSym} = ${formatRate(ratio)} ${chainSymbol(hubChain())}`;
+  return `1 ${otherSym} = ${formatRate(ratio)} ${chainSymbol(hub)}`;
 };
 
 export const chainSymbol = (chain: string): string =>
@@ -155,13 +195,11 @@ export const chainSymbol = (chain: string): string =>
 // Mirror of allways.utils.rate.directional_rate / chains.canonical_pair —
 // keep in lockstep.
 
-// canonical_pair ordering: hub is always source; non-hub pairs (none exist —
-// every pair is hub↔spoke) order alphabetically.
-const canonicalSource = (a: string, b: string): string => {
-  const hub = hubChain();
-  if (a === hub || b === hub) return hub;
-  return a < b ? a : b;
-};
+// canonical_pair ordering: the pair's hub leg (hub-priority order, from the
+// das-served hub set) is always source; spoke↔spoke (never a valid pair)
+// falls back to alphabetical.
+export const canonicalSource = (a: string, b: string): string =>
+  hubLeg(a, b) ?? (a < b ? a : b);
 
 export const isReverseLeg = (fromChain: string, toChain: string): boolean => {
   const from = fromChain.toLowerCase();

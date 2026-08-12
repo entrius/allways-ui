@@ -12,11 +12,14 @@ const StatCell: React.FC<{
   label: string;
   value?: string;
   unit?: string;
+  /** Multi-denomination readout ("12.34 SOL + 5.00 TAO") — used instead of
+   * value/unit for per-backing stats. Entries are never summed. */
+  segments?: { value: string; unit: string }[];
   /** Small secondary suffix rendered after the value (e.g. "· 98% success"). */
   sub?: React.ReactNode;
   loading?: boolean;
   children?: React.ReactNode;
-}> = ({ label, value, unit, sub, loading, children }) => (
+}> = ({ label, value, unit, segments, sub, loading, children }) => (
   <Box
     sx={{
       borderRadius: 0,
@@ -65,19 +68,35 @@ const StatCell: React.FC<{
           />
         ) : (
           <>
-            {value}
-            {unit && (
-              <Box
-                component="span"
-                sx={{
-                  fontSize: { xs: '1rem', md: '1.25rem' },
-                  color: 'text.secondary',
-                  fontWeight: 500,
-                }}
-              >
-                {unit}
-              </Box>
-            )}
+            {(segments ?? [{ value: value ?? '', unit }]).map((seg, i) => (
+              <React.Fragment key={seg.unit ?? i}>
+                {i > 0 && (
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: { xs: '1rem', md: '1.25rem' },
+                      color: 'text.disabled',
+                      fontWeight: 500,
+                    }}
+                  >
+                    +
+                  </Box>
+                )}
+                {seg.value}
+                {seg.unit && (
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: { xs: '1rem', md: '1.25rem' },
+                      color: 'text.secondary',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {seg.unit}
+                  </Box>
+                )}
+              </React.Fragment>
+            ))}
             {sub && (
               <Box
                 component="span"

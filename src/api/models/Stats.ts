@@ -1,6 +1,9 @@
 export type DashboardStats = {
   totalSwaps: number;
   totalVolumeSol: string;
+  // Completed volume per backing, each in its own smallest unit. Absent on a
+  // das that predates the per-backing aggregates; never sum across keys.
+  totalVolumeByBacking?: Record<string, string>;
   activeMiners: number;
   activeSwaps: number;
 };
@@ -20,6 +23,12 @@ export type HistoryRow = {
   // NOTE: cumulativeFeesSol is intentionally unused — it carries a bogus
   // seed offset on prod. Per-bucket feesSol is fine.
   cumulativeFeesSol: string;
+  // Per-backing counterparts (absent on older das): each key in its own
+  // smallest unit — never sum across keys.
+  volumeByBacking?: Record<string, string>;
+  cumulativeVolumeByBacking?: Record<string, string>;
+  feesByBacking?: Record<string, string>;
+  cumulativeFeesByBacking?: Record<string, string>;
   tps: number;
   successRate: number | null;
   avgSettlementSecs: number | null;

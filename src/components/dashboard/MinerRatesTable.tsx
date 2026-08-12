@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
-import { useMiners, type Miner } from '../../api';
+import { useMiners, minerServesPair, type Miner } from '../../api';
 import {
   decomposeDirection,
   type Direction,
@@ -30,29 +30,26 @@ import {
 import { FONTS } from '../../theme';
 import CopyableAddress from '../CopyableAddress';
 import { MinerRatesTableSkeleton } from './Skeletons';
-import { directionalRate, formatRate } from '../../utils/format';
-import { hubChain } from '../../api/models/chains';
+import {
+  chainSymbol,
+  directionalRate,
+  formatRate,
+  formatUnits,
+} from '../../utils/format';
 
 type SortKey = 'uid' | 'rateFwd' | 'rateRev' | 'collateral' | 'status';
 type SortDir = 'asc' | 'desc';
-// A leg of a miner's pair: forward = SOL→spoke (m.rate), reverse = spoke→SOL
-// (m.counterRate). Both legs render at once; the leg only picks columns.
+// A leg of a miner's pair: forward = anchor→spoke (m.rate), reverse =
+// spoke→anchor (m.counterRate). Both legs render; the leg only picks columns.
 type Leg = 'forward' | 'reverse';
-
-// The non-hub side of a miner's pair (canonical order pins SOL as source, so
-// this is normally destChain), lowercased — or null if the miner has no pair.
-const minerSpoke = (m: Miner): string | null => {
-  const chains = [m.sourceChain, m.destChain]
-    .map((c) => c?.toLowerCase())
-    .filter((c): c is string => !!c && c !== hubChain());
-  return chains[0] ?? null;
-};
 // Open = idle/tradeable now; Active = also reserved/exchanging; All = + inactive.
 type StatusFilter = 'open' | 'active' | 'all';
 
-const formatCollateral = (lamports: string) => {
-  const sol = parseInt(lamports, 10) / 1e9;
-  return sol.toFixed(2);
+// Collateral is denominated in the ROW'S backing (lamports or rao) — render
+// it in that asset, with the symbol, never as an implied SOL figure.
+const formatCollateral = (m: Miner) => {
+  const backing = (m.backing ?? 'sol').toLowerCase();
+  return `${formatUnits(m.collateral, backing)} ${chainSymbol(backing)}`;
 };
 
 const parseRate = (raw: string | null): number => {
@@ -64,13 +61,13 @@ const parseRate = (raw: string | null): number => {
 const statusRank = (m: Miner) =>
   !m.isActive ? 3 : m.hasActiveSwap ? 2 : m.isReserved ? 1 : 0;
 
-// The leg's (from, to) chains: forward = SOL→spoke (m.rate), reverse =
-// spoke→SOL (m.counterRate). Both STORED values are canonical "spoke per 1
-// SOL" (see api/models/Miners.ts) — never per-direction.
+// The leg's (from, to) chains. Rows arrive canonical — the pair's hub anchor
+// pinned as sourceChain — so forward is the row order and reverse flips it;
+// both STORED values stay "spoke per 1 anchor" (see api/models/Miners.ts).
 const legChains = (m: Miner, leg: Leg): [string, string] => {
-  const spoke = minerSpoke(m) ?? '';
-  const hub = hubChain();
-  return leg === 'reverse' ? [spoke, hub] : [hub, spoke];
+  const src = (m.sourceChain ?? '').toLowerCase();
+  const dst = (m.destChain ?? '').toLowerCase();
+  return leg === 'reverse' ? [dst, src] : [src, dst];
 };
 
 // The DIRECTIONAL rate for a leg ("to per 1 from" — what the user receives
@@ -107,17 +104,21 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   // and never needs to scroll horizontally.
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // The page's Market Rate toggle picks the PAIR (spoke) we filter miners to
-  // and which leg's column leads the default sort — both legs' rates always
+  // The page's Market Rate toggle picks the PAIR we filter miners to and
+  // which leg's column leads the default sort — both legs' rates always
   // render side by side.
-  const { spoke, leg: selectedLeg } = decomposeDirection(
-    syncDirection ?? 'SOL-BTC',
-  );
+  const {
+    from,
+    to,
+    spoke,
+    leg: selectedLeg,
+  } = decomposeDirection(syncDirection ?? 'SOL-BTC');
 
   // Widths are percentages for the fixed table layout, so the table always
   // fits its container instead of growing a horizontal scrollbar. Headers
   // spell out what 1 unit sent buys ("1 SOL →" / "1 BTC →").
   const SPOKE = spoke.toUpperCase();
+  const ANCHOR = (spoke === to ? from : to).toUpperCase();
   const columns: {
     key: SortKey;
     label: string;
@@ -125,11 +126,11 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
     width: string;
   }[] = [
     { key: 'uid', label: 'UID', width: isMobile ? '24%' : '22%' },
-    { key: 'rateFwd', label: '1 SOL →', width: isMobile ? '28%' : '25%' },
+    { key: 'rateFwd', label: `1 ${ANCHOR} →`, width: isMobile ? '28%' : '25%' },
     { key: 'rateRev', label: `1 ${SPOKE} →`, width: isMobile ? '28%' : '25%' },
     {
       key: 'collateral',
-      label: 'Capacity (SOL)',
+      label: 'Capacity',
       align: 'right',
       width: isMobile ? '20%' : '16%',
     },
@@ -202,9 +203,9 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     const base = (miners ?? []).filter((m) => {
-      // Only nodes on the selected pair (SOL/BTC vs SOL/TAO) — a miner serves
-      // one pair, so a SOL/TAO node must not appear under a SOL/BTC view.
-      if (minerSpoke(m) !== spoke) return false;
+      // Only quotes on the selected pair — matched on both legs, since a
+      // spoke alone is ambiguous once two hubs serve it (sol↔eth vs tao↔eth).
+      if (!minerServesPair(m, from, to)) return false;
       // Both legs render, so a quote on either side earns the row.
       const hasQuote = parseRate(m.rate) > 0 || parseRate(m.counterRate) > 0;
       if (!hasQuote) return false;
@@ -228,7 +229,7 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
       miner: m,
       match: String(m.uid) === q || m.hotkey.toLowerCase().includes(q),
     }));
-  }, [miners, sortKey, sortDir, search, spoke, statusFilter]);
+  }, [miners, sortKey, sortDir, search, from, to, statusFilter]);
   const hasSearch = search.trim().length > 0;
 
   // "0.00096608 BTC" — the amount 1 unit sent buys on this leg; the header
@@ -517,16 +518,15 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                             maxWidth: 240,
                           }}
                         >
-                          Total SOL collateral backing this node — caps exchange
-                          size and is what gets slashed on failure to deliver.
+                          Total collateral backing this quote, in its backing
+                          asset — caps exchange size and is what gets slashed on
+                          failure to deliver.
                         </Box>
                       }
                       arrow
                       placement="top"
                     >
-                      <Box component="span">
-                        {formatCollateral(miner.collateral)}
-                      </Box>
+                      <Box component="span">{formatCollateral(miner)}</Box>
                     </Tooltip>
                   </TableCell>
 
