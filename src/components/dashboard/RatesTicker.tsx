@@ -1,12 +1,15 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCrownRateHistory, useCurrentCrown } from '../../api';
+import {
+  useCrownRateHistory,
+  useCurrentCrown,
+  useDirections,
+} from '../../api';
 import {
   decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { useSpokes } from '../../hooks';
 import { formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../index';
@@ -99,15 +102,8 @@ const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
 // Market-page eyebrow: the wall-street tape — every route crawling by with
 // its rate and 1D move.
 const RatesTicker: React.FC = () => {
-  const spokes = useSpokes();
-  const directions = useMemo<Direction[]>(
-    () =>
-      spokes.flatMap((s) => {
-        const S = s.toUpperCase();
-        return [`SOL-${S}`, `${S}-SOL`] as Direction[];
-      }),
-    [spokes],
-  );
+  // Every registry pair with a hub leg, straight from das /chains.
+  const directions = useDirections();
 
   return (
     <Stack

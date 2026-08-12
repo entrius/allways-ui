@@ -1,5 +1,4 @@
-import { directionalRate, rateUnit } from '../../utils/format';
-import { hubChain } from './chains';
+import { canonicalSource, directionalRate, rateUnit } from '../../utils/format';
 
 // Each hub↔spoke leg is its own crown/pool: the forward hub→spoke quotes plus
 // their reverses. Directions are runtime strings ("SOL-BTC") derived from the
@@ -12,10 +11,9 @@ export type Range = '1h' | '24h' | '7d' | '30d' | '90d' | 'all';
 export const directionLabel = (dir: Direction): string =>
   dir.replace('-', ' → ');
 
-// Splits a direction into its lowercase chain legs, the spoke chain (the
-// non-hub side), and whether it's the forward (SOL→spoke) or reverse
-// (spoke→SOL) leg. This separates "which pair" (spoke) from "which way" (leg)
-// so callers stop conflating the two.
+// Splits a direction into its lowercase legs, the spoke (non-anchor side —
+// for a hub↔hub pair, the lower-priority hub), and whether it's the forward
+// (anchor→spoke) or reverse leg — "which pair" vs "which way".
 export const decomposeDirection = (
   dir: Direction,
 ): {
@@ -25,7 +23,7 @@ export const decomposeDirection = (
   leg: 'forward' | 'reverse';
 } => {
   const [from, to] = dir.split('-').map((c) => c.toLowerCase());
-  const forward = from === hubChain();
+  const forward = from === canonicalSource(from, to);
   return {
     from,
     to,
@@ -35,9 +33,8 @@ export const decomposeDirection = (
 };
 
 // Directional presentation of a canonical stored rate for `dir` — "to per 1
-// from", what the user receives per 1 sent. Stored rates (quotes, swaps,
-// crown, rate history) are ALWAYS canonical "spoke per 1 SOL"; reverse legs
-// invert here, at the presentation boundary.
+// from". Stored rates (quotes, swaps, crown, rate history) are ALWAYS
+// canonical "spoke per 1 hub-anchor"; reverse legs invert here.
 export const directionalRateFor = (
   dir: Direction,
   rate: string | number | null | undefined,

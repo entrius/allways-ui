@@ -4,13 +4,13 @@ import {
   useCompleteSwapHistory,
   useCrownRateHistory,
   useCurrentCrown,
+  useDirections,
 } from '../../api';
 import {
   decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { useSpokes } from '../../hooks';
 import { formatRate, lamportsToSol } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
@@ -233,15 +233,14 @@ const PairsRail: React.FC<{
   range: HeroRange;
 }> = ({ direction, onDirectionChange, range }) => {
   const secs = RANGE_SECS[range];
-  const { from, to, spoke } = decomposeDirection(direction);
-  const spokes = useSpokes(spoke);
+  const { from, to } = decomposeDirection(direction);
+  // Every registry pair with a hub leg, straight from das /chains. A deep
+  // link must never lose its market, so the selected route stays pinned even
+  // if the registry hasn't (yet) served its pair.
+  const all = useDirections();
   const directions = useMemo<Direction[]>(
-    () =>
-      spokes.flatMap((s) => {
-        const S = s.toUpperCase();
-        return [`SOL-${S}`, `${S}-SOL`] as Direction[];
-      }),
-    [spokes],
+    () => (all.includes(direction) ? all : [direction, ...all]),
+    [all, direction],
   );
   const reverseDir = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 

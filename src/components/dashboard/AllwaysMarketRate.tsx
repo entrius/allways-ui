@@ -10,23 +10,22 @@ import {
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import { useCrownRateHistory, useCurrentCrown } from '../../api';
+import { useChains, useCrownRateHistory, useCurrentCrown } from '../../api';
 import {
   decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { useSpokes } from '../../hooks';
 import { FONTS } from '../../theme';
 import { formatRate } from '../../utils/format';
 import { TickerSymbol } from '../ChainLogo';
 import RangeChips from '../RangeChips';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import StatsStrip from './StatsStrip';
-import { hubChain } from '../../api/models/chains';
+import { hubLeg } from '../../api/models/chains';
 
-// The non-SOL side of a pair. A string, not a union: pairs are open-ended —
-// every spoke chain with registered miners gets a market page automatically.
+// The non-anchor side of a pair. A string, not a union: pairs are open-ended —
+// every chain in the das registry gets its markets automatically.
 export type Spoke = string;
 
 // Semantic move colors (up green / down red), shared with the pairs rail's
@@ -71,9 +70,9 @@ const toPoints = (
   return pts;
 };
 
-// One side of the route picker: a dropdown of assets. Picking a side
-// re-resolves the other side to keep the route legal (SOL is the hub, so
-// exactly one side is always SOL).
+// One side of the route picker: a dropdown of assets. Each side offers only
+// chains that form a valid pair with the other side (at least one hub leg),
+// so picking never produces an illegal route.
 const AssetSelect: React.FC<{
   chain: string;
   chains: string[];
@@ -170,28 +169,23 @@ const AllwaysMarketRate: React.FC<{
 }> = ({ direction, onDirectionChange, quoteInRail, range, onRangeChange }) => {
   const theme = useTheme();
 
-  const { from, to, spoke } = decomposeDirection(direction);
-  const spokes = useSpokes(spoke);
+  const { from, to } = decomposeDirection(direction);
+  const { data: chains } = useChains();
   // Dependent dropdowns: a side only offers what's legal given the OTHER
-  // side — SOL there means this side picks among spokes; a spoke there
-  // pins this side to SOL (the hub). Orientation flips via the ⇄ between
-  // them, converter-style.
+  // side — any chain that forms a pair with at least one hub leg.
+  // Orientation flips via the ⇄ between them, converter-style.
   const optionsFor = (side: 'from' | 'to') => {
     const other = side === 'from' ? to : from;
-    return other === hubChain() ? spokes : [hubChain()];
+    return chains
+      .map((c) => c.id)
+      .filter((c) => c !== other && hubLeg(c, other) != null);
   };
   const pickSide = (side: 'from' | 'to', c: string) => {
     // Options are pre-limited to legal partners, so the pick maps straight
     // onto a route.
-    const C = c.toUpperCase();
-    const next: Direction =
-      side === 'from'
-        ? c === hubChain()
-          ? (`SOL-${to.toUpperCase()}` as Direction)
-          : (`${C}-SOL` as Direction)
-        : c === hubChain()
-          ? (`${from.toUpperCase()}-SOL` as Direction)
-          : (`SOL-${C}` as Direction);
+    const next = (
+      side === 'from' ? `${c}-${to}` : `${from}-${c}`
+    ).toUpperCase() as Direction;
     if (next !== direction) onDirectionChange(next);
   };
   const reversed = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;

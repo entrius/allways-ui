@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box } from '@mui/material';
 import { FONTS } from '../theme';
-import { chainInfo, hubChain } from '../api/models/chains';
+import { chainInfo } from '../api/models/chains';
 
 // Logo PNGs are served by das (same assets as its OG cards); the registry
 // entry carries the path. Unknown chains — or a failed image load — fall back
@@ -81,11 +81,13 @@ export const TickerSymbol: React.FC<{ chain: string; logoSize?: number }> = ({
   </Box>
 );
 
-// "⟠ SOL ⇄ ₿ BTC" — a pair name, each ticker carrying its own logo.
-export const PairLabel: React.FC<{ spoke: string; logoSize?: number }> = ({
-  spoke,
-  logoSize = 15,
-}) => (
+// "Ⓣ TAO ⇄ ₿ BTC" — a pair name, each ticker carrying its own logo. Both
+// legs are explicit: with two hubs, no side is implied.
+export const PairLabel: React.FC<{
+  from: string;
+  to: string;
+  logoSize?: number;
+}> = ({ from, to, logoSize = 15 }) => (
   <Box
     component="span"
     sx={{
@@ -95,10 +97,10 @@ export const PairLabel: React.FC<{ spoke: string; logoSize?: number }> = ({
       whiteSpace: 'nowrap',
     }}
   >
-    <TickerSymbol chain={hubChain()} logoSize={logoSize} />
+    <TickerSymbol chain={from} logoSize={logoSize} />
     <Box component="span" sx={{ color: 'text.disabled' }}>
       ⇄
     </Box>
-    <TickerSymbol chain={spoke} logoSize={logoSize} />
+    <TickerSymbol chain={to} logoSize={logoSize} />
   </Box>
 );

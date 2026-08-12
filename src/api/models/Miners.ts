@@ -1,9 +1,9 @@
 /**
  * Miner commitment data.
  *
- * (sourceChain, destChain) is in canonical order: the hub chain (SOL) is pinned
- * as the canonical source; the spoke (BTC/TAO) is the counter leg. Both rates
- * are "dest per 1 source" under that canonical order.
+ * (sourceChain, destChain) is in canonical order: the pair's hub leg (SOL or
+ * TAO, hub-priority order) is pinned as the canonical source; the spoke is
+ * the counter leg. Both rates are "dest per 1 source" under that order.
  *
  *   rate         → source→dest rate
  *   counterRate  → dest→source rate, same unit as rate
@@ -35,4 +35,21 @@ export type Miner = {
   isReserved: boolean;
   hasActiveSwap: boolean;
   updatedAt: string;
+};
+
+// True iff the miner's pair is exactly {a, b}, orientation-blind. Filter with
+// this, never by spoke alone: with two hubs, a sol↔eth and a tao↔eth quote
+// share a spoke but are different markets.
+export const minerServesPair = (
+  m: Pick<Miner, 'sourceChain' | 'destChain'>,
+  a: string,
+  b: string,
+): boolean => {
+  const src = m.sourceChain?.toLowerCase();
+  const dst = m.destChain?.toLowerCase();
+  if (!src || !dst) return false;
+  return (
+    (src === a.toLowerCase() && dst === b.toLowerCase()) ||
+    (src === b.toLowerCase() && dst === a.toLowerCase())
+  );
 };
