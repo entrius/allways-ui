@@ -122,9 +122,7 @@ const fmtCaps = (caps: Record<string, number>): string => {
   return (
     Object.entries(caps)
       .filter(([, v]) => v > 0)
-      .sort(
-        ([a], [b]) => order.indexOf(a) - order.indexOf(b),
-      )
+      .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
       .map(([b, v]) => `${v.toFixed(2)} ${chainSymbol(b)}`)
       .join(' + ') || '0.00'
   );
@@ -143,11 +141,7 @@ const DepthLadder: React.FC<{
   // dominant purse) — other backings still show in the level's text.
   const anchor = canonicalSource(from, to);
   const maxCum = useMemo(
-    () =>
-      depthData.reduce(
-        (m, r) => Math.max(m, r.cumCaps[anchor] ?? 0),
-        1,
-      ),
+    () => depthData.reduce((m, r) => Math.max(m, r.cumCaps[anchor] ?? 0), 1),
     [depthData, anchor],
   );
 

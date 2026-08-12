@@ -71,13 +71,9 @@ export const backingEntries = (
   map: BackingMap | null | undefined,
   legacySol?: string | number | null,
 ): { chain: string; amount: string }[] => {
-  if (!map)
-    return [{ chain: 'sol', amount: formatSol(legacySol ?? 0) }];
+  if (!map) return [{ chain: 'sol', amount: formatSol(legacySol ?? 0) }];
   const hubs = hubChains();
-  const order = [
-    ...hubs,
-    ...Object.keys(map).filter((k) => !hubs.includes(k)),
-  ];
+  const order = [...hubs, ...Object.keys(map).filter((k) => !hubs.includes(k))];
   return order
     .filter((c) => c in map)
     .filter((c) => c === 'sol' || Number(map[c]) !== 0)

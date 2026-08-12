@@ -1,10 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import {
-  useCrownRateHistory,
-  useCurrentCrown,
-  useDirections,
-} from '../../api';
+import { useCrownRateHistory, useCurrentCrown, useDirections } from '../../api';
 import {
   decomposeDirection,
   directionalRateFor,

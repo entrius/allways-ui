@@ -519,16 +519,14 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
                           }}
                         >
                           Total collateral backing this quote, in its backing
-                          asset — caps exchange size and is what gets slashed
-                          on failure to deliver.
+                          asset — caps exchange size and is what gets slashed on
+                          failure to deliver.
                         </Box>
                       }
                       arrow
                       placement="top"
                     >
-                      <Box component="span">
-                        {formatCollateral(miner)}
-                      </Box>
+                      <Box component="span">{formatCollateral(miner)}</Box>
                     </Tooltip>
                   </TableCell>
 

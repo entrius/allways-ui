@@ -141,26 +141,24 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
       <PerformanceMetric
         label="Volume"
         value={
-          volumeEntries ? (
-            volumeEntries.map((e, i) => (
-              <React.Fragment key={e.chain}>
-                {i > 0 && (
-                  <Box component="span" sx={{ color: 'text.disabled' }}>
-                    {' + '}
+          volumeEntries
+            ? volumeEntries.map((e, i) => (
+                <React.Fragment key={e.chain}>
+                  {i > 0 && (
+                    <Box component="span" sx={{ color: 'text.disabled' }}>
+                      {' + '}
+                    </Box>
+                  )}
+                  {e.amount}
+                  <Box
+                    component="span"
+                    sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
+                  >
+                    {chainSymbol(e.chain)}
                   </Box>
-                )}
-                {e.amount}
-                <Box
-                  component="span"
-                  sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
-                >
-                  {chainSymbol(e.chain)}
-                </Box>
-              </React.Fragment>
-            ))
-          ) : (
-            '—'
-          )
+                </React.Fragment>
+              ))
+            : '—'
         }
       />
       <PerformanceMetric

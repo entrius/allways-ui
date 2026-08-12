@@ -74,7 +74,10 @@ const StatsPanel: React.FC = () => {
         />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
-        <StatCard label={volumeDual ? 'Volume' : 'Volume (SOL)'} value={volume} />
+        <StatCard
+          label={volumeDual ? 'Volume' : 'Volume (SOL)'}
+          value={volume}
+        />
       </Grid>
       <Grid item xs={12} sm={6} md={3}>
         <StatCard label="Active Network Nodes" value={String(activeNodes)} />
