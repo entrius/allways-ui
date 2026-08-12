@@ -13,6 +13,7 @@ import {
   useDirections,
   directionLabel,
   isDirection,
+  isTwoLane,
   useCurrentMinerScores,
   useMinerScores,
   type CurrentMinerScoreRow,
@@ -52,7 +53,10 @@ type Round = {
   rows: MinerScoreRow[];
 };
 
-type ScoreRowLike = Pick<MinerScoreRow, 'direction' | 'fromChain' | 'toChain'>;
+type ScoreRowLike = Pick<
+  MinerScoreRow,
+  'direction' | 'fromChain' | 'toChain' | 'backing'
+>;
 
 // Older rows may carry a null direction — reconstruct it from the chain legs.
 const rowDirection = (row: ScoreRowLike): Direction | null => {
@@ -61,11 +65,21 @@ const rowDirection = (row: ScoreRowLike): Direction | null => {
   return isDirection(dir) ? dir : null;
 };
 
+// Stable per-LANE key (F4): a dual-purse miner has two sol↔tao rows in a round,
+// so the backing must join the direction or the two collide on their React key.
+const rowLaneKey = (row: ScoreRowLike): string =>
+  `${row.fromChain}-${row.toChain}-${row.backing ?? ''}`;
+
 const rowLabel = (row: ScoreRowLike): string => {
   const dir = rowDirection(row);
-  return dir
+  const base = dir
     ? directionLabel(dir)
     : `${row.fromChain.toUpperCase()} → ${row.toChain.toUpperCase()}`;
+  // Only sol↔tao has two lanes — tag which backing this row scored on so the
+  // pair's two rows read distinctly; spoke rows are unchanged.
+  return dir && row.backing && isTwoLane(dir)
+    ? `${base} · ${row.backing.toUpperCase()}`
+    : base;
 };
 
 const niceTicks = (lo: number, hi: number, count = 4): number[] => {
@@ -606,7 +620,7 @@ const ScoringPanel: React.FC<{
         <Stack spacing={0.5} sx={{ mb: 2.5 }}>
           {sortedTipRows.map((row) => (
             <ScoreBreakdown
-              key={`${row.fromChain}-${row.toChain}`}
+              key={rowLaneKey(row)}
               row={row}
               label={rowLabel(row)}
             />
@@ -694,7 +708,7 @@ const ScoringPanel: React.FC<{
             </Typography>
             {popover.round.rows.map((row) => (
               <ScoreBreakdown
-                key={`${row.roundTs}-${row.fromChain}-${row.toChain}`}
+                key={`${row.roundTs}-${rowLaneKey(row)}`}
                 row={row}
                 label={rowLabel(row)}
               />

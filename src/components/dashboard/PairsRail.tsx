@@ -7,6 +7,7 @@ import {
   useDirections,
 } from '../../api';
 import {
+  crownLaneFor,
   decomposeDirection,
   directionalRateFor,
   type Direction,
@@ -96,7 +97,10 @@ const DirectionRow: React.FC<{
   const theme = useTheme();
 
   const { data: crown } = useCurrentCrown();
-  const live = directionalRateFor(direction, crown?.[direction]?.rate);
+  const live = directionalRateFor(
+    direction,
+    crownLaneFor(crown, direction)?.rate,
+  );
   const { data: rows } = useCrownRateHistory({
     direction,
     secs,
@@ -248,8 +252,14 @@ const PairsRail: React.FC<{
   const reverseDir = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 
   const { data: crown } = useCurrentCrown();
-  const selRate = directionalRateFor(direction, crown?.[direction]?.rate);
-  const revRate = directionalRateFor(reverseDir, crown?.[reverseDir]?.rate);
+  const selRate = directionalRateFor(
+    direction,
+    crownLaneFor(crown, direction)?.rate,
+  );
+  const revRate = directionalRateFor(
+    reverseDir,
+    crownLaneFor(crown, reverseDir)?.rate,
+  );
   // Both routes' rates in one numeraire (to per 1 from) — the selected
   // route as-is vs the reverse route inverted.
   const revImplied = revRate ? 1 / revRate : null;

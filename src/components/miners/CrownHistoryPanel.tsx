@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
-import { useMinerScores, type Direction } from '../../api';
+import { isTwoLane, useMinerScores, type Direction } from '../../api';
 import { FONTS } from '../../theme';
 import SectionHeading from '../SectionHeading';
 import CrownHistoryGrid from './CrownHistoryGrid';
@@ -118,16 +118,26 @@ const CrownHistoryPanel: React.FC<{
         </Typography>
       ) : (
         <Stack spacing={0.75} sx={{ px: 0.5 }}>
-          {rounds.map((row) => (
-            <ScoreBreakdown
-              key={`${row.roundTs}-${row.fromChain}-${row.toChain}`}
-              row={row}
-              label={new Date(row.roundTs * 1000).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            />
-          ))}
+          {rounds.map((row) => {
+            const time = new Date(row.roundTs * 1000).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            // sol↔tao pays two lanes per round — tag the backing so the pair's
+            // two same-time rows read distinctly (F4). Spoke rows are unchanged.
+            const twoLane =
+              !!row.backing &&
+              isTwoLane(`${row.fromChain}-${row.toChain}`.toUpperCase());
+            return (
+              <ScoreBreakdown
+                key={`${row.roundTs}-${row.fromChain}-${row.toChain}-${row.backing ?? ''}`}
+                row={row}
+                label={
+                  twoLane ? `${time} · ${row.backing!.toUpperCase()}` : time
+                }
+              />
+            );
+          })}
         </Stack>
       )}
     </Box>

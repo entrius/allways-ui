@@ -12,6 +12,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { useChains, useCrownRateHistory, useCurrentCrown } from '../../api';
 import {
+  crownLaneFor,
   decomposeDirection,
   directionalRateFor,
   type Direction,
@@ -196,7 +197,11 @@ const AllwaysMarketRate: React.FC<{
   // Live crown anchors the headline and the chart's right edge — the same
   // quote source the orderbook reflects, so they always agree.
   const { data: crown } = useCurrentCrown();
-  const liveRate = directionalRateFor(direction, crown?.[direction]?.rate);
+  // Hub-leg lane (F4): the only lane for a spoke, the SOL lane for sol↔tao.
+  const liveRate = directionalRateFor(
+    direction,
+    crownLaneFor(crown, direction)?.rate,
+  );
 
   const points = useMemo(
     () => toPoints(direction, rows, liveRate),
