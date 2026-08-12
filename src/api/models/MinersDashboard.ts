@@ -1,4 +1,5 @@
 import { canonicalSource, directionalRate, rateUnit } from '../../utils/format';
+import { hubChains } from './chains';
 
 // Each hub↔spoke leg is its own crown/pool: the forward hub→spoke quotes plus
 // their reverses. Directions are runtime strings ("SOL-BTC") derived from the
@@ -56,6 +57,17 @@ export const rateUnitVerboseFor = (dir: Direction): string => {
   return `${to.toUpperCase()} per 1 ${from.toUpperCase()}`;
 };
 
+// The backing lanes a direction is scored on (F4), hub-leg first — mirror of
+// das declarableBackings / allways declarable_backings. One entry for a spoke
+// pair (its hub leg), two for the hub↔hub pair (sol↔tao → [sol, tao]).
+export const lanesFor = (dir: Direction): string[] => {
+  const { from, to } = decomposeDirection(dir);
+  return hubChains().filter((h) => h === from || h === to);
+};
+
+// True only for a hub↔hub direction (sol↔tao) — the one pair with two crowns.
+export const isTwoLane = (dir: Direction): boolean => lanesFor(dir).length > 1;
+
 export type CurrentCrownHolder = {
   hotkey: string;
   uid: number | null;
@@ -64,16 +76,36 @@ export type CurrentCrownHolder = {
 };
 
 export type CurrentCrown = {
+  // The lane's funding purse (F4). sol↔tao returns one CurrentCrown per backing
+  // (hub-leg first); every spoke direction returns exactly one, backing = its hub.
+  backing: string;
   // Dominant (highest-credit) band holder. `rate` is always the band's anchor
   // (best) rate, so single-rate readers like the ticker stay correct.
   uid: number | null;
   hotkey: string | null;
   rate: number | null;
+  // Unix seconds the current holder's streak began, or null when unknown.
+  since?: number | null;
   // Every band member with its credit, dominant first. Absent on older APIs.
   holders?: CurrentCrownHolder[];
 };
 
-export type CurrentCrownMap = Record<Direction, CurrentCrown>;
+// Per direction, ONE lane per declarable backing (F4): spoke → 1 element,
+// sol↔tao → 2, ordered [sol, tao]. Use crownLaneFor to pick a lane.
+export type CurrentCrownMap = Record<Direction, CurrentCrown[]>;
+
+// The lane for a direction: an explicit `backing`, else the hub-leg lane (index
+// 0 — das orders lanes hub-leg first). Undefined when the direction is absent.
+export const crownLaneFor = (
+  map: CurrentCrownMap | undefined,
+  dir: Direction,
+  backing?: string,
+): CurrentCrown | undefined => {
+  const lanes = map?.[dir];
+  if (!lanes || lanes.length === 0) return undefined;
+  if (backing) return lanes.find((l) => l.backing === backing);
+  return lanes[0];
+};
 
 export type CrownHistoryRow = {
   // Interval start (unix seconds) the holder took the crown.
@@ -134,6 +166,9 @@ export type MinerScoreRow = {
   direction: Direction | null;
   fromChain: string;
   toChain: string;
+  // The lane's funding purse (F4): a dual-purse miner has two sol↔tao rows per
+  // round, one per backing. Absent on older das (one row, treat as the hub leg).
+  backing?: string;
   eligible: boolean;
   // The direction's emission pool for the round — volume-weighted, so it varies
   // per round and per direction. Null on rounds the validator scored before it

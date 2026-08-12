@@ -10,6 +10,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Typography, useTheme, type Theme } from '@mui/material';
 import { useAllSwaps, useCurrentCrown } from '../../api';
 import {
+  crownLaneFor,
   decomposeDirection,
   directionLabel,
   directionalRateFor,
@@ -115,7 +116,8 @@ const MarketRateChart: React.FC<{
       ...s,
       accent: accentFor(theme, i),
       // Directional, matching the (already-converted) scatter/EMA scale.
-      crownRate: directionalRateFor(s.dir, crown?.[s.dir]?.rate),
+      // Hub-leg lane (F4): unchanged for spokes, SOL lane for sol↔tao.
+      crownRate: directionalRateFor(s.dir, crownLaneFor(crown, s.dir)?.rate),
     }));
 
     // One shared price range across every direction's rates + EMAs + crowns, so

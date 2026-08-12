@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCrownRateHistory, useCurrentCrown, useDirections } from '../../api';
 import {
+  crownLaneFor,
   decomposeDirection,
   directionalRateFor,
   type Direction,
@@ -23,7 +24,12 @@ const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
   const { from, to } = decomposeDirection(direction);
 
   const { data: crown } = useCurrentCrown();
-  const live = directionalRateFor(direction, crown?.[direction]?.rate);
+  // The ticker shows one rate per direction — the hub-leg lane (F4), which is
+  // the only lane for a spoke and the SOL lane for sol↔tao (unchanged from before).
+  const live = directionalRateFor(
+    direction,
+    crownLaneFor(crown, direction)?.rate,
+  );
   const { data: rows } = useCrownRateHistory({
     direction,
     secs: DAY_SECS,

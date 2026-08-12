@@ -29,6 +29,9 @@ export const useCrownHistory = (params: {
   direction: Direction;
   fromTs?: number;
   toTs?: number;
+  // The lane to view (F4): omit for the direction's hub leg (byte-identical to
+  // pre-lane behaviour); pass 'tao' for sol↔tao's tao-backed crown.
+  backing?: string;
 }) =>
   useApiQuery<CrownHistoryRow[]>(
     'crown-history',
@@ -38,6 +41,7 @@ export const useCrownHistory = (params: {
       direction: params.direction,
       fromTime: params.fromTs,
       toTime: params.toTs,
+      backing: params.backing,
     },
   );
 
@@ -46,6 +50,8 @@ export const useCrownRateHistory = (params: {
   fromTs?: number;
   toTs?: number;
   secs?: number;
+  // The lane to view (F4): omit for the hub leg; 'tao' for sol↔tao's tao lane.
+  backing?: string;
 }) =>
   useApiQuery<CrownRateHistoryRow[]>(
     'crown-rate-history',
@@ -56,6 +62,7 @@ export const useCrownRateHistory = (params: {
       fromTime: params.fromTs,
       toTime: params.toTs,
       seconds: params.secs,
+      backing: params.backing,
     },
   );
 
@@ -66,12 +73,15 @@ export const useCrownTime = (params: {
   seconds?: number;
   fromTs?: number;
   toTs?: number;
+  // The lane to view (F4): omit for the hub leg; 'tao' for sol↔tao's tao lane.
+  backing?: string;
 }) =>
   useApiQuery<CrownTimeWindow>('crown-time', '/crown/time', CROWN_REFRESH_MS, {
     direction: params.direction,
     seconds: params.seconds,
     fromTime: params.fromTs,
     toTime: params.toTs,
+    backing: params.backing,
   });
 
 export const useMinerLeaderboard = (range: Range = '30d') =>

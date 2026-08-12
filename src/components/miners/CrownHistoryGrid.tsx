@@ -13,6 +13,8 @@ import {
 import {
   useDirections,
   directionLabel,
+  isTwoLane,
+  lanesFor,
   useCrownHistory,
   useScoringState,
   type Direction,
@@ -104,6 +106,13 @@ const CrownHistoryGrid: React.FC<{
     customTo > customFrom &&
     customTo - customFrom <= SCORING_WINDOW_SECS;
   const [uidSearch, setUidSearch] = useState('');
+  // The crown lane to view (F4). undefined = the direction's hub leg — the only
+  // lane for a spoke, the SOL lane for sol↔tao. Reset when the direction changes
+  // so a stale 'tao' never carries onto a spoke pair.
+  const [backing, setBacking] = useState<string | undefined>(undefined);
+  useEffect(() => setBacking(undefined), [direction]);
+  const lanes = lanesFor(direction);
+  const activeLane = backing ?? lanes[0];
   // Track whether the active filter came from clicking a legend chip vs.
   // typing in the search box. Only chip-driven filters surface a clear (×)
   // affordance next to the chip itself.
@@ -151,6 +160,7 @@ const CrownHistoryGrid: React.FC<{
     direction,
     fromTs: headT > 0 ? lo : undefined,
     toTs: headT > 0 ? hi : undefined,
+    backing,
   });
   const rows = useMemo(() => data ?? [], [data]);
   const isLocked = lockedUid != null;
@@ -265,6 +275,25 @@ const CrownHistoryGrid: React.FC<{
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
+          {isTwoLane(direction) && (
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={activeLane}
+              onChange={(_e, v) => v && setBacking(v)}
+              sx={{ '& .MuiToggleButton-root': { borderColor: 'divider' } }}
+            >
+              {lanes.map((b) => (
+                <ToggleButton
+                  key={b}
+                  value={b}
+                  sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
+                >
+                  {b.toUpperCase()}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          )}
           <RangeChips
             value={range}
             options={['1h', '2h', '4h'] as const}
