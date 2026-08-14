@@ -36,6 +36,7 @@ const getEventColor = (
     SwapFulfilled: palette.status.fulfilled,
     SwapCompleted: palette.status.completed,
     SwapTimedOut: palette.status.timedOut,
+    SwapCancelled: 'var(--color-warning)',
     CollateralPosted: palette.status.collateral,
     CollateralWithdrawn: palette.status.collateral,
     CollateralSlashed: palette.status.timedOut,

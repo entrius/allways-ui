@@ -32,9 +32,11 @@ export type Spoke = string;
 // Semantic move colors (up green / down red), shared with the pairs rail's
 // change column. Light mode mirrors index.css --color-success/--color-danger;
 // dark mode brightens both so they read against near-black.
+// warn = the no-fault terminal outcome (CANCELLED): canvas charts can't
+// resolve CSS vars, so this is the hex twin of --color-warning per mode.
 export const MOVE_COLORS = {
-  light: { up: '#15803d', down: '#b91c1c' },
-  dark: { up: '#4ade80', down: '#f87171' },
+  light: { up: '#15803d', down: '#b91c1c', warn: '#b45309' },
+  dark: { up: '#4ade80', down: '#f87171', warn: '#fbbf24' },
 } as const;
 
 // Robinhood-style range chips. The rate-history endpoint reads through a 1y

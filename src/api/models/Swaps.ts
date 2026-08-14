@@ -6,6 +6,9 @@ export type ActiveSwap = {
   // DB. Display identity; null only for unbackfilled legacy rows.
   seq: number | null;
   swapKey: string | null; // hex of the 32-byte on-chain swap_key
+  // PENDING | ACTIVE | FULFILLED | COMPLETED | TIMED_OUT | CANCELLED |
+  // EXPIRED. Terminal: COMPLETED (green) / TIMED_OUT (red, slashed) /
+  // CANCELLED (amber — validator-voided, no fault, no slash).
   status: string;
   userAddress: string | null;
   minerHotkey: string | null;

@@ -23,6 +23,7 @@ import {
 const STATUS_COLOR: Record<string, string> = {
   COMPLETED: 'var(--color-success)',
   TIMED_OUT: 'var(--color-danger)',
+  CANCELLED: 'var(--color-warning)',
   FULFILLED: 'text.secondary',
   ACTIVE: 'text.secondary',
 };
