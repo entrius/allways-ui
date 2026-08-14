@@ -61,9 +61,7 @@ const ScoreFactorsTable: React.FC<{
       >
         <Box sx={headSx}>{labelHeader}</Box>
         <Box sx={{ ...headSx, textAlign: 'center' }}>elig</Box>
-        {!compact && (
-          <Box sx={{ ...headSx, textAlign: 'right' }}>pool</Box>
-        )}
+        {!compact && <Box sx={{ ...headSx, textAlign: 'right' }}>pool</Box>}
         <Box sx={{ ...headSx, textAlign: 'right' }}>crown</Box>
         {!compact && <Box sx={{ ...headSx, textAlign: 'right' }}>cap</Box>}
         <Box sx={{ ...headSx, textAlign: 'right' }}>reward</Box>
@@ -103,7 +101,9 @@ const ScoreFactorsTable: React.FC<{
                 {f2(row.capacity)}
               </Box>
             )}
-            <Box sx={{ ...numSx, fontWeight: 600 }}>{fmtReward(row.reward)}</Box>
+            <Box sx={{ ...numSx, fontWeight: 600 }}>
+              {fmtReward(row.reward)}
+            </Box>
           </React.Fragment>
         ))}
       </Box>

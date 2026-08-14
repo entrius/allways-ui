@@ -115,9 +115,7 @@ const CrownHistoryPanel: React.FC<{
               isTwoLane(`${row.fromChain}-${row.toChain}`.toUpperCase());
             return {
               key: `${row.roundTs}-${row.fromChain}-${row.toChain}-${row.backing ?? ''}`,
-              label: twoLane
-                ? `${time} · ${row.backing!.toUpperCase()}`
-                : time,
+              label: twoLane ? `${time} · ${row.backing!.toUpperCase()}` : time,
               eligible: row.eligible,
               pool: row.pool,
               crownShare: row.crownShare,

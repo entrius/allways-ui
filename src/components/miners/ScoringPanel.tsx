@@ -628,9 +628,7 @@ const ScoringPanel: React.FC<{
           sx={{
             display: 'grid',
             gridTemplateColumns:
-              tipHalves.length === 2
-                ? 'repeat(2, max-content)'
-                : 'max-content',
+              tipHalves.length === 2 ? 'repeat(2, max-content)' : 'max-content',
             columnGap: 8,
             mb: 2.5,
             overflowX: 'auto',
