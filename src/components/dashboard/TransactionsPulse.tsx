@@ -151,51 +151,53 @@ const TransactionsPulse: React.FC = () => {
 
   const { completed, timedOut, cancelled, inFlight, medianSecs } =
     useMemo(() => {
-    // Date-filtered rows are already cut to their window by applyTxFilters.
-    const windowStart = hasDateWindow ? -Infinity : nowSec - RANGE_SECS[range];
-    const completed: PulseDatum[] = [];
-    const timedOut: PulseDatum[] = [];
-    const cancelled: PulseDatum[] = [];
-    const inFlight: PulseDatum[] = [];
-    for (const s of swaps) {
-      const terminal = TERMINAL.has(s.status);
-      let t = s.initiatedAt ? parseInt(s.initiatedAt, 10) : NaN;
-      if (!Number.isFinite(t) || t <= 0) {
-        // No on-chain timestamp yet. Terminal rows without one can't be
-        // placed; in-flight rows anchor at first sighting (and snap to the
-        // real initiated time once quorum stamps it).
-        if (terminal) continue;
-        const seen = firstSeenRef.current.get(s.swapId) ?? nowSec;
-        firstSeenRef.current.set(s.swapId, seen);
-        t = seen;
+      // Date-filtered rows are already cut to their window by applyTxFilters.
+      const windowStart = hasDateWindow
+        ? -Infinity
+        : nowSec - RANGE_SECS[range];
+      const completed: PulseDatum[] = [];
+      const timedOut: PulseDatum[] = [];
+      const cancelled: PulseDatum[] = [];
+      const inFlight: PulseDatum[] = [];
+      for (const s of swaps) {
+        const terminal = TERMINAL.has(s.status);
+        let t = s.initiatedAt ? parseInt(s.initiatedAt, 10) : NaN;
+        if (!Number.isFinite(t) || t <= 0) {
+          // No on-chain timestamp yet. Terminal rows without one can't be
+          // placed; in-flight rows anchor at first sighting (and snap to the
+          // real initiated time once quorum stamps it).
+          if (terminal) continue;
+          const seen = firstSeenRef.current.get(s.swapId) ?? nowSec;
+          firstSeenRef.current.set(s.swapId, seen);
+          t = seen;
+        }
+        if (t < windowStart) continue;
+        const endRaw = s.resolvedAt ?? s.completedAt;
+        const end = endRaw ? parseInt(endRaw, 10) : null;
+        // Terminal rows keep their real duration; in-flight rows show elapsed
+        // so far, which the 1s clock walks upward.
+        const dur = Math.max(0, (terminal && end != null ? end : nowSec) - t);
+        if (terminal && end == null) continue;
+        const datum: PulseDatum = {
+          value: [t, dur],
+          symbolSize: sizeFor(s),
+          swapId: s.swapId,
+          seq: s.seq,
+          route: routeFor(s),
+          status: s.status,
+          timeoutAt: s.timeoutAt ? parseInt(s.timeoutAt, 10) : null,
+        };
+        if (!terminal) inFlight.push(datum);
+        else if (s.status === 'COMPLETED') completed.push(datum);
+        else if (s.status === 'CANCELLED') cancelled.push(datum);
+        else timedOut.push(datum);
       }
-      if (t < windowStart) continue;
-      const endRaw = s.resolvedAt ?? s.completedAt;
-      const end = endRaw ? parseInt(endRaw, 10) : null;
-      // Terminal rows keep their real duration; in-flight rows show elapsed
-      // so far, which the 1s clock walks upward.
-      const dur = Math.max(0, (terminal && end != null ? end : nowSec) - t);
-      if (terminal && end == null) continue;
-      const datum: PulseDatum = {
-        value: [t, dur],
-        symbolSize: sizeFor(s),
-        swapId: s.swapId,
-        seq: s.seq,
-        route: routeFor(s),
-        status: s.status,
-        timeoutAt: s.timeoutAt ? parseInt(s.timeoutAt, 10) : null,
-      };
-      if (!terminal) inFlight.push(datum);
-      else if (s.status === 'COMPLETED') completed.push(datum);
-      else if (s.status === 'CANCELLED') cancelled.push(datum);
-      else timedOut.push(datum);
-    }
-    const settled = completed.map((d) => d.value[1]).sort((a, b) => a - b);
-    const medianSecs = settled.length
-      ? settled[Math.floor(settled.length / 2)]
-      : null;
-    return { completed, timedOut, cancelled, inFlight, medianSecs };
-  }, [swaps, nowSec, range, hasDateWindow]);
+      const settled = completed.map((d) => d.value[1]).sort((a, b) => a - b);
+      const medianSecs = settled.length
+        ? settled[Math.floor(settled.length / 2)]
+        : null;
+      return { completed, timedOut, cancelled, inFlight, medianSecs };
+    }, [swaps, nowSec, range, hasDateWindow]);
 
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
