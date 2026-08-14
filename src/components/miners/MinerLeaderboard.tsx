@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
+  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -293,6 +294,64 @@ const MinerLeaderboard: React.FC<{
             </TableRow>
           </TableHead>
           <TableBody>
+            {/* Initial load only — refetches keep the previous rows visible
+                (keepPreviousData), so skeletons never flash over real data. */}
+            {isLoading &&
+              sortedRows.length === 0 &&
+              Array.from({ length: 8 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`}>
+                  <TableCell sx={{ width: 22, p: 0, pl: 1.5 }} />
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={28}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                    <Skeleton
+                      variant="text"
+                      width={90}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={110}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={72}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={48}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={64}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={40}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
             {sortedRows.length === 0 && !isLoading && (
               <TableRow>
                 <TableCell
