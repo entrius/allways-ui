@@ -168,16 +168,40 @@ const Footer: React.FC = () => {
             borderColor: 'divider',
           }}
         >
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              color: 'text.secondary',
-              letterSpacing: '0.05em',
-            }}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={{ xs: 0.5, sm: 2 }}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
           >
-            © 2026 Allways · Bittensor SN7
-          </Typography>
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.7rem',
+                color: 'text.secondary',
+                letterSpacing: '0.05em',
+              }}
+            >
+              © 2026 Allways · Bittensor SN7
+            </Typography>
+            <Box
+              component="a"
+              href={LINKS.terms}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ ...linkSx, fontSize: '0.7rem', py: 0 }}
+            >
+              Terms of Service
+            </Box>
+            <Box
+              component="a"
+              href={LINKS.privacy}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ ...linkSx, fontSize: '0.7rem', py: 0 }}
+            >
+              Privacy Policy
+            </Box>
+          </Stack>
           <SocialLinks size={16} spacing={0.75} />
         </Stack>
       </Box>
