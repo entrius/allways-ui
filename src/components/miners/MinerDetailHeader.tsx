@@ -35,7 +35,7 @@ import RangeChips from '../RangeChips';
 // 30d is the deepest window; the API clamps everything to ~30d
 // (MAX_LOOKBACK_BLOCKS) so crown_holders stays prunable, which made the old
 // 90d/all chips return identical data to 30d.
-const RANGES: Range[] = ['24h', '7d', '30d'];
+const RANGES: Range[] = ['1h', '24h', '7d', '30d'];
 
 // "SOL-BTC" → "SOL→BTC" in display symbols (arbusdc renders as USDC), the
 // card-local compact form of directionLabel.

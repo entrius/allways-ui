@@ -1,12 +1,11 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   Box,
-  MenuItem,
   Popover,
-  Select,
   Stack,
   Typography,
   alpha,
+  useMediaQuery,
   useTheme,
 } from '@mui/material';
 import {
@@ -24,22 +23,23 @@ import {
 import { FONTS } from '../../theme';
 import { formatTimeAgo } from '../../utils/format';
 import ScoreBreakdown, { fmtReward } from './ScoreBreakdown';
+import ScoreFactorsTable, { type FactorTableRow } from './ScoreFactorsTable';
+import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
 import SectionHeading from '../SectionHeading';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
-const PANEL_W = 800;
 const PANEL_H = 180;
-const ML = 56;
-const MR = 64;
 const MT = 14;
 const MB = 22;
-const INNER_W = PANEL_W - ML - MR;
 const INNER_H = PANEL_H - MT - MB;
 
-type ScoreSpan = '24h' | '7d' | '30d';
+// The leaderboard's lookback vocabulary (1h/24h/7d/30d) so the whole page
+// shares one range set.
+type ScoreSpan = '1h' | '24h' | '7d' | '30d';
 
 const SPAN_SECS: Record<ScoreSpan, number> = {
+  '1h': 3600,
   '24h': 86_400,
   '7d': 604_800,
   '30d': 2_592_000,
@@ -172,9 +172,16 @@ const ScoreHistoryChart: React.FC<{
   hi: number;
   spanSecs: number;
   isDark: boolean;
+  // ViewBox width — narrower on phones so axis text keeps a readable
+  // on-screen size once the SVG is squeezed into the viewport.
+  panelW: number;
   onRoundClick: (round: Round, clientX: number, clientY: number) => void;
-}> = ({ rounds, lo, hi, spanSecs, isDark, onRoundClick }) => {
+}> = ({ rounds, lo, hi, spanSecs, isDark, panelW, onRoundClick }) => {
   const theme = useTheme();
+  const compact = panelW < 500;
+  const ml = compact ? 42 : 56;
+  const mr = compact ? 12 : 64;
+  const innerW = panelW - ml - mr;
   // Dot outlines cut against the panel background, which is background.paper
   // like every other stats card.
   const surface = theme.palette.background.paper;
@@ -190,7 +197,7 @@ const ScoreHistoryChart: React.FC<{
   }, [rounds]);
 
   const mapX = (t: number) =>
-    hi === lo ? ML : ML + ((t - lo) / (hi - lo)) * INNER_W;
+    hi === lo ? ml : ml + ((t - lo) / (hi - lo)) * innerW;
   const mapY = (v: number) => MT + ((yMax - v) / yMax) * INNER_H;
 
   const edgePath = (topOf: (r: Round) => number): string => {
@@ -219,9 +226,9 @@ const ScoreHistoryChart: React.FC<{
   const nearestRound = (clientX: number): Round | null => {
     if (!svgRef.current || !rounds.length) return null;
     const rect = svgRef.current.getBoundingClientRect();
-    const viewX = ((clientX - rect.left) / rect.width) * PANEL_W;
-    if (viewX < ML || viewX > PANEL_W - MR) return null;
-    const targetT = lo + ((viewX - ML) / INNER_W) * (hi - lo);
+    const viewX = ((clientX - rect.left) / rect.width) * panelW;
+    if (viewX < ml || viewX > panelW - mr) return null;
+    const targetT = lo + ((viewX - ml) / innerW) * (hi - lo);
     let best = rounds[0];
     let bestDist = Math.abs(best.t - targetT);
     for (const r of rounds) {
@@ -245,7 +252,7 @@ const ScoreHistoryChart: React.FC<{
   };
 
   const yTicks = niceTicks(0, yMax, 4);
-  const xTicks = niceTicks(lo, hi, 4);
+  const xTicks = niceTicks(lo, hi, compact ? 3 : 4);
   const gridStroke = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(9,11,13,0.06)';
   const axisText = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(9,11,13,0.5)';
 
@@ -253,7 +260,7 @@ const ScoreHistoryChart: React.FC<{
     <Box sx={{ position: 'relative' }}>
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${PANEL_W} ${PANEL_H}`}
+        viewBox={`0 0 ${panelW} ${PANEL_H}`}
         preserveAspectRatio="none"
         style={{
           width: '100%',
@@ -274,15 +281,15 @@ const ScoreHistoryChart: React.FC<{
         {yTicks.map((t, i) => (
           <g key={`ytick-${i}`}>
             <line
-              x1={ML}
+              x1={ml}
               y1={mapY(t)}
-              x2={PANEL_W - MR}
+              x2={panelW - mr}
               y2={mapY(t)}
               stroke={gridStroke}
               vectorEffect="non-scaling-stroke"
             />
             <text
-              x={ML - 8}
+              x={ml - 8}
               y={mapY(t) + 3}
               textAnchor="end"
               fontFamily="DM Mono"
@@ -309,9 +316,9 @@ const ScoreHistoryChart: React.FC<{
           </text>
         ))}
         <line
-          x1={ML}
+          x1={ml}
           y1={MT + INNER_H}
-          x2={PANEL_W - MR}
+          x2={panelW - mr}
           y2={MT + INNER_H}
           stroke={isDark ? 'rgba(255,255,255,0.18)' : 'rgba(9,11,13,0.18)'}
           vectorEffect="non-scaling-stroke"
@@ -367,10 +374,10 @@ const ScoreHistoryChart: React.FC<{
         <Box
           sx={{
             position: 'absolute',
-            left: `${(hover.x / PANEL_W) * 100}%`,
+            left: `${(hover.x / panelW) * 100}%`,
             top: 0,
             transform:
-              hover.x > PANEL_W / 2
+              hover.x > panelW / 2
                 ? 'translate(calc(-100% - 6px), 0)'
                 : 'translate(6px, 0)',
             backgroundColor: isDark
@@ -427,8 +434,6 @@ const ScoreHistoryChart: React.FC<{
   );
 };
 
-const ALL_PAIRS = 'all';
-
 const ScoringPanel: React.FC<{
   hotkey: string;
   stats: MinerStats | undefined;
@@ -438,6 +443,10 @@ const ScoringPanel: React.FC<{
   const theme = useTheme();
   const directions = useDirections();
   const isDark = theme.palette.mode === 'dark';
+  const compactChart = useMediaQuery(theme.breakpoints.down('sm'));
+  // Two side-by-side tip tables halve the lane list's height on wide screens;
+  // below md a single table keeps one header row.
+  const twoColTip = useMediaQuery(theme.breakpoints.up('md'));
 
   const [span, setSpan] = useState<ScoreSpan>('7d');
   const spanSecs = SPAN_SECS[span];
@@ -497,14 +506,32 @@ const ScoringPanel: React.FC<{
     round: Round;
   } | null>(null);
 
-  const sortedTipRows = useMemo(() => {
+  // Earners first (reward desc), canonical direction order breaking ties.
+  const tipTableRows = useMemo<FactorTableRow[]>(() => {
     const order = (r: CurrentMinerScoreRow) => {
       const dir = rowDirection(r);
       const idx = dir ? directions.indexOf(dir) : -1;
       return idx === -1 ? directions.length : idx;
     };
-    return [...tipRows].sort((a, b) => order(a) - order(b));
+    return [...tipRows]
+      .sort(
+        (a, b) => Number(b.reward) - Number(a.reward) || order(a) - order(b),
+      )
+      .map((r) => ({
+        key: rowLaneKey(r),
+        label: rowLabel(r),
+        eligible: r.eligible,
+        pool: r.pool,
+        crownShare: r.crownShare,
+        capacity: r.capacity,
+        reward: r.reward,
+      }));
   }, [tipRows, directions]);
+  const tipHalves = useMemo<FactorTableRow[][]>(() => {
+    if (!twoColTip || tipTableRows.length <= 6) return [tipTableRows];
+    const splitAt = Math.ceil(tipTableRows.length / 2);
+    return [tipTableRows.slice(0, splitAt), tipTableRows.slice(splitAt)];
+  }, [tipTableRows, twoColTip]);
 
   return (
     <Box
@@ -526,46 +553,19 @@ const ScoringPanel: React.FC<{
           title="Scoring"
           subtitle="validator score snapshots per round"
         />
-        <Stack direction="row" alignItems="center" spacing={1.5}>
-          <Select
-            size="small"
-            value={direction ?? ALL_PAIRS}
-            onChange={(e) => {
-              const v = e.target.value as string;
-              onDirectionChange(isDirection(v) ? v : null);
-            }}
-            sx={{
-              width: 150,
-              height: 30,
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              color: 'text.primary',
-              borderRadius: 0,
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: theme.palette.border.light,
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
-            }}
-          >
-            <MenuItem
-              value={ALL_PAIRS}
-              sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-            >
-              All pairs
-            </MenuItem>
-            {directions.map((d) => (
-              <MenuItem
-                key={d}
-                value={d}
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-              >
-                {directionLabel(d)}
-              </MenuItem>
-            ))}
-          </Select>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1.5}
+          useFlexGap
+          flexWrap="wrap"
+        >
+          <DirectionSelect
+            value={direction}
+            onChange={onDirectionChange}
+            allowAll
+            width={compactChart ? 132 : 150}
+          />
           <RangeChips
             value={span}
             options={Object.keys(SPAN_SECS) as ScoreSpan[]}
@@ -574,7 +574,14 @@ const ScoringPanel: React.FC<{
         </Stack>
       </Stack>
 
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.5}
+        useFlexGap
+        flexWrap="wrap"
+        sx={{ mb: 2 }}
+      >
         <GateChip state={gateState} />
         {stats && (
           <Typography
@@ -609,7 +616,7 @@ const ScoringPanel: React.FC<{
           </Typography>
         )}
       </Stack>
-      {sortedTipRows.length === 0 ? (
+      {tipTableRows.length === 0 ? (
         <Typography
           variant="mono"
           sx={{ fontSize: '0.7rem', color: 'text.disabled', mb: 2.5 }}
@@ -617,15 +624,22 @@ const ScoringPanel: React.FC<{
           no live round · miner holds no crown right now
         </Typography>
       ) : (
-        <Stack spacing={0.5} sx={{ mb: 2.5 }}>
-          {sortedTipRows.map((row) => (
-            <ScoreBreakdown
-              key={rowLaneKey(row)}
-              row={row}
-              label={rowLabel(row)}
-            />
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns:
+              tipHalves.length === 2
+                ? 'repeat(2, max-content)'
+                : 'max-content',
+            columnGap: 8,
+            mb: 2.5,
+            overflowX: 'auto',
+          }}
+        >
+          {tipHalves.map((half, i) => (
+            <ScoreFactorsTable key={i} rows={half} />
           ))}
-        </Stack>
+        </Box>
       )}
 
       <Box sx={{ borderTop: '1px solid', borderColor: 'divider', mb: 2 }} />
@@ -665,6 +679,7 @@ const ScoringPanel: React.FC<{
         hi={toTs}
         spanSecs={spanSecs}
         isDark={isDark}
+        panelW={compactChart ? 400 : 800}
         onRoundClick={(round, clientX, clientY) =>
           setPopover({ top: clientY, left: clientX, round })
         }

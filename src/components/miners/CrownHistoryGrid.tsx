@@ -11,8 +11,6 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  useDirections,
-  directionLabel,
   isTwoLane,
   lanesFor,
   useCrownHistory,
@@ -22,6 +20,7 @@ import {
 import { FONTS } from '../../theme';
 import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
+import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
 import SectionHeading from '../SectionHeading';
 import {
@@ -71,6 +70,9 @@ const CrownHistoryGrid: React.FC<{
   onCustomRangeChange?: (from: number | null, to: number | null) => void;
   // Drop the outer card chrome + header so the parent panel can wrap it.
   embedded?: boolean;
+  // Embedded-mode heading rendered on the controls row's left — keeps the
+  // panel title and the pickers on one line instead of two sparse rows.
+  heading?: React.ReactNode;
   // Publish the resolved [lo, hi] so the panel can fetch windowed factors
   // that match what's drawn.
   onWindowChange?: (lo: number, hi: number) => void;
@@ -86,10 +88,10 @@ const CrownHistoryGrid: React.FC<{
   customTo = null,
   onCustomRangeChange,
   embedded = false,
+  heading = null,
   onWindowChange,
 }) => {
   const theme = useTheme();
-  const directions = useDirections();
   const isDark = theme.palette.mode === 'dark';
   // Theme-aware neutrals — without these, empty/other cells render as
   // near-white on light surfaces and disappear.
@@ -106,6 +108,9 @@ const CrownHistoryGrid: React.FC<{
     customTo > customFrom &&
     customTo - customFrom <= SCORING_WINDOW_SECS;
   const [uidSearch, setUidSearch] = useState('');
+  // Custom from/to inputs are a power feature — folded away until asked for
+  // (or already active via the URL).
+  const [showCustom, setShowCustom] = useState(false);
   // The crown lane to view (F4). undefined = the direction's hub leg — the only
   // lane for a spoke, the SOL lane for sol↔tao. Reset when the direction changes
   // so a stale 'tao' never carries onto a spoke pair.
@@ -247,34 +252,33 @@ const CrownHistoryGrid: React.FC<{
     >
       <Stack
         direction="row"
-        justifyContent={embedded ? 'flex-end' : 'space-between'}
+        justifyContent={embedded && !heading ? 'flex-end' : 'space-between'}
         alignItems="center"
-        sx={{ mb: 2.5 }}
+        sx={{ mb: 2.5, flexWrap: 'wrap', rowGap: 1.5 }}
       >
-        {!embedded && (
+        {embedded ? (
+          heading
+        ) : (
           <SectionHeading
             title="Crown History"
             subtitle="per cell · who held the best rate"
           />
         )}
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <ToggleButtonGroup
-            exclusive
-            size="small"
+        <Stack
+          direction="row"
+          spacing={1.5}
+          alignItems="center"
+          useFlexGap
+          flexWrap="wrap"
+        >
+          {/* One direction per view — a Select, not a toggle wall; the chain
+              registry grows a direction pair per spoke and buttons wrapped
+              across the whole panel. */}
+          <DirectionSelect
             value={direction}
-            onChange={(_e, v) => v && onDirectionChange(v)}
-            sx={{ '& .MuiToggleButton-root': { borderColor: 'divider' } }}
-          >
-            {directions.map((d) => (
-              <ToggleButton
-                key={d}
-                value={d}
-                sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-              >
-                {directionLabel(d)}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+            onChange={(d) => d && onDirectionChange(d)}
+            width={168}
+          />
           {isTwoLane(direction) && (
             <ToggleButtonGroup
               exclusive
@@ -299,6 +303,31 @@ const CrownHistoryGrid: React.FC<{
             options={['1h', '2h', '4h'] as const}
             onChange={onRangeChange}
           />
+          {onCustomRangeChange && (
+            <Box
+              component="button"
+              onClick={() => setShowCustom((v) => !v)}
+              aria-pressed={showCustom || customActive}
+              sx={{
+                all: 'unset',
+                cursor: 'pointer',
+                fontFamily: FONTS.mono,
+                fontSize: '0.65rem',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                px: 1,
+                py: 0.4,
+                fontWeight: 600,
+                color:
+                  showCustom || customActive
+                    ? 'primary.main'
+                    : 'text.secondary',
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+            >
+              custom
+            </Box>
+          )}
         </Stack>
       </Stack>
       <Stack
@@ -407,7 +436,7 @@ const CrownHistoryGrid: React.FC<{
           />
         )}
       </Stack>
-      {onCustomRangeChange && (
+      {onCustomRangeChange && (showCustom || customActive) && (
         <CrownGridRangeInputs
           customFrom={customFrom}
           customTo={customTo}

@@ -36,7 +36,7 @@ const MinerDetailPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const theme = useTheme();
   // The crown-history grid and the rate chart are dense, wide panels — skip
-  // them below md so the phone view is just the header and swap history.
+  // them below md so the phone view is header, scoring, and swap history.
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const rangeParam = params.get('range');
@@ -128,14 +128,12 @@ const MinerDetailPage: React.FC = () => {
           onRangeChange={(r) => setParam('range', r)}
         />
 
-        {!isMobile && (
-          <ScoringPanel
-            hotkey={hotkey}
-            stats={stats}
-            direction={scoreDirection}
-            onDirectionChange={(d) => setParam('scoreDir', d ?? undefined)}
-          />
-        )}
+        <ScoringPanel
+          hotkey={hotkey}
+          stats={stats}
+          direction={scoreDirection}
+          onDirectionChange={(d) => setParam('scoreDir', d ?? undefined)}
+        />
 
         {uid != null && !isMobile && (
           <CrownHistoryPanel
