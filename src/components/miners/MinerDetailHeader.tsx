@@ -428,11 +428,13 @@ const MinerDetailHeader: React.FC<{
                 .join(' · ')}`}
               placement="top"
             >
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={0.5}
+              {/* inline-flex + gap, not Stack spacing — Stack margins skip
+                  bare text children, jamming the icon against the label. */}
+              <Box
                 sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.75,
                   px: 1,
                   py: 0.4,
                   border: '1px solid',
@@ -444,13 +446,13 @@ const MinerDetailHeader: React.FC<{
                   letterSpacing: '0.05em',
                 }}
               >
-                <CrownIcon size={12} color={crownGold} />
+                <CrownIcon size={12} color={crownGold} sx={{ mr: 0 }} />
                 {/* A couple of crowns read best as directions; more collapse
                     to a count (each leg is also crowned in the quote table). */}
                 {crownDirections.length <= 2
                   ? crownDirections.map(compactDirection).join('  ')
                   : `${crownDirections.length} crowns`}
-              </Stack>
+              </Box>
             </Tooltip>
           )}
         </Stack>
