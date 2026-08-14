@@ -84,12 +84,13 @@ const getStatusColor = (
   },
 ): string => {
   // Mostly monochrome, but terminal outcomes keep semantic color — completed
-  // green / timed-out red. In-flight states stay neutral.
+  // green / timed-out red / cancelled amber. In-flight states stay neutral.
   const map: Record<string, string> = {
     ACTIVE: palette.text.secondary,
     FULFILLED: palette.text.secondary,
     COMPLETED: 'var(--color-success)',
     TIMED_OUT: 'var(--color-danger)',
+    CANCELLED: 'var(--color-warning)',
   };
   return map[status] ?? palette.text.secondary;
 };
@@ -726,6 +727,7 @@ const SwapTracker: React.FC<{
               <option value="all">ALL</option>
               <option value="completed">COMPLETED</option>
               <option value="timed_out">TIMED OUT</option>
+              <option value="cancelled">CANCELLED</option>
               <option value="in_flight">IN FLIGHT</option>
             </TextField>
           </FilterField>

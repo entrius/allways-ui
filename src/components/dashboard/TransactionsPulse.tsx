@@ -29,7 +29,7 @@ echarts.use([
 // Same lookback windows as the market hero chart, via its shared RANGE_SECS.
 const RANGES: readonly HeroRange[] = ['1H', '1D', '1W', '1M'];
 
-const TERMINAL = new Set(['COMPLETED', 'TIMED_OUT']);
+const TERMINAL = new Set(['COMPLETED', 'TIMED_OUT', 'CANCELLED']);
 
 // One chart datum: value = [initiated (unix secs), duration (secs)], plus the
 // swap fields the tooltip and click-through need.
@@ -149,50 +149,55 @@ const TransactionsPulse: React.FC = () => {
     return () => clearInterval(id);
   }, [hasInFlight]);
 
-  const { completed, timedOut, inFlight, medianSecs } = useMemo(() => {
-    // Date-filtered rows are already cut to their window by applyTxFilters.
-    const windowStart = hasDateWindow ? -Infinity : nowSec - RANGE_SECS[range];
-    const completed: PulseDatum[] = [];
-    const timedOut: PulseDatum[] = [];
-    const inFlight: PulseDatum[] = [];
-    for (const s of swaps) {
-      const terminal = TERMINAL.has(s.status);
-      let t = s.initiatedAt ? parseInt(s.initiatedAt, 10) : NaN;
-      if (!Number.isFinite(t) || t <= 0) {
-        // No on-chain timestamp yet. Terminal rows without one can't be
-        // placed; in-flight rows anchor at first sighting (and snap to the
-        // real initiated time once quorum stamps it).
-        if (terminal) continue;
-        const seen = firstSeenRef.current.get(s.swapId) ?? nowSec;
-        firstSeenRef.current.set(s.swapId, seen);
-        t = seen;
+  const { completed, timedOut, cancelled, inFlight, medianSecs } =
+    useMemo(() => {
+      // Date-filtered rows are already cut to their window by applyTxFilters.
+      const windowStart = hasDateWindow
+        ? -Infinity
+        : nowSec - RANGE_SECS[range];
+      const completed: PulseDatum[] = [];
+      const timedOut: PulseDatum[] = [];
+      const cancelled: PulseDatum[] = [];
+      const inFlight: PulseDatum[] = [];
+      for (const s of swaps) {
+        const terminal = TERMINAL.has(s.status);
+        let t = s.initiatedAt ? parseInt(s.initiatedAt, 10) : NaN;
+        if (!Number.isFinite(t) || t <= 0) {
+          // No on-chain timestamp yet. Terminal rows without one can't be
+          // placed; in-flight rows anchor at first sighting (and snap to the
+          // real initiated time once quorum stamps it).
+          if (terminal) continue;
+          const seen = firstSeenRef.current.get(s.swapId) ?? nowSec;
+          firstSeenRef.current.set(s.swapId, seen);
+          t = seen;
+        }
+        if (t < windowStart) continue;
+        const endRaw = s.resolvedAt ?? s.completedAt;
+        const end = endRaw ? parseInt(endRaw, 10) : null;
+        // Terminal rows keep their real duration; in-flight rows show elapsed
+        // so far, which the 1s clock walks upward.
+        const dur = Math.max(0, (terminal && end != null ? end : nowSec) - t);
+        if (terminal && end == null) continue;
+        const datum: PulseDatum = {
+          value: [t, dur],
+          symbolSize: sizeFor(s),
+          swapId: s.swapId,
+          seq: s.seq,
+          route: routeFor(s),
+          status: s.status,
+          timeoutAt: s.timeoutAt ? parseInt(s.timeoutAt, 10) : null,
+        };
+        if (!terminal) inFlight.push(datum);
+        else if (s.status === 'COMPLETED') completed.push(datum);
+        else if (s.status === 'CANCELLED') cancelled.push(datum);
+        else timedOut.push(datum);
       }
-      if (t < windowStart) continue;
-      const endRaw = s.resolvedAt ?? s.completedAt;
-      const end = endRaw ? parseInt(endRaw, 10) : null;
-      // Terminal rows keep their real duration; in-flight rows show elapsed
-      // so far, which the 1s clock walks upward.
-      const dur = Math.max(0, (terminal && end != null ? end : nowSec) - t);
-      if (terminal && end == null) continue;
-      const datum: PulseDatum = {
-        value: [t, dur],
-        symbolSize: sizeFor(s),
-        swapId: s.swapId,
-        seq: s.seq,
-        route: routeFor(s),
-        status: s.status,
-        timeoutAt: s.timeoutAt ? parseInt(s.timeoutAt, 10) : null,
-      };
-      if (!terminal) inFlight.push(datum);
-      else if (s.status === 'COMPLETED') completed.push(datum);
-      else timedOut.push(datum);
-    }
-    const settled = completed.map((d) => d.value[1]).sort((a, b) => a - b);
-    const medianSecs = settled.length
-      ? settled[Math.floor(settled.length / 2)]
-      : null;
-    return { completed, timedOut, inFlight, medianSecs };
-  }, [swaps, nowSec, range, hasDateWindow]);
+      const settled = completed.map((d) => d.value[1]).sort((a, b) => a - b);
+      const medianSecs = settled.length
+        ? settled[Math.floor(settled.length / 2)]
+        : null;
+      return { completed, timedOut, cancelled, inFlight, medianSecs };
+    }, [swaps, nowSec, range, hasDateWindow]);
 
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
@@ -250,6 +255,7 @@ const TransactionsPulse: React.FC = () => {
     const statusColor: Record<string, string> = {
       COMPLETED: move.up,
       TIMED_OUT: move.down,
+      CANCELLED: move.warn,
     };
 
     chart.setOption({
@@ -351,6 +357,14 @@ const TransactionsPulse: React.FC = () => {
           z: 4,
         },
         {
+          name: 'Cancelled',
+          type: 'scatter',
+          data: cancelled,
+          itemStyle: { color: move.warn, opacity: 0.8 },
+          animationDurationUpdate: 0,
+          z: 4,
+        },
+        {
           name: 'In flight',
           type: 'effectScatter',
           data: inFlight,
@@ -366,6 +380,7 @@ const TransactionsPulse: React.FC = () => {
   }, [
     completed,
     timedOut,
+    cancelled,
     inFlight,
     nowSec,
     range,
@@ -389,6 +404,15 @@ const TransactionsPulse: React.FC = () => {
       label: `${timedOut.length} timed out`,
       color: MOVE_COLORS[theme.palette.mode].down,
     },
+    // Rare no-fault outcome — only earns a legend slot when present.
+    ...(cancelled.length
+      ? [
+          {
+            label: `${cancelled.length} cancelled`,
+            color: MOVE_COLORS[theme.palette.mode].warn,
+          },
+        ]
+      : []),
     {
       label: `${inFlight.length} in flight`,
       color: theme.palette.text.primary,

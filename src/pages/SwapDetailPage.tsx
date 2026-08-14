@@ -56,13 +56,14 @@ const getStatusColor = (
   status: string,
   palette: { status: Record<string, string> },
 ): string => {
-  // Terminal states pop with semantic color — completion green / timeout red.
-  // In-flight states keep their muted blue tints.
+  // Terminal states pop with semantic color — completion green / timeout red
+  // / cancelled amber. In-flight states keep their muted blue tints.
   const map: Record<string, string> = {
     ACTIVE: palette.status.active,
     FULFILLED: palette.status.fulfilled,
     COMPLETED: 'var(--color-success)',
     TIMED_OUT: 'var(--color-danger)',
+    CANCELLED: 'var(--color-warning)',
   };
   return map[status] ?? palette.status.active;
 };
@@ -104,6 +105,7 @@ const SwapDetailPage: React.FC = () => {
 
   const statusColor = getStatusColor(swap.status, theme.palette);
   const isTimedOut = swap.status === 'TIMED_OUT';
+  const isCancelled = swap.status === 'CANCELLED';
   const refundEvent: ContractEvent | undefined = isTimedOut
     ? events.find(
         (e) =>
@@ -126,10 +128,10 @@ const SwapDetailPage: React.FC = () => {
       failed: isTimedOut && !swap.fulfilledAt,
     },
     {
-      label: 'Completed',
+      label: isCancelled ? 'Cancelled' : 'Completed',
       at: swap.completedAt ?? swap.resolvedAt,
       done: swap.status === 'COMPLETED',
-      failed: isTimedOut,
+      failed: isTimedOut || isCancelled,
     },
   ];
 
@@ -316,6 +318,8 @@ const SwapDetailPage: React.FC = () => {
             (refundPending
               ? 'Miner did not deliver in time. Slash is pending — user must claim the refund on-chain with `alw claim`.'
               : "Miner did not deliver in time. The slashed collateral was paid directly to the user's address.")}
+          {swap.status === 'CANCELLED' &&
+            'Validators voided this swap before completion — no fault assigned, no slash applied. The cancel reason is recorded in the event timeline below.'}
         </Typography>
       )}
 

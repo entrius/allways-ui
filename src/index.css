@@ -61,6 +61,9 @@
      small uppercase mono text. */
   --color-success: #15803d;
   --color-danger: #b91c1c;
+  /* Third terminal outcome: a validator-voided swap (CANCELLED) — no fault,
+     no slash. Amber so it reads as "ended, but neither win nor loss". */
+  --color-warning: #b45309;
   --color-status-collateral: color-mix(
     in srgb,
     var(--color-secondary) 75%,
