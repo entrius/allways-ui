@@ -1,5 +1,12 @@
 import React from 'react';
-import { Box, Stack, Tooltip, Typography, alpha, useTheme } from '@mui/material';
+import {
+  Box,
+  Stack,
+  Tooltip,
+  Typography,
+  alpha,
+  useTheme,
+} from '@mui/material';
 import { useUsdPrices, type MinerStats, type Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
@@ -222,7 +229,11 @@ const QuoteCell: React.FC<{
   ) : (
     <Box
       component="span"
-      sx={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline' }}
+      sx={{
+        whiteSpace: 'nowrap',
+        display: 'inline-flex',
+        alignItems: 'baseline',
+      }}
     >
       {crown && (
         <Tooltip
