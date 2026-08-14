@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   Box,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -19,6 +20,7 @@ import {
   type MinerRateHistoryRow,
 } from '../../api';
 import { FONTS } from '../../theme';
+import DirectionSelect from './DirectionSelect';
 import SectionHeading from '../SectionHeading';
 import { directionalRate, formatTimeAgo, rateUnit } from '../../utils/format';
 
@@ -50,11 +52,13 @@ const pairLabel = (row: MinerRateHistoryRow): string => {
 // Chronological table twin of the rate graph above it — every quote this
 // miner posted, newest first. A QuoteRemoved lands as rate 0. Stored rates
 // are canonical "spoke per 1 SOL"; each row renders DIRECTIONALLY ("to per 1
-// from" of its own pair), unit-labeled.
+// from" of its own pair), unit-labeled. Filtered by its own direction picker
+// (null = all pairs).
 const RateHistoryTable: React.FC<{
   hotkey: string;
   direction: Direction | null;
-}> = ({ hotkey, direction }) => {
+  onDirectionChange: (d: Direction | null) => void;
+}> = ({ hotkey, direction, onDirectionChange }) => {
   const { data } = useMinerRateHistory(hotkey);
 
   const { rows, truncated } = useMemo(() => {
@@ -82,12 +86,20 @@ const RateHistoryTable: React.FC<{
         mb: 3,
       }}
     >
-      <Box sx={{ mb: 1.5 }}>
-        <SectionHeading
-          title="Rate History"
-          subtitle={direction ? directionLabel(direction) : undefined}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1.5, flexWrap: 'wrap', rowGap: 1.5 }}
+      >
+        <SectionHeading title="Rate History" />
+        <DirectionSelect
+          value={direction}
+          onChange={onDirectionChange}
+          allowAll
+          width={150}
         />
-      </Box>
+      </Stack>
       <TableContainer sx={{ overflowX: 'auto', maxHeight: 420 }}>
         <Table
           size="small"

@@ -8,7 +8,13 @@ import {
   Page,
   SEO,
 } from '../components';
-import { isRange, isRateRange, type Range, type RateRange } from '../api';
+import {
+  isDirection,
+  isRange,
+  isRateRange,
+  type Range,
+  type RateRange,
+} from '../api';
 
 const MinersPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -26,6 +32,8 @@ const MinersPage: React.FC = () => {
   const rateRange: RateRange = isRateRange(rateRangeParam)
     ? rateRangeParam
     : '24h';
+  const rateDirParam = params.get('rateDir');
+  const rateDirection = isDirection(rateDirParam) ? rateDirParam : 'SOL-BTC';
 
   const setParam = useCallback(
     (key: string, value: string | undefined) => {
@@ -65,6 +73,8 @@ const MinersPage: React.FC = () => {
             <CrownRateChart
               range={rateRange}
               onRangeChange={(r) => setParam('rateRange', r)}
+              direction={rateDirection}
+              onDirectionChange={(d) => setParam('rateDir', d)}
             />
           </>
         )}

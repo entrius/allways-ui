@@ -45,6 +45,12 @@ const MinerDetailPage: React.FC = () => {
   const rateRange: RateRange = isRateRange(rateRangeParam)
     ? rateRangeParam
     : '24h';
+  const rateDirParam = params.get('rateDir');
+  const rateDirection = isDirection(rateDirParam) ? rateDirParam : 'SOL-BTC';
+  // Rate-history table filter; null = "All pairs", independent of the chart
+  // and scoring pickers.
+  const histDirParam = params.get('histDir');
+  const histDirection = isDirection(histDirParam) ? histDirParam : null;
   const crownDirParam = params.get('crownDir');
   const crownDirection = isDirection(crownDirParam) ? crownDirParam : 'SOL-BTC';
   const crownGridRangeParam = params.get('crownGridRange');
@@ -164,9 +170,15 @@ const MinerDetailPage: React.FC = () => {
               <CrownRateChart
                 range={rateRange}
                 onRangeChange={(r) => setParam('rateRange', r)}
+                direction={rateDirection}
+                onDirectionChange={(d) => setParam('rateDir', d)}
                 minerHotkey={hotkey}
               />
-              <RateHistoryTable hotkey={hotkey} direction={scoreDirection} />
+              <RateHistoryTable
+                hotkey={hotkey}
+                direction={histDirection}
+                onDirectionChange={(d) => setParam('histDir', d ?? undefined)}
+              />
             </Box>
           )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
