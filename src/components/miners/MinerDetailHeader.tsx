@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography, alpha, useTheme } from '@mui/material';
+import { Box, Stack, Tooltip, Typography, alpha, useTheme } from '@mui/material';
 import { useUsdPrices, type MinerStats, type Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
@@ -15,33 +15,43 @@ import {
   rateUnit,
   usdFromBackingMap,
 } from '../../utils/format';
-import { hubChains } from '../../api/models/chains';
+import {
+  allDirections,
+  chainList,
+  hubChains,
+  hubLeg,
+} from '../../api/models/chains';
 import CopyableAddress from '../CopyableAddress';
 import CrownIcon from './CrownIcon';
 import RangeChips from '../RangeChips';
-import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 // 30d is the deepest window; the API clamps everything to ~30d
 // (MAX_LOOKBACK_BLOCKS) so crown_holders stays prunable, which made the old
 // 90d/all chips return identical data to 30d.
 const RANGES: Range[] = ['24h', '7d', '30d'];
 
+// "SOL-BTC" → "SOL→BTC" in display symbols (arbusdc renders as USDC), the
+// card-local compact form of directionLabel.
+const compactDirection = (dir: string): string =>
+  dir
+    .split('-')
+    .map((leg) => chainSymbol(leg.toLowerCase()))
+    .join('→');
+
+const eyebrowSx = {
+  fontFamily: FONTS.mono,
+  fontSize: '0.6rem',
+  letterSpacing: '0.18em',
+  textTransform: 'uppercase',
+  color: 'text.disabled',
+} as const;
+
 const HeaderField: React.FC<{ label: string; children: React.ReactNode }> = ({
   label,
   children,
 }) => (
   <Stack spacing={0.4}>
-    <Typography
-      sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.6rem',
-        letterSpacing: '0.18em',
-        textTransform: 'uppercase',
-        color: 'text.disabled',
-      }}
-    >
-      {label}
-    </Typography>
+    <Typography sx={eyebrowSx}>{label}</Typography>
     <Box
       sx={{
         fontFamily: FONTS.mono,
@@ -188,9 +198,56 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   );
 };
 
-// Top card on the per-miner page: identity (uid + crown chips + active dot),
-// header fields (hotkey, collateral, activation, quote rates), and the
-// performance grid scoped to the selected range.
+interface QuoteRow {
+  key: string;
+  src: string;
+  dst: string;
+  backing: string;
+  fwd: number | null;
+  rev: number | null;
+}
+
+// One directional quote cell: rate + unit, a gold crown when the miner is
+// the current crown holder on that leg.
+const QuoteCell: React.FC<{
+  from: string;
+  to: string;
+  rate: number | null;
+  crown: boolean;
+}> = ({ from, to, rate, crown }) =>
+  rate == null ? (
+    <Box component="span" sx={{ color: 'text.disabled' }}>
+      —
+    </Box>
+  ) : (
+    <Box
+      component="span"
+      sx={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'baseline' }}
+    >
+      {crown && (
+        <Tooltip
+          title={`current crown · ${chainSymbol(from)}→${chainSymbol(to)}`}
+          placement="top"
+        >
+          <Box component="span" sx={{ display: 'inline-flex' }}>
+            <CrownIcon size={11} />
+          </Box>
+        </Tooltip>
+      )}
+      {formatRate(rate)}
+      <Box
+        component="span"
+        sx={{ color: 'text.disabled', ml: 0.5, fontSize: '0.68rem' }}
+      >
+        {rateUnit(from, to)}
+      </Box>
+    </Box>
+  );
+
+// Top card on the per-miner page: identity (uid + crown badge + active dot),
+// meta strip (hotkey, collateral, activation), a dense per-pair quote table
+// with inline crown marks, the chain address list, and the performance grid
+// scoped to the selected range.
 const MinerDetailHeader: React.FC<{
   hotkey: string;
   uid: number | null;
@@ -201,29 +258,44 @@ const MinerDetailHeader: React.FC<{
 }> = ({ hotkey, uid, stats, pairs, range, onRangeChange }) => {
   const theme = useTheme();
   const crownDirections = stats?.currentCrownDirections ?? [];
+  const crownSet = new Set(crownDirections.map((d) => d.toUpperCase()));
+  const crownGold = theme.palette.asset.btc;
   // Per-miner columns agree across a miner's pair rows; the first is
   // representative for identity fields.
   const liveMiner = pairs[0] ?? null;
-  // On-chain commitment is canonicalized so the hub (SOL) is pinned as source;
-  // both stored rates are canonical "spoke per 1 SOL". Render each leg
-  // DIRECTIONALLY — "to per 1 from" of that leg (the reverse inverts).
-  const quotes = pairs.flatMap((p) => {
-    const src = p.sourceChain?.toLowerCase();
-    const dst = p.destChain?.toLowerCase();
-    if (!src || !dst) return [];
-    return [
-      [src, dst, p.rate] as const,
-      [dst, src, p.counterRate] as const,
-    ].flatMap(([from, to, raw]) => {
-      const rate = directionalRate(from, to, raw) ?? 0;
-      if (rate <= 0) return [];
+  // On-chain commitment is canonicalized so the hub is pinned as source; both
+  // stored rates are canonical "spoke per 1 hub". Each pair renders as ONE row
+  // with both legs shown DIRECTIONALLY — "to per 1 from" of that leg (the
+  // reverse inverts); the unit label carries the leg's direction.
+  const dirOrder = allDirections();
+  const orderIdx = (src: string, dst: string): number => {
+    const i = dirOrder.indexOf(`${src}-${dst}`.toUpperCase());
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const quoteRows: QuoteRow[] = pairs
+    .flatMap((p) => {
+      const src = p.sourceChain?.toLowerCase();
+      const dst = p.destChain?.toLowerCase();
+      if (!src || !dst) return [];
+      const fwd = directionalRate(src, dst, p.rate);
+      const rev = directionalRate(dst, src, p.counterRate);
       return {
-        label: `${from.toUpperCase()} → ${to.toUpperCase()}`,
-        rate,
-        unit: rateUnit(from, to),
+        key: `${src}-${dst}-${p.backing ?? ''}`,
+        src,
+        dst,
+        backing: (p.backing ?? 'sol').toLowerCase(),
+        fwd: fwd != null && fwd > 0 ? fwd : null,
+        rev: rev != null && rev > 0 ? rev : null,
       };
+    })
+    .filter((r) => r.fwd != null || r.rev != null)
+    .sort((a, b) => {
+      const d = orderIdx(a.src, a.dst) - orderIdx(b.src, b.dst);
+      if (d !== 0) return d;
+      // Same pair twice = dual-backing twins; sol bond first.
+      return a.backing === b.backing ? 0 : a.backing === 'sol' ? -1 : 1;
     });
-  });
+
   // One bond purse per backing, each in ITS OWN asset — a tao purse is rao,
   // never piped through the SOL formatter. Same-backing rows share a purse,
   // so keep the max; stats.collateral stands in when no live rows exist.
@@ -244,9 +316,32 @@ const MinerDetailHeader: React.FC<{
   const addresses = new Map<string, string>();
   for (const p of pairs) {
     if (p.sourceChain && p.sourceAddress)
-      addresses.set(p.sourceChain, p.sourceAddress);
-    if (p.destChain && p.destAddress) addresses.set(p.destChain, p.destAddress);
+      addresses.set(p.sourceChain.toLowerCase(), p.sourceAddress);
+    if (p.destChain && p.destAddress)
+      addresses.set(p.destChain.toLowerCase(), p.destAddress);
   }
+  // The solana pubkey IS the miner's sol-side address; folding it in here
+  // (instead of a separate identity field) keeps it rendered exactly once.
+  if (!addresses.has('sol') && liveMiner?.solanaPubkey)
+    addresses.set('sol', liveMiner.solanaPubkey);
+  const chainOrder = chainList().map((c) => c.id);
+  const addressRows = [...addresses].sort((a, b) => {
+    const ai = chainOrder.indexOf(a[0]);
+    const bi = chainOrder.indexOf(b[0]);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  const tableCellSx = {
+    py: 0.7,
+    borderBottom: '1px solid',
+    borderColor: 'divider',
+    fontFamily: FONTS.mono,
+    fontSize: '0.8rem',
+    color: 'text.primary',
+    minWidth: 0,
+    whiteSpace: 'nowrap',
+  } as const;
+  const tableHeadSx = { ...eyebrowSx, ...tableCellSx, fontSize: '0.6rem' };
 
   return (
     <Box
@@ -261,7 +356,13 @@ const MinerDetailHeader: React.FC<{
       }}
     >
       <Stack spacing={2}>
-        <Stack direction="row" alignItems="center" spacing={1.5}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1.5}
+          useFlexGap
+          flexWrap="wrap"
+        >
           <Typography
             sx={{
               fontFamily: FONTS.heading,
@@ -275,30 +376,6 @@ const MinerDetailHeader: React.FC<{
               {uid ?? '?'}
             </Box>
           </Typography>
-          {crownDirections.length > 0 && (
-            <Stack
-              direction="row"
-              alignItems="center"
-              spacing={0.5}
-              sx={{
-                px: 1,
-                py: 0.4,
-                border: '1px solid',
-                borderColor: alpha(MOVE_COLORS[theme.palette.mode].up, 0.4),
-                backgroundColor: alpha(
-                  MOVE_COLORS[theme.palette.mode].up,
-                  0.08,
-                ),
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                color: MOVE_COLORS[theme.palette.mode].up,
-                letterSpacing: '0.05em',
-              }}
-            >
-              <CrownIcon size={12} color={MOVE_COLORS[theme.palette.mode].up} />
-              {crownDirections.map((d) => d.replace('-', '→')).join('  ')}
-            </Stack>
-          )}
           {stats && (
             <Box
               sx={{
@@ -333,27 +410,51 @@ const MinerDetailHeader: React.FC<{
               {stats.isActive ? 'active' : 'inactive'}
             </Box>
           )}
+          {crownDirections.length > 0 && (
+            <Tooltip
+              title={`current crown holder · ${crownDirections
+                .map(compactDirection)
+                .join(' · ')}`}
+              placement="top"
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
+                sx={{
+                  px: 1,
+                  py: 0.4,
+                  border: '1px solid',
+                  borderColor: alpha(crownGold, 0.45),
+                  backgroundColor: alpha(crownGold, 0.08),
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.7rem',
+                  color: crownGold,
+                  letterSpacing: '0.05em',
+                }}
+              >
+                <CrownIcon size={12} color={crownGold} />
+                {/* A couple of crowns read best as directions; more collapse
+                    to a count (each leg is also crowned in the quote table). */}
+                {crownDirections.length <= 2
+                  ? crownDirections.map(compactDirection).join('  ')
+                  : `${crownDirections.length} crowns`}
+              </Stack>
+            </Tooltip>
+          )}
         </Stack>
 
         <Box
           sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2, 1fr)',
-              md: 'repeat(3, auto)',
-            },
-            gap: { xs: 1.5, md: 4 },
+            display: 'flex',
+            flexWrap: 'wrap',
+            columnGap: { xs: 3, md: 6 },
+            rowGap: 1.5,
           }}
         >
           <HeaderField label="hotkey">
             <CopyableAddress address={hotkey} />
           </HeaderField>
-          {liveMiner?.solanaPubkey && (
-            <HeaderField label="solana pubkey">
-              <CopyableAddress address={liveMiner.solanaPubkey} />
-            </HeaderField>
-          )}
           {purses.length > 0 && (
             <HeaderField label="collateral">
               {purses.map(([backing, amount], i) => (
@@ -379,25 +480,146 @@ const MinerDetailHeader: React.FC<{
               {formatUnixTime(stats.activatedAt)}
             </HeaderField>
           )}
-          {/* Significant figures, not 2dp — SOL→BTC (~0.0021 BTC/SOL) read "0.00". */}
-          {quotes.map((q) => (
-            <HeaderField key={q.label} label={`quote · ${q.label}`}>
-              {formatRate(q.rate)}
-              <Box component="span" sx={{ color: 'text.disabled', ml: 0.4 }}>
-                {q.unit}
-              </Box>
-            </HeaderField>
-          ))}
-          {[...addresses].map(([chain, address]) => (
-            <HeaderField key={chain} label={`${chain} address`}>
-              <CopyableAddress
-                address={address}
-                fontSize="0.85rem"
-                color="text.primary"
-              />
-            </HeaderField>
-          ))}
         </Box>
+
+        {(quoteRows.length > 0 || addressRows.length > 0) && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                md:
+                  quoteRows.length > 0 && addressRows.length > 0
+                    ? 'minmax(0, 1.7fr) minmax(0, 1fr)'
+                    : '1fr',
+              },
+              columnGap: { md: 6 },
+              rowGap: 2.5,
+              pt: 2,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {quoteRows.length > 0 && (
+              <Box sx={{ minWidth: 0, overflowX: 'auto' }}>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    // max-content floors: tracks never shrink below the
+                    // nowrap rate text (the wrapper scrolls on xs instead
+                    // of cells overlapping).
+                    gridTemplateColumns:
+                      'max-content minmax(max-content, 1fr) minmax(max-content, 1fr)',
+                    columnGap: { xs: 2, md: 3 },
+                    alignItems: 'center',
+                    // Last row of cells drops its rule so the table doesn't
+                    // double-border against the section divider below.
+                    '& > *:nth-last-of-type(-n+3)': { borderBottom: 0 },
+                  }}
+                >
+                  <Box sx={tableHeadSx}>quotes</Box>
+                  <Box sx={tableHeadSx} title="left → right leg">
+                    rate →
+                  </Box>
+                  <Box sx={tableHeadSx} title="right → left leg">
+                    rate ←
+                  </Box>
+                  {quoteRows.map((r) => (
+                    <React.Fragment key={r.key}>
+                      <Box
+                        sx={{
+                          ...tableCellSx,
+                          fontSize: '0.72rem',
+                          color: 'text.secondary',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {chainSymbol(r.src)}/{chainSymbol(r.dst)}
+                        {/* Tag only a NON-native bond (backing ≠ the pair's
+                            hub leg) — the marker for dual-backing twins. */}
+                        {r.backing !== hubLeg(r.src, r.dst) && (
+                          <Box
+                            component="span"
+                            sx={{
+                              ml: 0.75,
+                              px: 0.5,
+                              fontSize: '0.58rem',
+                              letterSpacing: '0.08em',
+                              textTransform: 'uppercase',
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              color: 'text.disabled',
+                            }}
+                          >
+                            {chainSymbol(r.backing)} bond
+                          </Box>
+                        )}
+                      </Box>
+                      <Box sx={tableCellSx}>
+                        <QuoteCell
+                          from={r.src}
+                          to={r.dst}
+                          rate={r.fwd}
+                          crown={crownSet.has(
+                            `${r.src}-${r.dst}`.toUpperCase(),
+                          )}
+                        />
+                      </Box>
+                      <Box sx={tableCellSx}>
+                        <QuoteCell
+                          from={r.dst}
+                          to={r.src}
+                          rate={r.rev}
+                          crown={crownSet.has(
+                            `${r.dst}-${r.src}`.toUpperCase(),
+                          )}
+                        />
+                      </Box>
+                    </React.Fragment>
+                  ))}
+                </Box>
+              </Box>
+            )}
+            {addressRows.length > 0 && (
+              <Box sx={{ minWidth: 0 }}>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'max-content minmax(0, 1fr)',
+                    columnGap: { xs: 2, md: 3 },
+                    alignItems: 'center',
+                    '& > *:nth-last-of-type(-n+2)': { borderBottom: 0 },
+                  }}
+                >
+                  <Box sx={{ ...tableHeadSx, gridColumn: '1 / -1' }}>
+                    addresses
+                  </Box>
+                  {addressRows.map(([chain, address]) => (
+                    <React.Fragment key={chain}>
+                      <Box
+                        sx={{
+                          ...tableCellSx,
+                          fontSize: '0.72rem',
+                          color: 'text.secondary',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {chainSymbol(chain)}
+                      </Box>
+                      <Box sx={tableCellSx}>
+                        <CopyableAddress
+                          address={address}
+                          fontSize="0.8rem"
+                          color="text.primary"
+                        />
+                      </Box>
+                    </React.Fragment>
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </Box>
+        )}
 
         <Box
           sx={{
