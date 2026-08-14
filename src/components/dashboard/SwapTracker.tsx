@@ -177,6 +177,16 @@ const filterFieldSx = (theme: Theme, active?: boolean) => ({
     '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
   },
   '& .MuiOutlinedInput-input': { py: 0 },
+  // Native date inputs: theme the browser-drawn parts (calendar popup via
+  // color-scheme, the picker icon) so they don't break the mono terminal look.
+  '& input[type="date"]': {
+    colorScheme: theme.palette.mode,
+    textTransform: 'uppercase',
+    '&::-webkit-calendar-picker-indicator': {
+      opacity: 0.45,
+      cursor: 'pointer',
+    },
+  },
 });
 
 // A clickable column header: click sorts, clicking again flips direction;

@@ -234,7 +234,8 @@ const MinerLeaderboard: React.FC<{
         <Table
           size="small"
           sx={{
-            minWidth: { xs: 480, md: 0 },
+            // Columns fold below sm instead of forcing a sideways scroll.
+            minWidth: 0,
             '& th, & td': {
               borderColor: 'divider',
               fontSize: { xs: '0.7rem', sm: '0.76rem', md: '0.8rem' },
@@ -263,12 +264,16 @@ const MinerLeaderboard: React.FC<{
                 dir={sortDir}
                 onSort={onSort}
               />
+              {/* Collateral and volume fold away below sm so phones read
+                  uid · crown share · success · active without a sideways
+                  scroll. */}
               <SortHeader
                 label={SORT_LABELS.collateral}
                 sortKey="collateral"
                 active={sortKey}
                 dir={sortDir}
                 onSort={onSort}
+                sx={{ display: { xs: 'none', sm: 'table-cell' } }}
               />
               <SortHeader
                 label={SORT_LABELS.success}
@@ -283,6 +288,7 @@ const MinerLeaderboard: React.FC<{
                 active={sortKey}
                 dir={sortDir}
                 onSort={onSort}
+                sx={{ display: { xs: 'none', sm: 'table-cell' } }}
               />
               <SortHeader
                 label={SORT_LABELS.active}
@@ -322,7 +328,7 @@ const MinerLeaderboard: React.FC<{
                       sx={{ borderRadius: 0 }}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                     <Skeleton
                       variant="text"
                       width={72}
@@ -336,7 +342,7 @@ const MinerLeaderboard: React.FC<{
                       sx={{ borderRadius: 0 }}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                     <Skeleton
                       variant="text"
                       width={64}
@@ -438,7 +444,12 @@ const MinerLeaderboard: React.FC<{
                       </Typography>
                     </Stack>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      display: { xs: 'none', sm: 'table-cell' },
+                    }}
+                  >
                     {formatSol(row.collateral)} SOL
                   </TableCell>
                   <TableCell
@@ -446,7 +457,12 @@ const MinerLeaderboard: React.FC<{
                   >
                     {formatSuccess(row)}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      display: { xs: 'none', sm: 'table-cell' },
+                    }}
+                  >
                     {(() => {
                       const usd = usdFromBackingMap(
                         row.volumeByBacking,

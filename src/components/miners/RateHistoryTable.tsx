@@ -22,7 +22,13 @@ import {
 import { FONTS } from '../../theme';
 import DirectionSelect from './DirectionSelect';
 import SectionHeading from '../SectionHeading';
-import { directionalRate, formatTimeAgo, rateUnit } from '../../utils/format';
+import {
+  chainSymbol,
+  directionalRate,
+  formatTimeAgo,
+  rateUnit,
+} from '../../utils/format';
+import { hubLeg } from '../../api/models/chains';
 
 const MAX_ROWS = 50;
 
@@ -39,15 +45,17 @@ const fmtRate = (raw: number): string => {
 
 const pairLabel = (row: MinerRateHistoryRow): string => {
   const dir = `${row.fromChain}-${row.toChain}`.toUpperCase();
-  const label = isDirection(dir)
+  return isDirection(dir)
     ? directionLabel(dir)
     : `${row.fromChain.toUpperCase()} → ${row.toChain.toUpperCase()}`;
-  // A non-sol backing distinguishes the tao-bonded twin of a direction the
-  // miner also quotes sol-bonded.
-  return row.backing && row.backing !== 'sol'
-    ? `${label} · ${row.backing.toUpperCase()} bond`
-    : label;
 };
+
+// Tag only a NON-native bond (backing ≠ the pair's hub leg) — the marker for
+// dual-backing twins, same rule and chiplet as the header quote table.
+const bondTag = (row: MinerRateHistoryRow): string | null =>
+  row.backing && row.backing !== hubLeg(row.fromChain, row.toChain)
+    ? `${chainSymbol(row.backing)} bond`
+    : null;
 
 // Chronological table twin of the rate graph above it — every quote this
 // miner posted, newest first. A QuoteRemoved lands as rate 0. Stored rates
@@ -158,6 +166,23 @@ const RateHistoryTable: React.FC<{
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
                   {pairLabel(row)}
+                  {bondTag(row) && (
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 0.75,
+                        px: 0.5,
+                        fontSize: '0.58rem',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        color: 'text.disabled',
+                      }}
+                    >
+                      {bondTag(row)}
+                    </Box>
+                  )}
                 </TableCell>
                 <TableCell sx={{ fontFamily: FONTS.mono }}>
                   {row.rate === 0 ? (

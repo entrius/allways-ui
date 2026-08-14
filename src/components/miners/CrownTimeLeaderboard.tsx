@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
-import { useCrownTime, useDirections } from '../../api';
+import { Box, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { useQueries } from '@tanstack/react-query';
+import { apiQueryOptions, CROWN_REFRESH_MS, useDirections } from '../../api';
 import { directionLabel } from '../../api/models/MinersDashboard';
-import type { CrownTimeRow, Direction } from '../../api/models';
+import type {
+  CrownTimeRow,
+  CrownTimeWindow,
+  Direction,
+} from '../../api/models';
 import { shortHotkey } from '../../utils/format';
 import { FONTS } from '../../theme';
 import RangeChips from '../RangeChips';
@@ -109,51 +114,81 @@ const HolderRow: React.FC<{ row: CrownTimeRow }> = ({ row }) => {
 
 const DirectionColumn: React.FC<{
   direction: Direction;
-  seconds: number;
-}> = ({ direction, seconds }) => {
-  const { data } = useCrownTime({ direction, seconds });
-  const holders = data?.holders ?? [];
+  holders: CrownTimeRow[];
+}> = ({ direction, holders }) => (
+  <Box sx={{ flex: 1, minWidth: 0 }}>
+    <Typography
+      sx={{
+        fontFamily: FONTS.mono,
+        fontSize: '0.72rem',
+        fontWeight: 600,
+        letterSpacing: '0.06em',
+        color: 'text.primary',
+        mb: 1,
+      }}
+    >
+      {directionLabel(direction)}
+    </Typography>
+    <Stack>
+      {holders.map((h) => (
+        <HolderRow key={h.hotkey} row={h} />
+      ))}
+    </Stack>
+  </Box>
+);
 
-  return (
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Typography
+const ColumnSkeleton: React.FC = () => (
+  <Box sx={{ flex: 1, minWidth: 0 }}>
+    <Skeleton variant="text" width={72} height={16} sx={{ borderRadius: 0 }} />
+    {[0, 1].map((i) => (
+      <Box
+        key={i}
         sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          color: 'text.primary',
-          mb: 1,
+          display: 'grid',
+          gridTemplateColumns: '4.5rem 1fr 4.5rem',
+          alignItems: 'center',
+          gap: 1,
+          py: 0.5,
         }}
       >
-        {directionLabel(direction)}
-      </Typography>
-      {holders.length === 0 ? (
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.68rem',
-            color: 'text.disabled',
-            py: 2,
-          }}
-        >
-          no crown activity in this window
-        </Typography>
-      ) : (
-        <Stack>
-          {holders.map((h) => (
-            <HolderRow key={h.hotkey} row={h} />
-          ))}
-        </Stack>
-      )}
-    </Box>
-  );
-};
+        <Skeleton variant="text" width={48} sx={{ borderRadius: 0 }} />
+        <Skeleton variant="rectangular" height={16} sx={{ borderRadius: 0 }} />
+        <Skeleton variant="text" width={36} sx={{ borderRadius: 0 }} />
+      </Box>
+    ))}
+  </Box>
+);
 
 const CrownTimeLeaderboard: React.FC = () => {
   const directions = useDirections();
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
+
+  // Hoisted per-direction queries (the columns used to fetch for themselves)
+  // so the panel can render ONLY directions with activity — with a direction
+  // pair per registry spoke, a column per direction was mostly a wall of
+  // "no crown activity" placeholders.
+  const windows = useQueries({
+    queries: directions.map((direction) =>
+      apiQueryOptions<CrownTimeWindow>(
+        'crown-time',
+        '/crown/time',
+        CROWN_REFRESH_MS,
+        { direction, seconds },
+      ),
+    ),
+    combine: (results) =>
+      results.map((r) => ({ data: r.data, isPending: r.isPending })),
+  });
+  const active = directions.filter(
+    (_, i) => (windows[i]?.data?.holders?.length ?? 0) > 0,
+  );
+  const quiet = directions.filter(
+    (_, i) =>
+      windows[i]?.data != null && (windows[i].data?.holders?.length ?? 0) === 0,
+  );
+  const loading =
+    windows.length > 0 && windows.every((w) => w.isPending) && !active.length;
 
   return (
     <Box
@@ -190,10 +225,50 @@ const CrownTimeLeaderboard: React.FC = () => {
           rowGap: 3,
         }}
       >
-        {directions.map((dir) => (
-          <DirectionColumn key={dir} direction={dir} seconds={seconds} />
-        ))}
+        {loading
+          ? [0, 1, 2, 3].map((i) => <ColumnSkeleton key={i} />)
+          : active.map((dir) => (
+              <DirectionColumn
+                key={dir}
+                direction={dir}
+                holders={windows[directions.indexOf(dir)]?.data?.holders ?? []}
+              />
+            ))}
       </Box>
+      {!loading && active.length === 0 && (
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.7rem',
+            color: 'text.disabled',
+            py: 1,
+          }}
+        >
+          no crown activity in this window
+        </Typography>
+      )}
+      {/* Inactive directions fold into one line — hover for which. */}
+      {!loading && active.length > 0 && quiet.length > 0 && (
+        <Tooltip
+          title={quiet.map(directionLabel).join(' · ')}
+          placement="top-start"
+        >
+          <Typography
+            sx={{
+              mt: 2.5,
+              fontFamily: FONTS.mono,
+              fontSize: '0.62rem',
+              letterSpacing: '0.04em',
+              color: 'text.disabled',
+              width: 'fit-content',
+              cursor: 'help',
+            }}
+          >
+            no crown activity · {quiet.length} other direction
+            {quiet.length === 1 ? '' : 's'}
+          </Typography>
+        </Tooltip>
+      )}
     </Box>
   );
 };

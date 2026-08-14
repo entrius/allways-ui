@@ -1,5 +1,12 @@
 import React, { useMemo } from 'react';
-import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import {
+  Box,
+  Skeleton,
+  Stack,
+  Tooltip,
+  Typography,
+  useTheme,
+} from '@mui/material';
 import {
   useCompleteSwapHistory,
   useCrownRateHistory,
@@ -148,10 +155,17 @@ const DirectionRow: React.FC<{
     (rows?.length
       ? directionalRateFor(direction, rows[rows.length - 1].rate)
       : null);
-  const chg =
-    first != null && first !== 0 && last != null
-      ? ((last - first) / first) * 100
-      : null;
+  const ratio =
+    first != null && first !== 0 && last != null ? last / first : null;
+  // A scale-off quote seeding the window produces figures like +1.6e8% or
+  // -99.9% — a re-denomination artifact, not a move. Anything beyond a 10×
+  // swing in-window is treated as such and suppressed rather than printing a
+  // number that discredits the whole column.
+  const chgArtifact = ratio != null && (ratio > 10 || ratio < 0.1);
+  const chg = ratio != null && !chgArtifact ? (ratio - 1) * 100 : null;
+  // Nothing traded and nothing moved in the window: keep the row but let the
+  // live markets pop. The selected row is never dimmed.
+  const dormant = !selected && vol === 0 && (chg == null || chg === 0);
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const chgColor =
@@ -181,7 +195,9 @@ const DirectionRow: React.FC<{
         borderLeft: '2px solid',
         borderLeftColor: selected ? 'text.primary' : 'transparent',
         backgroundColor: selected ? 'action.hover' : 'transparent',
-        '&:hover': { backgroundColor: 'action.hover' },
+        opacity: dormant ? 0.55 : 1,
+        transition: 'opacity 0.15s',
+        '&:hover': { backgroundColor: 'action.hover', opacity: 1 },
       }}
     >
       <Box
@@ -207,7 +223,17 @@ const DirectionRow: React.FC<{
           textAlign: 'right',
         }}
       >
-        {last != null ? formatRate(last) : '—'}
+        {rows === undefined && last == null ? (
+          <Skeleton
+            variant="text"
+            width={48}
+            sx={{ borderRadius: 0, display: 'inline-block' }}
+          />
+        ) : last != null ? (
+          formatRate(last)
+        ) : (
+          '—'
+        )}
       </Typography>
       <Typography
         title={
@@ -223,20 +249,39 @@ const DirectionRow: React.FC<{
           textAlign: 'right',
         }}
       >
-        {volUsd != null ? `$${fmtVol(volUsd)}` : fmtVol(vol)}
+        {swaps === undefined ? (
+          <Skeleton
+            variant="text"
+            width={28}
+            sx={{ borderRadius: 0, display: 'inline-block' }}
+          />
+        ) : volUsd != null ? (
+          `$${fmtVol(volUsd)}`
+        ) : (
+          fmtVol(vol)
+        )}
       </Typography>
       <Typography
+        title={
+          chgArtifact
+            ? 'rate scale changed inside this window — % change not meaningful'
+            : undefined
+        }
         sx={{
           fontFamily: FONTS.mono,
           fontSize: '0.66rem',
           fontWeight: 600,
-          color: chgColor,
+          color: chgArtifact ? 'text.disabled' : chgColor,
           fontVariantNumeric: 'tabular-nums',
           minWidth: 52,
           textAlign: 'right',
         }}
       >
-        {chg != null ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%` : ''}
+        {chg != null
+          ? `${chg > 0 ? '+' : ''}${chg.toFixed(2)}%`
+          : chgArtifact
+            ? '—'
+            : ''}
       </Typography>
     </Box>
   );

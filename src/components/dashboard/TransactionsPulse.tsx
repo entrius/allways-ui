@@ -9,6 +9,7 @@ import { useAllSwaps, useCompleteSwapHistory } from '../../api';
 import type { ActiveSwap } from '../../api/models';
 import { MOVE_COLORS, RANGE_SECS, type HeroRange } from './AllwaysMarketRate';
 import RangeChips from '../RangeChips';
+import SectionHeading from '../SectionHeading';
 import { FONTS } from '../../theme';
 import { formatAmount, formatDurationSecs } from '../../utils/format';
 import {
@@ -430,6 +431,24 @@ const TransactionsPulse: React.FC = () => {
         flexDirection: 'column',
       }}
     >
+      {/* Every panel opens with the mono eyebrow — without it this chart was
+          the one heading-less panel in the app, leaving the dots unexplained. */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 1,
+          mb: 1,
+        }}
+      >
+        <SectionHeading
+          title="Settlement Pulse"
+          subtitle="every transaction · time from initiation to settle · dot size = notional"
+        />
+        <RangeChips value={range} options={RANGES} onChange={setRange} />
+      </Box>
       <Box
         sx={{
           display: 'flex',
@@ -495,7 +514,6 @@ const TransactionsPulse: React.FC = () => {
             </Typography>
           )}
         </Box>
-        <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Box>
 
       {/* Keep the container mounted so echarts.init has a real element before
