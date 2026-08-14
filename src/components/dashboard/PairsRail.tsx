@@ -5,6 +5,7 @@ import {
   useCrownRateHistory,
   useCurrentCrown,
   useDirections,
+  useUsdPrices,
 } from '../../api';
 import {
   crownLaneFor,
@@ -12,7 +13,13 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { canonicalSource, formatRate } from '../../utils/format';
+import {
+  canonicalSource,
+  chainSymbol,
+  formatRate,
+  usdFromHuman,
+} from '../../utils/format';
+import { hubChains } from '../../api/models/chains';
 import { hubLegVolume } from './marketRate';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
@@ -129,6 +136,10 @@ const DirectionRow: React.FC<{
     }
     return sum;
   }, [swaps, from, to, hub, secs]);
+  // Estimated USD readout when the hub is priced; native hub units otherwise.
+  const prices = useUsdPrices();
+  const volUsd = usdFromHuman(vol, hub, prices);
+
   const first = rows?.length
     ? directionalRateFor(direction, rows[0].rate)
     : null;
@@ -199,6 +210,9 @@ const DirectionRow: React.FC<{
         {last != null ? formatRate(last) : '—'}
       </Typography>
       <Typography
+        title={
+          volUsd != null ? `${fmtVol(vol)} ${chainSymbol(hub)}` : undefined
+        }
         sx={{
           fontFamily: FONTS.mono,
           fontSize: '0.66rem',
@@ -209,7 +223,7 @@ const DirectionRow: React.FC<{
           textAlign: 'right',
         }}
       >
-        {fmtVol(vol)}
+        {volUsd != null ? `$${fmtVol(volUsd)}` : fmtVol(vol)}
       </Typography>
       <Typography
         sx={{
@@ -271,6 +285,9 @@ const PairsRail: React.FC<{
     selRate != null && revImplied != null && revImplied !== 0
       ? ((selRate - revImplied) / revImplied) * 100
       : null;
+  // Vol column header wording follows whether rows can render USD.
+  const prices = useUsdPrices();
+  const usdMode = hubChains().every((h) => typeof prices[h] === 'number');
   const theme = useTheme();
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const spreadColor =
@@ -312,7 +329,11 @@ const PairsRail: React.FC<{
           </Typography>
         </Tooltip>
         <Tooltip
-          title={`Hub-side value of this route's completed transactions over the selected window (${range}), in the pair's hub asset.`}
+          title={
+            usdMode
+              ? `Estimated USD value of this route's completed transactions over the selected window (${range}).`
+              : `Hub-side value of this route's completed transactions over the selected window (${range}), in the pair's hub asset.`
+          }
           arrow
         >
           <Typography sx={{ ...railLabelSx, minWidth: 44, textAlign: 'right' }}>

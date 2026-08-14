@@ -22,9 +22,18 @@ import {
   useActiveNodeCount,
   useNetworkOverview,
   useStats,
+  useUsdPrices,
 } from '../api';
 import type { HistoryRow } from '../api/models';
-import { backingEntries, chainSymbol, lamportsToSol } from '../utils/format';
+import { hubChains } from '../api/models/chains';
+import {
+  backingEntries,
+  backingTooltip,
+  chainSymbol,
+  formatUsd,
+  lamportsToSol,
+  usdFromBackingMap,
+} from '../utils/format';
 import { FONTS } from '../theme';
 
 // ---------------------------------------------------------------------------
@@ -47,6 +56,8 @@ const compact = (v: number) =>
       : // Two significant figures so sub-1 axis values stay distinct
         // instead of collapsing to a column of "0.0"s.
         Number(v.toPrecision(2)).toString();
+
+const usdCompact = (v: number) => `$${compact(v)}`;
 
 const ms = (iso: string) => new Date(iso).getTime();
 
@@ -98,6 +109,13 @@ const NetworkStatsPage: React.FC = () => {
     count: distinctActiveNodes,
   } = useActiveNodeCount();
 
+  const prices = useUsdPrices();
+  // Volume/fee series render as estimated USD (the one legitimate
+  // cross-backing sum) whenever every hub has a price; otherwise the legacy
+  // SOL-only rendering (which silently drops TAO-backed flow) stays as the
+  // fallback for a das that predates GET /prices.
+  const usdMode = hubChains().every((h) => typeof prices[h] === 'number');
+
   const c = theme.palette;
   // All chart series use the theme-aware high-contrast foreground so lines are
   // light on dark mode and dark on light mode (no fixed blue/orange).
@@ -108,17 +126,31 @@ const NetworkStatsPage: React.FC = () => {
   // --- Growth (cumulative) -------------------------------------------------
   const cumVolume = useMemo<ChartSeries[]>(
     () => [
-      {
-        name: 'Cumulative Volume',
-        color: cPrimary,
-        unit: 'SOL',
-        formatValue: sol,
-        points: histPoints(history, (r) =>
-          lamportsToSol(r.cumulativeVolumeSol),
-        ),
-      },
+      usdMode
+        ? {
+            name: 'Cumulative Volume',
+            color: cPrimary,
+            unit: 'USD',
+            formatValue: formatUsd,
+            points: histPoints(history, (r) =>
+              usdFromBackingMap(
+                r.cumulativeVolumeByBacking,
+                prices,
+                r.cumulativeVolumeSol,
+              ),
+            ),
+          }
+        : {
+            name: 'Cumulative Volume',
+            color: cPrimary,
+            unit: 'SOL',
+            formatValue: sol,
+            points: histPoints(history, (r) =>
+              lamportsToSol(r.cumulativeVolumeSol),
+            ),
+          },
     ],
-    [history, cPrimary],
+    [history, cPrimary, usdMode, prices],
   );
 
   const cumSwaps = useMemo<ChartSeries[]>(
@@ -149,16 +181,27 @@ const NetworkStatsPage: React.FC = () => {
 
   const dailyVolume = useMemo<ChartSeries[]>(
     () => [
-      {
-        name: 'Volume / day',
-        color: cBtc,
-        type: 'bar',
-        unit: 'SOL',
-        formatValue: sol,
-        points: histPoints(history, (r) => lamportsToSol(r.volumeSol)),
-      },
+      usdMode
+        ? {
+            name: 'Volume / day',
+            color: cBtc,
+            type: 'bar' as const,
+            unit: 'USD',
+            formatValue: formatUsd,
+            points: histPoints(history, (r) =>
+              usdFromBackingMap(r.volumeByBacking, prices, r.volumeSol),
+            ),
+          }
+        : {
+            name: 'Volume / day',
+            color: cBtc,
+            type: 'bar' as const,
+            unit: 'SOL',
+            formatValue: sol,
+            points: histPoints(history, (r) => lamportsToSol(r.volumeSol)),
+          },
     ],
-    [history, cBtc],
+    [history, cBtc, usdMode, prices],
   );
 
   // --- Throughput & reliability -------------------------------------------
@@ -206,34 +249,60 @@ const NetworkStatsPage: React.FC = () => {
   // --- Protocol revenue: 1% of volume (cumulative line + per-day bars) -----
   const cumFees = useMemo<ChartSeries[]>(
     () => [
-      {
-        name: 'Cumulative Fees',
-        color: cPrimary,
-        unit: 'SOL',
-        formatValue: sol,
-        points: histPoints(
-          history,
-          (r) => lamportsToSol(r.cumulativeVolumeSol) * 0.01,
-        ),
-      },
+      usdMode
+        ? {
+            name: 'Cumulative Fees',
+            color: cPrimary,
+            unit: 'USD',
+            formatValue: formatUsd,
+            points: histPoints(history, (r) => {
+              const vol = usdFromBackingMap(
+                r.cumulativeVolumeByBacking,
+                prices,
+                r.cumulativeVolumeSol,
+              );
+              return vol == null ? null : vol * 0.01;
+            }),
+          }
+        : {
+            name: 'Cumulative Fees',
+            color: cPrimary,
+            unit: 'SOL',
+            formatValue: sol,
+            points: histPoints(
+              history,
+              (r) => lamportsToSol(r.cumulativeVolumeSol) * 0.01,
+            ),
+          },
     ],
-    [history, cPrimary],
+    [history, cPrimary, usdMode, prices],
   );
 
   const fees = useMemo<ChartSeries[]>(
     () => [
-      {
-        name: 'Fees / day',
-        color: cPrimary,
-        type: 'bar',
-        unit: 'SOL',
-        formatValue: (v) => v.toFixed(4),
-        // The API reports the actual per-bucket fee take; only the
-        // cumulative fee column is bogus on prod (see Stats.ts).
-        points: histPoints(history, (r) => lamportsToSol(r.feesSol)),
-      },
+      usdMode
+        ? {
+            name: 'Fees / day',
+            color: cPrimary,
+            type: 'bar' as const,
+            unit: 'USD',
+            formatValue: formatUsd,
+            // The API reports the actual per-bucket fee take; only the
+            // cumulative fee column is bogus on prod (see Stats.ts).
+            points: histPoints(history, (r) =>
+              usdFromBackingMap(r.feesByBacking, prices, r.feesSol),
+            ),
+          }
+        : {
+            name: 'Fees / day',
+            color: cPrimary,
+            type: 'bar' as const,
+            unit: 'SOL',
+            formatValue: (v) => v.toFixed(4),
+            points: histPoints(history, (r) => lamportsToSol(r.feesSol)),
+          },
     ],
-    [history, cPrimary],
+    [history, cPrimary, usdMode, prices],
   );
 
   // --- Network size --------------------------------------------------------
@@ -321,6 +390,10 @@ const NetworkStatsPage: React.FC = () => {
     pct: Number(p.pct),
   }));
   const totalVol = overview ? lamportsToSol(overview.volumeSol) : 0;
+  // USD counterpart for the per-pair volume readout in the direction mix.
+  const totalVolUsd = overview
+    ? usdFromBackingMap(overview.volumeByBacking, prices, overview.volumeSol)
+    : null;
   // "SOL-BTC" → "SOL → BTC" so the swap direction (input → output) is explicit.
   const fmtPair = (pair: string) => pair.replace(/-/g, ' → ');
   // Monochrome shades (theme-aware) so the breakdown bars stay distinguishable
@@ -329,24 +402,47 @@ const NetworkStatsPage: React.FC = () => {
     [c.text.primary, c.text.secondary, c.text.disabled][i % 3];
 
   // --- Top miners (optional mini-table) -----------------------------------
+  // Ranked by estimated USD when prices are up — the SOL scalar alone
+  // under-ranks TAO-heavy miners.
   const topMiners = useMemo(
     () =>
       (leaderboard ?? [])
         .slice()
-        .sort((a, b) => parseFloat(b.volumeSol) - parseFloat(a.volumeSol))
+        .sort((a, b) => {
+          if (usdMode) {
+            const aUsd =
+              usdFromBackingMap(a.volumeByBacking, prices, a.volumeSol) ?? 0;
+            const bUsd =
+              usdFromBackingMap(b.volumeByBacking, prices, b.volumeSol) ?? 0;
+            return bUsd - aUsd;
+          }
+          return parseFloat(b.volumeSol) - parseFloat(a.volumeSol);
+        })
         .slice(0, 5),
-    [leaderboard],
+    [leaderboard, usdMode, prices],
   );
 
-  // Per-backing volume segments — "X SOL + Y TAO", never summed; legacy SOL
-  // scalar when the das map is absent.
-  const volumeSegments = backingEntries(
+  // Snapshot volume tile: estimated USD (canonical per-backing figures in
+  // the tooltip); per-backing segments — never summed — without prices.
+  const volumeUsd = usdFromBackingMap(
     stats?.totalVolumeByBacking,
+    prices,
     stats?.totalVolumeSol ?? 0,
-  ).map((e) => ({
-    value: sol(Number(e.amount)),
-    unit: chainSymbol(e.chain),
-  }));
+  );
+  const volumeSegments =
+    volumeUsd != null
+      ? [{ value: formatUsd(volumeUsd), unit: 'est.' }]
+      : backingEntries(
+          stats?.totalVolumeByBacking,
+          stats?.totalVolumeSol ?? 0,
+        ).map((e) => ({
+          value: sol(Number(e.amount)),
+          unit: chainSymbol(e.chain),
+        }));
+  const volumeTooltip =
+    volumeUsd != null
+      ? backingTooltip(stats?.totalVolumeByBacking, stats?.totalVolumeSol ?? 0)
+      : undefined;
 
   return (
     <Page title="Network Stats">
@@ -403,6 +499,7 @@ const NetworkStatsPage: React.FC = () => {
               <StatCell
                 label="Volume"
                 segments={volumeSegments}
+                tooltip={volumeTooltip}
                 loading={statsLoading}
               />
             </Grid>
@@ -428,14 +525,18 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Cumulative Volume"
-                subtitle="SOL, all-time"
-                info="Running total of completed swap volume (SOL) since launch."
+                subtitle={usdMode ? 'estimated USD, all-time' : 'SOL, all-time'}
+                info={
+                  usdMode
+                    ? 'Running total of completed swap volume since launch, estimated in USD at current prices.'
+                    : 'Running total of completed swap volume (SOL) since launch.'
+                }
               >
                 <TimeSeriesChart
                   daily
                   series={cumVolume}
                   loading={historyLoading}
-                  formatValue={compact}
+                  formatValue={usdMode ? usdCompact : compact}
                 />
               </Panel>
             </Grid>
@@ -476,14 +577,18 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Volume per day"
-                subtitle="SOL"
-                info="Swap volume (SOL) completed each day."
+                subtitle={usdMode ? 'estimated USD' : 'SOL'}
+                info={
+                  usdMode
+                    ? 'Swap volume completed each day, estimated in USD at current prices.'
+                    : 'Swap volume (SOL) completed each day.'
+                }
               >
                 <TimeSeriesChart
                   daily
                   series={dailyVolume}
                   loading={historyLoading}
-                  formatValue={compact}
+                  formatValue={usdMode ? usdCompact : compact}
                 />
               </Panel>
             </Grid>
@@ -545,28 +650,38 @@ const NetworkStatsPage: React.FC = () => {
             <Grid item xs={12} md={6}>
               <Panel
                 title="Cumulative Fees"
-                subtitle="1% of volume, all-time (SOL)"
+                subtitle={
+                  usdMode
+                    ? '1% of volume, all-time (estimated USD)'
+                    : '1% of volume, all-time (SOL)'
+                }
                 info="Running total of protocol fees: a flat 1% of volume, enforced at the smart contract level."
               >
                 <TimeSeriesChart
                   daily
                   series={cumFees}
                   loading={historyLoading}
-                  formatValue={compact}
+                  formatValue={usdMode ? usdCompact : compact}
                 />
               </Panel>
             </Grid>
             <Grid item xs={12} md={6}>
               <Panel
                 title="Fees per day"
-                subtitle="1% of daily volume (SOL)"
+                subtitle={
+                  usdMode
+                    ? '1% of daily volume (estimated USD)'
+                    : '1% of daily volume (SOL)'
+                }
                 info="Protocol fees each day: a flat 1% of that day's volume, enforced at the smart contract level."
               >
                 <TimeSeriesChart
                   daily
                   series={fees}
                   loading={historyLoading}
-                  formatValue={(v) => v.toFixed(3)}
+                  formatValue={
+                    usdMode ? usdCompact : (v: number) => v.toFixed(3)
+                  }
                 />
               </Panel>
             </Grid>
@@ -672,8 +787,10 @@ const NetworkStatsPage: React.FC = () => {
                             >
                               {p.pct.toFixed(1)}%
                             </Box>
-                            {totalVol > 0 &&
-                              `  ·  ${sol((p.pct / 100) * totalVol)} SOL`}
+                            {totalVolUsd != null && totalVolUsd > 0
+                              ? `  ·  ${formatUsd((p.pct / 100) * totalVolUsd)}`
+                              : totalVol > 0 &&
+                                `  ·  ${sol((p.pct / 100) * totalVol)} SOL`}
                           </Typography>
                         </Box>
                         <Box
@@ -783,13 +900,32 @@ const NetworkStatsPage: React.FC = () => {
                             UID {m.uid ?? '—'}
                             {m.isActive ? '' : ' (inactive)'}
                           </Box>
-                          <Box component="span" sx={{ color: 'text.primary' }}>
-                            {backingEntries(m.volumeByBacking, m.volumeSol)
-                              .map(
-                                (e) =>
-                                  `${sol(Number(e.amount))} ${chainSymbol(e.chain)}`,
-                              )
-                              .join(' + ')}
+                          <Box
+                            component="span"
+                            title={
+                              usdMode
+                                ? backingTooltip(m.volumeByBacking, m.volumeSol)
+                                : undefined
+                            }
+                            sx={{ color: 'text.primary' }}
+                          >
+                            {(() => {
+                              const usd = usdMode
+                                ? usdFromBackingMap(
+                                    m.volumeByBacking,
+                                    prices,
+                                    m.volumeSol,
+                                  )
+                                : null;
+                              return usd != null
+                                ? formatUsd(usd)
+                                : backingEntries(m.volumeByBacking, m.volumeSol)
+                                    .map(
+                                      (e) =>
+                                        `${sol(Number(e.amount))} ${chainSymbol(e.chain)}`,
+                                    )
+                                    .join(' + ');
+                            })()}
                           </Box>
                         </Box>
                       ))}

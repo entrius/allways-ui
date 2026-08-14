@@ -3,6 +3,7 @@ export * from './ChainsApi';
 export * from './EventsApi';
 export * from './MinersApi';
 export * from './MinersDashboardApi';
+export * from './PricesApi';
 export * from './ProtocolApi';
 export * from './ReservationsApi';
 export * from './StatsApi';

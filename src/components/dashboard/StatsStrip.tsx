@@ -1,12 +1,17 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
-import { useCompleteSwapHistory } from '../../api';
+import { useCompleteSwapHistory, useUsdPrices } from '../../api';
 import {
   decomposeDirection,
   directionLabel,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { canonicalSource, chainSymbol } from '../../utils/format';
+import {
+  canonicalSource,
+  chainSymbol,
+  formatUsd,
+  usdFromHuman,
+} from '../../utils/format';
 import { hubLegVolume } from './marketRate';
 import { FONTS } from '../../theme';
 
@@ -98,6 +103,11 @@ const StatsStrip: React.FC<{
       ? `${(v / 1000).toFixed(1)}k`
       : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
+  // Estimated USD readout when the hub has a price; native hub units
+  // otherwise (older das / prices not fetched yet).
+  const prices = useUsdPrices();
+  const volUsd = usdFromHuman(stats.volume, hub, prices);
+
   // Hint wording: a single leg keeps its arrow label; a pooled market reads
   // as the two-way pair.
   const dir =
@@ -124,8 +134,16 @@ const StatsStrip: React.FC<{
     >
       <Item
         label={`${rangeLabel} vol`}
-        value={`${fmtVol(stats.volume)} ${chainSymbol(hub)}`}
-        hint={`${dir} volume (${chainSymbol(hub)} side) completed over the selected window.`}
+        value={
+          volUsd != null
+            ? formatUsd(volUsd)
+            : `${fmtVol(stats.volume)} ${chainSymbol(hub)}`
+        }
+        hint={
+          volUsd != null
+            ? `${dir} volume completed over the selected window — ${fmtVol(stats.volume)} ${chainSymbol(hub)}, estimated in USD at current prices.`
+            : `${dir} volume (${chainSymbol(hub)} side) completed over the selected window.`
+        }
       />
       <Item
         label={`${rangeLabel} txns`}
