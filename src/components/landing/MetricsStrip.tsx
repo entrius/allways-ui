@@ -113,7 +113,11 @@ const MetricsStrip: React.FC = () => {
   // Volume as estimated USD (canonical per-backing figures in the tooltip);
   // without prices, per-backing segments ("X SOL + Y TAO") — never summed.
   const volumeUsd = stats
-    ? usdFromBackingMap(stats.totalVolumeByBacking, prices, stats.totalVolumeSol)
+    ? usdFromBackingMap(
+        stats.totalVolumeByBacking,
+        prices,
+        stats.totalVolumeSol,
+      )
     : null;
   const volumeSegs =
     volumeUsd != null

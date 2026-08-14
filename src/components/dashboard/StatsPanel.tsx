@@ -12,11 +12,11 @@ import { FONTS } from '../../theme';
 import { RollingValue } from '../animated';
 import { StatsPanelSkeleton } from './Skeletons';
 
-const StatCard: React.FC<{ label: string; value: string; tooltip?: string }> = ({
-  label,
-  value,
-  tooltip,
-}) => (
+const StatCard: React.FC<{
+  label: string;
+  value: string;
+  tooltip?: string;
+}> = ({ label, value, tooltip }) => (
   <Box
     title={tooltip}
     sx={{
