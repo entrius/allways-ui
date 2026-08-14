@@ -80,6 +80,76 @@ export const backingEntries = (
     .map((c) => ({ chain: c, amount: formatUnits(map[c], c) }));
 };
 
+// ── Estimated USD display ──
+// Volume figures render as an estimated USD value (das GET /prices, bidaily
+// CoinGecko). USD is the ONE legitimate cross-backing sum — every entry is
+// converted to the same unit before adding — while the canonical per-backing
+// figures stay untouched underneath (surfaced in tooltips).
+
+// Per-chain USD map as served by das; {} while loading / on error, which
+// makes every conversion null so callers fall back to native rendering.
+export type UsdPrices = Record<string, number | null | undefined>;
+
+export const formatUsd = (n: number): string => {
+  if (!Number.isFinite(n)) return '—';
+  // Compact above 10k ("$1.23M") so aggregate tiles stay tile-sized;
+  // exact-ish 2dp below.
+  const compact = Math.abs(n) >= 10_000;
+  return n.toLocaleString(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    notation: compact ? 'compact' : 'standard',
+    minimumFractionDigits: compact ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+// Estimated USD value of a per-backing map (smallest units per hub chain).
+// Returns null — never a partial sum — when any non-zero backing lacks a
+// price, so a missing TAO price can't silently shrink the figure.
+export const usdFromBackingMap = (
+  map: BackingMap | null | undefined,
+  prices: UsdPrices,
+  legacySol?: string | number | null,
+): number | null => {
+  const entries: [string, string | number][] = map
+    ? Object.entries(map)
+    : [['sol', legacySol ?? 0]];
+  let total = 0;
+  for (const [chain, raw] of entries) {
+    const human = unitsToHuman(raw, chain);
+    if (!Number.isFinite(human)) return null;
+    if (human === 0) continue;
+    const price = prices[chain];
+    if (typeof price !== 'number') return null;
+    total += human * price;
+  }
+  return total;
+};
+
+// Single-asset sibling for client-computed hub-leg volumes already in human
+// units (see marketRate.hubLegVolume).
+export const usdFromHuman = (
+  amount: number,
+  chain: string,
+  prices: UsdPrices,
+): number | null => {
+  const price = prices[chain];
+  return typeof price === 'number' && Number.isFinite(amount)
+    ? amount * price
+    : null;
+};
+
+// The canonical per-backing figures as tooltip text ("12.34 SOL + 5.00 TAO")
+// behind a USD display.
+export const backingTooltip = (
+  map: BackingMap | null | undefined,
+  legacySol?: string | number | null,
+): string =>
+  backingEntries(map, legacySol)
+    .map((e) => `${e.amount} ${chainSymbol(e.chain)}`)
+    .join(' + ');
+
 export const formatNumber = (n: number, decimals = 2) =>
   n.toLocaleString(undefined, {
     minimumFractionDigits: decimals,

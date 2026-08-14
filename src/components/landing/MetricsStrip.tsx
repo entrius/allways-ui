@@ -1,7 +1,13 @@
 import React from 'react';
 import { Box, Grid, Skeleton, Stack, Typography } from '@mui/material';
-import { useActiveNodeCount, useStats } from '../../api';
-import { backingEntries, chainSymbol } from '../../utils/format';
+import { useActiveNodeCount, useStats, useUsdPrices } from '../../api';
+import {
+  backingEntries,
+  backingTooltip,
+  chainSymbol,
+  formatUsd,
+  usdFromBackingMap,
+} from '../../utils/format';
 import { FONTS } from '../../theme';
 import { CountUpValue } from '../animated';
 
@@ -13,6 +19,7 @@ interface MetricProps {
   // Multi-denomination readout ("12.34 SOL + 5.00 TAO") — used instead of
   // value/unit when a stat is a per-backing map. Entries are never summed.
   segments?: { value: string; unit: string }[];
+  tooltip?: string;
 }
 
 const Metric: React.FC<MetricProps> = ({
@@ -21,8 +28,10 @@ const Metric: React.FC<MetricProps> = ({
   loading,
   unit,
   segments,
+  tooltip,
 }) => (
   <Stack
+    title={tooltip}
     sx={{
       p: { xs: 2.5, md: 3 },
       borderRadius: 0,
@@ -100,13 +109,28 @@ const Metric: React.FC<MetricProps> = ({
 const MetricsStrip: React.FC = () => {
   const { data: stats, isLoading } = useStats();
   const { count: activeNodes, isLoading: nodesLoading } = useActiveNodeCount();
-  // Per-backing volume, two columns ("X SOL + Y TAO") — never summed. Falls
-  // back to the legacy SOL scalar on an older das.
-  const volumeSegs = stats
-    ? backingEntries(stats.totalVolumeByBacking, stats.totalVolumeSol).map(
-        (e) => ({ value: e.amount, unit: chainSymbol(e.chain) }),
+  const prices = useUsdPrices();
+  // Volume as estimated USD (canonical per-backing figures in the tooltip);
+  // without prices, per-backing segments ("X SOL + Y TAO") — never summed.
+  const volumeUsd = stats
+    ? usdFromBackingMap(
+        stats.totalVolumeByBacking,
+        prices,
+        stats.totalVolumeSol,
       )
-    : [{ value: '0', unit: 'SOL' }];
+    : null;
+  const volumeSegs =
+    volumeUsd != null
+      ? [{ value: `≈${formatUsd(volumeUsd)}`, unit: '' }]
+      : stats
+        ? backingEntries(stats.totalVolumeByBacking, stats.totalVolumeSol).map(
+            (e) => ({ value: e.amount, unit: chainSymbol(e.chain) }),
+          )
+        : [{ value: '0', unit: 'SOL' }];
+  const volumeTooltip =
+    volumeUsd != null && stats
+      ? backingTooltip(stats.totalVolumeByBacking, stats.totalVolumeSol)
+      : undefined;
 
   return (
     <Box
@@ -131,6 +155,7 @@ const MetricsStrip: React.FC = () => {
               label="Volume"
               value=""
               segments={volumeSegs}
+              tooltip={volumeTooltip}
               loading={isLoading}
             />
           </Grid>

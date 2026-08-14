@@ -8,7 +8,7 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Typography, useTheme, type Theme } from '@mui/material';
-import { useAllSwaps, useCurrentCrown } from '../../api';
+import { useAllSwaps, useCurrentCrown, useUsdPrices } from '../../api';
 import {
   crownLaneFor,
   decomposeDirection,
@@ -18,7 +18,13 @@ import {
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { canonicalSource, chainSymbol, formatRate } from '../../utils/format';
+import {
+  canonicalSource,
+  chainSymbol,
+  formatRate,
+  formatUsd,
+  usdFromHuman,
+} from '../../utils/format';
 import {
   EMA_PERIOD,
   completedPoints,
@@ -63,6 +69,7 @@ const MarketRateChart: React.FC<{
   const theme = useTheme();
   const { data: swaps } = useAllSwaps({ limit: 600 });
   const { data: crown } = useCurrentCrown();
+  const prices = useUsdPrices();
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
 
@@ -313,15 +320,18 @@ const MarketRateChart: React.FC<{
                 const v = Array.isArray(p.value) ? p.value[1] : p.value;
                 const isVolume = p.seriesName === 'Volume';
                 const { from, to } = decomposeDirection(prepared[0].dir);
-                const unit = isVolume
-                  ? `${chainSymbol(canonicalSource(from, to))} vol`
-                  : (unitByName.get(p.seriesName) ?? fallbackUnit);
-                // Volume is an amount (2dp reads fine); a rate needs sig figs
-                // or SOL→BTC (~0.0021 BTC/SOL) shows as "0.00".
-                const shown = isVolume
-                  ? Number(v).toFixed(2)
-                  : formatRate(Number(v));
-                return `${p.seriesName}: ${shown} ${unit}`;
+                const hub = canonicalSource(from, to);
+                // Volume reads as estimated USD when the hub is priced,
+                // native hub units otherwise. An amount takes 2dp; a rate
+                // needs sig figs or SOL→BTC (~0.0021 BTC/SOL) shows "0.00".
+                if (isVolume) {
+                  const usd = usdFromHuman(Number(v), hub, prices);
+                  return usd != null
+                    ? `${p.seriesName}: ${formatUsd(usd)} vol (${Number(v).toFixed(2)} ${chainSymbol(hub)})`
+                    : `${p.seriesName}: ${Number(v).toFixed(2)} ${chainSymbol(hub)} vol`;
+                }
+                const unit = unitByName.get(p.seriesName) ?? fallbackUnit;
+                return `${p.seriesName}: ${formatRate(Number(v))} ${unit}`;
               })
               .join('<br/>');
             return `${new Date(Number(t) * 1000).toLocaleString()}<br/>${lines}`;
@@ -366,7 +376,7 @@ const MarketRateChart: React.FC<{
       },
       true,
     );
-  }, [series, theme, crown]);
+  }, [series, theme, crown, prices]);
 
   const single = series.length === 1;
   const countLabel = single

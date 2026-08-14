@@ -14,6 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import {
   useMinerLeaderboard,
+  useUsdPrices,
   type LeaderboardRow,
   type Range,
 } from '../../api';
@@ -26,9 +27,13 @@ import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 import { FONTS } from '../../theme';
 import {
   backingEntries,
+  backingTooltip,
   chainSymbol,
   formatSol,
+  formatUsd,
   shortHotkey,
+  usdFromBackingMap,
+  type UsdPrices,
 } from '../../utils/format';
 
 // 1h is the live scoring window (SCORING_WINDOW_SECS) and the default view.
@@ -69,6 +74,7 @@ const compare = (
   a: LeaderboardRow,
   b: LeaderboardRow,
   key: SortKey,
+  prices: UsdPrices,
 ): number => {
   switch (key) {
     case 'uid':
@@ -80,8 +86,14 @@ const compare = (
       return parseFloat(a.collateral) - parseFloat(b.collateral);
     case 'success':
       return successRatio(a) - successRatio(b);
-    case 'volume':
+    case 'volume': {
+      // Estimated USD ranks across backings; the SOL scalar alone
+      // under-ranks TAO-heavy miners. Falls back when prices are down.
+      const aUsd = usdFromBackingMap(a.volumeByBacking, prices, a.volumeSol);
+      const bUsd = usdFromBackingMap(b.volumeByBacking, prices, b.volumeSol);
+      if (aUsd != null && bUsd != null) return aUsd - bUsd;
       return parseFloat(a.volumeSol) - parseFloat(b.volumeSol);
+    }
     case 'active':
       return Number(a.isActive) - Number(b.isActive);
   }
@@ -94,6 +106,7 @@ const MinerLeaderboard: React.FC<{
   const navigate = useNavigate();
   const theme = useTheme();
   const { data, isLoading } = useMinerLeaderboard(range);
+  const prices = useUsdPrices();
   const [sortKey, setSortKey] = useState<SortKey>('crownShare');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [query, setQuery] = useState('');
@@ -138,8 +151,10 @@ const MinerLeaderboard: React.FC<{
 
   const sortedRows = useMemo(() => {
     const sign = sortDir === 'asc' ? 1 : -1;
-    return [...filteredRows].sort((a, b) => sign * compare(a, b, sortKey));
-  }, [filteredRows, sortKey, sortDir]);
+    return [...filteredRows].sort(
+      (a, b) => sign * compare(a, b, sortKey, prices),
+    );
+  }, [filteredRows, sortKey, sortDir, prices]);
 
   const onSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -373,9 +388,27 @@ const MinerLeaderboard: React.FC<{
                     {formatSuccess(row)}
                   </TableCell>
                   <TableCell sx={{ fontFamily: FONTS.mono }}>
-                    {backingEntries(row.volumeByBacking, row.volumeSol)
-                      .map((e) => `${e.amount} ${chainSymbol(e.chain)}`)
-                      .join(' + ')}
+                    {(() => {
+                      const usd = usdFromBackingMap(
+                        row.volumeByBacking,
+                        prices,
+                        row.volumeSol,
+                      );
+                      return usd != null ? (
+                        <span
+                          title={backingTooltip(
+                            row.volumeByBacking,
+                            row.volumeSol,
+                          )}
+                        >
+                          {formatUsd(usd)}
+                        </span>
+                      ) : (
+                        backingEntries(row.volumeByBacking, row.volumeSol)
+                          .map((e) => `${e.amount} ${chainSymbol(e.chain)}`)
+                          .join(' + ')
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Box

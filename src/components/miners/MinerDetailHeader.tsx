@@ -1,16 +1,19 @@
 import React from 'react';
 import { Box, Stack, Typography, alpha, useTheme } from '@mui/material';
-import type { MinerStats, Range } from '../../api';
+import { useUsdPrices, type MinerStats, type Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
 import {
   backingEntries,
+  backingTooltip,
   chainSymbol,
   directionalRate,
   formatRate,
   formatUnits,
   formatUnixTime,
+  formatUsd,
   rateUnit,
+  usdFromBackingMap,
 } from '../../utils/format';
 import { hubChains } from '../../api/models/chains';
 import CopyableAddress from '../CopyableAddress';
@@ -109,8 +112,12 @@ const PerformanceMetric: React.FC<{
 const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   stats,
 }) => {
-  // Per-backing volume — "X SOL + Y TAO", never summed; legacy SOL scalar
-  // when the das map is absent.
+  const prices = useUsdPrices();
+  // Volume as estimated USD (canonical per-backing figures in the tooltip);
+  // per-backing "X SOL + Y TAO" — never summed — without prices.
+  const volumeUsd = stats
+    ? usdFromBackingMap(stats.volumeByBacking, prices, stats.volumeSol)
+    : null;
   const volumeEntries = stats
     ? backingEntries(stats.volumeByBacking, stats.volumeSol)
     : null;
@@ -139,26 +146,38 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
       <PerformanceMetric label="Swaps" value={swaps} sub={completedSub} />
       <PerformanceMetric label="Success" value={successPct} />
       <PerformanceMetric
-        label="Volume"
+        label={volumeUsd != null ? 'Volume (est. USD)' : 'Volume'}
         value={
-          volumeEntries
-            ? volumeEntries.map((e, i) => (
-                <React.Fragment key={e.chain}>
-                  {i > 0 && (
-                    <Box component="span" sx={{ color: 'text.disabled' }}>
-                      {' + '}
-                    </Box>
-                  )}
-                  {e.amount}
-                  <Box
-                    component="span"
-                    sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
-                  >
-                    {chainSymbol(e.chain)}
+          volumeUsd != null ? (
+            <span
+              title={
+                stats
+                  ? backingTooltip(stats.volumeByBacking, stats.volumeSol)
+                  : undefined
+              }
+            >
+              {formatUsd(volumeUsd)}
+            </span>
+          ) : volumeEntries ? (
+            volumeEntries.map((e, i) => (
+              <React.Fragment key={e.chain}>
+                {i > 0 && (
+                  <Box component="span" sx={{ color: 'text.disabled' }}>
+                    {' + '}
                   </Box>
-                </React.Fragment>
-              ))
-            : '—'
+                )}
+                {e.amount}
+                <Box
+                  component="span"
+                  sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
+                >
+                  {chainSymbol(e.chain)}
+                </Box>
+              </React.Fragment>
+            ))
+          ) : (
+            '—'
+          )
         }
       />
       <PerformanceMetric

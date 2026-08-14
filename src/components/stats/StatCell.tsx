@@ -17,10 +17,13 @@ const StatCell: React.FC<{
   segments?: { value: string; unit: string }[];
   /** Small secondary suffix rendered after the value (e.g. "· 98% success"). */
   sub?: React.ReactNode;
+  /** Hover title — e.g. the canonical per-backing figures behind a USD value. */
+  tooltip?: string;
   loading?: boolean;
   children?: React.ReactNode;
-}> = ({ label, value, unit, segments, sub, loading, children }) => (
+}> = ({ label, value, unit, segments, sub, tooltip, loading, children }) => (
   <Box
+    title={tooltip}
     sx={{
       borderRadius: 0,
       border: '1px solid',
