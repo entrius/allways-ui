@@ -4,6 +4,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { FONTS } from '../../theme';
 import { useThemeMode } from '../../ThemeContext';
+import RatesTicker from '../dashboard/RatesTicker';
 
 const Hero: React.FC = () => {
   const { mode } = useThemeMode();
@@ -76,6 +77,14 @@ const Hero: React.FC = () => {
           strokeOpacity="0.18"
           strokeWidth="1"
         />
+      </Box>
+
+      {/* The tape lies ON the hero, not in it: absolutely positioned across
+          the top so it takes no space in the flow and the hero's background,
+          padding and centred headline are exactly what they were. It sits
+          above the wash and the line-work, which are absolute too. */}
+      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1 }}>
+        <RatesTicker />
       </Box>
 
       <Box

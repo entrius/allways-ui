@@ -28,6 +28,13 @@ export const useChains = () =>
     initialDataUpdatedAt: 0,
     staleTime: CHAINS_REFRESH_MS,
     refetchInterval: CHAINS_REFRESH_MS,
+    // The app-wide default is refetchOnMount: false, which — paired with
+    // initialData — would pin the registry to the committed seed until the
+    // hourly interval first fired, so a chain added to das would not appear
+    // for an hour and a stale seed would look like a missing market. The
+    // seed is the OUTAGE fallback, not the source of truth: always confirm
+    // it against das on mount.
+    refetchOnMount: 'always',
     retry: false,
   });
 

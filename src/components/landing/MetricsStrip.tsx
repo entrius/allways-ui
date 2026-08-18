@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Grid, Skeleton, Stack, Typography } from '@mui/material';
-import { useActiveNodeCount, useStats, useUsdPrices } from '../../api';
+import { useStats, useUsdPrices } from '../../api';
 import {
   backingEntries,
   backingTooltip,
@@ -108,7 +108,6 @@ const Metric: React.FC<MetricProps> = ({
 
 const MetricsStrip: React.FC = () => {
   const { data: stats, isLoading } = useStats();
-  const { count: activeNodes, isLoading: nodesLoading } = useActiveNodeCount();
   const prices = useUsdPrices();
   // Volume as estimated USD (canonical per-backing figures in the tooltip);
   // without prices, per-backing segments ("X SOL + Y TAO") — never summed.
@@ -143,33 +142,25 @@ const MetricsStrip: React.FC = () => {
     >
       <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
         <Grid container>
-          <Grid item xs={12} sm={6} md={3}>
+          {/* Two figures, both cumulative: what the network has delivered
+              and what it moved doing it. The live counters that used to sit
+              beside them (active nodes, in-flight swaps) are snapshots of a
+              single instant, so on a young network they read as "2" and "0"
+              next to the totals and undersell the same system twice. Live
+              movement is what the tape and /transactions are for. */}
+          <Grid item xs={12} sm={6}>
             <Metric
               label="Successful Transactions"
               value={String(stats?.totalSwaps ?? 0)}
               loading={isLoading}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6}>
             <Metric
               label="Volume"
               value=""
               segments={volumeSegs}
               tooltip={volumeTooltip}
-              loading={isLoading}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Metric
-              label="Active Network Nodes"
-              value={String(activeNodes)}
-              loading={nodesLoading}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Metric
-              label="Active Transactions"
-              value={String(stats?.activeSwaps ?? 0)}
               loading={isLoading}
             />
           </Grid>
