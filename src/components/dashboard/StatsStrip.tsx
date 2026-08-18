@@ -19,15 +19,26 @@ const Item: React.FC<{
   label: string;
   value: React.ReactNode;
   hint: string;
-}> = ({ label, value, hint }) => (
+  /** Full-width row, label left and value right, for a key-stats list. */
+  row?: boolean;
+}> = ({ label, value, hint, row }) => (
   <Tooltip title={hint} arrow placement="top">
-    <Stack direction="row" alignItems="baseline" spacing={0.75}>
+    <Stack
+      direction="row"
+      alignItems="baseline"
+      spacing={0.75}
+      sx={
+        row
+          ? { justifyContent: 'space-between', width: '100%', py: 0.35 }
+          : undefined
+      }
+    >
       <Typography
         sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.6rem',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
+          fontFamily: row ? undefined : FONTS.mono,
+          fontSize: row ? '0.72rem' : '0.6rem',
+          letterSpacing: row ? undefined : '0.08em',
+          textTransform: row ? 'none' : 'uppercase',
           color: 'text.secondary',
           whiteSpace: 'nowrap',
         }}
@@ -37,7 +48,7 @@ const Item: React.FC<{
       <Typography
         sx={{
           fontFamily: FONTS.mono,
-          fontSize: '0.78rem',
+          fontSize: row ? '0.74rem' : '0.78rem',
           fontWeight: 600,
           color: 'text.primary',
           whiteSpace: 'nowrap',
@@ -49,6 +60,9 @@ const Item: React.FC<{
     </Stack>
   </Tooltip>
 );
+
+export type StatKey = 'vol' | 'txns' | 'success' | 'inFlight';
+const ALL_STATS: StatKey[] = ['vol', 'txns', 'success', 'inFlight'];
 
 // Symbol stats for a market — one or more directions pooled — over the
 // hero's selected window, computed from the raw swap history so any window
@@ -62,7 +76,24 @@ const StatsStrip: React.FC<{
   rangeLabel: string;
   /** No frame — for embedding inside the market hero. */
   bare?: boolean;
-}> = ({ directions, secs, rangeLabel, bare }) => {
+  /** One stat per line, label left and value right — the key-stats list
+   * shape. The wrapping row is for wide surfaces; in a narrow rail it leaves
+   * a ragged orphan on its own line. */
+  rows?: boolean;
+  /** Which stats to render, in this order. Defaults to all four. */
+  stats?: StatKey[];
+  /** Drop the window prefix from each label. For callers whose own heading
+   * already states the range, so it isn't repeated on every stat. */
+  hideRange?: boolean;
+}> = ({
+  directions,
+  secs,
+  rangeLabel,
+  bare,
+  rows,
+  hideRange,
+  stats: show = ALL_STATS,
+}) => {
   const { data: swaps } = useCompleteSwapHistory();
   const legs = useMemo(() => directions.map(decomposeDirection), [directions]);
   // Every direction here shares one pair, so its hub leg is the strip's one
@@ -115,14 +146,21 @@ const StatsStrip: React.FC<{
       ? directionLabel(directions[0])
       : `${legs[0].from.toUpperCase()} ⇄ ${legs[0].to.toUpperCase()}`;
 
+  // Label prefix, e.g. "1D vol" vs plain "vol".
+  const p = hideRange ? '' : `${rangeLabel} `;
+
   return (
     <Box
       sx={{
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        columnGap: 3,
-        rowGap: 0.5,
+        ...(rows
+          ? { display: 'flex', flexDirection: 'column' }
+          : {
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              columnGap: 3,
+              rowGap: 0.5,
+            }),
         ...(bare
           ? {}
           : {
@@ -132,36 +170,53 @@ const StatsStrip: React.FC<{
             }),
       }}
     >
-      <Item
-        label={`${rangeLabel} vol`}
-        value={
-          volUsd != null
-            ? formatUsd(volUsd)
-            : `${fmtVol(stats.volume)} ${chainSymbol(hub)}`
-        }
-        hint={
-          volUsd != null
-            ? `${dir} volume completed over the selected window — ${fmtVol(stats.volume)} ${chainSymbol(hub)}, estimated in USD at current prices.`
-            : `${dir} volume (${chainSymbol(hub)} side) completed over the selected window.`
-        }
-      />
-      <Item
-        label={`${rangeLabel} txns`}
-        value={stats.completed.toLocaleString()}
-        hint={`${dir} swaps completed over the selected window.`}
-      />
-      <Item
-        label={`${rangeLabel} success`}
-        value={
-          stats.success != null ? `${(stats.success * 100).toFixed(1)}%` : '—'
-        }
-        hint={`Share of ${dir} swaps that completed (vs timed out) over the selected window.`}
-      />
-      <Item
-        label="in flight"
-        value={String(stats.inFlight)}
-        hint={`${dir} transactions currently in progress.`}
-      />
+      {show.map((key) =>
+        key === 'vol' ? (
+          <Item
+            key={key}
+            row={rows}
+            label={`${p}vol`}
+            value={
+              volUsd != null
+                ? formatUsd(volUsd)
+                : `${fmtVol(stats.volume)} ${chainSymbol(hub)}`
+            }
+            hint={
+              volUsd != null
+                ? `${dir} volume completed over the selected window: ${fmtVol(stats.volume)} ${chainSymbol(hub)}, estimated in USD at current prices.`
+                : `${dir} volume (${chainSymbol(hub)} side) completed over the selected window.`
+            }
+          />
+        ) : key === 'txns' ? (
+          <Item
+            key={key}
+            row={rows}
+            label={`${p}txns`}
+            value={stats.completed.toLocaleString()}
+            hint={`${dir} swaps completed over the selected window.`}
+          />
+        ) : key === 'success' ? (
+          <Item
+            key={key}
+            row={rows}
+            label={`${p}success`}
+            value={
+              stats.success != null
+                ? `${(stats.success * 100).toFixed(1)}%`
+                : '—'
+            }
+            hint={`Share of ${dir} swaps that completed (vs timed out) over the selected window.`}
+          />
+        ) : (
+          <Item
+            key={key}
+            row={rows}
+            label="in flight"
+            value={String(stats.inFlight)}
+            hint={`${dir} transactions currently in progress.`}
+          />
+        ),
+      )}
     </Box>
   );
 };
