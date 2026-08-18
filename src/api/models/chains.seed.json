@@ -9,7 +9,7 @@
       "family": "sol",
       "hub": true,
       "logo": "/chains/logos/sol.png",
-      "explorerTx": "https://solscan.io/tx/{hash}",
+      "explorerTx": "https://solscan.io/tx/{hash}?cluster=testnet",
       "coingeckoId": "solana"
     },
     {
@@ -21,7 +21,7 @@
       "family": "utxo",
       "hub": false,
       "logo": "/chains/logos/btc.png",
-      "explorerTx": "https://mempool.space/tx/{hash}",
+      "explorerTx": "https://mempool.space/testnet4/tx/{hash}",
       "coingeckoId": "bitcoin"
     },
     {
@@ -33,7 +33,7 @@
       "family": "ss58",
       "hub": true,
       "logo": "/chains/logos/tao.png",
-      "explorerTx": "https://taostats.io/extrinsic/{hash}",
+      "explorerTx": "https://test.taostats.io/extrinsic/{hash}",
       "coingeckoId": "bittensor"
     },
     {
@@ -45,7 +45,7 @@
       "family": "evm",
       "hub": false,
       "logo": "/chains/logos/eth.png",
-      "explorerTx": "https://etherscan.io/tx/{hash}",
+      "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
       "coingeckoId": "ethereum"
     },
     {
@@ -57,7 +57,7 @@
       "family": "evm",
       "hub": false,
       "logo": "/chains/logos/arbusdc.png",
-      "explorerTx": "https://arbiscan.io/tx/{hash}",
+      "explorerTx": "https://sepolia.arbiscan.io/tx/{hash}",
       "coingeckoId": "usd-coin"
     },
     {
@@ -69,8 +69,140 @@
       "family": "evm",
       "hub": false,
       "logo": "/chains/logos/hype.png",
-      "explorerTx": "https://hyperevmscan.io/tx/{hash}",
+      "explorerTx": "https://explore-testnet.hyperpc.app/tx/{hash}",
       "coingeckoId": "hyperliquid"
+    },
+    {
+      "id": "bnb",
+      "symbol": "BNB",
+      "name": "BNB Smart Chain",
+      "decimals": 18,
+      "displayDigits": 6,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/bnb.png",
+      "explorerTx": "https://testnet.bscscan.com/tx/{hash}",
+      "coingeckoId": "binancecoin"
+    },
+    {
+      "id": "avax",
+      "symbol": "AVAX",
+      "name": "Avalanche",
+      "decimals": 18,
+      "displayDigits": 4,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/avax.png",
+      "explorerTx": "https://testnet.snowscan.xyz/tx/{hash}",
+      "coingeckoId": "avalanche-2"
+    },
+    {
+      "id": "baseusdc",
+      "symbol": "USDC",
+      "name": "USDC (Base)",
+      "decimals": 6,
+      "displayDigits": 2,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/baseusdc.png",
+      "explorerTx": "https://base-sepolia.blockscout.com/tx/{hash}",
+      "coingeckoId": "usd-coin"
+    },
+    {
+      "id": "ethusdc",
+      "symbol": "USDC",
+      "name": "USDC (Ethereum)",
+      "decimals": 6,
+      "displayDigits": 2,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/ethusdc.png",
+      "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
+      "coingeckoId": "usd-coin"
+    },
+    {
+      "id": "cro",
+      "symbol": "CRO",
+      "name": "Cronos",
+      "decimals": 18,
+      "displayDigits": 4,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/cro.png",
+      "explorerTx": "https://explorer.cronos.com/testnet/tx/{hash}",
+      "coingeckoId": "crypto-com-chain"
+    },
+    {
+      "id": "aster",
+      "symbol": "ASTER",
+      "name": "Aster",
+      "decimals": 18,
+      "displayDigits": 4,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/aster.png",
+      "explorerTx": "https://testnet.bscscan.com/tx/{hash}",
+      "coingeckoId": "aster-2"
+    },
+    {
+      "id": "uni",
+      "symbol": "UNI",
+      "name": "Uniswap",
+      "decimals": 18,
+      "displayDigits": 4,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/uni.png",
+      "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
+      "coingeckoId": "uniswap"
+    },
+    {
+      "id": "qnt",
+      "symbol": "QNT",
+      "name": "Quant",
+      "decimals": 18,
+      "displayDigits": 4,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/qnt.png",
+      "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
+      "coingeckoId": "quant-network"
+    },
+    {
+      "id": "pol",
+      "symbol": "POL",
+      "name": "Polygon",
+      "decimals": 18,
+      "displayDigits": 4,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/pol.png",
+      "explorerTx": "https://amoy.polygonscan.com/tx/{hash}",
+      "coingeckoId": "polygon-ecosystem-token"
+    },
+    {
+      "id": "polusdc",
+      "symbol": "USDC",
+      "name": "USDC (Polygon)",
+      "decimals": 6,
+      "displayDigits": 2,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/polusdc.png",
+      "explorerTx": "https://amoy.polygonscan.com/tx/{hash}",
+      "coingeckoId": "usd-coin"
+    },
+    {
+      "id": "paxg",
+      "symbol": "PAXG",
+      "name": "PAX Gold",
+      "decimals": 18,
+      "displayDigits": 6,
+      "family": "evm",
+      "hub": false,
+      "logo": "/chains/logos/paxg.png",
+      "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
+      "coingeckoId": "pax-gold"
     }
   ]
 }

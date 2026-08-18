@@ -9,14 +9,14 @@
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for
 native swaps between independent assets, settled on a **Solana
 program**. It is **hub-and-spoke with SOL and TAO as hubs**: the pairs are
-**SOL↔BTC**, **SOL↔TAO**, **SOL↔ETH**, **SOL↔USDC**, **SOL↔HYPE**, **TAO↔BTC**, **TAO↔ETH**, **TAO↔USDC**, and **TAO↔HYPE**, so every swap has a hub leg. Miners post collateral in a hub
+**SOL↔BTC**, **SOL↔TAO**, **SOL↔ETH**, **SOL↔USDC**, **SOL↔HYPE**, **SOL↔BNB**, **SOL↔AVAX**, **SOL↔USDC**, **SOL↔USDC**, **SOL↔CRO**, **SOL↔ASTER**, **SOL↔UNI**, **SOL↔QNT**, **SOL↔POL**, **SOL↔USDC**, **SOL↔PAXG**, **TAO↔BTC**, **TAO↔ETH**, **TAO↔USDC**, **TAO↔HYPE**, **TAO↔BNB**, **TAO↔AVAX**, **TAO↔USDC**, **TAO↔USDC**, **TAO↔CRO**, **TAO↔ASTER**, **TAO↔UNI**, **TAO↔QNT**, **TAO↔POL**, **TAO↔USDC**, and **TAO↔PAXG**, so every swap has a hub leg. Miners post collateral in a hub
 asset (SOL or TAO — the swap's **backing**) and quote exchange rates.
 Validators verify both legs of each swap. On failure the protocol slashes
 that backing and pays the taker in the same asset. No custodian, no wrapped
 asset, no bridge token.
 
 > **Where to point your wallets:** **Mainnet** (Bittensor netuid 7 + Solana
-> mainnet) is the live network — real SOL, BTC, TAO, ETH, USDC, and HYPE. **Testnet** (netuid 19 +
+> mainnet) is the live network — real SOL, BTC, TAO, ETH, USDC, HYPE, BNB, AVAX, USDC, USDC, CRO, ASTER, UNI, QNT, POL, USDC, and PAXG. **Testnet** (netuid 19 +
 > Solana devnet) mirrors it with free funds for dry-runs. Both use the same Solana
 > program `6JVBEj5w27J2SVjERmv2c7wXgFee9nSSBKUJevHehyBD` — the program id is the
 > same across clusters; only the network differs. Setup blocks for both are below.
@@ -37,14 +37,14 @@ asset, no bridge token.
 
 - **Collateral-backed.** Every swap is backed by hub-asset collateral (SOL or TAO) worth its full value; if delivery fails, the protocol slashes that collateral and repays the taker in the same asset.
 - **Best rate.** Dynamic pricing — quotes update every block.
-- **Subnet-native.** Settles in real SOL, BTC, TAO, ETH, USDC, and HYPE. No IOUs.
+- **Subnet-native.** Settles in real SOL, BTC, TAO, ETH, USDC, HYPE, BNB, AVAX, USDC, USDC, CRO, ASTER, UNI, QNT, POL, USDC, and PAXG. No IOUs.
 - **Open + agentic.** Public API, SSE feeds, open-source CLI, scriptable end-to-end.
 
 > **Code is law.** This doc is a quickstart, not a spec. Review everything end-to-end before any non-trivial swap — the on-chain program (`smart-contracts/solana/programs/allways_swap_manager`, an Anchor program), the validator and miner code, the CLI, and the constants under `allways/constants.py`. The contract is the only authority that matters; everything below is convenience and may lag the source. Source of truth: https://github.com/entrius/allways at the version you installed.
 
 ## Concepts you actually need
 
-- **Hub-and-spoke.** Every pair has a hub leg (SOL and TAO; the higher-priority hub anchors a hub↔hub pair) — that leg is the pair's numéraire and the swap's backing. Directions: `sol→btc`, `btc→sol`, `sol→tao`, `tao→sol`, `sol→eth`, `eth→sol`, `sol→arbusdc`, `arbusdc→sol`, `sol→hype`, `hype→sol`, `tao→btc`, `btc→tao`, `tao→eth`, `eth→tao`, `tao→arbusdc`, `arbusdc→tao`, `tao→hype`, `hype→tao`. Rates read as "destination per 1 hub-anchor" for the forward leg; the reverse leg inverts. Collateral and swap sizing are in the backing; the reservation fee is always SOL (bids settle on Solana on every pair).
+- **Hub-and-spoke.** Every pair has a hub leg (SOL and TAO; the higher-priority hub anchors a hub↔hub pair) — that leg is the pair's numéraire and the swap's backing. Directions: `sol→btc`, `btc→sol`, `sol→tao`, `tao→sol`, `sol→eth`, `eth→sol`, `sol→arbusdc`, `arbusdc→sol`, `sol→hype`, `hype→sol`, `sol→bnb`, `bnb→sol`, `sol→avax`, `avax→sol`, `sol→baseusdc`, `baseusdc→sol`, `sol→ethusdc`, `ethusdc→sol`, `sol→cro`, `cro→sol`, `sol→aster`, `aster→sol`, `sol→uni`, `uni→sol`, `sol→qnt`, `qnt→sol`, `sol→pol`, `pol→sol`, `sol→polusdc`, `polusdc→sol`, `sol→paxg`, `paxg→sol`, `tao→btc`, `btc→tao`, `tao→eth`, `eth→tao`, `tao→arbusdc`, `arbusdc→tao`, `tao→hype`, `hype→tao`, `tao→bnb`, `bnb→tao`, `tao→avax`, `avax→tao`, `tao→baseusdc`, `baseusdc→tao`, `tao→ethusdc`, `ethusdc→tao`, `tao→cro`, `cro→tao`, `tao→aster`, `aster→tao`, `tao→uni`, `uni→tao`, `tao→qnt`, `qnt→tao`, `tao→pol`, `pol→tao`, `tao→polusdc`, `polusdc→tao`, `tao→paxg`, `paxg→tao`. Rates read as "destination per 1 hub-anchor" for the forward leg; the reverse leg inverts. Collateral and swap sizing are in the backing; the reservation fee is always SOL (bids settle on Solana on every pair).
 - **Actors.** Miners post hub-asset collateral (SOL or TAO) and quote live per-direction rates on-chain — active and quoting *before any swap exists*. Takers pick a pair and an amount. Validators verify both legs and vote. The contract enforces slash / timeout / payout.
 - **Reservation lifecycle (two-phase).** A miner is secured *before* amounts are named:
   1. **Bid** (`open_or_request`) — you (or a validator on your behalf) bid into a per-miner pool and pay a small, non-refundable SOL **reservation fee**. The first bid pins the miner's rate for the pool window. A bid carries no taker and no amounts.
@@ -195,7 +195,7 @@ In every case `alw swap now` only **reserves** — once it prints the miner's ad
 
 | Flag | Purpose |
 |---|---|
-| `--from <chain>` | Source chain (`sol`, `btc`, `tao`, `eth`, `arbusdc`, `hype`) |
+| `--from <chain>` | Source chain (`sol`, `btc`, `tao`, `eth`, `arbusdc`, `hype`, `bnb`, `avax`, `baseusdc`, `ethusdc`, `cro`, `aster`, `uni`, `qnt`, `pol`, `polusdc`, `paxg`) |
 | `--to <chain>` | Destination chain |
 | `--amount <n>` | Source amount, in source-chain units |
 | `--receive-address <addr>` | Where the miner sends to you (on the `--to` chain) |
