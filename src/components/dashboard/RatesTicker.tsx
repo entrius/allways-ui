@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCrownRateHistory, useCurrentCrown, useDirections } from '../../api';
 import {
@@ -7,6 +7,7 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { hubChains } from '../../api/models/chains';
 import { formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../index';
@@ -101,49 +102,76 @@ const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
   );
 };
 
-// Market-page eyebrow: the wall-street tape — every route crawling by with
-// its rate and 1D move.
+// Landing-page tape: the wall-street crawl, every route going by with its
+// rate and 1D move. It belongs to the pitch rather than to the terminal.
+// On the market page it was an eyebrow above a screen whose own rail already
+// lists every route with live rates, so it repeated the page underneath it;
+// here it runs as the page's top row, directly under the nav, where an
+// exchange puts its tape and where it is the first thing to move.
+//
+// Edge-to-edge across the full viewport, not held to the 1400 measure the
+// landing sections use: a tape reads as a broadcast strip running past the
+// page, and stopping it at the content width would make it a wide panel
+// instead. Self-contained, deliberately: it used to reach outside itself
+// with negative margins mirroring one page's padding, which quietly made the
+// component only usable on that page.
 const RatesTicker: React.FC = () => {
   // Every registry pair with a hub leg, straight from das /chains.
   const directions = useDirections();
 
+  // Hub-quoted routes only: SOL and TAO appear as the DENOMINATOR, never as
+  // the leading side. Both directions of every pair put a hub logo first on
+  // every other segment, so the tape crawled past as sol, btc, sol, tao,
+  // sol, eth — the marks that identify a route at a glance were mostly the
+  // same two. Quoting everything in the hubs is also what a tape does: one
+  // unit of account, and the assets are what varies. The reverse routes are
+  // still first-class instruments, on the market page's rail and in the
+  // symbol search; this is the crawl, not the index.
+  const hubs = hubChains();
+  const quoted = useMemo(
+    () =>
+      directions.filter((d) => {
+        const { from, to } = decomposeDirection(d);
+        return !hubs.includes(from) && hubs.includes(to);
+      }),
+    // hubs comes from the registry singleton, which is stable for a given
+    // directions list; keying off directions alone keeps this from
+    // recomputing on every render for a new array identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [directions],
+  );
+
   return (
-    <Stack
-      direction="row"
-      spacing={{ xs: 1.5, sm: 3 }}
-      alignItems="center"
+    <Box
       sx={{
-        fontFamily: FONTS.mono,
-        fontSize: { xs: '0.6rem', sm: '0.72rem' },
-        color: 'text.secondary',
-        py: { xs: 1, sm: 1.5 },
-        mb: { xs: 1.5, sm: 2 },
-        // A tinted band rather than a rule. The tape is a different KIND of
-        // surface from the terminal below it (it crawls, it is ambient, you
-        // read it in passing), and a shade says that continuously where a
-        // hairline only marks the boundary. It also spares the page one more
-        // horizontal line: the rail, its column headings and its card supply
-        // plenty already.
-        //
-        // The design token, not a literal: --color-surface-light is themed
-        // for both modes, unlike --color-gray, which is never overridden in
-        // dark and would glare. Taking the var rather than palette.surface
-        // .light means dark mode resolves the real color-mix() instead of
-        // theme.ts's pre-computed mirror of it, so the two cannot drift.
-        backgroundColor: 'var(--color-surface-light)',
-        // Bleed to the viewport edges through MarketPage's gutters, so the
-        // band reads as its own strip rather than a floating panel. Values
-        // mirror that page's px exactly.
-        mx: { xs: -1.5, sm: -2, md: -3 },
-        px: { xs: 1.5, sm: 2, md: 3 },
+        width: '100%',
+        // No surface of its own: no tint, no rules. The tape simply runs
+        // across the page's existing background at the top of it. A band
+        // with a shade and a divider announced itself as another section
+        // stacked above the hero, when the only thing it needs to be is a
+        // line of live prices moving where the page begins. Motion already
+        // separates it from everything that holds still.
       }}
     >
-      <Ticker>
-        {directions.map((d) => (
-          <DirSegment key={d} direction={d} />
-        ))}
-      </Ticker>
-    </Stack>
+      <Stack
+        direction="row"
+        spacing={{ xs: 1.5, sm: 3 }}
+        alignItems="center"
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: { xs: '0.6rem', sm: '0.72rem' },
+          color: 'text.secondary',
+          px: { xs: 1.5, sm: 2, md: 3 },
+          py: { xs: 1, sm: 1.5 },
+        }}
+      >
+        <Ticker>
+          {quoted.map((d) => (
+            <DirSegment key={d} direction={d} />
+          ))}
+        </Ticker>
+      </Stack>
+    </Box>
   );
 };
 

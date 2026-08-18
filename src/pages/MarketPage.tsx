@@ -5,7 +5,6 @@ import {
   AllwaysMarketRate,
   OrderbookDepth,
   PairsRail,
-  RatesTicker,
   Page,
   SEO,
 } from '../components';
@@ -71,7 +70,10 @@ const MarketPage: React.FC = () => {
         sx={{
           backgroundColor: 'background.default',
           px: { xs: 1.5, sm: 2, md: 3 },
-          pt: 0,
+          // The tape used to sit here and supply the gap under the nav; it
+          // lives on the landing page now, so the terminal opens on its own
+          // small breath of space instead of hard against the nav.
+          pt: { xs: 1.5, md: 2 },
           pb: { xs: 2, md: 2 },
           width: '100%',
           // Fill the viewport below the 56px top nav so the terminal is a
@@ -81,8 +83,6 @@ const MarketPage: React.FC = () => {
           overflow: { md: 'hidden' },
         }}
       >
-        <RatesTicker />
-
         <Box
           sx={{
             flex: 1,
