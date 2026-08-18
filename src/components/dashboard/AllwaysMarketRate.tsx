@@ -4,6 +4,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Stack,
   Tooltip,
   Typography,
   useTheme,
@@ -16,13 +17,15 @@ import {
   decomposeDirection,
   directionalRateFor,
   type Direction,
+  lanesFor,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { formatRate } from '../../utils/format';
-import { TickerSymbol } from '../ChainLogo';
+import { chainName, chainSymbol, formatRate } from '../../utils/format';
+import { ChainLogo, TickerSymbol } from '../ChainLogo';
 import RangeChips from '../RangeChips';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import StatsStrip from './StatsStrip';
+import SymbolSearch from './SymbolSearch';
 import { hubLeg } from '../../api/models/chains';
 
 // The non-anchor side of a pair. A string, not a union: pairs are open-ended —
@@ -211,6 +214,32 @@ const AllwaysMarketRate: React.FC<{
   );
   const last = points.length ? points[points.length - 1].value : null;
 
+  // Open / high / low / close of the crown rate across the window, the
+  // quote-bar summary a terminal opens with. These are the extremes of the
+  // crown SERIES, not candles: Allways has no fixed bar interval, the crown
+  // simply moves when a better quote lands, so O and C are the window's
+  // first and last accepted rates and H/L its bounds.
+  const ohlc = useMemo(() => {
+    // Gaps carry a null value; they are absence of a quote, not a price of
+    // zero, so they take no part in the extremes.
+    const vals = points
+      .map((pt) => pt.value)
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    if (!vals.length) return null;
+    const open = vals[0];
+    const close = vals[vals.length - 1];
+    return {
+      open,
+      high: Math.max(...vals),
+      low: Math.min(...vals),
+      close,
+      change: close - open,
+      pct: open !== 0 ? ((close - open) / open) * 100 : null,
+    };
+  }, [points]);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+
   // One instrument, one line — the house monochrome (a hex value, which the
   // chart's gradient alpha-suffix requires).
   const cLine = theme.palette.text.primary;
@@ -237,8 +266,9 @@ const AllwaysMarketRate: React.FC<{
         minHeight: 0,
       }}
     >
-      {/* One compact header row: instrument picker left, range chips right.
-          The quote itself lives in the rail (or, stacked, right here). */}
+      {/* One compact header row. Stacked: picker and quote left, range chips
+          right. With the rail on screen the picker and quote both live there,
+          leaving this as the chart's range toolbar. */}
       <Box
         sx={{
           display: 'flex',
@@ -248,7 +278,155 @@ const AllwaysMarketRate: React.FC<{
           rowGap: 1,
         }}
       >
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+        {/* Quote bar, the line a terminal opens with: what this is, over
+            what window, backed by what, then the window's open/high/low/close
+            and the move. The pair name is the search trigger, as it is in
+            every terminal. Shown only where the rail exists, because stacked
+            layouts carry the dropdown picker and their own headline quote
+            instead.
+
+            It shares the toolbar row with the range chips rather than taking
+            a band of its own: this sits above a chart that wants every pixel
+            of height, and a strip holding one line of text plus a strip
+            holding four chips is two rows doing one row's work. */}
+        <Box
+          sx={{
+            display: quoteInRail ? { xs: 'none', md: 'flex' } : 'none',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            columnGap: 1,
+            rowGap: 0.5,
+            minWidth: 0,
+          }}
+        >
+          <Box
+            component="button"
+            onClick={() => setSearchOpen(true)}
+            sx={{
+              all: 'unset',
+              boxSizing: 'border-box',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.6,
+              px: 0.75,
+              py: 0.25,
+              ml: -0.75,
+              borderRadius: 1,
+              '&:hover': { backgroundColor: 'action.hover' },
+            }}
+          >
+            <ChainLogo chain={from} size={15} />
+            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>
+              {chainName(from)}
+            </Typography>
+            <Box component="span" sx={{ color: 'text.disabled' }}>
+              →
+            </Box>
+            <ChainLogo chain={to} size={15} />
+            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>
+              {chainName(to)}
+            </Typography>
+            <KeyboardArrowDownIcon
+              sx={{ fontSize: 16, color: 'text.disabled' }}
+            />
+          </Box>
+
+          {/* Window and backing. Where a broker names the venue, this names
+              the collateral the route's miners post and the asset a failed
+              delivery repays in; sol↔tao is the one route carrying two. No
+              leading separator: it opens a group rather than continuing the
+              pair name. */}
+          <Typography
+            sx={{
+              fontSize: '0.75rem',
+              color: 'text.secondary',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            {range} · {lanesFor(direction).map(chainSymbol).join(' + ')} backed
+          </Typography>
+
+          {ohlc && (
+            <Stack
+              direction="row"
+              alignItems="baseline"
+              spacing={1}
+              sx={{ flexWrap: 'wrap', rowGap: 0.25 }}
+            >
+              {(
+                [
+                  ['O', ohlc.open],
+                  ['H', ohlc.high],
+                  ['L', ohlc.low],
+                  ['C', ohlc.close],
+                ] as const
+              ).map(([letter, value]) => (
+                <Stack
+                  key={letter}
+                  direction="row"
+                  alignItems="baseline"
+                  spacing={0.4}
+                >
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: 'text.disabled',
+                    }}
+                  >
+                    {letter}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {formatRate(value)}
+                  </Typography>
+                </Stack>
+              ))}
+              {/* No move colour anywhere on this row. It is a readout, not a
+                  signal: O/H/L/C, the change and its percentage are one set
+                  of facts about one window, and tinting any of them ranks it
+                  above the rest. The chart underneath already carries the
+                  direction, and the rail's rows carry it per route. */}
+              <Typography
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {ohlc.change > 0 ? '+' : ''}
+                {formatRate(ohlc.change)}
+                {ohlc.pct != null &&
+                  ` (${ohlc.pct > 0 ? '+' : ''}${ohlc.pct.toFixed(2)}%)`}
+              </Typography>
+            </Stack>
+          )}
+        </Box>
+
+        {/* Route picker, stacked layouts only. With the rail on screen it is
+            a third way to do what the map and the watchlist already do, and
+            the weakest of the three: it cannot show which routes carry any
+            volume, and reversing takes a button press where the map flips on
+            a second click. Below md the rail is not rendered, so this is the
+            only way to change instrument and has to stay. */}
+        <Box
+          sx={{
+            display: quoteInRail
+              ? { xs: 'inline-flex', md: 'none' }
+              : 'inline-flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
           <AssetSelect
             chain={from}
             chains={optionsFor('from')}
@@ -306,7 +484,7 @@ const AllwaysMarketRate: React.FC<{
             {to.toUpperCase()}
           </Box>
         </Typography>
-        <Box sx={{ ml: 'auto' }}>
+        <Box sx={{ ml: 'auto', flexShrink: 0 }}>
           <RangeChips value={range} options={RANGES} onChange={onRangeChange} />
         </Box>
       </Box>
@@ -342,6 +520,13 @@ const AllwaysMarketRate: React.FC<{
           rangeLabel={range}
         />
       </Box>
+
+      <SymbolSearch
+        open={searchOpen}
+        direction={direction}
+        onClose={() => setSearchOpen(false)}
+        onSelect={onDirectionChange}
+      />
     </Box>
   );
 };
