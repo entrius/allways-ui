@@ -116,11 +116,26 @@ const RatesTicker: React.FC = () => {
         fontFamily: FONTS.mono,
         fontSize: { xs: '0.6rem', sm: '0.72rem' },
         color: 'text.secondary',
-        pt: { xs: 1, sm: 1.5 },
-        pb: { xs: 1, sm: 1.5 },
+        py: { xs: 1, sm: 1.5 },
         mb: { xs: 1.5, sm: 2 },
-        borderBottom: '1px solid',
-        borderColor: 'divider',
+        // A tinted band rather than a rule. The tape is a different KIND of
+        // surface from the terminal below it (it crawls, it is ambient, you
+        // read it in passing), and a shade says that continuously where a
+        // hairline only marks the boundary. It also spares the page one more
+        // horizontal line: the rail, its column headings and its card supply
+        // plenty already.
+        //
+        // The design token, not a literal: --color-surface-light is themed
+        // for both modes, unlike --color-gray, which is never overridden in
+        // dark and would glare. Taking the var rather than palette.surface
+        // .light means dark mode resolves the real color-mix() instead of
+        // theme.ts's pre-computed mirror of it, so the two cannot drift.
+        backgroundColor: 'var(--color-surface-light)',
+        // Bleed to the viewport edges through MarketPage's gutters, so the
+        // band reads as its own strip rather than a floating panel. Values
+        // mirror that page's px exactly.
+        mx: { xs: -1.5, sm: -2, md: -3 },
+        px: { xs: 1.5, sm: 2, md: 3 },
       }}
     >
       <Ticker>
