@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 import { FONTS } from '../theme';
 import { chainInfo } from '../api/models/chains';
 
@@ -32,11 +32,26 @@ const OPTICAL_NUDGE: Record<string, { x: number; y: number }> = {
   tao: { x: 0.0094, y: 0.0557 },
 };
 
+// Marks that are monochrome DARK and therefore disappear on the dark-mode
+// background. Measured on the source PNGs: TAO's tau is pure black (ink
+// luminance 0.0 against a #090b0d page), so unfiltered it renders as an
+// empty hole. Flipping it to white in dark mode matches what the theme
+// already does for this asset elsewhere (palette assetTao is woodsmoke in
+// light, white in dark).
+//
+// brightness(0) then invert(1) forces every ink pixel to white regardless of
+// its original colour, which is right for a single-colour glyph and wrong for
+// anything with real colour in it — so this stays an explicit list, never a
+// blanket rule. Next closest is QNT at luminance 46; it survives because its
+// glyph is white on a dark disc, so something still reads.
+const DARK_MODE_INVERT = new Set(['tao']);
+
 export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
   chain,
   size = 16,
 }) => {
   const [failed, setFailed] = useState(false);
+  const isDark = useTheme().palette.mode === 'dark';
   const key = chain.toLowerCase();
   const src = logoSrc(key);
   if (!src || failed)
@@ -61,6 +76,7 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
       </Box>
     );
   const nudge = OPTICAL_NUDGE[key];
+  const invert = isDark && DARK_MODE_INVERT.has(key);
   return (
     <Box
       component="img"
@@ -73,6 +89,7 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
         borderRadius: '50%',
         display: 'block',
         flexShrink: 0,
+        ...(invert ? { filter: 'brightness(0) invert(1)' } : {}),
         ...(nudge
           ? {
               transform: `translate(${(nudge.x * size).toFixed(2)}px, ${(nudge.y * size).toFixed(2)}px)`,
