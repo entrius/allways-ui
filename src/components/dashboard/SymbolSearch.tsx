@@ -191,16 +191,23 @@ const SymbolSearch: React.FC<{
   const all = useDirections();
   const hubs = hubChains();
 
-  const results = useMemo(
-    () =>
-      all.filter((d) => {
-        if (!matches(d, query)) return false;
-        if (hub === 'all') return true;
-        const { from, to } = decomposeDirection(d);
-        return from === hub || to === hub;
-      }),
-    [all, query, hub],
-  );
+  const results = useMemo(() => {
+    const filtered = all.filter((d) => {
+      if (!matches(d, query)) return false;
+      if (hub === 'all') return true;
+      const { from, to } = decomposeDirection(d);
+      return from === hub || to === hub;
+    });
+    // Doubly-backed routes first. The hub↔hub route is the only one two hubs
+    // stand behind, which is the strongest thing this list can say about a
+    // route, so it opens every hub's list rather than landing wherever the
+    // registry happens to order it — under the SOL hub that used to bury
+    // SOL/TAO below SOL/BTC. sort() is stable, so everything else keeps the
+    // registry's order.
+    return [...filtered].sort(
+      (a, b) => lanesFor(b).length - lanesFor(a).length,
+    );
+  }, [all, query, hub]);
 
   const pick = (d: Direction) => {
     onSelect(d);

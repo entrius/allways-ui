@@ -724,32 +724,52 @@ const PairsRail: React.FC<{
           borderColor: 'divider',
         }}
       >
-        {/* Full names and an arrow, not "SOL/QNT": the rows above are a
-            dense scanning surface where tickers earn their brevity, but this
-            card is where you confirm WHAT you are looking at before acting.
-            The slash is also genuinely ambiguous about which side is sent,
-            and four separate chains all ticker as "USDC". */}
+        {/* Symbol-page header: the ticker is the headline, the full names
+            are the line under it. Two full names joined by an arrow read as
+            a sentence where every terminal reads a token, and they crowded
+            the move out to the edge; BTC/SOL is the same name the rows above
+            and the symbol search use, so one instrument has one name
+            everywhere. The names still get their own line rather than being
+            dropped, because four separate chains all ticker as "USDC" and
+            this card is where you confirm what you are about to act on. */}
         <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 0.6,
-            fontSize: '0.85rem',
-            fontWeight: 700,
             lineHeight: 1.2,
             minWidth: 0,
           }}
         >
-          <ChainLogo chain={from} size={16} />
-          <Box component="span" sx={ellipsisSx}>
-            {chainName(from)}
+          {/* The marks overlap into one pair glyph — the instrument is one
+              object, not two assets that happen to be adjacent. */}
+          <Box
+            sx={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
+          >
+            <Box
+              sx={{ display: 'inline-flex', position: 'relative', zIndex: 1 }}
+            >
+              <ChainLogo chain={from} size={16} />
+            </Box>
+            <Box sx={{ display: 'inline-flex', ml: -0.55 }}>
+              <ChainLogo chain={to} size={16} />
+            </Box>
           </Box>
-          <Box component="span" sx={{ color: 'text.disabled', flexShrink: 0 }}>
-            →
-          </Box>
-          <ChainLogo chain={to} size={16} />
-          <Box component="span" sx={ellipsisSx}>
-            {chainName(to)}
+          <Box
+            component="span"
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              letterSpacing: '0.02em',
+              ...ellipsisSx,
+            }}
+          >
+            {chainSymbol(from)}
+            <Box component="span" sx={{ color: 'text.disabled' }}>
+              /
+            </Box>
+            {chainSymbol(to)}
           </Box>
           {/* The route's move, pinned to the right of the names it belongs
               to. Away from the rate line it can't be misread as part of the
@@ -783,56 +803,42 @@ const PairsRail: React.FC<{
           )}
         </Box>
 
-        {/* The exchange, on one line: what goes in, an arrow, what comes
-            out. Two labelled rows said the same thing in twice the height,
-            and the arrow carries direction more directly than the words
-            Send and Receive did.
+        {/* The description line every symbol page carries under its ticker:
+            which chains those three letters actually mean. Ordered sent-side
+            first, the same order the ticker reads in, so it says the
+            direction without spending an arrow on it. */}
+        <Typography
+          sx={{
+            fontSize: '0.72rem',
+            color: 'text.secondary',
+            lineHeight: 1.3,
+            pt: 0.25,
+            ...ellipsisSx,
+          }}
+        >
+          {chainName(from)}
+          <Box component="span" sx={{ color: 'text.disabled', px: 0.4 }}>
+            /
+          </Box>
+          {chainName(to)}
+        </Typography>
 
-            Tickers here, not full names, and no logos: the identity row
-            directly above carries both marks and both full names, so this
-            line repeating either would state the same fact twice and cost
-            the width that keeps it on one row. It is the arithmetic, and
-            reads as arithmetic. The received amount stays the card's one big
-            number. */}
+        {/* The price, quoted the way a rate is quoted: the number, its unit,
+            then what one unit of it buys. "1 BTC → 796.69 SOL" was an
+            equation with the answer at the wrong end — the big number had to
+            share the line with a leading 1 and an arrow before you reached
+            it. Here the number opens the line and the denomination trails it
+            in small type, which is where the eye already expects both. */}
         <Box
           sx={{
             display: 'flex',
             flexWrap: 'nowrap',
-            alignItems: 'center',
+            alignItems: 'baseline',
             gap: 0.5,
             minWidth: 0,
-            pt: 1.5,
+            pt: 1.25,
           }}
         >
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-            }}
-          >
-            1
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '0.75rem',
-              color: 'text.secondary',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {chainSymbol(from)}
-          </Typography>
-
-          <Box
-            component="span"
-            sx={{ color: 'text.disabled', flexShrink: 0, px: 0.25 }}
-          >
-            →
-          </Box>
-
           <Typography
             sx={{
               fontFamily: FONTS.mono,
@@ -848,12 +854,24 @@ const PairsRail: React.FC<{
           </Typography>
           <Typography
             sx={{
+              fontFamily: FONTS.mono,
               fontSize: '0.75rem',
+              fontWeight: 600,
               color: 'text.secondary',
-              ...ellipsisSx,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             {chainSymbol(to)}
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: '0.72rem',
+              color: 'text.disabled',
+              ...ellipsisSx,
+            }}
+          >
+            per {chainSymbol(from)}
           </Typography>
         </Box>
 

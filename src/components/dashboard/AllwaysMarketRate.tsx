@@ -20,7 +20,7 @@ import {
   lanesFor,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { chainName, chainSymbol, formatRate } from '../../utils/format';
+import { chainSymbol, formatRate } from '../../utils/format';
 import { ChainLogo, TickerSymbol } from '../ChainLogo';
 import RangeChips from '../RangeChips';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
@@ -316,16 +316,46 @@ const AllwaysMarketRate: React.FC<{
               '&:hover': { backgroundColor: 'action.hover' },
             }}
           >
-            <ChainLogo chain={from} size={15} />
-            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>
-              {chainName(from)}
-            </Typography>
-            <Box component="span" sx={{ color: 'text.disabled' }}>
-              →
+            {/* The pair as a SYMBOL, not a sentence. Two full asset names
+                joined by an arrow read as prose and take the width of a
+                headline; TAO/BTC in mono is the token a terminal user reads
+                at a glance, and it is already the form the symbol search's
+                rows use, so the thing you pick and the thing you land on
+                are named the same way. Direction is carried by the ordering
+                — the numerator is what one unit of is being priced — which
+                is what the arrow was spelling out longhand. The marks
+                overlap into one pair glyph rather than sitting either side
+                of the text, so the whole instrument is a single object. */}
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Box
+                sx={{ display: 'inline-flex', position: 'relative', zIndex: 1 }}
+              >
+                <ChainLogo chain={from} size={16} />
+              </Box>
+              <Box sx={{ display: 'inline-flex', ml: -0.55 }}>
+                <ChainLogo chain={to} size={16} />
+              </Box>
             </Box>
-            <ChainLogo chain={to} size={15} />
-            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>
-              {chainName(to)}
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {chainSymbol(from)}
+              <Box component="span" sx={{ color: 'text.disabled' }}>
+                /
+              </Box>
+              {chainSymbol(to)}
             </Typography>
             <KeyboardArrowDownIcon
               sx={{ fontSize: 16, color: 'text.disabled' }}
