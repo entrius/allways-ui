@@ -12,9 +12,12 @@ import SwapTracker from '../dashboard/SwapTracker';
 const TransactionsSection: React.FC = () => (
   <Box
     sx={{
-      // Tall enough for a full default page of rows plus the find bar and
-      // the pager, short enough that the next section is visibly below it.
-      height: { xs: 620, md: 760 },
+      // Sized against the viewport, not a fixed number: the tape takes what
+      // the screen has left after the ribbon and the three section headers,
+      // so the two collapsed sections below it are visible on load instead
+      // of hiding under the fold. Clamped so it stays usable on a short
+      // laptop and doesn't sprawl on a tall monitor.
+      height: { xs: 620, md: 'clamp(340px, calc(100dvh - 405px), 720px)' },
       display: 'flex',
       flexDirection: 'column',
       minHeight: 0,
