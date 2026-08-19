@@ -16,7 +16,9 @@ import {
   backingNotional,
   countActiveFilters,
   filtersFromParams,
+  toNum,
 } from './txFilters';
+import { useLiveAnchor, useReservationLookup } from './liveSwapAnchor';
 
 echarts.use([
   ScatterChart,
@@ -58,6 +60,10 @@ const routeFor = (swap: ActiveSwap): string | null =>
 // Duration tick labels: seconds under a minute, then minutes/hours. Ticks
 // land on round multiples of the chosen interval, so at most one decimal.
 const durationTick = (v: number): string => {
+  if (v >= 86400) {
+    const d = v / 86400;
+    return `${Number.isInteger(d) ? d : d.toFixed(1)}d`;
+  }
   if (v >= 3600) {
     const h = v / 3600;
     return `${Number.isInteger(h) ? h : h.toFixed(1)}h`;
@@ -72,7 +78,12 @@ const durationTick = (v: number): string => {
 // A linear y-axis keeps vertical distance proportional to real time (a log
 // scale made 30s and 10m read as neighbors). Ticks snap to round time units:
 // the smallest step that covers the slowest swap in ≤5 gridlines.
-const TICK_STEPS = [15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
+// Steps run to a week: a claim that never reached quorum keeps rising until
+// it is reaped, so the axis has to stay readable at multi-day elapsed.
+const TICK_STEPS = [
+  15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200, 86400, 172800,
+  604800,
+];
 const yScaleFor = (maxDur: number): { max: number; interval: number } => {
   const interval =
     TICK_STEPS.find((s) => maxDur / s <= 5) ??
@@ -133,8 +144,12 @@ const TransactionsPulse: React.FC = () => {
   );
 
   // Claimed-but-not-yet-initiated swaps have no on-chain timestamp until
-  // validator quorum; anchor them at first sighting so every in-flight
-  // transaction gets a dot immediately and starts rising.
+  // validator quorum. The shared anchor supplies the real start time (the
+  // reservation's reserved-at, else the SwapClaimed block time) so a dot
+  // reads the same elapsed as the tape's Settle counter below. First
+  // sighting is the last resort, for a row with no timestamp anywhere.
+  const reservationFor = useReservationLookup();
+  const liveAnchor = useLiveAnchor(swaps, reservationFor);
   const firstSeenRef = useRef(new Map<string, number>());
 
   // The clock that streams the x-axis and lifts the in-flight dots: every
@@ -161,11 +176,11 @@ const TransactionsPulse: React.FC = () => {
       const inFlight: PulseDatum[] = [];
       for (const s of swaps) {
         const terminal = TERMINAL.has(s.status);
-        let t = s.initiatedAt ? parseInt(s.initiatedAt, 10) : NaN;
-        if (!Number.isFinite(t) || t <= 0) {
-          // No on-chain timestamp yet. Terminal rows without one can't be
-          // placed; in-flight rows anchor at first sighting (and snap to the
-          // real initiated time once quorum stamps it).
+        let t = terminal ? toNum(s.initiatedAt) : liveAnchor(s);
+        if (t <= 0) {
+          // No timestamp anywhere. Terminal rows can't be placed; in-flight
+          // rows fall back to first sighting (and snap to the real time the
+          // moment one lands).
           if (terminal) continue;
           const seen = firstSeenRef.current.get(s.swapId) ?? nowSec;
           firstSeenRef.current.set(s.swapId, seen);
@@ -197,7 +212,7 @@ const TransactionsPulse: React.FC = () => {
         ? settled[Math.floor(settled.length / 2)]
         : null;
       return { completed, timedOut, cancelled, inFlight, medianSecs };
-    }, [swaps, nowSec, range, hasDateWindow]);
+    }, [swaps, nowSec, range, hasDateWindow, liveAnchor]);
 
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
