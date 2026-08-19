@@ -6,6 +6,10 @@ import { unitsToHuman } from '../../utils/format';
 // TransactionsPulse read it, so the chart and the tape always show the same
 // filtered dataset — and any filtered view is shareable / bookmarkable.
 
+// Rows per page on the explorer's tape. Lives here so the nav prefetch can
+// warm the exact query the tape will ask for.
+export const DEFAULT_PAGE_SIZE = 50;
+
 export type StatusFilter =
   | 'all'
   | 'completed'

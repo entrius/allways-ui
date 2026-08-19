@@ -15,17 +15,14 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import {
   useAllSwaps,
-  useCompleteSwapHistory,
+  useDirections,
+  useHistory,
   useMinerLabel,
-  useReservations,
   useSwapDetail,
   useSwapsCount,
+  type SwapQuery,
 } from '../../api';
-import {
-  displayEventType,
-  type ActiveSwap,
-  type Reservation,
-} from '../../api/models';
+import { displayEventType } from '../../api/models';
 import CopyableAddress from '../CopyableAddress';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
@@ -37,20 +34,33 @@ import {
   swapDisplayId,
 } from '../../utils/format';
 import { hubChain } from '../../api/models/chains';
+import RangeChips from '../RangeChips';
+import SelectMenu from './SelectMenu';
+import DateRangeField from './DateRangeField';
+import { useLiveAnchor, useReservationLookup } from './liveSwapAnchor';
 import {
-  applyTxFilters,
   countActiveFilters,
+  DEFAULT_PAGE_SIZE,
   EMPTY_FILTERS,
   filtersFromParams,
   filtersToParams,
   isTerminal,
-  backingNotional,
   toNum,
   type StatusFilter,
   type TxFilters,
 } from './txFilters';
 
-const PAGE_SIZE = 25;
+// Rows per page, explorer-style (mempool.space / Solscan / TaoStats all put
+// the same picker beside the pager). URL-backed, so a page is shareable.
+const PAGE_SIZES = ['10', '50', '100'] as const;
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'ALL' },
+  { value: 'completed', label: 'COMPLETED' },
+  { value: 'timed_out', label: 'TIMED OUT' },
+  { value: 'cancelled', label: 'CANCELLED' },
+  { value: 'in_flight', label: 'IN FLIGHT' },
+];
 
 // One shared column template so the header row and every card line up as a
 // table: # | from | to | miner | age | settle | status. The three middle
@@ -119,14 +129,6 @@ const DEFAULT_DIR: Record<SortCol, SortDir> = {
   status: 'asc',
 };
 
-// Settle duration; in-flight swaps rank on elapsed-so-far.
-const settleSecs = (s: ActiveSwap, nowSec: number): number => {
-  const start = toNum(s.initiatedAt);
-  if (!start) return 0;
-  const end = toNum(s.resolvedAt ?? s.completedAt) || nowSec;
-  return Math.max(0, end - start);
-};
-
 // Compact wall-clock stamp for a table cell: "Jul 24 09:15". Event
 // timestamps carry seconds — lifecycle steps are often seconds apart.
 const exactTime = (unix: string | null, withSecs?: boolean): string => {
@@ -179,6 +181,46 @@ const filterFieldSx = (theme: Theme, active?: boolean) => ({
   '& .MuiOutlinedInput-input': { py: 0 },
 });
 
+// One step of the pager: a square mono button, muted until it can actually
+// take you somewhere.
+const PagerButton: React.FC<{
+  label: string;
+  title: string;
+  disabled: boolean;
+  onClick: () => void;
+}> = ({ label, title, disabled, onClick }) => (
+  <Tooltip title={title} arrow placement="top">
+    <Box component="span">
+      <Box
+        component="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={title}
+        sx={{
+          all: 'unset',
+          boxSizing: 'border-box',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 22,
+          height: 22,
+          fontFamily: FONTS.mono,
+          fontSize: '0.72rem',
+          border: '1px solid',
+          borderColor: 'divider',
+          color: disabled ? 'text.disabled' : 'text.secondary',
+          cursor: disabled ? 'default' : 'pointer',
+          '&:hover': disabled
+            ? {}
+            : { backgroundColor: 'action.hover', color: 'text.primary' },
+        }}
+      >
+        {label}
+      </Box>
+    </Box>
+  </Tooltip>
+);
+
 // A clickable column header: click sorts, clicking again flips direction;
 // the active column carries the arrow.
 const SortHeader: React.FC<{
@@ -213,9 +255,18 @@ const SortHeader: React.FC<{
 const FilterField: React.FC<{
   label: string;
   active?: boolean;
+  // The search field takes whatever width the fixed fields leave.
+  grow?: boolean;
   children: React.ReactNode;
-}> = ({ label, active, children }) => (
-  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+}> = ({ label, active, grow, children }) => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 0.5,
+      ...(grow && { flex: '1 1 220px', minWidth: 0 }),
+    }}
+  >
     <Typography
       sx={{
         fontFamily: FONTS.mono,
@@ -264,24 +315,12 @@ const LatestEventCell: React.FC<{ swapId: string }> = ({ swapId }) => {
 };
 
 // Time + Settle cells for an in-flight row, ticking on the shared 1s clock.
-// Anchors on the best REAL timestamp so a page refresh never restarts the
-// counter: on-chain initiated time, else the reservation's reserved-at, else
-// the SwapClaimed event's block time (from the same swap-detail query the
-// status cell already runs — react-query dedupes the fetch).
+// `anchor` is the shared start time (useLiveAnchor), so this counter and the
+// pulse's rising dot always read the same elapsed.
 const LiveTimeSettle: React.FC<{
-  swap: ActiveSwap;
-  reservedAt: string | null | undefined;
+  anchor: number;
   nowSec: number;
-}> = ({ swap, reservedAt, nowSec }) => {
-  const known = toNum(swap.initiatedAt) || toNum(reservedAt ?? null);
-  const { data } = useSwapDetail(known ? '' : swap.swapId);
-  const claimedAt = React.useMemo(() => {
-    const times = (data?.events ?? [])
-      .map((e) => toNum(e.blockTime))
-      .filter((t) => t > 0);
-    return times.length ? Math.min(...times) : 0;
-  }, [data]);
-  const anchor = known || claimedAt;
+}> = ({ anchor, nowSec }) => {
   return (
     <>
       <Box sx={HIDE_XS}>
@@ -315,7 +354,6 @@ const SwapTracker: React.FC<{
 }> = ({ embedded }) => {
   const theme = useTheme();
   const [search, setSearch] = useState('');
-  const [limit, setLimit] = useState(PAGE_SIZE);
 
   // The URL query string is the source of truth for filters and sort, so
   // any filtered/sorted view is shareable and the pulse chart reads the
@@ -325,8 +363,12 @@ const SwapTracker: React.FC<{
     () => filtersFromParams(searchParams),
     [searchParams],
   );
-  const setFilters = (next: TxFilters) =>
-    setSearchParams(filtersToParams(next, searchParams), { replace: true });
+  const setFilters = (next: TxFilters) => {
+    // A narrowed list is a new list: never leave the reader on page 7 of it.
+    const p = filtersToParams(next, searchParams);
+    p.delete('page');
+    setSearchParams(p, { replace: true });
+  };
   const setFilter = <K extends keyof TxFilters>(key: K, value: TxFilters[K]) =>
     setFilters({ ...filters, [key]: value });
 
@@ -340,6 +382,7 @@ const SwapTracker: React.FC<{
     const nextDir: SortDir =
       col === sortCol ? (sortDir === 'asc' ? 'desc' : 'asc') : DEFAULT_DIR[col];
     const p = new URLSearchParams(searchParams);
+    p.delete('page');
     if (col === 'num' && nextDir === 'desc') {
       p.delete('sort');
       p.delete('dir');
@@ -351,6 +394,34 @@ const SwapTracker: React.FC<{
     setSearchParams(p, { replace: true });
   };
   const isDefaultSort = sortCol === 'num' && sortDir === 'desc';
+
+  // Paging lives in the URL next to the filters: ?page=3&size=100. Page is
+  // 1-based on the wire (what the pager shows) and clamped to >= 1.
+  const sizeParam = searchParams.get('size') ?? '';
+  const pageSize = (PAGE_SIZES as readonly string[]).includes(sizeParam)
+    ? parseInt(sizeParam, 10)
+    : DEFAULT_PAGE_SIZE;
+  const pageParam = parseInt(searchParams.get('page') ?? '', 10);
+  const page = Number.isFinite(pageParam) && pageParam > 1 ? pageParam : 1;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const setPageParams = useCallback(
+    (next: { page?: number; size?: number }) => {
+      const p = new URLSearchParams(searchParams);
+      if (next.size != null) {
+        if (next.size === DEFAULT_PAGE_SIZE) p.delete('size');
+        else p.set('size', String(next.size));
+      }
+      // Any size change lands the reader back on page 1 — the old offset
+      // means nothing once the window resizes.
+      const nextPage = next.size != null ? 1 : (next.page ?? 1);
+      if (nextPage <= 1) p.delete('page');
+      else p.set('page', String(nextPage));
+      setSearchParams(p, { replace: true });
+      // A new page starts at the top of the tape, not mid-scroll.
+      scrollRef.current?.scrollTo({ top: 0 });
+    },
+    [searchParams, setSearchParams],
+  );
   const debouncedSearch = useDebounce(search, 300);
 
   const activeFilters = countActiveFilters(filters);
@@ -367,133 +438,75 @@ const SwapTracker: React.FC<{
   const exactSeq = numericSearch.length <= 9 ? numericSearch : '';
   const exactSwapId = numericSearch.length > 9 ? numericSearch : '';
 
+  // Every narrowing rule, resolved by das: the tape asks for one page of rows
+  // and one count, no matter how the view is filtered or sorted. Dates go as
+  // unix seconds so the server bounds on the reader's own local day.
+  const query: SwapQuery = React.useMemo(
+    () => ({
+      search: debouncedSearch || undefined,
+      status: filters.status === 'all' ? undefined : filters.status,
+      fromChain: filters.fromChain === 'all' ? undefined : filters.fromChain,
+      toChain: filters.toChain === 'all' ? undefined : filters.toChain,
+      timeFrom: filters.dateFrom
+        ? Math.floor(Date.parse(`${filters.dateFrom}T00:00:00`) / 1000)
+        : undefined,
+      timeTo: filters.dateTo
+        ? Math.floor(Date.parse(`${filters.dateTo}T23:59:59`) / 1000)
+        : undefined,
+      minNotional: filters.minSol ? Number(filters.minSol) : undefined,
+      maxNotional: filters.maxSol ? Number(filters.maxSol) : undefined,
+    }),
+    [debouncedSearch, filters],
+  );
+
   const { data: detail, isLoading: detailLoading } = useSwapDetail(exactSwapId);
   const { data: fuzzy, isLoading: fuzzyLoading } = useAllSwaps(
     exactSeq
       ? { seq: Number(exactSeq) }
-      : { search: debouncedSearch || undefined, limit },
+      : {
+          ...query,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+          sort: isDefaultSort ? undefined : sortCol,
+          dir: sortDir,
+        },
     !exactSwapId,
   );
+  // Two counts: what this view matches (drives the pager) and the all-time
+  // total behind it (context in the same readout). The all-time one is a
+  // separate cached query, so filtering never refetches it.
+  const { data: matchCountData } = useSwapsCount(query);
   const { data: swapsCount } = useSwapsCount();
   const minerLabel = useMinerLabel();
-
-  // A pending/claimed swap's row is nearly empty until validator quorum, but
-  // its LIVE reservation already carries the pair, amounts, miner, and the
-  // proven from-wallet. Fetch the (small) active-reservation set and borrow
-  // whatever an in-flight row is missing. SSE keeps this fresh.
-  const { data: reservations } = useReservations();
-  const reservationBySwapId = React.useMemo(() => {
-    const map = new Map<string, Reservation>();
-    for (const r of reservations ?? []) {
-      if (r.swapId != null) map.set(r.swapId, r);
-    }
-    return map;
-  }, [reservations]);
-  // SwapClaimed-stage rows aren't linked yet (swap_id is stamped on the
-  // reservation later), but the request hash embeds the user's protocol
-  // address prefix ("<hash8>-<user8>"). One candidate → use it outright.
-  // Several → never guess; show only the fields ALL candidates agree on
-  // (same pair, same from-wallet — provable regardless of which one it is).
-  const reservationByUserPrefix = React.useMemo(() => {
-    const byPrefix = new Map<string, Reservation[]>();
-    for (const r of reservations ?? []) {
-      if (r.swapId != null) continue;
-      const prefix = r.requestHash?.split('-')[1];
-      if (!prefix) continue;
-      byPrefix.set(prefix, [...(byPrefix.get(prefix) ?? []), r]);
-    }
-    const agreed = <K extends keyof Reservation>(
-      rs: Reservation[],
-      key: K,
-    ): Reservation[K] | null =>
-      rs.every((r) => r[key] === rs[0][key]) ? rs[0][key] : null;
-    const map = new Map<string, Partial<Reservation>>();
-    for (const [prefix, rs] of byPrefix) {
-      map.set(
-        prefix,
-        rs.length === 1
-          ? rs[0]
-          : {
-              fromChain: agreed(rs, 'fromChain'),
-              toChain: agreed(rs, 'toChain'),
-              fromAmount: agreed(rs, 'fromAmount'),
-              toAmount: agreed(rs, 'toAmount'),
-              minerHotkey: agreed(rs, 'minerHotkey') ?? undefined,
-              userFromAddress: agreed(rs, 'userFromAddress') ?? undefined,
-              reservedAt: agreed(rs, 'reservedAt') ?? undefined,
-            },
-      );
-    }
-    return map;
-  }, [reservations]);
-
-  // Filtering and non-date sorting are client-side (the /swaps endpoint has
-  // neither a chain filter nor a sort param). A single request caps at 50
-  // rows, which would hide older matches — or rank only the newest page — so
-  // in either mode (and with no search narrowing things server-side) walk the
-  // complete history instead.
-  const usingComplete =
-    (!isDefaultSort || activeFilters > 0) && !exactSwapId && !debouncedSearch;
-  const { data: completeHistory, isLoading: completeLoading } =
-    useCompleteSwapHistory(usingComplete);
-
-  // While the complete walk is still in flight, keep showing the paged rows
-  // instead of blanking to a skeleton — filters/sorts upgrade to the full
-  // history the moment it lands.
-  const fetched = React.useMemo(
-    () =>
-      exactSwapId
-        ? detail?.swap
-          ? [detail.swap]
-          : []
-        : usingComplete
-          ? (completeHistory ?? fuzzy)
-          : fuzzy,
-    [exactSwapId, detail, usingComplete, completeHistory, fuzzy],
+  // The date picker only offers months back to the network's first
+  // transaction; the all-time weekly rollup is the cheapest way to know when
+  // that was (its first bucket is the week the first swap landed). Nothing on
+  // screen needs it until the picker opens, so it stays unfetched until then.
+  const [datePickerUsed, setDatePickerUsed] = useState(false);
+  const { data: allTimeWeeks } = useHistory(
+    'all',
+    'week',
+    datePickerUsed || !!filters.dateFrom || !!filters.dateTo,
   );
-  const isLoading = exactSwapId
-    ? detailLoading
-    : usingComplete
-      ? completeLoading && !fuzzy
-      : fuzzyLoading;
+  const firstTxDate = React.useMemo(() => {
+    const t = allTimeWeeks?.find((r) => r.swaps > 0)?.t ?? allTimeWeeks?.[0]?.t;
+    return t ? new Date(t) : null;
+  }, [allTimeWeeks]);
 
-  // Filter, then rank, whatever list is in play. Under an active search only
-  // the fetched matches are considered (search stays server-side); otherwise
-  // filters and non-date sorts run over the complete history, so results are
-  // network-wide.
-  const swaps = React.useMemo(() => {
-    if (!fetched) return fetched;
-    const byNewest = (a: ActiveSwap, b: ActiveSwap) =>
-      toNum(b.initiatedAt) - toNum(a.initiatedAt);
-    const rows =
-      activeFilters > 0 ? applyTxFilters(fetched, filters) : [...fetched];
-    const nowSec = Math.floor(Date.now() / 1000);
-    // Ascending comparator per column; direction flips it. Nulls sink to the
-    // bottom of an ascending sort via the fallbacks.
-    const asc = (a: ActiveSwap, b: ActiveSwap): number => {
-      switch (sortCol) {
-        case 'num':
-          return (a.seq ?? -1) - (b.seq ?? -1);
-        case 'input':
-        case 'output':
-          return backingNotional(a) - backingNotional(b);
-        case 'miner':
-          return String(minerLabel(a.minerHotkey) ?? '￿').localeCompare(
-            String(minerLabel(b.minerHotkey) ?? '￿'),
-            undefined,
-            { numeric: true },
-          );
-        case 'age':
-          return toNum(a.initiatedAt) - toNum(b.initiatedAt);
-        case 'settle':
-          return settleSecs(a, nowSec) - settleSecs(b, nowSec);
-        case 'status':
-          return a.status.localeCompare(b.status);
-      }
-    };
-    const mul = sortDir === 'asc' ? 1 : -1;
-    return rows.sort((a, b) => mul * asc(a, b) || byNewest(a, b));
-  }, [fetched, sortCol, sortDir, filters, activeFilters, minerLabel]);
+  const fetched = React.useMemo(
+    () => (exactSwapId ? (detail?.swap ? [detail.swap] : []) : fuzzy),
+    [exactSwapId, detail, fuzzy],
+  );
+  const isLoading = exactSwapId ? detailLoading : fuzzyLoading;
+
+  // The live reservation behind an in-flight row (pair, amounts, miner,
+  // proven from-wallet) and the shared start time its counter runs from.
+  const reservationFor = useReservationLookup();
+  const liveAnchor = useLiveAnchor(fetched, reservationFor);
+
+  // das returns the page already filtered and ranked, so the rows render as
+  // they arrive — no client-side pass over a full history.
+  const swaps = fetched;
 
   const hasInFlightRows = React.useMemo(
     () => (fetched ?? []).some((s) => !isTerminal(s)),
@@ -507,21 +520,19 @@ const SwapTracker: React.FC<{
     return () => clearInterval(id);
   }, [hasInFlightRows]);
 
-  // Every route that appears in the loaded data drives the two dependent
-  // From/To dropdowns (markets-composer style): each side only offers chains
-  // that form a real route with the other side's pick.
-  const routes = React.useMemo(() => {
-    const seen = new Set<string>();
-    const list: { src: string; dst: string }[] = [];
-    for (const s of completeHistory ?? fetched ?? []) {
-      const src = s.sourceChain?.toLowerCase();
-      const dst = s.destChain?.toLowerCase();
-      if (!src || !dst || seen.has(`${src}→${dst}`)) continue;
-      seen.add(`${src}→${dst}`);
-      list.push({ src, dst });
-    }
-    return list;
-  }, [completeHistory, fetched]);
+  // Every route the network supports drives the two dependent From/To
+  // dropdowns (markets-composer style): each side only offers chains that
+  // form a real route with the other side's pick. Straight from the chain
+  // registry, so the options don't depend on what happens to be on screen.
+  const directions = useDirections();
+  const routes = React.useMemo(
+    () =>
+      directions.map((d) => {
+        const [src, dst] = d.toLowerCase().split('-');
+        return { src, dst };
+      }),
+    [directions],
+  );
   const fromOptions = React.useMemo(
     () =>
       [
@@ -562,24 +573,42 @@ const SwapTracker: React.FC<{
     setFilters(next);
   };
 
-  // Reset limit when search changes
+  // A new search is a new result set — back to page 1.
+  const searchRef = useRef(debouncedSearch);
   React.useEffect(() => {
-    setLimit(PAGE_SIZE);
-  }, [debouncedSearch]);
+    if (searchRef.current === debouncedSearch) return;
+    searchRef.current = debouncedSearch;
+    setPageParams({ page: 1 });
+  }, [debouncedSearch, setPageParams]);
 
-  // Paging watches the RAW page (a filtered page can be shorter than limit
-  // while more rows exist server-side); the complete-history path has nothing
-  // left to page.
-  const hasMore = !exactSwapId && !usingComplete && fetched?.length === limit;
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // What the pager knows. The server pages the default view (offset/limit on
+  // /swaps), so its rows ARE the page; the complete-history path already holds
+  // every match in memory and slices locally. A search's total is unknown
+  // server-side, so the pager runs open-ended off a full last page.
+  const totalRows = exactSwapId
+    ? (fetched?.length ?? 0)
+    : (matchCountData?.totalCount ?? null);
+  const totalPages =
+    totalRows == null ? null : Math.max(1, Math.ceil(totalRows / pageSize));
+  // The fetched page IS the page: das applied the filters, the sort, and the
+  // offset.
+  const pageRows = swaps ?? [];
+  const hasNext =
+    totalPages != null ? page < totalPages : (fetched?.length ?? 0) >= pageSize;
+  const firstRowNum = pageRows.length ? (page - 1) * pageSize + 1 : 0;
+  const lastRowNum = (page - 1) * pageSize + pageRows.length;
+  // Whether anything is narrowing the tape. Filters run over the complete
+  // history, so their count is exact; a search is resolved page by page
+  // server-side, so its total is only ever a floor.
+  const narrowed = activeFilters > 0 || !!debouncedSearch || !!exactSwapId;
+  const matchAtLeast = narrowed && totalRows == null && hasNext;
 
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || !hasMore) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
-      setLimit((prev) => prev + PAGE_SIZE);
-    }
-  }, [hasMore]);
+  // A filter that shrinks the list past the current page pulls the reader
+  // back to the last one that still has rows.
+  React.useEffect(() => {
+    if (totalPages != null && page > totalPages)
+      setPageParams({ page: totalPages });
+  }, [totalPages, page, setPageParams]);
 
   return isLoading && !swaps ? (
     <SwapTrackerSkeleton />
@@ -630,36 +659,9 @@ const SwapTracker: React.FC<{
           mb: 1,
         }}
       >
-        <TextField
-          size="small"
-          placeholder="Search by transaction # or address..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            mb: 1.25,
-            width: '100%',
-            '& .MuiOutlinedInput-root': {
-              fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              color: 'text.primary',
-              borderRadius: 0,
-              height: 32,
-              backgroundColor: 'background.default',
-              '& fieldset': { borderColor: 'divider' },
-              '&:hover fieldset': { borderColor: theme.palette.border.light },
-              '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-            },
-          }}
-        />
-
-        {/* Kraken-style find filters — always visible. */}
+        {/* Kraken-style find bar — search and filters on one line, always
+            visible. Search takes the slack; the rest keep their widths and
+            wrap underneath on a narrow viewport. */}
         <Box
           sx={{
             display: 'flex',
@@ -668,85 +670,81 @@ const SwapTracker: React.FC<{
             gap: 1,
           }}
         >
+          <FilterField label="Search" active={!!search} grow>
+            <TextField
+              size="small"
+              placeholder="Transaction # or address..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon
+                      sx={{ fontSize: 14, color: 'text.secondary' }}
+                    />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: { xs: '100%', sm: 'auto' },
+                minWidth: { sm: 200 },
+                ...filterFieldSx(theme, !!search),
+              }}
+            />
+          </FilterField>
           {/* Dependent From/To chain pickers, markets-composer style: each
               side only offers real routes given the other side's pick. */}
           <FilterField label="From" active={filters.fromChain !== 'all'}>
-            <TextField
-              select
-              SelectProps={{ native: true }}
-              size="small"
+            <SelectMenu
+              ariaLabel="From chain"
               value={filters.fromChain}
-              onChange={(e) => pickChain('fromChain', e.target.value)}
-              sx={{
-                width: 96,
-                ...filterFieldSx(theme, filters.fromChain !== 'all'),
-              }}
-            >
-              <option value="all">ALL</option>
-              {fromOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c.toUpperCase()}
-                </option>
-              ))}
-            </TextField>
-          </FilterField>
-          <FilterField label="To" active={filters.toChain !== 'all'}>
-            <TextField
-              select
-              SelectProps={{ native: true }}
-              size="small"
-              value={filters.toChain}
-              onChange={(e) => pickChain('toChain', e.target.value)}
-              sx={{
-                width: 96,
-                ...filterFieldSx(theme, filters.toChain !== 'all'),
-              }}
-            >
-              <option value="all">ALL</option>
-              {toOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c.toUpperCase()}
-                </option>
-              ))}
-            </TextField>
-          </FilterField>
-          <FilterField label="Status" active={filters.status !== 'all'}>
-            <TextField
-              select
-              SelectProps={{ native: true }}
-              size="small"
-              value={filters.status}
-              onChange={(e) =>
-                setFilter('status', e.target.value as StatusFilter)
-              }
-              sx={{
-                width: 130,
-                ...filterFieldSx(theme, filters.status !== 'all'),
-              }}
-            >
-              <option value="all">ALL</option>
-              <option value="completed">COMPLETED</option>
-              <option value="timed_out">TIMED OUT</option>
-              <option value="cancelled">CANCELLED</option>
-              <option value="in_flight">IN FLIGHT</option>
-            </TextField>
-          </FilterField>
-          <FilterField label="From date" active={!!filters.dateFrom}>
-            <TextField
-              type="date"
-              size="small"
-              value={filters.dateFrom}
-              onChange={(e) => setFilter('dateFrom', e.target.value)}
-              sx={{ width: 140, ...filterFieldSx(theme, !!filters.dateFrom) }}
+              options={[
+                { value: 'all', label: 'ALL' },
+                ...fromOptions.map((c) => ({
+                  value: c,
+                  label: c.toUpperCase(),
+                })),
+              ]}
+              onChange={(v) => pickChain('fromChain', v)}
+              active={filters.fromChain !== 'all'}
+              width={96}
             />
           </FilterField>
-          <FilterField label="To date" active={!!filters.dateTo}>
-            <TextField
-              type="date"
-              size="small"
-              value={filters.dateTo}
-              onChange={(e) => setFilter('dateTo', e.target.value)}
-              sx={{ width: 140, ...filterFieldSx(theme, !!filters.dateTo) }}
+          <FilterField label="To" active={filters.toChain !== 'all'}>
+            <SelectMenu
+              ariaLabel="To chain"
+              value={filters.toChain}
+              options={[
+                { value: 'all', label: 'ALL' },
+                ...toOptions.map((c) => ({ value: c, label: c.toUpperCase() })),
+              ]}
+              onChange={(v) => pickChain('toChain', v)}
+              active={filters.toChain !== 'all'}
+              width={96}
+            />
+          </FilterField>
+          <FilterField label="Status" active={filters.status !== 'all'}>
+            <SelectMenu
+              ariaLabel="Status"
+              value={filters.status}
+              options={STATUS_OPTIONS}
+              onChange={(v) => setFilter('status', v)}
+              active={filters.status !== 'all'}
+              width={130}
+            />
+          </FilterField>
+          <FilterField
+            label="Date"
+            active={!!filters.dateFrom || !!filters.dateTo}
+          >
+            <DateRangeField
+              from={filters.dateFrom}
+              to={filters.dateTo}
+              minDate={firstTxDate}
+              onOpen={() => setDatePickerUsed(true)}
+              onChange={(dateFrom, dateTo) =>
+                setFilters({ ...filters, dateFrom, dateTo })
+              }
             />
           </FilterField>
           <FilterField label="Min (SOL)" active={!!filters.minSol}>
@@ -771,68 +769,50 @@ const SwapTracker: React.FC<{
               sx={{ width: 90, ...filterFieldSx(theme, !!filters.maxSol) }}
             />
           </FilterField>
-          {activeFilters > 0 && (
-            <Box
-              component="button"
-              onClick={() => setFilters(EMPTY_FILTERS)}
-              sx={{
-                all: 'unset',
-                cursor: 'pointer',
-                fontFamily: FONTS.mono,
-                fontSize: '0.6rem',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                fontWeight: 600,
-                // Inverted chip — the loudest element in the bar whenever
-                // any filter is narrowing the list.
-                color: theme.palette.background.paper,
-                backgroundColor: theme.palette.text.primary,
-                height: 28,
-                display: 'flex',
-                alignItems: 'center',
-                px: 1,
-                whiteSpace: 'nowrap',
-                '&:hover': { opacity: 0.85 },
-              }}
-            >
-              ✕ Clear
+          {/* Clear closes the row, with the filters it clears. It's always
+              there — greyed out when there's nothing to clear — so the row
+              reads as complete and nothing moves when a filter lands. */}
+          <Box
+            component="button"
+            onClick={() => setFilters(EMPTY_FILTERS)}
+            disabled={activeFilters === 0}
+            tabIndex={activeFilters === 0 ? -1 : 0}
+            sx={{
+              all: 'unset',
+              boxSizing: 'border-box',
+              fontFamily: FONTS.mono,
+              fontSize: '0.6rem',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              // Same weight as the fields it sits beside: an outlined
+              // control, not a slab. It only earns ink on hover.
+              // Live, it wears the same heavy black outline as the filter
+              // fields that are doing the narrowing; idle, it recedes to a
+              // plain divider like the untouched fields around it.
+              color: activeFilters > 0 ? 'text.primary' : 'text.disabled',
+              border: '1px solid',
+              borderColor:
+                activeFilters > 0 ? theme.palette.text.primary : 'divider',
+              ...(activeFilters > 0 && { borderWidth: 2 }),
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              px: 1,
+              whiteSpace: 'nowrap',
+              cursor: activeFilters > 0 ? 'pointer' : 'default',
+              '&:hover': activeFilters > 0 ? { opacity: 0.7 } : {},
+            }}
+          >
+            <Box component="span" sx={{ fontSize: '0.7rem' }}>
+              ✕
             </Box>
-          )}
-          {swapsCount != null && (
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: { xs: '0.58rem', sm: '0.65rem' },
-                color: 'text.secondary',
-                ml: 'auto',
-                alignSelf: 'flex-end',
-                pb: 0.5,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {/* With filters live, the same slot shows the match count over
-                  the total (compact, so the row never wraps). */}
-              {activeFilters > 0 && swaps != null ? (
-                <>
-                  <Box component="span" sx={{ color: 'text.primary' }}>
-                    {swaps.length.toLocaleString()} match
-                    {swaps.length === 1 ? '' : 'es'}
-                  </Box>
-                  {' / '}
-                  {swapsCount.totalCount.toLocaleString()}
-                </>
-              ) : (
-                <>
-                  {swapsCount.totalCount.toLocaleString()} transaction
-                  {swapsCount.totalCount === 1 ? '' : 's'} all-time
-                </>
-              )}
-            </Typography>
-          )}
+            Clear
+          </Box>
         </Box>
       </Box>
 
-      {!swaps?.length ? (
+      {!pageRows.length ? (
         <Box
           sx={{
             p: 4,
@@ -864,7 +844,8 @@ const SwapTracker: React.FC<{
               gridTemplateColumns: GRID_COLS,
               gap: 1,
               px: { xs: 1.25, sm: 1.5 },
-              mb: 0.5,
+              pt: 0.25,
+              pb: 0.75,
             }}
           >
             {(
@@ -891,11 +872,14 @@ const SwapTracker: React.FC<{
           </Box>
           <Box
             ref={scrollRef}
-            onScroll={handleScroll}
             sx={{
               flex: 1,
               minHeight: 0,
               overflowY: 'auto',
+              // The headings above ARE the tape's header; one rule separates
+              // them from the rows, as on the markets rail.
+              borderTop: '1px solid',
+              borderColor: 'divider',
               '&::-webkit-scrollbar': { width: 4 },
               '&::-webkit-scrollbar-thumb': {
                 background: theme.palette.border.light,
@@ -903,18 +887,12 @@ const SwapTracker: React.FC<{
               },
             }}
           >
-            <Stack spacing={1}>
-              {swaps.map((swap) => {
+            <Stack spacing={0}>
+              {pageRows.map((swap) => {
                 const color = getStatusColor(swap.status, theme.palette);
                 // In-flight rows backfill missing fields from their live
                 // reservation so PENDING shows real data, not dashes.
-                const res = !isTerminal(swap)
-                  ? (reservationBySwapId.get(swap.swapId) ??
-                    reservationByUserPrefix.get(
-                      swap.userAddress?.slice(0, 8) ?? '',
-                    ) ??
-                    undefined)
-                  : undefined;
+                const res = reservationFor(swap);
                 const sourceChain = swap.sourceChain ?? res?.fromChain ?? null;
                 const sourceAmount =
                   swap.sourceAmount ?? res?.fromAmount ?? null;
@@ -948,28 +926,26 @@ const SwapTracker: React.FC<{
                     component={RouterLink}
                     to={`/swap/${swap.swapId}`}
                     sx={{
-                      // House card treatment (Card.tsx): square bordered paper
-                      // surface, hover fill — one card per transaction, laid
-                      // out on the shared table grid. Click-through to the
-                      // transaction's own page for full details.
+                      // Same treatment as the markets rail's pair rows: a
+                      // flat tape, no card per transaction — a hairline rule
+                      // separates rows and hover marks the one under the
+                      // cursor. Click through for the transaction's details.
                       display: 'grid',
                       gridTemplateColumns: GRID_COLS,
                       gap: 1,
                       alignItems: 'center',
                       px: { xs: 1.25, sm: 1.5 },
-                      py: { xs: 1.25, sm: 1 },
-                      borderRadius: 0,
-                      border: '1px solid',
+                      py: { xs: 1, sm: 0.9 },
+                      // One hairline per row, watchlist-style, so the eye
+                      // tracks across the columns.
+                      borderBottom: '1px solid',
                       borderColor: 'divider',
-                      backgroundColor: 'background.paper',
+                      backgroundColor: 'transparent',
                       textDecoration: 'none',
                       color: 'inherit',
                       cursor: 'pointer',
-                      transition: 'background-color 0.15s, border-color 0.15s',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                        borderColor: 'border.light',
-                      },
+                      transition: 'background-color 0.15s',
+                      '&:hover': { backgroundColor: 'action.hover' },
                     }}
                   >
                     <Typography sx={statCellSx}>
@@ -1091,8 +1067,7 @@ const SwapTracker: React.FC<{
                       </>
                     ) : (
                       <LiveTimeSettle
-                        swap={swap}
-                        reservedAt={res?.reservedAt}
+                        anchor={liveAnchor(swap)}
                         nowSec={nowSec}
                       />
                     )}
@@ -1119,6 +1094,101 @@ const SwapTracker: React.FC<{
                 );
               })}
             </Stack>
+          </Box>
+          {/* Pager, explorer-style: what you're looking at on the left, rows
+              per page and the page walk on the right. Sits outside the scroll
+              area so it never scrolls away. */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 1,
+              px: { xs: 1.25, sm: 1.5 },
+              pt: 1,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {/* One counts line, next to the pager it belongs to: the rows on
+                screen, the size of the set they came from, and — when a
+                filter or search is narrowing things — the all-time total
+                behind it. A search's total is server-side and unknown past
+                the current page, hence the "+". */}
+            <Typography sx={{ ...statCellSx, fontSize: '0.6rem' }}>
+              {firstRowNum.toLocaleString()}–{lastRowNum.toLocaleString()}
+              {totalRows != null
+                ? ` of ${totalRows.toLocaleString()}`
+                : matchAtLeast
+                  ? ` of ${lastRowNum.toLocaleString()}+`
+                  : ''}
+              {narrowed && swapsCount != null && (
+                <Box component="span" sx={{ color: 'text.disabled' }}>
+                  {' · '}
+                  {swapsCount.totalCount.toLocaleString()} all-time
+                </Box>
+              )}
+            </Typography>
+            <Box
+              sx={{
+                ml: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: { xs: 1, sm: 1.5 },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography sx={{ ...headCellSx, ...HIDE_XS }}>Rows</Typography>
+                <RangeChips
+                  value={String(pageSize)}
+                  options={PAGE_SIZES}
+                  onChange={(next) =>
+                    setPageParams({ size: parseInt(next, 10) })
+                  }
+                />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                <PagerButton
+                  label="«"
+                  title="First page"
+                  disabled={page <= 1}
+                  onClick={() => setPageParams({ page: 1 })}
+                />
+                <PagerButton
+                  label="‹"
+                  title="Previous page"
+                  disabled={page <= 1}
+                  onClick={() => setPageParams({ page: page - 1 })}
+                />
+                <Typography
+                  sx={{
+                    ...statCellSx,
+                    fontSize: '0.6rem',
+                    px: 0.75,
+                    color: 'text.primary',
+                  }}
+                >
+                  {page.toLocaleString()}
+                  {totalPages != null
+                    ? ` / ${totalPages.toLocaleString()}`
+                    : ''}
+                </Typography>
+                <PagerButton
+                  label="›"
+                  title="Next page"
+                  disabled={!hasNext}
+                  onClick={() => setPageParams({ page: page + 1 })}
+                />
+                <PagerButton
+                  label="»"
+                  title="Last page"
+                  disabled={totalPages == null || page >= totalPages}
+                  onClick={() =>
+                    totalPages != null && setPageParams({ page: totalPages })
+                  }
+                />
+              </Box>
+            </Box>
           </Box>
         </>
       )}
