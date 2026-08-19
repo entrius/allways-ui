@@ -3,16 +3,13 @@ import { Box, Stack } from '@mui/material';
 import { useLocation } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import {
+  KPI_STRIP_H,
   MinersSection,
   NetworkKpiStrip,
   SectionAccordion,
   StatsSection,
   TransactionsSection,
 } from '../components/network';
-
-// The pinned ribbon's height — an anchored section stops below it, not
-// under it.
-const STRIP_H = 40;
 
 const SECTIONS = [
   {
@@ -73,7 +70,7 @@ const NetworkPage: React.FC = () => {
       el.getBoundingClientRect().top -
       main.getBoundingClientRect().top +
       main.scrollTop -
-      STRIP_H;
+      KPI_STRIP_H;
     main.scrollTo({ top: Math.max(0, top) });
   }, []);
 
@@ -115,7 +112,7 @@ const NetworkPage: React.FC = () => {
               key={s.id}
               {...s}
               first={i === 0}
-              scrollMarginTop={STRIP_H}
+              scrollMarginTop={KPI_STRIP_H}
               open={open[s.id]}
               onToggle={() => setOpen((o) => ({ ...o, [s.id]: !o[s.id] }))}
               onEntered={() => {
