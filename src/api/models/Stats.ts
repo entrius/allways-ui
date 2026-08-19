@@ -10,7 +10,8 @@ export type DashboardStats = {
 
 /**
  * One gap-filled bucket from `GET /history`. Money fields are strings (parse
- * with Number/parseFloat); `successRate`/`avgSettlementSecs` can be null.
+ * with Number/parseFloat); `successRate`/`avgSettlementSecs`/
+ * `medianSettlementSecs` can be null.
  * Rows arrive newest-last.
  */
 export type HistoryRow = {
@@ -32,6 +33,9 @@ export type HistoryRow = {
   tps: number;
   successRate: number | null;
   avgSettlementSecs: number | null;
+  // The typical swap's settlement, unmoved by one slow outlier. Absent on a
+  // das that predates the percentile aggregate.
+  medianSettlementSecs?: number | null;
 };
 
 /** One bucket from `GET /history/state` — point-in-time network levels. */
