@@ -80,7 +80,9 @@ const SearchField: React.FC<{
           </InputAdornment>
         ),
       }}
-      sx={{ ...terminalFieldSx(theme, !!value), ...sx }}
+      // Array form: MUI merges the entries itself, so a caller passing an
+      // array or a callback keeps working instead of spreading to nonsense.
+      sx={[terminalFieldSx(theme, !!value), ...(Array.isArray(sx) ? sx : [sx])]}
     />
   );
 };

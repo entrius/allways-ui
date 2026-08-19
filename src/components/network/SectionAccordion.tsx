@@ -90,6 +90,7 @@ const SectionAccordion: React.FC<{
       <Box sx={{ minWidth: 0 }}>
         <Typography
           className="section-title"
+          id={`${id}-heading`}
           sx={{
             fontFamily: FONTS.mono,
             fontSize: { xs: '0.8rem', md: '0.9rem' },
@@ -116,15 +117,19 @@ const SectionAccordion: React.FC<{
         </Typography>
       </Box>
     </Box>
-    <Collapse
-      in={open}
-      id={`${id}-body`}
-      unmountOnExit
-      onEntered={onEntered}
-      sx={{ pb: open ? { xs: 3, md: 4 } : 0 }}
-    >
-      {children}
-    </Collapse>
+    {/* The region wrapper is always in the DOM so the header's
+        aria-controls resolves while the section is folded; only the
+        contents come and go. */}
+    <Box id={`${id}-body`} role="region" aria-labelledby={`${id}-heading`}>
+      <Collapse
+        in={open}
+        unmountOnExit
+        onEntered={onEntered}
+        sx={{ pb: open ? { xs: 3, md: 4 } : 0 }}
+      >
+        {children}
+      </Collapse>
+    </Box>
   </Box>
 );
 

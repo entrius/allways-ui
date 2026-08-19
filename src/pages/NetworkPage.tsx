@@ -1,15 +1,30 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, Stack } from '@mui/material';
-import { useLocation } from 'react-router-dom';
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
+import { Box, Skeleton, Stack } from '@mui/material';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import {
   KPI_STRIP_H,
-  MinersSection,
   NetworkKpiStrip,
   SectionAccordion,
-  StatsSection,
-  TransactionsSection,
 } from '../components/network';
+import TransactionsSection from '../components/network/TransactionsSection';
+
+// The two folded sections load their code the first time they are opened —
+// a visitor who only reads the tape never downloads the leaderboard or the
+// charts. Imported by path, not through the barrel, so nothing pulls them
+// back into this chunk.
+const MinersSection = React.lazy(
+  () => import('../components/network/MinersSection'),
+);
+const StatsSection = React.lazy(
+  () => import('../components/network/StatsSection'),
+);
 
 const SECTIONS = [
   {
@@ -34,27 +49,54 @@ const SECTIONS = [
 
 type SectionId = (typeof SECTIONS)[number]['id'];
 
-// The tape is what the page is for; miners and the stats charts start
-// folded away under their headings, one click from open.
-const DEFAULT_OPEN: Record<SectionId, boolean> = {
-  transactions: true,
-  miners: false,
-  stats: false,
-};
-
 const isSectionId = (v: string): v is SectionId =>
   SECTIONS.some((s) => s.id === v);
 
+// The tape is what the page is for; miners and the stats charts start
+// folded away under their headings, one click from open.
+const DEFAULT_OPEN: SectionId[] = ['transactions'];
+
+// Which sections are open is URL state (`?open=miners,stats`), not
+// component state: browser-back from a transaction or a miner returns the
+// page as it was left, and a link can address a particular arrangement.
+// Absent means the default; present-but-empty means everything folded.
+const OPEN_PARAM = 'open';
+
+const parseOpen = (value: string | null): Set<SectionId> =>
+  new Set(
+    value == null
+      ? DEFAULT_OPEN
+      : value.split(',').filter((v): v is SectionId => isSectionId(v)),
+  );
+
+const SectionFallback: React.FC = () => (
+  <Stack gap={1.5} sx={{ py: 1 }}>
+    {[0, 1].map((i) => (
+      <Skeleton
+        key={i}
+        variant="rectangular"
+        height={i === 0 ? 120 : 220}
+        sx={{ bgcolor: 'action.hover' }}
+      />
+    ))}
+  </Stack>
+);
+
 /**
  * Transactions, miners and network stats on one page. The three used to be
- * separate tabs; they are one accordion now, under a pinned terminal ribbon
- * of the network's headline numbers. Their old paths redirect here with a
- * hash, which opens that section and scrolls to it, so /miners still lands
- * on the miners view.
+ * separate tabs; they are one accordion now, under a pinned bar of the
+ * figures worth remembering. Their old paths redirect here with a hash,
+ * which opens that section and scrolls to it, so /miners still lands on the
+ * miners view.
  */
 const NetworkPage: React.FC = () => {
   const { hash } = useLocation();
-  const [open, setOpen] = useState<Record<SectionId, boolean>>(DEFAULT_OPEN);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const open = useMemo(
+    () => parseOpen(searchParams.get(OPEN_PARAM)),
+    [searchParams],
+  );
   // Read inside the hash effect without making it re-run on every toggle.
   const openRef = useRef(open);
   openRef.current = open;
@@ -74,20 +116,51 @@ const NetworkPage: React.FC = () => {
     main.scrollTo({ top: Math.max(0, top) });
   }, []);
 
+  const toggle = useCallback(
+    (id: SectionId) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          const shown = parseOpen(prev.get(OPEN_PARAM));
+          if (shown.has(id)) shown.delete(id);
+          else shown.add(id);
+          // Written even when empty ("open="), so "everything folded" is
+          // distinguishable from "no preference expressed yet".
+          next.set(OPEN_PARAM, [...shown].join(','));
+          return next;
+        },
+        // Folding a section is not a place in history to go back to.
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
   useEffect(() => {
     const id = hash.replace('#', '');
     if (!isSectionId(id)) return;
-    if (!openRef.current[id]) {
+    const shown = openRef.current;
+    const next = new URLSearchParams(searchParams);
+    if (!shown.has(id)) {
+      // Scroll once the section has finished expanding — its height is 0
+      // until then, so an anchor computed now would land short.
       pendingScroll.current = id;
-      setOpen((o) => ({ ...o, [id]: true }));
-      return;
+      next.set(OPEN_PARAM, [...shown, id].join(','));
+    } else {
+      // AppLayout resets the scroll container to the top on navigation, and
+      // that effect (a parent's) runs after this one — so land the anchor on
+      // the next frame, once the reset has happened.
+      pendingScroll.current = null;
+      requestAnimationFrame(() => scrollTo(id));
     }
-    // Already open: AppLayout resets the scroll container to the top on
-    // navigation, and that effect (a parent's) runs after this one — so
-    // land the anchor on the next frame, once the reset has happened.
-    const frame = requestAnimationFrame(() => scrollTo(id));
-    return () => cancelAnimationFrame(frame);
-  }, [hash, scrollTo]);
+    // Consume the hash. The open set lives in the query string from here,
+    // and clearing it means clicking the same link again is a real change
+    // rather than a no-op the router never reports.
+    navigate({ search: next.toString() }, { replace: true });
+    // searchParams is deliberately absent: this runs on arrival at a hash,
+    // not every time a section is folded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hash, navigate, scrollTo]);
 
   return (
     <Page title="Network">
@@ -113,8 +186,8 @@ const NetworkPage: React.FC = () => {
               {...s}
               first={i === 0}
               scrollMarginTop={KPI_STRIP_H}
-              open={open[s.id]}
-              onToggle={() => setOpen((o) => ({ ...o, [s.id]: !o[s.id] }))}
+              open={open.has(s.id)}
+              onToggle={() => toggle(s.id)}
               onEntered={() => {
                 if (pendingScroll.current !== s.id) return;
                 pendingScroll.current = null;
@@ -123,10 +196,10 @@ const NetworkPage: React.FC = () => {
             >
               {s.id === 'transactions' ? (
                 <TransactionsSection />
-              ) : s.id === 'miners' ? (
-                <MinersSection />
               ) : (
-                <StatsSection />
+                <Suspense fallback={<SectionFallback />}>
+                  {s.id === 'miners' ? <MinersSection /> : <StatsSection />}
+                </Suspense>
               )}
             </SectionAccordion>
           ))}

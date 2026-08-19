@@ -154,10 +154,6 @@ const formatClock = (secs: number): string => {
     : `${m}:${String(r).padStart(2, '0')}`;
 };
 
-// Compact mono field treatment for the filter panel's inputs/selects. An
-// ACTIVE (non-default) field carries a solid primary border so it's obvious
-// at a glance which filters are narrowing the list.
-
 // One step of the pager: a square mono button, muted until it can actually
 // take you somewhere.
 const PagerButton: React.FC<{
