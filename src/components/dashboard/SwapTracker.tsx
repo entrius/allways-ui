@@ -3,16 +3,13 @@ import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
   Box,
   IconButton,
-  InputAdornment,
   Stack,
   TextField,
   Tooltip,
   Typography,
   useTheme,
-  type Theme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import SearchIcon from '@mui/icons-material/Search';
 import {
   useAllSwaps,
   useDirections,
@@ -24,6 +21,7 @@ import {
 } from '../../api';
 import { displayEventType } from '../../api/models';
 import CopyableAddress from '../CopyableAddress';
+import SearchField, { terminalFieldSx } from '../SearchField';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
 import {
@@ -159,27 +157,6 @@ const formatClock = (secs: number): string => {
 // Compact mono field treatment for the filter panel's inputs/selects. An
 // ACTIVE (non-default) field carries a solid primary border so it's obvious
 // at a glance which filters are narrowing the list.
-const filterFieldSx = (theme: Theme, active?: boolean) => ({
-  '& .MuiOutlinedInput-root': {
-    fontFamily: FONTS.mono,
-    fontSize: '0.65rem',
-    color: 'text.primary',
-    borderRadius: 0,
-    height: 28,
-    backgroundColor: 'background.default',
-    '& fieldset': {
-      borderColor: active ? theme.palette.text.primary : theme.palette.divider,
-      ...(active && { borderWidth: 2 }),
-    },
-    '&:hover fieldset': {
-      borderColor: active
-        ? theme.palette.text.primary
-        : theme.palette.border.light,
-    },
-    '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
-  },
-  '& .MuiOutlinedInput-input': { py: 0 },
-});
 
 // One step of the pager: a square mono button, muted until it can actually
 // take you somewhere.
@@ -678,25 +655,12 @@ const SwapTracker: React.FC<{
           }}
         >
           <FilterField label="Search" active={!!search} grow>
-            <TextField
-              size="small"
-              placeholder="Transaction # or address..."
+            <SearchField
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon
-                      sx={{ fontSize: 14, color: 'text.secondary' }}
-                    />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                width: { xs: '100%', sm: 'auto' },
-                minWidth: { sm: 200 },
-                ...filterFieldSx(theme, !!search),
-              }}
+              onChange={setSearch}
+              placeholder="Transaction # or address..."
+              ariaLabel="Search transactions"
+              sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 200 } }}
             />
           </FilterField>
           {/* Dependent From/To chain pickers, markets-composer style: each
@@ -762,7 +726,7 @@ const SwapTracker: React.FC<{
               inputProps={{ min: 0, step: 0.1 }}
               value={filters.minSol}
               onChange={(e) => setFilter('minSol', e.target.value)}
-              sx={{ width: 90, ...filterFieldSx(theme, !!filters.minSol) }}
+              sx={{ width: 90, ...terminalFieldSx(theme, !!filters.minSol) }}
             />
           </FilterField>
           <FilterField label="Max (SOL)" active={!!filters.maxSol}>
@@ -773,7 +737,7 @@ const SwapTracker: React.FC<{
               inputProps={{ min: 0, step: 0.1 }}
               value={filters.maxSol}
               onChange={(e) => setFilter('maxSol', e.target.value)}
-              sx={{ width: 90, ...filterFieldSx(theme, !!filters.maxSol) }}
+              sx={{ width: 90, ...terminalFieldSx(theme, !!filters.maxSol) }}
             />
           </FilterField>
           {/* Clear closes the row, with the filters it clears. It's always

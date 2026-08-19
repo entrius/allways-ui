@@ -3,15 +3,13 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Box,
   IconButton,
-  InputAdornment,
   Stack,
-  TextField,
   Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import SearchIcon from '@mui/icons-material/Search';
+import SearchField from '../SearchField';
 import {
   useMinerLabel,
   useProtocolConstants,
@@ -111,31 +109,12 @@ const ReservationsTracker: React.FC<{ embedded?: boolean }> = ({
           onSubmit={submitSearch}
           sx={{ width: embedded ? '100%' : { xs: '100%', sm: 420 } }}
         >
-          <TextField
+          <SearchField
             value={searchAddr}
-            onChange={(e) => setSearchAddr(e.target.value)}
-            placeholder="Search by source address"
-            size="small"
+            onChange={setSearchAddr}
+            placeholder="Source address"
+            ariaLabel="Search reservations by source address"
             fullWidth
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                fontFamily: FONTS.mono,
-                fontSize: '0.75rem',
-                color: 'text.primary',
-                borderRadius: 0,
-                height: 32,
-                '& fieldset': { borderColor: 'divider' },
-                '&:hover fieldset': { borderColor: theme.palette.border.light },
-                '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-              },
-            }}
           />
         </Box>
       </Stack>
