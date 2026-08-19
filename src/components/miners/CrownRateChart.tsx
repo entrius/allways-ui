@@ -90,7 +90,11 @@ const CrownRateChart: React.FC<{
   range: CrownRange;
   onRangeChange: (r: CrownRange) => void;
   minerHotkey?: string;
-}> = ({ range, onRangeChange, minerHotkey }) => {
+  /** Cap the direction grid at this height and scroll it internally. One
+   * chart per direction adds up fast; a page that stacks this panel with
+   * others can't hand it thousands of pixels of its own scroll. */
+  maxBodyHeight?: number;
+}> = ({ range, onRangeChange, minerHotkey, maxBodyHeight }) => {
   const theme = useTheme();
   const directions = useDirections();
   const secs = RANGE_SECS[range];
@@ -234,6 +238,9 @@ const CrownRateChart: React.FC<{
           gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
           columnGap: 4,
           rowGap: 3,
+          ...(maxBodyHeight
+            ? { maxHeight: maxBodyHeight, overflowY: 'auto', pr: 1 }
+            : {}),
         }}
       >
         {directions.map((dir) => {

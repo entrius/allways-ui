@@ -101,7 +101,11 @@ const Footer: React.FC = () => {
                 <Box component={RouterLink} to="/market" sx={linkSx}>
                   Markets
                 </Box>
-                <Box component={RouterLink} to="/transactions" sx={linkSx}>
+                <Box
+                  component={RouterLink}
+                  to="/network#transactions"
+                  sx={linkSx}
+                >
                   Transactions
                 </Box>
                 <Box component={RouterLink} to="/agents" sx={linkSx}>

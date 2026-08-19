@@ -71,19 +71,18 @@ const TopNav: React.FC = () => {
         location.pathname === '/market' || location.pathname === '/dashboard'
       );
     }
-    if (to === '/transactions') {
-      // Swap and reservation detail pages are the explorer's drill-downs.
+    if (to === '/network') {
+      // Everything the merged page owns, plus its drill-downs: swap and
+      // reservation details, a single miner, and the pre-merge paths on
+      // their way through the redirect.
       return (
+        location.pathname === '/network' ||
         location.pathname === '/transactions' ||
+        location.pathname === '/network-stats' ||
+        location.pathname.startsWith('/miners') ||
         location.pathname.startsWith('/swap/') ||
         location.pathname.startsWith('/reservations/')
       );
-    }
-    if (to === '/miners') {
-      return location.pathname.startsWith('/miners');
-    }
-    if (to === '/network-stats') {
-      return location.pathname.startsWith('/network-stats');
     }
     return location.pathname === to;
   };

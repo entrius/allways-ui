@@ -14,8 +14,8 @@ import { DEFAULT_PAGE_SIZE } from '../components/dashboard/txFilters';
 // counts, labels, or anything below the fold — so hovering a tab you never
 // click costs one request.
 const PREFETCH: Record<string, (client: QueryClient) => void> = {
-  '/transactions': (client) => {
-    void import('../pages/TransactionsPage');
+  '/network': (client) => {
+    void import('../pages/NetworkPage');
     void client.prefetchQuery(
       // Must mirror SwapTracker's default page query exactly, or the tape
       // opens on a cache miss and refetches: newest first, page one.
