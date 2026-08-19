@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Skeleton, Tooltip, Typography } from '@mui/material';
 import {
   useActiveNodeCount,
@@ -20,6 +20,14 @@ const num = (v: number) =>
 
 const amount = (v: number) =>
   v.toLocaleString(undefined, { maximumFractionDigits: v >= 1000 ? 0 : 2 });
+
+// "SOL-TAO" is a direction, not a market: the asset sent, then the asset
+// received. The ribbon writes it tight (no spaces round the arrow) because
+// three of them share one line with five other readouts.
+const fmtDirection = (pair: string) => pair.replace(/-/g, '→');
+
+// How many directions the ribbon names before the rest goes to the tooltip.
+const TOP_N = 3;
 
 // One readout in the ribbon: uppercase mono label, tabular value beside it.
 // Everything sits on one line — this is a status bar, not a card.
@@ -104,6 +112,35 @@ const NetworkKpiStrip: React.FC = () => {
           .map((e) => `${amount(Number(e.amount))} ${chainSymbol(e.chain)}`)
           .join(' + ');
 
+  // Volume split by direction (asset sent -> asset received), biggest
+  // first. Each direction is its own instrument, so SOL->TAO and TAO->SOL
+  // stay separate rows rather than being pooled into one "pair".
+  const pairMix = useMemo(
+    () =>
+      (overview?.pairMix ?? [])
+        .map((p) => ({ ...p, pct: Number(p.pct) }))
+        .sort((a, b) => b.pct - a.pct),
+    [overview],
+  );
+  const topPairs = pairMix.slice(0, TOP_N);
+  // USD counterpart for the tooltip's per-direction figures, when priced.
+  const overviewVolumeUsd = usdFromBackingMap(
+    overview?.volumeByBacking,
+    prices,
+    overview?.volumeSol ?? 0,
+  );
+  const pairsHint = pairMix.length
+    ? `Share of all-time volume by direction (asset sent → asset received): ${pairMix
+        .map(
+          (p) =>
+            `${p.pair.replace(/-/g, ' → ')} ${p.pct.toFixed(1)}%` +
+            (overviewVolumeUsd != null
+              ? ` (${formatUsd((p.pct / 100) * overviewVolumeUsd)})`
+              : ''),
+        )
+        .join(' · ')}`
+    : 'No completed volume yet, so no direction mix to rank.';
+
   return (
     <Box
       sx={{
@@ -174,6 +211,46 @@ const NetworkKpiStrip: React.FC = () => {
         value={num(activeNodes)}
         hint="Distinct active nodes currently serving the network."
         loading={nodesLoading}
+      />
+      <Readout
+        label={`Top ${TOP_N} pairs`}
+        value={
+          topPairs.length ? (
+            <Box
+              component="span"
+              sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 1 }}
+            >
+              {topPairs.map((p, i) => (
+                <Box
+                  component="span"
+                  key={p.pair}
+                  sx={{ display: 'inline-flex', alignItems: 'baseline' }}
+                >
+                  {i > 0 && (
+                    <Box
+                      component="span"
+                      aria-hidden
+                      sx={{ color: 'text.disabled', mr: 1 }}
+                    >
+                      ·
+                    </Box>
+                  )}
+                  {fmtDirection(p.pair)}
+                  <Box
+                    component="span"
+                    sx={{ color: 'text.secondary', fontWeight: 500, ml: 0.6 }}
+                  >
+                    {p.pct.toFixed(0)}%
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            '—'
+          )
+        }
+        hint={pairsHint}
+        loading={overviewLoading}
       />
     </Box>
   );
