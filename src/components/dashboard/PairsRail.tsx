@@ -3,7 +3,7 @@ import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   useChains,
   useCompleteSwapHistory,
-  useCrownRateHistory,
+  useCrownRateHistoryAll,
   useCurrentCrown,
   useDirections,
   useUsdPrices,
@@ -203,10 +203,11 @@ const DirectionRow: React.FC<{
     direction,
     crownLaneFor(crown, direction)?.rate,
   );
-  const { data: rows } = useCrownRateHistory({
-    direction,
-    secs,
-  });
+  // One batched series query shared by every row (same key across the rail,
+  // so react-query issues it once per tick however many pairs the registry
+  // holds). A direction the response doesn't key renders as an empty series.
+  const { data: allSeries } = useCrownRateHistoryAll(secs);
+  const rows = allSeries ? (allSeries[direction] ?? []) : undefined;
 
   // Windowed volume (the pair's hub-leg side, one denomination per route) of
   // this route's completed swaps — one shared swap-history query across all
@@ -548,9 +549,10 @@ const PairsRail: React.FC<{
       ? ((selRate - revImplied) / revImplied) * 100
       : null;
   // Windowed move for the headline, on the same footing as the rows' Chg%
-  // column. The selected route's row already runs this query, so react-query
-  // serves it from cache rather than refetching.
-  const { data: selRows } = useCrownRateHistory({ direction, secs });
+  // column. The rows already run this batch query, so react-query serves it
+  // from cache rather than refetching.
+  const { data: allSeries } = useCrownRateHistoryAll(secs);
+  const selRows = allSeries?.[direction];
   const selChg = useMemo(() => {
     if (!selRows?.length || selRate == null) return null;
     const first = directionalRateFor(direction, selRows[0].rate);

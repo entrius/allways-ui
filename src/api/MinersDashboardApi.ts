@@ -84,6 +84,26 @@ export const useCrownTime = (params: {
     backing: params.backing,
   });
 
+// Batch forms of /crown/time and /crown/rate-history: every direction's
+// anchor (hub-leg) lane in ONE response, for the surfaces that fan out one
+// panel/row per direction. One request per tick regardless of how many pairs
+// the registry grows — a direction das doesn't serve yet simply has no key.
+export const useCrownTimeAll = (seconds?: number) =>
+  useApiQuery<Partial<Record<Direction, CrownTimeWindow>>>(
+    'crown-time-all',
+    '/crown/time/all',
+    CROWN_REFRESH_MS,
+    { seconds },
+  );
+
+export const useCrownRateHistoryAll = (seconds?: number) =>
+  useApiQuery<Partial<Record<Direction, CrownRateHistoryRow[]>>>(
+    'crown-rate-history-all',
+    '/crown/rate-history/all',
+    CROWN_REFRESH_MS,
+    { seconds },
+  );
+
 export const useMinerLeaderboard = (range: Range = '30d') =>
   useApiQuery<LeaderboardRow[]>(
     'miners-leaderboard',

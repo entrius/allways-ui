@@ -1,13 +1,8 @@
 import React, { useState } from 'react';
 import { Box, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
-import { useQueries } from '@tanstack/react-query';
-import { apiQueryOptions, CROWN_REFRESH_MS, useDirections } from '../../api';
+import { useCrownTimeAll, useDirections } from '../../api';
 import { directionLabel } from '../../api/models/MinersDashboard';
-import type {
-  CrownTimeRow,
-  CrownTimeWindow,
-  Direction,
-} from '../../api/models';
+import type { CrownTimeRow, Direction } from '../../api/models';
 import { shortHotkey } from '../../utils/format';
 import { FONTS } from '../../theme';
 import RangeChips from '../RangeChips';
@@ -169,31 +164,19 @@ const CrownTimeLeaderboard: React.FC<{
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
 
-  // Hoisted per-direction queries (the columns used to fetch for themselves)
-  // so the panel can render ONLY directions with activity — with a direction
-  // pair per registry spoke, a column per direction was mostly a wall of
-  // "no crown activity" placeholders.
-  const windows = useQueries({
-    queries: directions.map((direction) =>
-      apiQueryOptions<CrownTimeWindow>(
-        'crown-time',
-        '/crown/time',
-        CROWN_REFRESH_MS,
-        { direction, seconds },
-      ),
-    ),
-    combine: (results) =>
-      results.map((r) => ({ data: r.data, isPending: r.isPending })),
-  });
+  // One batched query for every direction's window (the columns used to fetch
+  // for themselves, then per-direction queries — either way the request count
+  // grew with the registry). The panel still renders ONLY directions with
+  // activity; a direction the response doesn't key counts as quiet once the
+  // batch has landed.
+  const { data: windows } = useCrownTimeAll(seconds);
   const active = directions.filter(
-    (_, i) => (windows[i]?.data?.holders?.length ?? 0) > 0,
+    (d) => (windows?.[d]?.holders?.length ?? 0) > 0,
   );
   const quiet = directions.filter(
-    (_, i) =>
-      windows[i]?.data != null && (windows[i].data?.holders?.length ?? 0) === 0,
+    (d) => windows != null && (windows[d]?.holders?.length ?? 0) === 0,
   );
-  const loading =
-    windows.length > 0 && windows.every((w) => w.isPending) && !active.length;
+  const loading = windows === undefined;
 
   return (
     <Box
@@ -239,7 +222,7 @@ const CrownTimeLeaderboard: React.FC<{
               <DirectionColumn
                 key={dir}
                 direction={dir}
-                holders={windows[directions.indexOf(dir)]?.data?.holders ?? []}
+                holders={windows?.[dir]?.holders ?? []}
               />
             ))}
       </Box>

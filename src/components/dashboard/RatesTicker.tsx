@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCrownRateHistory, useCurrentCrown, useDirections } from '../../api';
+import {
+  useCrownRateHistoryAll,
+  useCurrentCrown,
+  useDirections,
+} from '../../api';
 import {
   crownLaneFor,
   decomposeDirection,
@@ -31,10 +35,10 @@ const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
     direction,
     crownLaneFor(crown, direction)?.rate,
   );
-  const { data: rows } = useCrownRateHistory({
-    direction,
-    secs: DAY_SECS,
-  });
+  // One batched series query shared by every segment of the crawl — the tape
+  // used to cost a request per route it carried.
+  const { data: allSeries } = useCrownRateHistoryAll(DAY_SECS);
+  const rows = allSeries?.[direction];
   const first = rows?.length
     ? directionalRateFor(direction, rows[0].rate)
     : null;
