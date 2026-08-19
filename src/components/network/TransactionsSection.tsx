@@ -17,7 +17,7 @@ const TransactionsSection: React.FC = () => (
       // so the two collapsed sections below it are visible on load instead
       // of hiding under the fold. Clamped so it stays usable on a short
       // laptop and doesn't sprawl on a tall monitor.
-      height: { xs: 620, md: 'clamp(340px, calc(100dvh - 429px), 720px)' },
+      height: { xs: 620, md: 'clamp(340px, calc(100dvh - 413px), 720px)' },
       display: 'flex',
       flexDirection: 'column',
       minHeight: 0,
