@@ -22,8 +22,7 @@ export const docsUrl = (): string =>
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Markets', to: '/market' },
-  { label: 'Transactions', to: '/transactions' },
-  { label: 'Miners', to: '/miners' },
-  { label: 'Network Stats', to: '/network-stats' },
+  // Transactions, miners and network stats are one scrolling page now.
+  { label: 'Network', to: '/network' },
   { label: 'Agents', to: '/agents' },
 ];

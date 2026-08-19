@@ -7,17 +7,31 @@ export type AppRoute = Omit<PathRouteProps, 'path'> & {
 };
 
 // The old single-page dashboard split into /market (chart + liquidity) and
-// /transactions (explorer). Old links land on the market page with their
-// query (e.g. ?pair=BTC) intact.
+// the explorer. Old links land on the market page with their query
+// (e.g. ?pair=BTC) intact.
 const LegacyDashboardRedirect: React.FC = () => {
   const { search } = useLocation();
   return <Navigate to={`/market${search}`} replace />;
 };
 
+// /transactions, /miners and /network-stats merged into one scrolling
+// /network page. Their paths still resolve — each lands on its section, with
+// any filters/sort/paging in the query string carried across, so old links,
+// bookmarks and docs keep working.
+const toNetwork =
+  (hash: string): React.FC =>
+  () => {
+    const { search } = useLocation();
+    return <Navigate to={`/network${search}#${hash}`} replace />;
+  };
+
+const TransactionsRedirect = toNetwork('transactions');
+const MinersRedirect = toNetwork('miners');
+const NetworkStatsRedirect = toNetwork('stats');
+
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const MarketPage = React.lazy(() => import('./pages/MarketPage'));
-const TransactionsPage = React.lazy(() => import('./pages/TransactionsPage'));
-const MinersPage = React.lazy(() => import('./pages/MinersPage'));
+const NetworkPage = React.lazy(() => import('./pages/NetworkPage'));
 const MinerDetailPage = React.lazy(() => import('./pages/MinerDetailPage'));
 const SwapDetailPage = React.lazy(() => import('./pages/SwapDetailPage'));
 const ReservationDetailPage = React.lazy(
@@ -27,23 +41,23 @@ const ReservationsBySourcePage = React.lazy(
   () => import('./pages/ReservationsBySourcePage'),
 );
 const AgentsPage = React.lazy(() => import('./pages/AgentsPage'));
-const NetworkStatsPage = React.lazy(() => import('./pages/NetworkStatsPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 const routesArray: AppRoute[] = [
   { name: 'landing', path: '/', element: <LandingPage /> },
   { name: 'market', path: '/market', element: <MarketPage /> },
+  { name: 'network', path: '/network', element: <NetworkPage /> },
   {
     name: 'transactions',
     path: '/transactions',
-    element: <TransactionsPage />,
+    element: <TransactionsRedirect />,
   },
   {
     name: 'dashboard',
     path: '/dashboard',
     element: <LegacyDashboardRedirect />,
   },
-  { name: 'miners', path: '/miners', element: <MinersPage /> },
+  { name: 'miners', path: '/miners', element: <MinersRedirect /> },
   {
     name: 'miner-detail',
     path: '/miners/:hotkey',
@@ -64,7 +78,7 @@ const routesArray: AppRoute[] = [
   {
     name: 'network-stats',
     path: '/network-stats',
-    element: <NetworkStatsPage />,
+    element: <NetworkStatsRedirect />,
   },
 
   // 404 catch-all route (must be last)

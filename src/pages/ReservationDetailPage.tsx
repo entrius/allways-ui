@@ -130,7 +130,7 @@ const ReservationDetailPage: React.FC = () => {
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
         <Typography
           component={RouterLink}
-          to="/transactions"
+          to="/network#transactions"
           sx={{
             fontFamily: FONTS.mono,
             fontSize: '0.8rem',
