@@ -159,7 +159,12 @@ const ColumnSkeleton: React.FC = () => (
   </Box>
 );
 
-const CrownTimeLeaderboard: React.FC = () => {
+const CrownTimeLeaderboard: React.FC<{
+  /** Cap the direction grid at this height and scroll it internally. For
+   * surfaces that stack this panel with others (the network page) and can't
+   * give one panel thousands of pixels of the page's scroll. */
+  maxBodyHeight?: number;
+}> = ({ maxBodyHeight }) => {
   const directions = useDirections();
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
@@ -223,6 +228,9 @@ const CrownTimeLeaderboard: React.FC = () => {
           gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
           columnGap: 4,
           rowGap: 3,
+          ...(maxBodyHeight
+            ? { maxHeight: maxBodyHeight, overflowY: 'auto', pr: 1 }
+            : {}),
         }}
       >
         {loading

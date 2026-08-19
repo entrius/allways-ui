@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 import { FONTS } from '../theme';
 import { chainInfo } from '../api/models/chains';
 
@@ -13,11 +13,45 @@ const logoSrc = (chain: string): string | undefined => {
   return baseUrl ? `${baseUrl}${path}` : path;
 };
 
+// Optical centring, as a fraction of the rendered size.
+//
+// Most chain logos are a filled disc, so geometric centre and visual centre
+// are the same point. A glyph mark is not: TAO's is a tau, and its bounding
+// box centres perfectly while its ink does not, because the crossbar carries
+// almost all the mass and the stem almost none. Measured on the 128px source,
+// the alpha-weighted centroid sits 12.4% above and 2.1% left of centre, so
+// box-centred it reads high and slightly left.
+//
+// The correction is deliberately PARTIAL (45% of the measured offset). The
+// eye judges a letterform by its extent as well as its mass, so nudging all
+// the way to the centroid overshoots and drops the mark visibly low. Same
+// instinct as the entasis on a Roman column: bend it off true so it looks
+// true. Numbers are measurable, not taste: alpha-weight the source PNG, take
+// the centroid, nudge back by 45% of the miss.
+const OPTICAL_NUDGE: Record<string, { x: number; y: number }> = {
+  tao: { x: 0.0094, y: 0.0557 },
+};
+
+// Marks that are monochrome DARK and therefore disappear on the dark-mode
+// background. Measured on the source PNGs: TAO's tau is pure black (ink
+// luminance 0.0 against a #090b0d page), so unfiltered it renders as an
+// empty hole. Flipping it to white in dark mode matches what the theme
+// already does for this asset elsewhere (palette assetTao is woodsmoke in
+// light, white in dark).
+//
+// brightness(0) then invert(1) forces every ink pixel to white regardless of
+// its original colour, which is right for a single-colour glyph and wrong for
+// anything with real colour in it — so this stays an explicit list, never a
+// blanket rule. Next closest is QNT at luminance 46; it survives because its
+// glyph is white on a dark disc, so something still reads.
+const DARK_MODE_INVERT = new Set(['tao']);
+
 export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
   chain,
   size = 16,
 }) => {
   const [failed, setFailed] = useState(false);
+  const isDark = useTheme().palette.mode === 'dark';
   const key = chain.toLowerCase();
   const src = logoSrc(key);
   if (!src || failed)
@@ -41,6 +75,8 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
         {key.charAt(0).toUpperCase()}
       </Box>
     );
+  const nudge = OPTICAL_NUDGE[key];
+  const invert = isDark && DARK_MODE_INVERT.has(key);
   return (
     <Box
       component="img"
@@ -53,6 +89,12 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
         borderRadius: '50%',
         display: 'block',
         flexShrink: 0,
+        ...(invert ? { filter: 'brightness(0) invert(1)' } : {}),
+        ...(nudge
+          ? {
+              transform: `translate(${(nudge.x * size).toFixed(2)}px, ${(nudge.y * size).toFixed(2)}px)`,
+            }
+          : {}),
       }}
     />
   );

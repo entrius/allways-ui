@@ -8,7 +8,6 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
   useTheme,
 } from '@mui/material';
@@ -21,6 +20,7 @@ import {
 } from '../../api';
 import CrownIcon from './CrownIcon';
 import RangeChips from '../RangeChips';
+import SearchField from '../SearchField';
 import SectionHeading from '../SectionHeading';
 import SortHeader, { type SortDir } from './SortHeader';
 import { tierPalette } from './crownGridCells';
@@ -196,23 +196,12 @@ const MinerLeaderboard: React.FC<{
           spacing={1}
           alignItems={{ xs: 'stretch', sm: 'center' }}
         >
-          <TextField
-            size="small"
-            placeholder="search uid or hotkey…"
+          <SearchField
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            inputProps={{
-              style: {
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                padding: '5px 9px',
-              },
-            }}
-            sx={{
-              width: { xs: '100%', sm: 200 },
-              '& .MuiOutlinedInput-root': { backgroundColor: 'surface.main' },
-              '& fieldset': { borderColor: 'divider' },
-            }}
+            onChange={setQuery}
+            placeholder="UID or hotkey..."
+            ariaLabel="Search miners"
+            sx={{ width: { xs: '100%', sm: 200 } }}
           />
           {queryNorm && (
             <Typography

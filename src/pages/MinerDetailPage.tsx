@@ -109,7 +109,7 @@ const MinerDetailPage: React.FC = () => {
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
           <Typography
             component={RouterLink}
-            to="/miners"
+            to="/network#miners"
             sx={{
               fontFamily: FONTS.mono,
               fontSize: '0.75rem',

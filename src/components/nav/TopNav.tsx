@@ -20,6 +20,7 @@ import { useThemeMode } from '../../ThemeContext';
 import BrandMark from '../BrandMark';
 import SocialLinks from './SocialLinks';
 import { NAV_ITEMS, docsUrl } from './links';
+import { useRoutePrefetch } from '../../api/prefetch';
 
 const navBtnSx = (active: boolean) => ({
   fontFamily: FONTS.mono,
@@ -59,6 +60,9 @@ const TopNav: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const docs = docsUrl();
+  // Reaching for a tab starts its work: the route chunk and its first query
+  // load on hover/focus/press, so the click itself has little left to wait on.
+  const prefetch = useRoutePrefetch();
 
   const isActive = (to: string): boolean => {
     if (to === '/market') {
@@ -67,19 +71,18 @@ const TopNav: React.FC = () => {
         location.pathname === '/market' || location.pathname === '/dashboard'
       );
     }
-    if (to === '/transactions') {
-      // Swap and reservation detail pages are the explorer's drill-downs.
+    if (to === '/network') {
+      // Everything the merged page owns, plus its drill-downs: swap and
+      // reservation details, a single miner, and the pre-merge paths on
+      // their way through the redirect.
       return (
+        location.pathname === '/network' ||
         location.pathname === '/transactions' ||
+        location.pathname === '/network-stats' ||
+        location.pathname.startsWith('/miners') ||
         location.pathname.startsWith('/swap/') ||
         location.pathname.startsWith('/reservations/')
       );
-    }
-    if (to === '/miners') {
-      return location.pathname.startsWith('/miners');
-    }
-    if (to === '/network-stats') {
-      return location.pathname.startsWith('/network-stats');
     }
     return location.pathname === to;
   };
@@ -138,6 +141,9 @@ const TopNav: React.FC = () => {
               key={item.label}
               component={NavLink}
               to={item.to ?? '#'}
+              onPointerEnter={() => prefetch(item.to)}
+              onPointerDown={() => prefetch(item.to)}
+              onFocus={() => prefetch(item.to)}
               sx={navBtnSx(isActive(item.to ?? ''))}
             >
               {item.label}
@@ -208,6 +214,7 @@ const TopNav: React.FC = () => {
                 key={item.label}
                 component={NavLink}
                 to={item.to ?? '#'}
+                onPointerDown={() => prefetch(item.to)}
                 onClick={() => setMenuAnchor(null)}
                 sx={{
                   fontFamily: FONTS.mono,

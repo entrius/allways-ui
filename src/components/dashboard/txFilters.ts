@@ -1,10 +1,13 @@
 import type { ActiveSwap } from '../../api/models';
-import { unitsToHuman } from '../../utils/format';
 
 // The transactions explorer's find filters. The URL query string is the
-// single source of truth: SwapTracker writes it, SwapTracker AND
-// TransactionsPulse read it, so the chart and the tape always show the same
-// filtered dataset — and any filtered view is shareable / bookmarkable.
+// single source of truth: SwapTracker writes it and reads it back, so any
+// filtered view is shareable / bookmarkable. das applies the filters
+// themselves (GET /swaps), so these are the wire format, not a predicate.
+
+// Rows per page on the explorer's tape. Lives here so the nav prefetch can
+// warm the exact query the tape will ask for.
+export const DEFAULT_PAGE_SIZE = 50;
 
 export type StatusFilter =
   | 'all'
@@ -89,51 +92,7 @@ export const toNum = (v: string | null): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-// Size ranks/filters on the swap's BACKING leg (its numeraire), in that
-// backing's HUMAN units — sol- and tao-backed swaps rank on comparable
-// scales, and an EVM leg's wei can never leak into the ranking.
-export const backingNotional = (s: ActiveSwap): number => {
-  const backing = (s.backing ?? 'sol').toLowerCase();
-  const raw =
-    s.sourceChain?.toLowerCase() === backing
-      ? s.sourceAmount
-      : s.destChain?.toLowerCase() === backing
-        ? s.destAmount
-        : s.solAmount;
-  return unitsToHuman(toNum(raw), backing);
-};
-
 export const isTerminal = (s: ActiveSwap): boolean =>
   s.status === 'COMPLETED' ||
   s.status === 'TIMED_OUT' ||
   s.status === 'CANCELLED';
-
-export const applyTxFilters = (
-  rows: ActiveSwap[],
-  f: TxFilters,
-): ActiveSwap[] => {
-  // Date bounds are local-day inclusive.
-  const from = f.dateFrom ? Date.parse(`${f.dateFrom}T00:00:00`) / 1000 : null;
-  const to = f.dateTo ? Date.parse(`${f.dateTo}T23:59:59`) / 1000 : null;
-  const minSol = f.minSol ? parseFloat(f.minSol) : null;
-  const maxSol = f.maxSol ? parseFloat(f.maxSol) : null;
-  return rows.filter((s) => {
-    if (f.fromChain !== 'all' && s.sourceChain?.toLowerCase() !== f.fromChain)
-      return false;
-    if (f.toChain !== 'all' && s.destChain?.toLowerCase() !== f.toChain)
-      return false;
-    if (f.status === 'completed' && s.status !== 'COMPLETED') return false;
-    if (f.status === 'timed_out' && s.status !== 'TIMED_OUT') return false;
-    if (f.status === 'cancelled' && s.status !== 'CANCELLED') return false;
-    if (f.status === 'in_flight' && isTerminal(s)) return false;
-    const t = toNum(s.initiatedAt);
-    if (from != null && (!t || t < from)) return false;
-    if (to != null && (!t || t > to)) return false;
-    const notional = backingNotional(s);
-    if (minSol != null && Number.isFinite(minSol) && notional < minSol)
-      return false;
-    if (maxSol != null && Number.isFinite(maxSol) && notional > maxSol)
-      return false;
-    return true;
-  });
-};

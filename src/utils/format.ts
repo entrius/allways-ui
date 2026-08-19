@@ -257,6 +257,12 @@ export const formatRateLine = (
 export const chainSymbol = (chain: string): string =>
   chainCfg(chain)?.symbol ?? chain.toUpperCase();
 
+// The registry's display NAME — "Solana", "USDC (Base)". For headings and
+// prose, where a ticker reads as jargon and, for the four USDC deployments,
+// is outright ambiguous. Falls back to the ticker for an unknown chain.
+export const chainName = (chain: string): string =>
+  chainInfo(chain)?.name ?? chainSymbol(chain);
+
 // ── Directional rate display ──
 // Machines store ONE canonical denomination per pair: "dest per 1 canonical
 // source" with the hub pinned as source — the same unit in BOTH direction

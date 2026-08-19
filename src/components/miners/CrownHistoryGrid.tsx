@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Stack,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -22,6 +21,7 @@ import CrownGridHoverCard from './CrownGridHoverCard';
 import CrownGridRangeInputs from './CrownGridRangeInputs';
 import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
+import SearchField from '../SearchField';
 import SectionHeading from '../SectionHeading';
 import {
   CELL_SECS,
@@ -414,25 +414,12 @@ const CrownHistoryGrid: React.FC<{
               : `${subjectCellCount}/${cells.length} blocks`}
           </Box>
         ) : (
-          <TextField
-            size="small"
-            placeholder="highlight uid…"
+          <SearchField
             value={uidSearch}
-            onChange={(e) => onSearchInput(e.target.value)}
-            inputProps={{
-              style: {
-                fontFamily: FONTS.mono,
-                fontSize: '0.75rem',
-                padding: '6px 10px',
-              },
-            }}
-            sx={{
-              width: 180,
-              '& .MuiOutlinedInput-root': {
-                backgroundColor: 'surface.main',
-              },
-              '& fieldset': { borderColor: 'divider' },
-            }}
+            onChange={onSearchInput}
+            placeholder="Highlight UID..."
+            ariaLabel="Highlight a miner UID in the crown grid"
+            sx={{ width: 180 }}
           />
         )}
       </Stack>

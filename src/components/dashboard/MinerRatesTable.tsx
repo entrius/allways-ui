@@ -3,7 +3,6 @@ import {
   Box,
   Chip,
   IconButton,
-  InputAdornment,
   Stack,
   Table,
   TableBody,
@@ -12,7 +11,6 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -21,7 +19,7 @@ import {
   useTheme,
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import SearchIcon from '@mui/icons-material/Search';
+import SearchField from '../SearchField';
 import { useMiners, minerServesPair, type Miner } from '../../api';
 import {
   decomposeDirection,
@@ -318,32 +316,12 @@ const MinerRatesTable: React.FC<{ syncDirection?: Direction }> = ({
             flexWrap: 'wrap',
           }}
         >
-          <TextField
-            size="small"
-            placeholder="Search UID, hotkey..."
+          <SearchField
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              flex: 1,
-              minWidth: 140,
-              '& .MuiOutlinedInput-root': {
-                fontFamily: FONTS.mono,
-                fontSize: '0.75rem',
-                color: 'text.primary',
-                borderRadius: 0,
-                height: 32,
-                '& fieldset': { borderColor: 'divider' },
-                '&:hover fieldset': { borderColor: theme.palette.border.light },
-                '&.Mui-focused fieldset': { borderColor: 'primary.main' },
-              },
-            }}
+            onChange={setSearch}
+            placeholder="UID or hotkey..."
+            ariaLabel="Search miners"
+            sx={{ flex: 1, minWidth: 140 }}
           />
           <Tooltip
             title={

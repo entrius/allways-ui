@@ -27,11 +27,18 @@ const INTERVAL_FOR_RANGE: Record<HistoryRange, string> = {
 };
 
 /** `GET /history` — gap-filled time series, newest-last. */
-export const useHistory = (range: HistoryRange, interval?: string) =>
-  useApiQuery<HistoryRow[]>('history', '/history', SSE_FALLBACK_INTERVAL, {
-    range,
-    interval: interval ?? INTERVAL_FOR_RANGE[range],
-  });
+export const useHistory = (
+  range: HistoryRange,
+  interval?: string,
+  enabled?: boolean,
+) =>
+  useApiQuery<HistoryRow[]>(
+    'history',
+    '/history',
+    SSE_FALLBACK_INTERVAL,
+    { range, interval: interval ?? INTERVAL_FOR_RANGE[range] },
+    enabled,
+  );
 
 /** `GET /history/state` — point-in-time network levels, newest-last. */
 export const useHistoryState = (range: HistoryRange, interval?: string) =>
