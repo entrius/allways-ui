@@ -19,12 +19,18 @@ const PREFETCH: Record<string, (client: QueryClient) => void> = {
     void client.prefetchQuery(
       // Must mirror SwapTracker's default page query exactly, or the tape
       // opens on a cache miss and refetches: newest first, page one.
-      apiQueryOptions<ActiveSwap[]>(
-        'allSwaps',
-        '/swaps',
-        SSE_FALLBACK_INTERVAL,
-        { limit: DEFAULT_PAGE_SIZE, offset: 0, dir: 'desc' },
-      ),
+      {
+        ...apiQueryOptions<ActiveSwap[]>(
+          'allSwaps',
+          '/swaps',
+          SSE_FALLBACK_INTERVAL,
+          { limit: DEFAULT_PAGE_SIZE, offset: 0, dir: 'desc' },
+        ),
+        // The client's default staleTime is 0, which would make every pass of
+        // the pointer across the nav bar refetch. One warm-up per SSE fallback
+        // window is the point; SSE still invalidates on real activity.
+        staleTime: SSE_FALLBACK_INTERVAL,
+      },
     );
   },
 };

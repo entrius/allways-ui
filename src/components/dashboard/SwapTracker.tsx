@@ -474,8 +474,17 @@ const SwapTracker: React.FC<{
   );
   // Two counts: what this view matches (drives the pager) and the all-time
   // total behind it (context in the same readout). The all-time one is a
-  // separate cached query, so filtering never refetches it.
-  const { data: matchCountData } = useSwapsCount(query);
+  // separate cached query, so filtering never refetches it — and it IS the
+  // match count when nothing is narrowing, so an unfiltered view doesn't run
+  // the same query twice. An exact #N / id lookup counts itself: das would
+  // otherwise answer with a LIKE-over-everything count (searching "3" counts
+  // every id and address containing a 3) and the pager would offer pages of
+  // one row.
+  const exactLookup = !!exactSwapId || !!exactSeq;
+  const narrowed = activeFilters > 0 || !!debouncedSearch;
+  const { data: matchCountData } = useSwapsCount(
+    narrowed && !exactLookup ? query : undefined,
+  );
   const { data: swapsCount } = useSwapsCount();
   const minerLabel = useMinerLabel();
   // The date picker only offers months back to the network's first
@@ -585,9 +594,11 @@ const SwapTracker: React.FC<{
   // /swaps), so its rows ARE the page; the complete-history path already holds
   // every match in memory and slices locally. A search's total is unknown
   // server-side, so the pager runs open-ended off a full last page.
-  const totalRows = exactSwapId
+  const totalRows = exactLookup
     ? (fetched?.length ?? 0)
-    : (matchCountData?.totalCount ?? null);
+    : narrowed
+      ? (matchCountData?.totalCount ?? null)
+      : (swapsCount?.totalCount ?? null);
   const totalPages =
     totalRows == null ? null : Math.max(1, Math.ceil(totalRows / pageSize));
   // The fetched page IS the page: das applied the filters, the sort, and the
@@ -597,10 +608,6 @@ const SwapTracker: React.FC<{
     totalPages != null ? page < totalPages : (fetched?.length ?? 0) >= pageSize;
   const firstRowNum = pageRows.length ? (page - 1) * pageSize + 1 : 0;
   const lastRowNum = (page - 1) * pageSize + pageRows.length;
-  // Whether anything is narrowing the tape. Filters run over the complete
-  // history, so their count is exact; a search is resolved page by page
-  // server-side, so its total is only ever a floor.
-  const narrowed = activeFilters > 0 || !!debouncedSearch || !!exactSwapId;
   const matchAtLeast = narrowed && totalRows == null && hasNext;
 
   // A filter that shrinks the list past the current page pulls the reader

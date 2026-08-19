@@ -316,7 +316,10 @@ const DateRangeField: React.FC<{
   // transaction's month to this month, the left one sits a month behind it.
   const { leftMonths, rightMonths } = React.useMemo(() => {
     const maxRight = startOfMonth(today);
-    const minRight = startOfMonth(minDate ?? today);
+    // Until the first-transaction date lands — and if that query never
+    // answers — fall back to a two-year window rather than locking the
+    // calendar to this month with a one-option dropdown.
+    const minRight = startOfMonth(minDate ?? addMonths(today, -23));
     const right = monthsBetween(
       minRight <= maxRight ? minRight : maxRight,
       maxRight,
