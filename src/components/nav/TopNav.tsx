@@ -20,6 +20,7 @@ import { useThemeMode } from '../../ThemeContext';
 import BrandMark from '../BrandMark';
 import SocialLinks from './SocialLinks';
 import { NAV_ITEMS, docsUrl } from './links';
+import { useRoutePrefetch } from '../../api/prefetch';
 
 const navBtnSx = (active: boolean) => ({
   fontFamily: FONTS.mono,
@@ -59,6 +60,9 @@ const TopNav: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const docs = docsUrl();
+  // Reaching for a tab starts its work: the route chunk and its first query
+  // load on hover/focus/press, so the click itself has little left to wait on.
+  const prefetch = useRoutePrefetch();
 
   const isActive = (to: string): boolean => {
     if (to === '/market') {
@@ -138,6 +142,9 @@ const TopNav: React.FC = () => {
               key={item.label}
               component={NavLink}
               to={item.to ?? '#'}
+              onPointerEnter={() => prefetch(item.to)}
+              onPointerDown={() => prefetch(item.to)}
+              onFocus={() => prefetch(item.to)}
               sx={navBtnSx(isActive(item.to ?? ''))}
             >
               {item.label}
@@ -208,6 +215,7 @@ const TopNav: React.FC = () => {
                 key={item.label}
                 component={NavLink}
                 to={item.to ?? '#'}
+                onPointerDown={() => prefetch(item.to)}
                 onClick={() => setMenuAnchor(null)}
                 sx={{
                   fontFamily: FONTS.mono,

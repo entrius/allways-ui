@@ -246,6 +246,22 @@ const NetworkStatsPage: React.FC = () => {
     [history, cTao],
   );
 
+  // The median alongside the mean: one slow swap drags the average up a whole
+  // day, the median holds at what a user actually waited. Undefined (not
+  // null) on a das that predates the aggregate — an empty chart, not zeros.
+  const medianSettlement = useMemo<ChartSeries[]>(
+    () => [
+      {
+        name: 'Median settlement',
+        color: cTao,
+        unit: 's',
+        formatValue: (v) => v.toFixed(1),
+        points: histPoints(history, (r) => r.medianSettlementSecs ?? null),
+      },
+    ],
+    [history, cTao],
+  );
+
   // --- Protocol revenue: 1% of volume (cumulative line + per-day bars) -----
   const cumFees = useMemo<ChartSeries[]>(
     () => [
@@ -636,6 +652,21 @@ const NetworkStatsPage: React.FC = () => {
                 <TimeSeriesChart
                   daily
                   series={settlement}
+                  loading={historyLoading}
+                  formatValue={(v) => v.toFixed(0)}
+                  logScale
+                />
+              </Panel>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Panel
+                title="Median settlement time"
+                subtitle="seconds (log scale)"
+                info="Middle settlement time from swap initiation to completion each day — half of that day's swaps settled faster, half slower (log scale). Unlike the average, one slow swap doesn't move it."
+              >
+                <TimeSeriesChart
+                  daily
+                  series={medianSettlement}
                   loading={historyLoading}
                   formatValue={(v) => v.toFixed(0)}
                   logScale
