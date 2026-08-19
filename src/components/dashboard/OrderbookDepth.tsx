@@ -200,13 +200,25 @@ const DepthLadder: React.FC<{
             <TableRow>
               {/* One sentence instead of caption + unit: rows below complete
                   it ("1 BTC → 741.89 SOL"). */}
-              <TableCell sx={{ ...headerSx, width: '40%' }}>
+              <TableCell sx={{ ...headerSx, width: { xs: '52%', sm: '40%' } }}>
                 1 {from.toUpperCase()} → {to.toUpperCase()}
               </TableCell>
-              <TableCell sx={{ ...headerSx, width: '32%' }} align="right">
+              {/* Per-level capacity folds away on phones — rate + cumulative
+                  is the readable core; headers were truncating mid-word. */}
+              <TableCell
+                sx={{
+                  ...headerSx,
+                  width: '32%',
+                  display: { xs: 'none', sm: 'table-cell' },
+                }}
+                align="right"
+              >
                 Capacity
               </TableCell>
-              <TableCell sx={{ ...headerSx, width: '28%' }} align="right">
+              <TableCell
+                sx={{ ...headerSx, width: { xs: '48%', sm: '28%' } }}
+                align="right"
+              >
                 Cumulative
               </TableCell>
             </TableRow>
@@ -227,7 +239,11 @@ const DepthLadder: React.FC<{
                     {row.rate}
                   </TableCell>
                   <TableCell
-                    sx={{ ...cellSx, color: 'text.secondary' }}
+                    sx={{
+                      ...cellSx,
+                      color: 'text.secondary',
+                      display: { xs: 'none', sm: 'table-cell' },
+                    }}
                     align="right"
                   >
                     {fmtCaps(row.caps)}
@@ -390,7 +406,8 @@ const OrderbookDepth: React.FC<{
           flex: 1,
           minHeight: 0,
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          // Phones read the book one side at a time, stacked.
+          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
           gap: 2.5,
         }}
       >

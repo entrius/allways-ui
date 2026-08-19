@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, TableCell } from '@mui/material';
+import { Box, Stack, TableCell, type SxProps, type Theme } from '@mui/material';
 import { FONTS } from '../../theme';
 
 export type SortDir = 'asc' | 'desc';
@@ -13,12 +13,16 @@ function SortHeader<K extends string>({
   active,
   dir,
   onSort,
+  sx,
 }: {
   label: string;
   sortKey: K;
   active: K;
   dir: SortDir;
   onSort: (k: K) => void;
+  // Extra cell styling — e.g. responsive display for columns that fold away
+  // on narrow viewports.
+  sx?: SxProps<Theme>;
 }) {
   const isActive = active === sortKey;
   return (
@@ -35,12 +39,15 @@ function SortHeader<K extends string>({
       aria-sort={
         isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'
       }
-      sx={{
-        cursor: 'pointer',
-        userSelect: 'none',
-        color: isActive ? 'text.primary' : undefined,
-        '&:hover': { color: 'text.primary' },
-      }}
+      sx={[
+        {
+          cursor: 'pointer',
+          userSelect: 'none',
+          color: isActive ? 'text.primary' : undefined,
+          '&:hover': { color: 'text.primary' },
+        },
+        ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+      ]}
     >
       <Stack direction="row" alignItems="center" spacing={0.5}>
         <span>{label}</span>

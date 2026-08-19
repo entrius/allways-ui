@@ -1,13 +1,11 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useQueries } from '@tanstack/react-query';
 import {
-  apiQueryOptions,
+  useApiQuery,
   CROWN_REFRESH_MS,
   decomposeDirection,
   directionalRateFor,
-  useDirections,
   useMinerRateHistory,
   type CrownRateHistoryRow,
   type Direction,
@@ -15,6 +13,7 @@ import {
 } from '../../api';
 import { chainSymbol } from '../../utils/format';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
+import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
 import SectionHeading from '../SectionHeading';
 import { FONTS } from '../../theme';
@@ -34,7 +33,7 @@ const RANGE_SECS: Record<CrownRange, number> = {
 
 // Labels generated from the direction's own legs — nothing chain-specific.
 // Every rendered rate is directional "to per 1 from" ("1 {from} = {value}
-// {to}"); seriesByDir converts the canonical stored values at ingest.
+// {to}"); the series converts the canonical stored values at ingest.
 const dirMeta = (dir: Direction) => {
   const { from, to } = decomposeDirection(dir);
   const f = chainSymbol(from);
@@ -86,128 +85,104 @@ const LatestRate: React.FC<{ direction: Direction; rate: number }> = ({
   );
 };
 
+// One direction per view, picked with the shared DirectionSelect — the same
+// treatment as the crown-history grid. The old form rendered a mini-chart
+// (and fired a query) per derived direction, which stopped scaling once the
+// chain registry passed a handful of pairs.
 const CrownRateChart: React.FC<{
   range: CrownRange;
   onRangeChange: (r: CrownRange) => void;
+  direction: Direction;
+  onDirectionChange: (d: Direction) => void;
   minerHotkey?: string;
-  /** Cap the direction grid at this height and scroll it internally. One
-   * chart per direction adds up fast; a page that stacks this panel with
-   * others can't hand it thousands of pixels of its own scroll. */
-  maxBodyHeight?: number;
-}> = ({ range, onRangeChange, minerHotkey, maxBodyHeight }) => {
+}> = ({ range, onRangeChange, direction, onDirectionChange, minerHotkey }) => {
   const theme = useTheme();
-  const directions = useDirections();
   const secs = RANGE_SECS[range];
   const minerMode = !!minerHotkey;
   // Monochrome, matching the Network Stats charts.
   const cLine = theme.palette.text.primary;
   const cReference = theme.palette.text.disabled;
 
-  // One query per derived direction — the panel count follows /chains.
-  const crownRows = useQueries({
-    queries: directions.map((direction) =>
-      apiQueryOptions<CrownRateHistoryRow[]>(
-        'crown-rate-history',
-        '/crown/rate-history',
-        CROWN_REFRESH_MS,
-        { direction, seconds: secs },
-      ),
-    ),
-    combine: (results) => results.map((r) => r.data),
-  });
+  const { data: crownData } = useApiQuery<CrownRateHistoryRow[]>(
+    'crown-rate-history',
+    '/crown/rate-history',
+    CROWN_REFRESH_MS,
+    { direction, seconds: secs },
+  );
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
 
-  const crownByDir = useMemo<
-    Record<Direction, CrownRateHistoryRow[] | undefined>
-  >(
-    () => Object.fromEntries(directions.map((dir, i) => [dir, crownRows[i]])),
-    [directions, crownRows],
-  );
-
-  // Use reduce instead of `Math.max(...arr)` to avoid spreading large arrays.
-  const head = useMemo(() => {
-    const maxT = (arr: { t: number }[] | undefined) =>
-      (arr ?? []).reduce((m, p) => (p.t > m ? p.t : m), 0);
-    return directions.reduce((m, dir) => Math.max(m, maxT(crownByDir[dir])), 0);
-  }, [directions, crownByDir]);
-  const lo = Math.max(0, head - secs + 1);
-
-  // {crown, miner} rows per direction, clipped to the shared window so all
-  // panels cover the same time span. Stored rates are canonical "spoke per 1
-  // SOL"; convert to the panel's directional "to per 1 from" HERE so every
-  // downstream value (line, header, tooltip) shares one scale.
-  const seriesByDir = useMemo(() => {
-    const inRange = <T extends { t: number }>(arr: T[] | undefined) =>
-      (arr ?? []).filter((p) => p.t >= lo && p.t <= head);
-    const toDirectional = (
-      dir: Direction,
-      rows: { t: number; rate: number }[],
-    ): RateRow[] =>
-      rows.map((r) => ({ t: r.t, rate: directionalRateFor(dir, r.rate) ?? 0 }));
-    const minerFor = (direction: Direction): RateRow[] => {
-      if (!minerHotkey) return [];
-      const { from, to } = decomposeDirection(direction);
-      return toDirectional(
-        direction,
-        inRange(minerRates ?? []).filter(
+  // {crown, miner} rows clipped to a shared window anchored on the freshest
+  // point of either series. Stored rates are canonical "spoke per 1 hub";
+  // convert to directional "to per 1 from" HERE so every downstream value
+  // (line, header, tooltip) shares one scale.
+  const { crown, miner, latest } = useMemo(() => {
+    const { from, to } = decomposeDirection(direction);
+    const minerRows = minerMode
+      ? (minerRates ?? []).filter(
           (r) => r.fromChain === from && r.toChain === to,
-        ),
-      );
+        )
+      : [];
+    // Use reduce instead of `Math.max(...arr)` to avoid spreading large arrays.
+    const maxT = (arr: { t: number }[]) =>
+      arr.reduce((m, p) => (p.t > m ? p.t : m), 0);
+    const head = Math.max(maxT(crownData ?? []), maxT(minerRows));
+    const lo = Math.max(0, head - secs + 1);
+    const inRange = <T extends { t: number }>(arr: T[]) =>
+      arr.filter((p) => p.t >= lo && p.t <= head);
+    const toDirectional = (rows: { t: number; rate: number }[]): RateRow[] =>
+      rows.map((r) => ({
+        t: r.t,
+        rate: directionalRateFor(direction, r.rate) ?? 0,
+      }));
+    const crownSeries = toDirectional(inRange(crownData ?? []));
+    const minerSeries = toDirectional(inRange(minerRows));
+    const primary = minerMode ? minerSeries : crownSeries;
+    return {
+      crown: crownSeries,
+      miner: minerSeries,
+      latest: primary.length ? primary[primary.length - 1].rate : null,
     };
-    return directions.reduce(
-      (acc, dir) => {
-        acc[dir] = {
-          crown: toDirectional(dir, inRange(crownByDir[dir])),
-          miner: minerFor(dir),
-        };
-        return acc;
-      },
-      {} as Record<Direction, { crown: RateRow[]; miner: RateRow[] }>,
-    );
-  }, [directions, crownByDir, minerRates, minerHotkey, lo, head]);
+  }, [crownData, minerRates, minerMode, direction, secs]);
 
-  const chartSeries = (dir: Direction): ChartSeries[] => {
-    const meta = dirMeta(dir);
-    const s = seriesByDir[dir];
-    const points = (rows: RateRow[]) =>
-      rows.map((r) => ({ t: r.t * 1000, value: r.rate }));
-    if (!minerMode) {
-      return [
+  const meta = dirMeta(direction);
+  const points = (rows: RateRow[]) =>
+    rows.map((r) => ({ t: r.t * 1000, value: r.rate }));
+  const series: ChartSeries[] = minerMode
+    ? [
+        {
+          name: 'miner',
+          points: points(miner),
+          color: cLine,
+          formatValue: fmt,
+          unit: meta.to,
+        },
         {
           name: 'crown',
-          points: points(s.crown),
+          points: points(crown),
+          color: cReference,
+          formatValue: fmt,
+          unit: meta.to,
+          dashed: true,
+        },
+      ]
+    : [
+        {
+          name: 'crown',
+          points: points(crown),
           color: cLine,
           formatValue: fmt,
           unit: meta.to,
         },
       ];
-    }
-    return [
-      {
-        name: 'miner',
-        points: points(s.miner),
-        color: cLine,
-        formatValue: fmt,
-        unit: meta.to,
-      },
-      {
-        name: 'crown',
-        points: points(s.crown),
-        color: cReference,
-        formatValue: fmt,
-        unit: meta.to,
-        dashed: true,
-      },
-    ];
-  };
 
   const title = minerMode ? 'Miner Rate' : 'Crown Rate';
   const tagline = minerMode
     ? 'this miner over time · crown shown dashed for reference'
     : 'best rate per direction, over time';
+  const info = minerMode
+    ? `This miner's quoted ${meta.label} rate over time; the network's best (crown) rate is dashed for reference.`
+    : `Best ${meta.label} rate quoted by any active miner over time.`;
 
-  // One bordered card containing all direction charts, mirroring the Crown
-  // Time panel's shape: shared header + chips, direction blocks inside.
   return (
     <Box
       sx={{
@@ -222,92 +197,67 @@ const CrownRateChart: React.FC<{
         direction="row"
         justifyContent="space-between"
         alignItems="center"
-        sx={{ mb: 2 }}
+        sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1.5 }}
       >
         <SectionHeading title={title} subtitle={tagline} />
-        <RangeChips
-          value={range}
-          options={Object.keys(RANGE_SECS) as CrownRange[]}
-          onChange={onRangeChange}
-        />
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1.5}
+          useFlexGap
+          flexWrap="wrap"
+        >
+          <DirectionSelect
+            value={direction}
+            onChange={(d) => d && onDirectionChange(d)}
+            width={168}
+          />
+          <RangeChips
+            value={range}
+            options={Object.keys(RANGE_SECS) as CrownRange[]}
+            onChange={onRangeChange}
+          />
+        </Stack>
       </Stack>
 
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-          columnGap: 4,
-          rowGap: 3,
-          ...(maxBodyHeight
-            ? { maxHeight: maxBodyHeight, overflowY: 'auto', pr: 1 }
-            : {}),
-        }}
+      {/* The dropdown already names the direction — this row carries only
+          the unit caption and the latest directional rate. */}
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="baseline"
+        sx={{ mb: 1 }}
       >
-        {directions.map((dir) => {
-          const meta = dirMeta(dir);
-          const s = seriesByDir[dir];
-          const primary = minerMode ? s.miner : s.crown;
-          const latest = primary.length
-            ? primary[primary.length - 1].rate
-            : null;
-          const info = minerMode
-            ? `This miner's quoted ${meta.label} rate over time; the network's best (crown) rate is dashed for reference.`
-            : `Best ${meta.label} rate quoted by any active miner over time.`;
-          return (
-            <Box key={dir} sx={{ minWidth: 0 }}>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="baseline"
-                sx={{ mb: 1 }}
-              >
-                <Box>
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <Typography
-                      sx={{
-                        fontFamily: FONTS.mono,
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        letterSpacing: '0.06em',
-                        color: 'text.primary',
-                      }}
-                    >
-                      {meta.label}
-                    </Typography>
-                    <Tooltip title={info} arrow enterTouchDelay={0}>
-                      <InfoOutlinedIcon
-                        sx={{
-                          fontSize: '0.85rem',
-                          color: 'text.disabled',
-                          cursor: 'help',
-                          '&:hover': { color: 'text.secondary' },
-                        }}
-                      />
-                    </Tooltip>
-                  </Stack>
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.62rem',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    {meta.caption}
-                  </Typography>
-                </Box>
-                {latest != null && <LatestRate direction={dir} rate={latest} />}
-              </Stack>
-              <TimeSeriesChart
-                series={chartSeries(dir)}
-                height={180}
-                formatValue={fmt}
-                autoScale
-                emptyLabel="no rate history yet"
-              />
-            </Box>
-          );
-        })}
-      </Box>
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.62rem',
+              color: 'text.secondary',
+            }}
+          >
+            {meta.caption}
+          </Typography>
+          <Tooltip title={info} arrow enterTouchDelay={0}>
+            <InfoOutlinedIcon
+              sx={{
+                fontSize: '0.85rem',
+                color: 'text.disabled',
+                cursor: 'help',
+                '&:hover': { color: 'text.secondary' },
+              }}
+            />
+          </Tooltip>
+        </Stack>
+        {latest != null && <LatestRate direction={direction} rate={latest} />}
+      </Stack>
+      <TimeSeriesChart
+        series={series}
+        height={220}
+        formatValue={fmt}
+        autoScale
+        emptyLabel="no rate history yet"
+      />
     </Box>
   );
 };

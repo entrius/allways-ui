@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { isTwoLane, useMinerScores, type Direction } from '../../api';
-import { FONTS } from '../../theme';
 import SectionHeading from '../SectionHeading';
 import CrownHistoryGrid from './CrownHistoryGrid';
-import ScoreBreakdown from './ScoreBreakdown';
+import ScoreFactorsTable, { type FactorTableRow } from './ScoreFactorsTable';
 
 type CrownRange = '1h' | '2h' | '4h';
 
@@ -59,28 +58,13 @@ const CrownHistoryPanel: React.FC<{
         mb: 3,
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="baseline"
-        justifyContent="space-between"
-        sx={{ mb: 2.5 }}
-      >
-        <SectionHeading
-          title="Crown History"
-          subtitle="scoring factors for window"
-        />
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.6rem',
-            color: 'text.disabled',
-          }}
-        >
-          eligible × pool·crown·cap
-        </Typography>
-      </Stack>
-
       <CrownHistoryGrid
+        heading={
+          <SectionHeading
+            title="Crown History"
+            subtitle="scoring factors for window"
+          />
+        }
         direction={direction}
         onDirectionChange={onDirectionChange}
         range={range}
@@ -117,8 +101,9 @@ const CrownHistoryPanel: React.FC<{
           no scored rounds in this window
         </Typography>
       ) : (
-        <Stack spacing={0.75} sx={{ px: 0.5 }}>
-          {rounds.map((row) => {
+        <ScoreFactorsTable
+          labelHeader="round"
+          rows={rounds.map((row): FactorTableRow => {
             const time = new Date(row.roundTs * 1000).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -128,17 +113,17 @@ const CrownHistoryPanel: React.FC<{
             const twoLane =
               !!row.backing &&
               isTwoLane(`${row.fromChain}-${row.toChain}`.toUpperCase());
-            return (
-              <ScoreBreakdown
-                key={`${row.roundTs}-${row.fromChain}-${row.toChain}-${row.backing ?? ''}`}
-                row={row}
-                label={
-                  twoLane ? `${time} · ${row.backing!.toUpperCase()}` : time
-                }
-              />
-            );
+            return {
+              key: `${row.roundTs}-${row.fromChain}-${row.toChain}-${row.backing ?? ''}`,
+              label: twoLane ? `${time} · ${row.backing!.toUpperCase()}` : time,
+              eligible: row.eligible,
+              pool: row.pool,
+              crownShare: row.crownShare,
+              capacity: row.capacity,
+              reward: row.reward,
+            };
           })}
-        </Stack>
+        />
       )}
     </Box>
   );

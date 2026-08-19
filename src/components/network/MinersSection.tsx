@@ -4,12 +4,18 @@ import { useSearchParams } from 'react-router-dom';
 import CrownRateChart from '../miners/CrownRateChart';
 import CrownTimeLeaderboard from '../miners/CrownTimeLeaderboard';
 import MinerLeaderboard from '../miners/MinerLeaderboard';
-import { isRange, isRateRange, type Range, type RateRange } from '../../api';
+import {
+  isDirection,
+  isRange,
+  isRateRange,
+  type Range,
+  type RateRange,
+} from '../../api';
 
 /**
  * The miners half of the network page: leaderboard, crown history and the
- * crown rate chart. Its two range selections stay in the URL (`range`,
- * `rateRange`) — they share the query string with the tape's filters above,
+ * crown rate chart. Its selections stay in the URL (`range`, `rateRange`,
+ * `rateDir`) — they share the query string with the tape's filters above,
  * which use their own names, so one link restores the whole page.
  */
 const MinersSection: React.FC = () => {
@@ -28,6 +34,8 @@ const MinersSection: React.FC = () => {
   const rateRange: RateRange = isRateRange(rateRangeParam)
     ? rateRangeParam
     : '24h';
+  const rateDirParam = params.get('rateDir');
+  const rateDirection = isDirection(rateDirParam) ? rateDirParam : 'SOL-BTC';
 
   const setParam = useCallback(
     (key: string, value: string | undefined) => {
@@ -51,13 +59,16 @@ const MinersSection: React.FC = () => {
       {!isMobile && (
         <>
           {/* One panel per direction pair runs to thousands of pixels on
-              its own. Both panes scroll inside a fixed frame so the page
-              stays a few screens tall and the stats below stay reachable. */}
+              its own; the holder grid scrolls inside a fixed frame so the
+              page stays a few screens tall and the stats below stay
+              reachable. The rate chart shows one direction at a time behind
+              its own select, so it needs no cap. */}
           <CrownTimeLeaderboard maxBodyHeight={460} />
           <CrownRateChart
             range={rateRange}
             onRangeChange={(r) => setParam('rateRange', r)}
-            maxBodyHeight={560}
+            direction={rateDirection}
+            onDirectionChange={(d) => setParam('rateDir', d)}
           />
         </>
       )}

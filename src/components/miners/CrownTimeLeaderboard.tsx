@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
-import { useCrownTime, useDirections } from '../../api';
+import { Box, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { useCrownTimeAll, useDirections } from '../../api';
 import { directionLabel } from '../../api/models/MinersDashboard';
 import type { CrownTimeRow, Direction } from '../../api/models';
 import { shortHotkey } from '../../utils/format';
@@ -109,46 +109,50 @@ const HolderRow: React.FC<{ row: CrownTimeRow }> = ({ row }) => {
 
 const DirectionColumn: React.FC<{
   direction: Direction;
-  seconds: number;
-}> = ({ direction, seconds }) => {
-  const { data } = useCrownTime({ direction, seconds });
-  const holders = data?.holders ?? [];
+  holders: CrownTimeRow[];
+}> = ({ direction, holders }) => (
+  <Box sx={{ flex: 1, minWidth: 0 }}>
+    <Typography
+      sx={{
+        fontFamily: FONTS.mono,
+        fontSize: '0.72rem',
+        fontWeight: 600,
+        letterSpacing: '0.06em',
+        color: 'text.primary',
+        mb: 1,
+      }}
+    >
+      {directionLabel(direction)}
+    </Typography>
+    <Stack>
+      {holders.map((h) => (
+        <HolderRow key={h.hotkey} row={h} />
+      ))}
+    </Stack>
+  </Box>
+);
 
-  return (
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Typography
+const ColumnSkeleton: React.FC = () => (
+  <Box sx={{ flex: 1, minWidth: 0 }}>
+    <Skeleton variant="text" width={72} height={16} sx={{ borderRadius: 0 }} />
+    {[0, 1].map((i) => (
+      <Box
+        key={i}
         sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          color: 'text.primary',
-          mb: 1,
+          display: 'grid',
+          gridTemplateColumns: '4.5rem 1fr 4.5rem',
+          alignItems: 'center',
+          gap: 1,
+          py: 0.5,
         }}
       >
-        {directionLabel(direction)}
-      </Typography>
-      {holders.length === 0 ? (
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.68rem',
-            color: 'text.disabled',
-            py: 2,
-          }}
-        >
-          no crown activity in this window
-        </Typography>
-      ) : (
-        <Stack>
-          {holders.map((h) => (
-            <HolderRow key={h.hotkey} row={h} />
-          ))}
-        </Stack>
-      )}
-    </Box>
-  );
-};
+        <Skeleton variant="text" width={48} sx={{ borderRadius: 0 }} />
+        <Skeleton variant="rectangular" height={16} sx={{ borderRadius: 0 }} />
+        <Skeleton variant="text" width={36} sx={{ borderRadius: 0 }} />
+      </Box>
+    ))}
+  </Box>
+);
 
 const CrownTimeLeaderboard: React.FC<{
   /** Cap the direction grid at this height and scroll it internally. For
@@ -159,6 +163,20 @@ const CrownTimeLeaderboard: React.FC<{
   const directions = useDirections();
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
+
+  // One batched query for every direction's window (the columns used to fetch
+  // for themselves, then per-direction queries — either way the request count
+  // grew with the registry). The panel still renders ONLY directions with
+  // activity; a direction the response doesn't key counts as quiet once the
+  // batch has landed.
+  const { data: windows } = useCrownTimeAll(seconds);
+  const active = directions.filter(
+    (d) => (windows?.[d]?.holders?.length ?? 0) > 0,
+  );
+  const quiet = directions.filter(
+    (d) => windows != null && (windows[d]?.holders?.length ?? 0) === 0,
+  );
+  const loading = windows === undefined;
 
   return (
     <Box
@@ -198,10 +216,50 @@ const CrownTimeLeaderboard: React.FC<{
             : {}),
         }}
       >
-        {directions.map((dir) => (
-          <DirectionColumn key={dir} direction={dir} seconds={seconds} />
-        ))}
+        {loading
+          ? [0, 1, 2, 3].map((i) => <ColumnSkeleton key={i} />)
+          : active.map((dir) => (
+              <DirectionColumn
+                key={dir}
+                direction={dir}
+                holders={windows?.[dir]?.holders ?? []}
+              />
+            ))}
       </Box>
+      {!loading && active.length === 0 && (
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.7rem',
+            color: 'text.disabled',
+            py: 1,
+          }}
+        >
+          no crown activity in this window
+        </Typography>
+      )}
+      {/* Inactive directions fold into one line — hover for which. */}
+      {!loading && active.length > 0 && quiet.length > 0 && (
+        <Tooltip
+          title={quiet.map(directionLabel).join(' · ')}
+          placement="top-start"
+        >
+          <Typography
+            sx={{
+              mt: 2.5,
+              fontFamily: FONTS.mono,
+              fontSize: '0.62rem',
+              letterSpacing: '0.04em',
+              color: 'text.disabled',
+              width: 'fit-content',
+              cursor: 'help',
+            }}
+          >
+            no crown activity · {quiet.length} other direction
+            {quiet.length === 1 ? '' : 's'}
+          </Typography>
+        </Tooltip>
+      )}
     </Box>
   );
 };

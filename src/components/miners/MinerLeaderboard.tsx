@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Box,
+  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -222,7 +223,8 @@ const MinerLeaderboard: React.FC<{
         <Table
           size="small"
           sx={{
-            minWidth: { xs: 480, md: 0 },
+            // Columns fold below sm instead of forcing a sideways scroll.
+            minWidth: 0,
             '& th, & td': {
               borderColor: 'divider',
               fontSize: { xs: '0.7rem', sm: '0.76rem', md: '0.8rem' },
@@ -251,12 +253,16 @@ const MinerLeaderboard: React.FC<{
                 dir={sortDir}
                 onSort={onSort}
               />
+              {/* Collateral and volume fold away below sm so phones read
+                  uid · crown share · success · active without a sideways
+                  scroll. */}
               <SortHeader
                 label={SORT_LABELS.collateral}
                 sortKey="collateral"
                 active={sortKey}
                 dir={sortDir}
                 onSort={onSort}
+                sx={{ display: { xs: 'none', sm: 'table-cell' } }}
               />
               <SortHeader
                 label={SORT_LABELS.success}
@@ -271,6 +277,7 @@ const MinerLeaderboard: React.FC<{
                 active={sortKey}
                 dir={sortDir}
                 onSort={onSort}
+                sx={{ display: { xs: 'none', sm: 'table-cell' } }}
               />
               <SortHeader
                 label={SORT_LABELS.active}
@@ -282,6 +289,64 @@ const MinerLeaderboard: React.FC<{
             </TableRow>
           </TableHead>
           <TableBody>
+            {/* Initial load only — refetches keep the previous rows visible
+                (keepPreviousData), so skeletons never flash over real data. */}
+            {isLoading &&
+              sortedRows.length === 0 &&
+              Array.from({ length: 8 }).map((_, i) => (
+                <TableRow key={`skeleton-${i}`}>
+                  <TableCell sx={{ width: 22, p: 0, pl: 1.5 }} />
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={28}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                    <Skeleton
+                      variant="text"
+                      width={90}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={110}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                    <Skeleton
+                      variant="text"
+                      width={72}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={48}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                    <Skeleton
+                      variant="text"
+                      width={64}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton
+                      variant="text"
+                      width={40}
+                      sx={{ borderRadius: 0 }}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
             {sortedRows.length === 0 && !isLoading && (
               <TableRow>
                 <TableCell
@@ -368,7 +433,12 @@ const MinerLeaderboard: React.FC<{
                       </Typography>
                     </Stack>
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      display: { xs: 'none', sm: 'table-cell' },
+                    }}
+                  >
                     {formatSol(row.collateral)} SOL
                   </TableCell>
                   <TableCell
@@ -376,7 +446,12 @@ const MinerLeaderboard: React.FC<{
                   >
                     {formatSuccess(row)}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono }}>
+                  <TableCell
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      display: { xs: 'none', sm: 'table-cell' },
+                    }}
+                  >
                     {(() => {
                       const usd = usdFromBackingMap(
                         row.volumeByBacking,

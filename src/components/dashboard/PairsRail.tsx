@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   useChains,
   useCompleteSwapHistory,
-  useCrownRateHistory,
+  useCrownRateHistoryAll,
   useCurrentCrown,
   useDirections,
   useUsdPrices,
@@ -203,10 +203,11 @@ const DirectionRow: React.FC<{
     direction,
     crownLaneFor(crown, direction)?.rate,
   );
-  const { data: rows } = useCrownRateHistory({
-    direction,
-    secs,
-  });
+  // One batched series query shared by every row (same key across the rail,
+  // so react-query issues it once per tick however many pairs the registry
+  // holds). A direction the response doesn't key renders as an empty series.
+  const { data: allSeries } = useCrownRateHistoryAll(secs);
+  const rows = allSeries ? (allSeries[direction] ?? []) : undefined;
 
   // Windowed volume (the pair's hub-leg side, one denomination per route) of
   // this route's completed swaps — one shared swap-history query across all
@@ -243,10 +244,17 @@ const DirectionRow: React.FC<{
     (rows?.length
       ? directionalRateFor(direction, rows[rows.length - 1].rate)
       : null);
-  const chg =
-    first != null && first !== 0 && last != null
-      ? ((last - first) / first) * 100
-      : null;
+  const ratio =
+    first != null && first !== 0 && last != null ? last / first : null;
+  // A scale-off quote seeding the window produces figures like +1.6e8% or
+  // -99.9% — a re-denomination artifact, not a move. Anything beyond a 10×
+  // swing in-window is treated as such and suppressed rather than printing a
+  // number that discredits the whole column.
+  const chgArtifact = ratio != null && (ratio > 10 || ratio < 0.1);
+  const chg = ratio != null && !chgArtifact ? (ratio - 1) * 100 : null;
+  // Nothing traded and nothing moved in the window: keep the row but let the
+  // live markets pop. The selected row is never dimmed.
+  const dormant = !selected && vol === 0 && (chg == null || chg === 0);
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const chgColor =
@@ -277,7 +285,9 @@ const DirectionRow: React.FC<{
         borderLeft: '2px solid',
         borderLeftColor: selected ? 'text.primary' : 'transparent',
         backgroundColor: selected ? 'action.hover' : 'transparent',
-        '&:hover': { backgroundColor: 'action.hover' },
+        opacity: dormant ? 0.55 : 1,
+        transition: 'opacity 0.15s',
+        '&:hover': { backgroundColor: 'action.hover', opacity: 1 },
       }}
     >
       <Box
@@ -303,7 +313,17 @@ const DirectionRow: React.FC<{
           textAlign: 'right',
         }}
       >
-        {last != null ? formatRate(last) : '—'}
+        {rows === undefined && last == null ? (
+          <Skeleton
+            variant="text"
+            width={48}
+            sx={{ borderRadius: 0, display: 'inline-block' }}
+          />
+        ) : last != null ? (
+          formatRate(last)
+        ) : (
+          '—'
+        )}
       </Typography>
       <Typography
         title={
@@ -318,19 +338,34 @@ const DirectionRow: React.FC<{
           textAlign: 'right',
         }}
       >
-        {volUsd != null ? `$${fmtVol(volUsd)}` : fmtVol(vol)}
+        {swaps === undefined ? (
+          <Skeleton
+            variant="text"
+            width={28}
+            sx={{ borderRadius: 0, display: 'inline-block' }}
+          />
+        ) : volUsd != null ? (
+          `$${fmtVol(volUsd)}`
+        ) : (
+          fmtVol(vol)
+        )}
       </Typography>
       <Typography
+        title={
+          chgArtifact
+            ? 'rate scale changed inside this window — % change not meaningful'
+            : undefined
+        }
         sx={{
           fontFamily: FONTS.mono,
           fontSize: '0.66rem',
           fontWeight: 600,
-          color: chgColor,
+          color: chgArtifact ? 'text.disabled' : chgColor,
           fontVariantNumeric: 'tabular-nums',
           textAlign: 'right',
         }}
       >
-        {chg != null ? fmtChg(chg) : ''}
+        {chg != null ? fmtChg(chg) : chgArtifact ? '—' : ''}
       </Typography>
     </Box>
   );
@@ -514,9 +549,10 @@ const PairsRail: React.FC<{
       ? ((selRate - revImplied) / revImplied) * 100
       : null;
   // Windowed move for the headline, on the same footing as the rows' Chg%
-  // column. The selected route's row already runs this query, so react-query
-  // serves it from cache rather than refetching.
-  const { data: selRows } = useCrownRateHistory({ direction, secs });
+  // column. The rows already run this batch query, so react-query serves it
+  // from cache rather than refetching.
+  const { data: allSeries } = useCrownRateHistoryAll(secs);
+  const selRows = allSeries?.[direction];
   const selChg = useMemo(() => {
     if (!selRows?.length || selRate == null) return null;
     const first = directionalRateFor(direction, selRows[0].rate);
