@@ -68,6 +68,11 @@ export const lanesFor = (dir: Direction): string[] => {
 // True only for a hub↔hub direction (sol↔tao) — the one pair with two crowns.
 export const isTwoLane = (dir: Direction): boolean => lanesFor(dir).length > 1;
 
+export type CrownLane = {
+  direction: Direction;
+  backing: string;
+};
+
 export type CurrentCrownHolder = {
   hotkey: string;
   uid: number | null;
@@ -156,6 +161,9 @@ export type LeaderboardRow = {
   collateral: string;
   isActive: boolean;
   currentCrownDirections: Direction[];
+  // Lane-aware twin: one entry per (direction, backing) lane this miner
+  // dominates. Absent on older das — fall back to currentCrownDirections.
+  currentCrownLanes?: CrownLane[];
 };
 
 // One validator-written score snapshot per (round, direction) the miner held
@@ -203,6 +211,7 @@ export type MinerStats = {
   // Unix seconds the miner activated, or null.
   activatedAt: number | null;
   currentCrownDirections: Direction[];
+  currentCrownLanes?: CrownLane[];
 };
 
 export type MinerRateHistoryRow = {

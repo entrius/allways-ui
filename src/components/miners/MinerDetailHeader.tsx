@@ -29,6 +29,7 @@ import {
   hubLeg,
 } from '../../api/models/chains';
 import CopyableAddress from '../CopyableAddress';
+import { lanesFor } from '../../api/models/MinersDashboard';
 import CrownIcon from './CrownIcon';
 import RangeChips from '../RangeChips';
 
@@ -269,7 +270,19 @@ const MinerDetailHeader: React.FC<{
 }> = ({ hotkey, uid, stats, pairs, range, onRangeChange }) => {
   const theme = useTheme();
   const crownDirections = stats?.currentCrownDirections ?? [];
-  const crownSet = new Set(crownDirections.map((d) => d.toUpperCase()));
+  // Per-lane crown keys ("SOL-TAO:tao"). sol↔tao has two lanes per direction,
+  // so the quote table must match on backing too, else a tao-lane crown would
+  // also gild the sol-bond row. Older das lacks currentCrownLanes: treat every
+  // lane of a crowned direction as held (the pre-lane behaviour).
+  const crownLaneKey = (dir: string, backing: string) =>
+    `${dir.toUpperCase()}:${backing.toLowerCase()}`;
+  const crownSet = new Set(
+    stats?.currentCrownLanes
+      ? stats.currentCrownLanes.map((l) => crownLaneKey(l.direction, l.backing))
+      : crownDirections.flatMap((d) =>
+          lanesFor(d).map((b) => crownLaneKey(d, b)),
+        ),
+  );
   const crownGold = theme.palette.asset.btc;
   // Per-miner columns agree across a miner's pair rows; the first is
   // representative for identity fields.
@@ -574,7 +587,7 @@ const MinerDetailHeader: React.FC<{
                           to={r.dst}
                           rate={r.fwd}
                           crown={crownSet.has(
-                            `${r.src}-${r.dst}`.toUpperCase(),
+                            crownLaneKey(`${r.src}-${r.dst}`, r.backing),
                           )}
                         />
                       </Box>
@@ -584,7 +597,7 @@ const MinerDetailHeader: React.FC<{
                           to={r.src}
                           rate={r.rev}
                           crown={crownSet.has(
-                            `${r.dst}-${r.src}`.toUpperCase(),
+                            crownLaneKey(`${r.dst}-${r.src}`, r.backing),
                           )}
                         />
                       </Box>
