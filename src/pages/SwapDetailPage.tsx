@@ -382,7 +382,7 @@ const SwapDetailPage: React.FC = () => {
           {isPending &&
             (sourceWait
               ? `Deposit detected on ${sourceName}. Validators are waiting for it to reach ${sourceWait.confirmations} confirmation${sourceWait.confirmations === 1 ? '' : 's'} (${formatDurationSecs(sourceWait.secs)} typical) before opening the swap — the miner's timeout clock only starts once the deposit is final.`
-              : 'Deposit detected. Validators are waiting for it to confirm on the source chain before opening the swap — the miner\'s timeout clock only starts once the deposit is final.')}
+              : "Deposit detected. Validators are waiting for it to confirm on the source chain before opening the swap — the miner's timeout clock only starts once the deposit is final.")}
           {isExpired &&
             'The claim was reaped before validators reached initiate quorum — the deposit never confirmed, or no quorum formed in time. No swap opened, no slash applied.'}
           {swap.status === 'ACTIVE' &&
@@ -413,7 +413,10 @@ const SwapDetailPage: React.FC = () => {
             .filter((s) => !(isTimedOut && s.label === 'Completed'))
             .filter(
               (s) =>
-                !(isExpired && (s.label === 'Fulfilled' || s.label === 'Completed')),
+                !(
+                  isExpired &&
+                  (s.label === 'Fulfilled' || s.label === 'Completed')
+                ),
             )
             .map((step) => {
               const stepState: TimelineStepState = step.done
