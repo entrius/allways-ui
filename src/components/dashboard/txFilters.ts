@@ -95,4 +95,6 @@ export const toNum = (v: string | null): number => {
 export const isTerminal = (s: ActiveSwap): boolean =>
   s.status === 'COMPLETED' ||
   s.status === 'TIMED_OUT' ||
-  s.status === 'CANCELLED';
+  s.status === 'CANCELLED' ||
+  // A claim reaped before initiate quorum — never opened, nothing in flight.
+  s.status === 'EXPIRED';

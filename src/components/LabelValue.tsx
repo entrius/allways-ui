@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, Stack, Typography } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { FONTS } from '../theme';
 import CopyableAddress from './CopyableAddress';
 
@@ -21,7 +22,22 @@ const LabelValue: React.FC<{
     >
       {label}
     </Typography>
-    {href ? (
+    {href && copyable ? (
+      // A hash worth both copying and opening: the copy affordance stays the
+      // primary click, the explorer link rides alongside as an icon.
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        <CopyableAddress address={value} fontSize="0.75rem" />
+        <Link
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open in explorer"
+          sx={{ display: 'inline-flex', color: 'primary.main' }}
+        >
+          <OpenInNewIcon sx={{ fontSize: 12 }} />
+        </Link>
+      </Stack>
+    ) : href ? (
       <Link
         href={href}
         target="_blank"

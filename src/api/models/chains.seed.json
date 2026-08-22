@@ -10,7 +10,10 @@
       "hub": true,
       "logo": "/chains/logos/sol.png",
       "explorerTx": "https://solscan.io/tx/{hash}?cluster=testnet",
-      "coingeckoId": "solana"
+      "coingeckoId": "solana",
+      "blockSecs": 1,
+      "confirmations": 32,
+      "evm": null
     },
     {
       "id": "btc",
@@ -22,7 +25,10 @@
       "hub": false,
       "logo": "/chains/logos/btc.png",
       "explorerTx": "https://mempool.space/testnet4/tx/{hash}",
-      "coingeckoId": "bitcoin"
+      "coingeckoId": "bitcoin",
+      "blockSecs": 600,
+      "confirmations": 2,
+      "evm": null
     },
     {
       "id": "tao",
@@ -34,7 +40,10 @@
       "hub": true,
       "logo": "/chains/logos/tao.png",
       "explorerTx": "https://test.taostats.io/extrinsic/{hash}",
-      "coingeckoId": "bittensor"
+      "coingeckoId": "bittensor",
+      "blockSecs": 12,
+      "confirmations": 6,
+      "evm": null
     },
     {
       "id": "eth",
@@ -46,7 +55,13 @@
       "hub": false,
       "logo": "/chains/logos/eth.png",
       "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
-      "coingeckoId": "ethereum"
+      "coingeckoId": "ethereum",
+      "blockSecs": 12,
+      "confirmations": 32,
+      "evm": {
+        "chainId": 11155111,
+        "contract": null
+      }
     },
     {
       "id": "arbusdc",
@@ -58,7 +73,13 @@
       "hub": false,
       "logo": "/chains/logos/arbusdc.png",
       "explorerTx": "https://sepolia.arbiscan.io/tx/{hash}",
-      "coingeckoId": "usd-coin"
+      "coingeckoId": "usd-coin",
+      "blockSecs": 1,
+      "confirmations": 90,
+      "evm": {
+        "chainId": 421614,
+        "contract": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
+      }
     },
     {
       "id": "hype",
@@ -70,7 +91,13 @@
       "hub": false,
       "logo": "/chains/logos/hype.png",
       "explorerTx": "https://explore-testnet.hyperpc.app/tx/{hash}",
-      "coingeckoId": "hyperliquid"
+      "coingeckoId": "hyperliquid",
+      "blockSecs": 1,
+      "confirmations": 2,
+      "evm": {
+        "chainId": 998,
+        "contract": null
+      }
     },
     {
       "id": "bnb",
@@ -82,7 +109,13 @@
       "hub": false,
       "logo": "/chains/logos/bnb.png",
       "explorerTx": "https://testnet.bscscan.com/tx/{hash}",
-      "coingeckoId": "binancecoin"
+      "coingeckoId": "binancecoin",
+      "blockSecs": 1,
+      "confirmations": 15,
+      "evm": {
+        "chainId": 97,
+        "contract": null
+      }
     },
     {
       "id": "avax",
@@ -94,7 +127,13 @@
       "hub": false,
       "logo": "/chains/logos/avax.png",
       "explorerTx": "https://testnet.snowscan.xyz/tx/{hash}",
-      "coingeckoId": "avalanche-2"
+      "coingeckoId": "avalanche-2",
+      "blockSecs": 1,
+      "confirmations": 2,
+      "evm": {
+        "chainId": 43113,
+        "contract": null
+      }
     },
     {
       "id": "baseusdc",
@@ -106,7 +145,13 @@
       "hub": false,
       "logo": "/chains/logos/baseusdc.png",
       "explorerTx": "https://base-sepolia.blockscout.com/tx/{hash}",
-      "coingeckoId": "usd-coin"
+      "coingeckoId": "usd-coin",
+      "blockSecs": 2,
+      "confirmations": 120,
+      "evm": {
+        "chainId": 84532,
+        "contract": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+      }
     },
     {
       "id": "ethusdc",
@@ -118,7 +163,13 @@
       "hub": false,
       "logo": "/chains/logos/ethusdc.png",
       "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
-      "coingeckoId": "usd-coin"
+      "coingeckoId": "usd-coin",
+      "blockSecs": 12,
+      "confirmations": 32,
+      "evm": {
+        "chainId": 11155111,
+        "contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+      }
     },
     {
       "id": "cro",
@@ -130,7 +181,13 @@
       "hub": false,
       "logo": "/chains/logos/cro.png",
       "explorerTx": "https://explorer.cronos.com/testnet/tx/{hash}",
-      "coingeckoId": "crypto-com-chain"
+      "coingeckoId": "crypto-com-chain",
+      "blockSecs": 1,
+      "confirmations": 2,
+      "evm": {
+        "chainId": 338,
+        "contract": null
+      }
     },
     {
       "id": "aster",
@@ -142,7 +199,13 @@
       "hub": false,
       "logo": "/chains/logos/aster.png",
       "explorerTx": "https://testnet.bscscan.com/tx/{hash}",
-      "coingeckoId": "aster-2"
+      "coingeckoId": "aster-2",
+      "blockSecs": 1,
+      "confirmations": 15,
+      "evm": {
+        "chainId": 97,
+        "contract": null
+      }
     },
     {
       "id": "uni",
@@ -154,7 +217,13 @@
       "hub": false,
       "logo": "/chains/logos/uni.png",
       "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
-      "coingeckoId": "uniswap"
+      "coingeckoId": "uniswap",
+      "blockSecs": 12,
+      "confirmations": 32,
+      "evm": {
+        "chainId": 11155111,
+        "contract": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"
+      }
     },
     {
       "id": "qnt",
@@ -166,7 +235,13 @@
       "hub": false,
       "logo": "/chains/logos/qnt.png",
       "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
-      "coingeckoId": "quant-network"
+      "coingeckoId": "quant-network",
+      "blockSecs": 12,
+      "confirmations": 32,
+      "evm": {
+        "chainId": 11155111,
+        "contract": "0x81Dc68CB065ec6D9a4d24f6e2F442dc2A236D853"
+      }
     },
     {
       "id": "pol",
@@ -178,7 +253,13 @@
       "hub": false,
       "logo": "/chains/logos/pol.png",
       "explorerTx": "https://amoy.polygonscan.com/tx/{hash}",
-      "coingeckoId": "polygon-ecosystem-token"
+      "coingeckoId": "polygon-ecosystem-token",
+      "blockSecs": 1,
+      "confirmations": 100,
+      "evm": {
+        "chainId": 80002,
+        "contract": null
+      }
     },
     {
       "id": "polusdc",
@@ -190,7 +271,13 @@
       "hub": false,
       "logo": "/chains/logos/polusdc.png",
       "explorerTx": "https://amoy.polygonscan.com/tx/{hash}",
-      "coingeckoId": "usd-coin"
+      "coingeckoId": "usd-coin",
+      "blockSecs": 1,
+      "confirmations": 100,
+      "evm": {
+        "chainId": 80002,
+        "contract": null
+      }
     },
     {
       "id": "paxg",
@@ -202,7 +289,28 @@
       "hub": false,
       "logo": "/chains/logos/paxg.png",
       "explorerTx": "https://sepolia.etherscan.io/tx/{hash}",
-      "coingeckoId": "pax-gold"
+      "coingeckoId": "pax-gold",
+      "blockSecs": 12,
+      "confirmations": 32,
+      "evm": {
+        "chainId": 11155111,
+        "contract": null
+      }
+    },
+    {
+      "id": "solusdc",
+      "symbol": "USDC",
+      "name": "USDC (Solana)",
+      "decimals": 6,
+      "displayDigits": 2,
+      "family": "sol",
+      "hub": false,
+      "logo": "/chains/logos/solusdc.png",
+      "explorerTx": "https://solscan.io/tx/{hash}?cluster=testnet",
+      "coingeckoId": "usd-coin",
+      "blockSecs": 1,
+      "confirmations": 32,
+      "evm": null
     }
   ]
 }
