@@ -97,7 +97,7 @@ Testnet leads mainnet — confirm a feature with \`alw view config\` and
 
 1. **Quote.** \`alw swap quote\` (or \`GET /miners\`). Rates are posted on-chain — there is no off-chain orderbook.
 2. **Bid.** \`alw swap now\`. Routed where a router is configured, native otherwise. The first bid pins the rate.
-3. **Draw + finalize.** ~30–90s from bid to a live reservation. If the pool did not resolve in time, re-running is safe and resume-aware — no funds have moved. A live reservation holds the miner exclusively for the reservation TTL.
+3. **Draw + finalize.** ~5–30s from bid to a live reservation. If the pool did not resolve in time, re-running is safe and resume-aware — no funds have moved. A live reservation holds the miner exclusively for the reservation TTL.
 4. **Send source funds.** The exact amount, to the miner's printed address, from your pinned source address. \`--send\` does this for you when the CLI holds that wallet's key.
 5. **Relay.** \`alw swap post-tx <hash>\`. Validators verify sender, recipient, amount, and freshness, then vote to initiate. \`PendingAttestation → Active\`.
 6. **Miner fulfils.** It sends 99% of the destination amount to your receive address and marks fulfilled. \`Active → Fulfilled\`.
