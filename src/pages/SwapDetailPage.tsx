@@ -30,19 +30,24 @@ import {
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   applyFee,
+  confirmationWait,
   formatAmount,
   formatCountdown,
+  formatDurationSecs,
   formatRateLine,
   formatUnixTime,
   explorerSignatureUrl,
+  explorerTxUrl,
   lamportsToSol,
   swapDisplayId,
 } from '../utils/format';
-import { type ContractEvent } from '../api/models';
-import { hubChain } from '../api/models/chains';
+import { type ActiveSwap, type ContractEvent } from '../api/models';
+import { chainInfo, hubChain } from '../api/models/chains';
 import ExtensionChip, {
   deriveSwapExtensionStatus,
 } from '../components/ExtensionChip';
+import { useReservationLookup } from '../components/dashboard/liveSwapAnchor';
+import { isTerminal } from '../components/dashboard/txFilters';
 
 type SwapStep = {
   label: string;
@@ -64,6 +69,7 @@ const getStatusColor = (
     COMPLETED: 'var(--color-success)',
     TIMED_OUT: 'var(--color-danger)',
     CANCELLED: 'var(--color-warning)',
+    EXPIRED: 'var(--color-warning)',
   };
   return map[status] ?? palette.status.active;
 };
@@ -74,13 +80,48 @@ const SwapDetailPage: React.FC = () => {
 
   const { data, isLoading } = useSwapDetail(swapId ?? '');
   const { data: protocol } = useProtocolConstants();
-  const { data: miner } = useMinerByHotkey(data?.swap?.minerHotkey ?? '');
+  // A claimed-but-not-yet-initiated (PENDING) row can be nearly empty — the
+  // claim event carries only the user and the deposit hash; the rest lands
+  // when the validator poll catches the account, or at initiation. Its LIVE
+  // reservation already knows the pair, amounts, miner and proven wallet, so
+  // borrow from it the same way the tracker rows do.
+  const reservationFor = useReservationLookup();
+  const liveRes = data?.swap ? reservationFor(data.swap) : undefined;
+  const swap: ActiveSwap | null | undefined = data?.swap
+    ? {
+        ...data.swap,
+        minerHotkey: data.swap.minerHotkey ?? liveRes?.minerHotkey ?? null,
+        sourceChain: data.swap.sourceChain ?? liveRes?.fromChain ?? null,
+        destChain: data.swap.destChain ?? liveRes?.toChain ?? null,
+        sourceAmount: data.swap.sourceAmount ?? liveRes?.fromAmount ?? null,
+        destAmount: data.swap.destAmount ?? liveRes?.toAmount ?? null,
+        userSourceAddress:
+          data.swap.userSourceAddress ?? liveRes?.userFromAddress ?? null,
+        reservationRequestHash:
+          data.swap.reservationRequestHash ?? liveRes?.requestHash ?? null,
+      }
+    : data?.swap;
+  const { data: miner } = useMinerByHotkey(swap?.minerHotkey ?? '');
   // While the swap is live its reservation still exists and carries the
   // user's PROVEN source-chain wallet (validators verified the deposit
   // sender against it). Pruned after settlement.
   const { data: reservation } = useReservation(
-    data?.swap?.reservationRequestHash ?? '',
+    swap?.reservationRequestHash ?? '',
   );
+
+  // In-flight swaps show elapsed / remaining time that must move while the
+  // user watches; one clock for every counter on the page.
+  const inFlight = !!swap && !isTerminal(swap);
+  const [nowSec, setNowSec] = React.useState(() =>
+    Math.floor(Date.now() / 1000),
+  );
+  React.useEffect(() => {
+    if (!inFlight) return;
+    const id = setInterval(() => {
+      if (!document.hidden) setNowSec(Math.floor(Date.now() / 1000));
+    }, 1_000);
+    return () => clearInterval(id);
+  }, [inFlight]);
 
   if (isLoading) {
     return (
@@ -90,7 +131,6 @@ const SwapDetailPage: React.FC = () => {
     );
   }
 
-  const swap = data?.swap;
   const events = data?.events ?? [];
 
   if (!swap) {
@@ -104,8 +144,27 @@ const SwapDetailPage: React.FC = () => {
   }
 
   const statusColor = getStatusColor(swap.status, theme.palette);
+  const isPending = swap.status === 'PENDING';
+  const isExpired = swap.status === 'EXPIRED';
   const isTimedOut = swap.status === 'TIMED_OUT';
   const isCancelled = swap.status === 'CANCELLED';
+  // The claim is the swap's first on-chain moment — the miner posted the
+  // user's deposit hash, and validators began watching it for confirmations.
+  // Its block time is the real start of the story; initiated_at only lands
+  // once the deposit is final, 20+ minutes later on a slow source chain.
+  const claimEvent = events.find((e) => e.eventType === 'SwapClaimed');
+  const claimedAt =
+    claimEvent?.blockTime ??
+    (swap.createdAt
+      ? String(Math.floor(new Date(swap.createdAt).getTime() / 1000))
+      : null);
+  const sourceWait = confirmationWait(swap.sourceChain);
+  const sourceName =
+    chainInfo(swap.sourceChain)?.name ??
+    swap.sourceChain?.toUpperCase() ??
+    'the source chain';
+  const pendingElapsed =
+    isPending && claimedAt ? nowSec - parseInt(claimedAt, 10) : null;
   const refundEvent: ContractEvent | undefined = isTimedOut
     ? events.find(
         (e) =>
@@ -115,11 +174,21 @@ const SwapDetailPage: React.FC = () => {
   const refundPending = refundEvent?.eventType === 'SlashPending';
 
   const steps: SwapStep[] = [
+    ...(claimedAt
+      ? [
+          {
+            label: 'Deposit claimed',
+            at: claimedAt,
+            done: true,
+            failed: false,
+          },
+        ]
+      : []),
     {
       label: 'Initiated',
       at: swap.initiatedAt,
-      done: true,
-      failed: false,
+      done: !!swap.initiatedAt,
+      failed: isExpired && !swap.initiatedAt,
     },
     {
       label: 'Fulfilled',
@@ -310,6 +379,12 @@ const SwapDetailPage: React.FC = () => {
             lineHeight: 1.5,
           }}
         >
+          {isPending &&
+            (sourceWait
+              ? `Deposit detected on ${sourceName}. Validators are waiting for it to reach ${sourceWait.confirmations} confirmation${sourceWait.confirmations === 1 ? '' : 's'} (${formatDurationSecs(sourceWait.secs)} typical) before opening the swap — the miner's timeout clock only starts once the deposit is final.`
+              : 'Deposit detected. Validators are waiting for it to confirm on the source chain before opening the swap — the miner\'s timeout clock only starts once the deposit is final.')}
+          {isExpired &&
+            'The claim was reaped before validators reached initiate quorum — the deposit never confirmed, or no quorum formed in time. No swap opened, no slash applied.'}
           {swap.status === 'ACTIVE' &&
             "Awaiting miner fulfillment — they're sending the destination funds now. Validators will mark it FULFILLED once the destination tx confirms."}
           {swap.status === 'FULFILLED' &&
@@ -336,6 +411,10 @@ const SwapDetailPage: React.FC = () => {
               "done" rows stay neutral so the eye lands on finality. */}
           {steps
             .filter((s) => !(isTimedOut && s.label === 'Completed'))
+            .filter(
+              (s) =>
+                !(isExpired && (s.label === 'Fulfilled' || s.label === 'Completed')),
+            )
             .map((step) => {
               const stepState: TimelineStepState = step.done
                 ? 'done'
@@ -344,16 +423,36 @@ const SwapDetailPage: React.FC = () => {
                   : 'pending';
               const isTerminalCompleted =
                 step.label === 'Completed' && step.done;
+              // The row the user is actually waiting on: say what it waits
+              // for and how long it has been, not just a dash.
+              const awaitingInitiate =
+                step.label === 'Initiated' && isPending && !step.at;
               return (
                 <TimelineStep
                   key={step.label}
-                  state={stepState}
+                  state={awaitingInitiate ? 'active' : stepState}
                   glyph={isTerminalCompleted ? '\u2713' : undefined}
                   color={
                     isTerminalCompleted ? 'var(--color-success)' : undefined
                   }
                   label={step.label}
-                  detail={step.at ? formatUnixTime(step.at) : '\u2014'}
+                  detail={
+                    step.at ? (
+                      formatUnixTime(step.at)
+                    ) : awaitingInitiate ? (
+                      <>
+                        awaiting{' '}
+                        {sourceWait
+                          ? `${sourceWait.confirmations} ${sourceName} confirmation${sourceWait.confirmations === 1 ? '' : 's'}`
+                          : 'deposit confirmation'}
+                        {pendingElapsed != null && pendingElapsed >= 0 && (
+                          <> · {formatDurationSecs(pendingElapsed)} elapsed</>
+                        )}
+                      </>
+                    ) : (
+                      '\u2014'
+                    )
+                  }
                 />
               );
             })}
@@ -569,7 +668,15 @@ const SwapDetailPage: React.FC = () => {
                   {sentFrom && <LabelAddr label="From" address={sentFrom} />}
                   {sentTo && <LabelAddr label="To" address={sentTo} />}
                   {swap.sourceTxHash && (
-                    <LabelValue label="Tx" value={swap.sourceTxHash} copyable />
+                    <LabelValue
+                      label="Tx"
+                      value={swap.sourceTxHash}
+                      copyable
+                      href={
+                        explorerTxUrl(swap.sourceChain, swap.sourceTxHash) ??
+                        undefined
+                      }
+                    />
                   )}
                 </Stack>
               )}
@@ -591,7 +698,15 @@ const SwapDetailPage: React.FC = () => {
                   {recvFrom && <LabelAddr label="From" address={recvFrom} />}
                   {recvTo && <LabelAddr label="To" address={recvTo} />}
                   {swap.destTxHash && (
-                    <LabelValue label="Tx" value={swap.destTxHash} copyable />
+                    <LabelValue
+                      label="Tx"
+                      value={swap.destTxHash}
+                      copyable
+                      href={
+                        explorerTxUrl(swap.destChain, swap.destTxHash) ??
+                        undefined
+                      }
+                    />
                   )}
                 </Stack>
               )}

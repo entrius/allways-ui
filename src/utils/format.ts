@@ -391,6 +391,21 @@ export const explorerTxUrl = (
     : null;
 };
 
+// How long a deposit on `chain` typically takes to reach the confirmation
+// depth validators require: the depth and its wall-clock estimate. Null when
+// the chain is unknown. A chain-tip race can add one more block on top, so
+// the estimate reads as "~", never as a deadline.
+export const confirmationWait = (
+  chain: string | null | undefined,
+): { confirmations: number; secs: number } | null => {
+  const info = chainInfo(chain);
+  if (!info || !(info.confirmations > 0) || !(info.blockSecs > 0)) return null;
+  return {
+    confirmations: info.confirmations,
+    secs: info.confirmations * info.blockSecs,
+  };
+};
+
 // Hub explorer link for a transaction signature (Solana program txs).
 export const explorerSignatureUrl = (signature: string): string =>
   explorerTxUrl(hubChain(), signature) ?? '';

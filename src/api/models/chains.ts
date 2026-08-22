@@ -16,6 +16,11 @@ export interface ChainInfo {
   logo: string;
   // {hash} template resolved for the deployment's network, or null.
   explorerTx: string | null;
+  // Average seconds per block and the confirmation depth validators wait for
+  // before accepting a deposit (mirror of allways/chains.py seconds_per_block
+  // + min_confirmations). Together they bound how long a swap sits PENDING.
+  blockSecs: number;
+  confirmations: number;
 }
 
 let registry: ChainInfo[] = seed.chains;

@@ -45,6 +45,9 @@ export type ActiveSwap = {
   resolvedAt: string | null;
   timeoutExtensionsUsed: number;
   reservationRequestHash: string | null;
+  // ISO-8601 row insert time — when the indexer first saw the swap (the
+  // claim), which is the only timestamp a PENDING row has.
+  createdAt: string | null;
 };
 
 export type SwapDetail = {

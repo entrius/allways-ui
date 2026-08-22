@@ -9,7 +9,7 @@
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for native
 swaps between independent assets, settled on a **Solana program**.
 
-**Hub-and-spoke.** SOL and TAO are hubs. A pair is valid iff one leg is a hub, so 17 assets give 31 pairs and 62 directions; spoke↔spoke is not swappable.
+**Hub-and-spoke.** SOL and TAO are hubs. A pair is valid iff one leg is a hub, so 18 assets give 33 pairs and 66 directions; spoke↔spoke is not swappable.
 
 **Backing.** Miners post collateral in the pair's hub asset (SOL or TAO) and quote
 rates. Validators verify both legs. On miner failure the protocol slashes that
@@ -39,6 +39,7 @@ Wire ids — what `--from` and `--to` take. Live set: `GET /chains`.
 | `pol` | Polygon |  |
 | `polusdc` | USDC (Polygon) |  |
 | `paxg` | PAX Gold |  |
+| `solusdc` | USDC (Solana) |  |
 
 ## Resources
 
@@ -86,7 +87,7 @@ Testnet leads mainnet — confirm a feature with `alw view config` and
 
 1. **Quote.** `alw swap quote` (or `GET /miners`). Rates are posted on-chain — there is no off-chain orderbook.
 2. **Bid.** `alw swap now`. Routed where a router is configured, native otherwise. The first bid pins the rate.
-3. **Draw + finalize.** ~30–90s from bid to a live reservation. If the pool did not resolve in time, re-running is safe and resume-aware — no funds have moved. A live reservation holds the miner exclusively for the reservation TTL.
+3. **Draw + finalize.** ~5–30s from bid to a live reservation. If the pool did not resolve in time, re-running is safe and resume-aware — no funds have moved. A live reservation holds the miner exclusively for the reservation TTL.
 4. **Send source funds.** The exact amount, to the miner's printed address, from your pinned source address. `--send` does this for you when the CLI holds that wallet's key.
 5. **Relay.** `alw swap post-tx <hash>`. Validators verify sender, recipient, amount, and freshness, then vote to initiate. `PendingAttestation → Active`.
 6. **Miner fulfils.** It sends 99% of the destination amount to your receive address and marks fulfilled. `Active → Fulfilled`.
