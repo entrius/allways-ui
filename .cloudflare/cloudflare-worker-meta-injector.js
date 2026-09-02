@@ -131,6 +131,12 @@ async function injectMetaTags(html, url) {
           if (swap.status === "COMPLETED" && duration) {
             status = `Completed in ${duration}`;
           }
+          // "Timed out · 5.50 SOL collateral paid to user" — same as the card
+          const refund =
+            swap.status === "TIMED_OUT" && Number(swap.reimbursement) > 0
+              ? formatAmount(swap.reimbursement, swap.backing)
+              : null;
+          if (refund) status = `Timed out · ${refund} collateral paid to user`;
           const seq = swap.seq != null ? `Transaction #${swap.seq}` : "Swap";
           if (source && dest) {
             // Plain "to", not "→": title text renders in the platform's own
