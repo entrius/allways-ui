@@ -165,6 +165,9 @@ const SwapDetailPage: React.FC = () => {
     'the source chain';
   const pendingElapsed =
     isPending && claimedAt ? nowSec - parseInt(claimedAt, 10) : null;
+  // solAmount and event amounts are in the backing chain's smallest unit.
+  const backing = swap.backing ?? hubChain();
+  const backingAmount = (raw: string) => formatAmount(raw, backing);
   const refundEvent: ContractEvent | undefined = isTimedOut
     ? events.find(
         (e) =>
@@ -730,10 +733,7 @@ const SwapDetailPage: React.FC = () => {
           )}
           <LabelValue label="Internal ID" value={swap.swapId} copyable />
           {swap.solAmount && (
-            <LabelValue
-              label="SOL notional"
-              value={`${lamportsToSol(swap.solAmount).toFixed(4)} SOL`}
-            />
+            <LabelValue label="Backing" value={backingAmount(swap.solAmount)} />
           )}
           {swap.reservationRequestHash && (
             <LabelValue
@@ -805,7 +805,7 @@ const SwapDetailPage: React.FC = () => {
                       color: 'primary.main',
                     }}
                   >
-                    {lamportsToSol(event.solAmount).toFixed(4)} SOL
+                    {backingAmount(event.solAmount)}
                   </Typography>
                 )}
                 {event.txHash && (
