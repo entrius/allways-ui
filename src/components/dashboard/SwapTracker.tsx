@@ -15,6 +15,7 @@ import {
   useDirections,
   useHistory,
   useMinerLabel,
+  useProtocolConstants,
   useSwapDetail,
   useSwapsCount,
   type SwapQuery,
@@ -25,6 +26,7 @@ import SearchField, { terminalFieldSx } from '../SearchField';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
 import {
+  applyFee,
   formatAmount,
   formatDurationSecs,
   formatTimeAgo,
@@ -484,6 +486,7 @@ const SwapTracker: React.FC<{
   // The live reservation behind an in-flight row (pair, amounts, miner,
   // proven from-wallet) and the shared start time its counter runs from.
   const reservationFor = useReservationLookup();
+  const { data: protocol } = useProtocolConstants();
   const liveAnchor = useLiveAnchor(fetched, reservationFor);
 
   // das returns the page already filtered and ranked, so the rows render as
@@ -864,7 +867,15 @@ const SwapTracker: React.FC<{
                 const sourceAmount =
                   swap.sourceAmount ?? res?.fromAmount ?? null;
                 const destChain = swap.destChain ?? res?.toChain ?? null;
-                const destAmount = swap.destAmount ?? res?.toAmount ?? null;
+                // destAmount is gross; the taker receives net of the protocol
+                // fee. Show delivered when known, else the net estimate, so the
+                // row matches the detail page instead of over-promising.
+                const destAmount =
+                  swap.deliveredAmount ??
+                  applyFee(
+                    swap.destAmount ?? res?.toAmount ?? null,
+                    protocol?.feeDivisor,
+                  );
                 const sentLine =
                   sourceAmount && sourceChain
                     ? formatAmount(sourceAmount, sourceChain)
