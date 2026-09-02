@@ -4,7 +4,6 @@ import {
   Popover,
   Stack,
   Typography,
-  alpha,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -27,7 +26,7 @@ import ScoreFactorsTable, { type FactorTableRow } from './ScoreFactorsTable';
 import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
 import SectionHeading from '../SectionHeading';
-import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
+import EligibilityChip from './EligibilityChip';
 
 const PANEL_H = 180;
 const MT = 14;
@@ -117,52 +116,6 @@ const LegendKey: React.FC<{ color: string; label: string }> = ({
     </Box>
   </Stack>
 );
-
-const GateChip: React.FC<{ state: 'eligible' | 'ineligible' | 'none' }> = ({
-  state,
-}) => {
-  const theme = useTheme();
-  // The app's shared semantic green (markets movers, terminal swap statuses),
-  // not MUI's default success shade.
-  const up = MOVE_COLORS[theme.palette.mode].up;
-  const styles =
-    state === 'eligible'
-      ? {
-          color: up,
-          borderColor: alpha(up, 0.4),
-          backgroundColor: alpha(up, 0.08),
-        }
-      : {
-          color: 'text.disabled',
-          borderColor: 'divider',
-          backgroundColor: 'action.hover',
-        };
-  const label =
-    state === 'eligible'
-      ? '✓ eligible'
-      : state === 'ineligible'
-        ? '✗ not eligible'
-        : 'no scored rounds yet';
-  return (
-    <Box
-      component="span"
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        px: 1,
-        py: 0.4,
-        border: '1px solid',
-        fontFamily: FONTS.mono,
-        fontSize: '0.7rem',
-        letterSpacing: '0.05em',
-        whiteSpace: 'nowrap',
-        ...styles,
-      }}
-    >
-      {label}
-    </Box>
-  );
-};
 
 type ChartHover = { round: Round; x: number } | null;
 
@@ -582,7 +535,15 @@ const ScoringPanel: React.FC<{
         flexWrap="wrap"
         sx={{ mb: 2 }}
       >
-        <GateChip state={gateState} />
+        <EligibilityChip
+          state={gateState}
+          live={tipRows.length > 0}
+          asOf={
+            tipRows.length > 0
+              ? tipAgeTs
+              : (rounds[rounds.length - 1]?.t ?? null)
+          }
+        />
         {stats && (
           <Typography
             sx={{
