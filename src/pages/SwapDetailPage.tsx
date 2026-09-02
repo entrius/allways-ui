@@ -30,6 +30,7 @@ import {
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   applyFee,
+  chainSymbol,
   confirmationWait,
   formatAmount,
   formatCountdown,
@@ -38,10 +39,9 @@ import {
   formatUnixTime,
   explorerSignatureUrl,
   explorerTxUrl,
-  lamportsToSol,
   swapDisplayId,
 } from '../utils/format';
-import { type ActiveSwap, type ContractEvent } from '../api/models';
+import { type ActiveSwap } from '../api/models';
 import { chainInfo, hubChain } from '../api/models/chains';
 import ExtensionChip, {
   deriveSwapExtensionStatus,
@@ -165,13 +165,18 @@ const SwapDetailPage: React.FC = () => {
     'the source chain';
   const pendingElapsed =
     isPending && claimedAt ? nowSec - parseInt(claimedAt, 10) : null;
-  const refundEvent: ContractEvent | undefined = isTimedOut
-    ? events.find(
-        (e) =>
-          e.eventType === 'CollateralSlashed' || e.eventType === 'SlashPending',
-      )
-    : undefined;
-  const refundPending = refundEvent?.eventType === 'SlashPending';
+  // solAmount and event amounts are in the backing chain's smallest unit.
+  const backing = swap.backing ?? hubChain();
+  const backingAmount = (raw: string) => formatAmount(raw, backing);
+  // Slashed collateral owed to the user, in backing units. On a Solana-backed
+  // swap it moves inside the SwapTimedOut tx; other backings settle from the
+  // miner's vault off-Solana.
+  const refund =
+    isTimedOut && Number(swap.reimbursement) > 0 ? swap.reimbursement : null;
+  const refundTx =
+    backing === hubChain()
+      ? events.find((e) => e.eventType === 'SwapTimedOut')?.signature
+      : null;
 
   const steps: SwapStep[] = [
     ...(claimedAt
@@ -390,9 +395,7 @@ const SwapDetailPage: React.FC = () => {
           {swap.status === 'FULFILLED' &&
             'Miner delivered the destination funds. Validators are voting to confirm on-chain — once quorum lands, the swap completes.'}
           {swap.status === 'TIMED_OUT' &&
-            (refundPending
-              ? 'Miner did not deliver in time. Slash is pending — user must claim the refund on-chain with `alw claim`.'
-              : "Miner did not deliver in time. The slashed collateral was paid directly to the user's address.")}
+            "Miner did not deliver in time. The slashed collateral was paid to the user's address."}
           {swap.status === 'CANCELLED' &&
             'Validators voided this swap before completion — no fault assigned, no slash applied. The cancel reason is recorded in the event timeline below.'}
         </Typography>
@@ -512,7 +515,7 @@ const SwapDetailPage: React.FC = () => {
       </Card>
 
       {/* Refund (timed-out slash) */}
-      {refundEvent && (
+      {refund && (
         <Card>
           <SectionTitle>Refund</SectionTitle>
           <Stack spacing={1}>
@@ -520,28 +523,21 @@ const SwapDetailPage: React.FC = () => {
               sx={{
                 fontFamily: FONTS.mono,
                 fontSize: '0.75rem',
-                color: refundPending ? 'warning.main' : 'success.main',
+                color: 'success.main',
               }}
             >
-              {refundPending
-                ? 'Slash pending — user must claim on-chain with `alw claim`.'
-                : 'Slash paid directly from network collateral to user.'}
+              {refundTx
+                ? 'Slashed collateral paid directly from the miner bond to the user.'
+                : `Slashed collateral is paid from the miner's ${chainSymbol(backing)} vault. If the direct payout failed, claim it with \`alw vault claim-slash\`.`}
             </Typography>
-            {refundEvent.solAmount && (
-              <LabelValue
-                label="Amount"
-                value={`${lamportsToSol(refundEvent.solAmount).toFixed(4)} SOL`}
-              />
-            )}
-            {(refundEvent.userAddress ?? refundEvent.actorPubkey) && (
+            <LabelValue label="Amount" value={backingAmount(refund)} />
+            {(swap.payee ?? swap.userAddress) && (
               <LabelAddr
                 label="Recipient"
-                address={
-                  (refundEvent.userAddress ?? refundEvent.actorPubkey) as string
-                }
+                address={(swap.payee ?? swap.userAddress) as string}
               />
             )}
-            {refundEvent.signature && (
+            {refundTx && (
               <Stack
                 direction="row"
                 spacing={1}
@@ -560,7 +556,7 @@ const SwapDetailPage: React.FC = () => {
                 </Typography>
                 <Typography
                   component="a"
-                  href={explorerSignatureUrl(refundEvent.signature)}
+                  href={explorerSignatureUrl(refundTx)}
                   target="_blank"
                   rel="noopener noreferrer"
                   sx={{
@@ -574,7 +570,7 @@ const SwapDetailPage: React.FC = () => {
                     '&:hover': { textDecoration: 'underline' },
                   }}
                 >
-                  {refundEvent.signature.slice(0, 8)}…
+                  {refundTx.slice(0, 8)}…
                   <OpenInNewIcon sx={{ fontSize: 12 }} />
                 </Typography>
               </Stack>
@@ -730,10 +726,7 @@ const SwapDetailPage: React.FC = () => {
           )}
           <LabelValue label="Internal ID" value={swap.swapId} copyable />
           {swap.solAmount && (
-            <LabelValue
-              label="SOL notional"
-              value={`${lamportsToSol(swap.solAmount).toFixed(4)} SOL`}
-            />
+            <LabelValue label="Backing" value={backingAmount(swap.solAmount)} />
           )}
           {swap.reservationRequestHash && (
             <LabelValue
@@ -805,7 +798,7 @@ const SwapDetailPage: React.FC = () => {
                       color: 'primary.main',
                     }}
                   >
-                    {lamportsToSol(event.solAmount).toFixed(4)} SOL
+                    {backingAmount(event.solAmount)}
                   </Typography>
                 )}
                 {event.txHash && (
