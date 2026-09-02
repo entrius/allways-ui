@@ -31,6 +31,8 @@ import {
 import CopyableAddress from '../CopyableAddress';
 import { lanesFor } from '../../api/models/MinersDashboard';
 import CrownIcon from './CrownIcon';
+import EligibilityChip from './EligibilityChip';
+import { useMinerEligibility } from './eligibility';
 import RangeChips from '../RangeChips';
 
 // 30d is the deepest window; the API clamps everything to ~30d
@@ -269,6 +271,7 @@ const MinerDetailHeader: React.FC<{
   onRangeChange: (r: Range) => void;
 }> = ({ hotkey, uid, stats, pairs, range, onRangeChange }) => {
   const theme = useTheme();
+  const eligibility = useMinerEligibility(hotkey);
   const crownDirections = stats?.currentCrownDirections ?? [];
   // Per-lane crown keys ("SOL-TAO:tao"). sol↔tao has two lanes per direction,
   // so the quote table must match on backing too, else a tao-lane crown would
@@ -433,6 +436,16 @@ const MinerDetailHeader: React.FC<{
               />
               {stats.isActive ? 'active' : 'inactive'}
             </Box>
+          )}
+          {/* Emission-gate verdict beside the quote-side status: active means
+              "quoting", eligible means "the validator pays it" — independent
+              axes a struck-but-active miner splits. */}
+          {eligibility.state !== 'none' && (
+            <EligibilityChip
+              state={eligibility.state}
+              live={eligibility.live}
+              asOf={eligibility.asOf}
+            />
           )}
           {crownDirections.length > 0 && (
             <Tooltip
