@@ -12,7 +12,6 @@ import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
 import RangeChips from '../RangeChips';
 import RailTooltip from './railTooltip';
-import StatsStrip from './StatsStrip';
 import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
 
 const RANGES: readonly HeroRange[] = ['1H', '1D', '1W', '1M'];
@@ -265,15 +264,6 @@ const DirectionCard: React.FC<{
           }
           valueColor={spreadPct != null ? spreadColor : undefined}
           hint={`Gap against the reverse route, ${chainSymbol(to)} → ${chainSymbol(from)}, which pays ${revImplied != null ? formatRate(revImplied) : '—'} in this route's unit. Positive: a round trip comes out ahead. Negative: it costs you this much.`}
-        />
-        <StatsStrip
-          bare
-          rows
-          hideRange
-          stats={['vol', 'txns', 'success']}
-          directions={[direction]}
-          secs={secs}
-          rangeLabel={range}
         />
       </Box>
     </Stack>
