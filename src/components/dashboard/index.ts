@@ -11,3 +11,4 @@ export { default as TabbedPanel } from './TabbedPanel';
 export { default as PairsRail } from './PairsRail';
 export * from './Skeletons';
 export { default as RateMatrix } from './RateMatrix';
+export { default as DirectionCard } from './DirectionCard';

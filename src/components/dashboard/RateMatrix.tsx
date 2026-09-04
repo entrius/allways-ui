@@ -6,6 +6,7 @@ import { isToken, nativeOf, type ChainInfo } from '../../api/models/chains';
 import {
   crownLaneFor,
   type CurrentCrownMap,
+  type Direction,
 } from '../../api/models/MinersDashboard';
 import { directionalRate, formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
@@ -180,30 +181,42 @@ const Cell: React.FC<{
   value: number | null;
   self: boolean;
   band: boolean;
+  selected: boolean;
   title: string;
   // Bumps every time the value changes; a fresh key restarts the flash.
   seq: number;
-}> = ({ value, self, band, title, seq }) => {
+  onSelect: () => void;
+}> = ({ value, self, band, selected, title, seq, onSelect }) => {
   const empty = value === null || value === 0;
   const cell = (
     <Box
       component="td"
       key={seq}
+      onClick={self ? undefined : onSelect}
+      aria-selected={selected || undefined}
       sx={{
         minWidth: COL_MIN,
         height: ROW_H,
         textAlign: 'right',
         fontFamily: FONTS.mono,
         fontSize: '0.74rem',
-        fontWeight: 500,
+        fontWeight: selected ? 700 : 500,
         fontVariantNumeric: 'tabular-nums',
         color: empty ? 'text.disabled' : 'text.primary',
+        // The picked direction reads like the old watchlist's selected row:
+        // a filled cell with a rule on its leading edge.
         backgroundColor: self
           ? 'background.default'
-          : band
-            ? 'action.hover'
-            : 'transparent',
-        cursor: self ? 'default' : 'help',
+          : selected
+            ? 'action.selected'
+            : band
+              ? 'action.hover'
+              : 'transparent',
+        boxShadow: selected
+          ? (t) => `inset 2px 0 0 ${t.palette.text.primary}`
+          : undefined,
+        cursor: self ? 'default' : 'pointer',
+        '&:hover': self ? undefined : { backgroundColor: 'action.selected' },
         ...(seq > 0 && !self ? { animation: `${flash} 1.4s ease-out` } : {}),
       }}
     >
@@ -218,7 +231,13 @@ const Cell: React.FC<{
   );
 };
 
-const RateMatrix: React.FC = () => {
+// The sheet is also the picker: clicking a number selects that DIRECTION
+// (hub → asset for a plain column, asset → hub for a banded one) for the
+// panels beside it.
+const RateMatrix: React.FC<{
+  direction: Direction;
+  onDirectionChange: (direction: Direction) => void;
+}> = ({ direction, onDirectionChange }) => {
   const theme = useTheme();
   const { data: chains } = useChains();
   const { data: crown, dataUpdatedAt, isError } = useCurrentCrown();
@@ -508,29 +527,35 @@ const RateMatrix: React.FC = () => {
                   const r = self ? undefined : rates[k];
                   const out = r?.out ?? null;
                   const back = r?.back ?? null;
+                  const outDir = directionKey(hub.id, asset.id);
+                  const backDir = directionKey(asset.id, hub.id);
                   return (
                     <React.Fragment key={hub.id}>
                       <Cell
                         value={out}
                         self={self}
                         band={false}
+                        selected={outDir === direction}
                         title={
                           out === null || out === 0
                             ? 'No quote'
                             : `Send 1 ${hub.symbol}, get ${formatRate(out)} ${asset.symbol}`
                         }
                         seq={seq[`${k}|out`] ?? 0}
+                        onSelect={() => onDirectionChange(outDir)}
                       />
                       <Cell
                         value={back}
                         self={self}
                         band
+                        selected={backDir === direction}
                         title={
                           back === null || back === 0
                             ? 'No quote'
                             : `Send ${formatRate(back)} ${asset.symbol}, get 1 ${hub.symbol}`
                         }
                         seq={seq[`${k}|back`] ?? 0}
+                        onSelect={() => onDirectionChange(backDir)}
                       />
                     </React.Fragment>
                   );
