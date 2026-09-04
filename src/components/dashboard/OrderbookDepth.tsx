@@ -21,12 +21,7 @@ import {
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import {
-  canonicalSource,
-  chainSymbol,
-  formatRate,
-  unitsToHuman,
-} from '../../utils/format';
+import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
 import { hubChains } from '../../api/models/chains';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
@@ -93,40 +88,63 @@ const useDepth = (
       return buckets;
     };
 
-    let buckets = bucketize(group ?? 1);
+    // One ROW per (level, backing): a sol-backed and a tao-backed quote on
+    // the same level are two rows, each in its own unit with its own
+    // running total. Never a cross-denomination sum, never a "+" string.
+    const order = hubChains();
+    const toRows = (buckets: Map<number, Record<string, number>>) => {
+      // Levels are directional "to per 1 from" — more output per unit in is
+      // always better, so best-first is highest-first for every direction.
+      const rates = [...buckets.keys()].sort((a, b) => b - a);
+      const cum: Record<string, number> = {};
+      const rows: {
+        rate: string;
+        backing: string;
+        cap: number;
+        cum: number;
+      }[] = [];
+      for (const r of rates) {
+        const caps = buckets.get(r) ?? {};
+        for (const [b, v] of Object.entries(caps).sort(
+          ([a], [c]) => order.indexOf(a) - order.indexOf(c),
+        )) {
+          cum[b] = (cum[b] ?? 0) + v;
+          rows.push({ rate: formatRate(r), backing: b, cap: v, cum: cum[b] });
+        }
+      }
+      return rows;
+    };
+
+    let rows = toRows(bucketize(group ?? 1));
     if (group == null) {
       for (const { mult } of GROUP_OPTIONS) {
         if (mult == null) continue;
-        buckets = bucketize(mult);
-        if (buckets.size <= AUTO_FIT_ROWS) break;
+        rows = toRows(bucketize(mult));
+        if (rows.length <= AUTO_FIT_ROWS) break;
       }
     }
-
-    // Levels are directional "to per 1 from" — more output per unit in is
-    // always better, so best-first is highest-first for every direction.
-    const rates = [...buckets.keys()].sort((a, b) => b - a);
-    const cum: Record<string, number> = {};
-    return rates.map((r) => {
-      const caps = buckets.get(r) ?? {};
-      for (const [b, v] of Object.entries(caps)) cum[b] = (cum[b] ?? 0) + v;
-      return { rate: formatRate(r), caps, cumCaps: { ...cum } };
-    });
+    return rows;
   }, [miners, from, to, leg, direction, group]);
 };
 
-// One direction's ladder — half of the two-sided book.
-// "1.20 SOL + 4.00 TAO" — a level's per-backing capacities, hub-priority
-// order, zero entries dropped. Never a cross-denomination sum.
-const fmtCaps = (caps: Record<string, number>): string => {
-  const order = hubChains();
-  return (
-    Object.entries(caps)
-      .filter(([, v]) => v > 0)
-      .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
-      .map(([b, v]) => `${v.toFixed(2)} ${chainSymbol(b)}`)
-      .join(' + ') || '0.00'
-  );
-};
+// "2.23" in the number weight, the unit trailing in secondary type.
+const Amount: React.FC<{ value: number; unit: string; strong?: boolean }> = ({
+  value,
+  unit,
+  strong,
+}) => (
+  <>
+    <Box
+      component="span"
+      sx={{ color: 'text.primary', fontWeight: strong ? 600 : 400 }}
+    >
+      {value.toFixed(2)}
+    </Box>
+    <Box component="span" sx={{ color: 'text.secondary', pl: 0.5 }}>
+      {unit}
+    </Box>
+  </>
+);
 
 const DepthLadder: React.FC<{
   miners: Miner[] | undefined;
@@ -137,13 +155,14 @@ const DepthLadder: React.FC<{
   const { from, to } = decomposeDirection(direction);
   const depthData = useDepth(miners, direction, group);
 
-  // Depth bars need one scalar; size them on the pair's anchor backing (the
-  // dominant purse) — other backings still show in the level's text.
-  const anchor = canonicalSource(from, to);
-  const maxCum = useMemo(
-    () => depthData.reduce((m, r) => Math.max(m, r.cumCaps[anchor] ?? 0), 1),
-    [depthData, anchor],
-  );
+  // Depth bars compare within a backing: each row's running total against
+  // the deepest total in its own unit.
+  const maxCum = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of depthData)
+      m[r.backing] = Math.max(m[r.backing] ?? 1, r.cum);
+    return m;
+  }, [depthData]);
 
   // Monochrome depth bars, matching the house chart style.
   const barColor = `color-mix(in srgb, ${theme.palette.text.primary} 10%, transparent)`;
@@ -225,10 +244,10 @@ const DepthLadder: React.FC<{
           </TableHead>
           <TableBody>
             {depthData.map((row) => {
-              const pct = ((row.cumCaps[anchor] ?? 0) / maxCum) * 100;
+              const pct = (row.cum / (maxCum[row.backing] ?? 1)) * 100;
               return (
                 <TableRow
-                  key={row.rate}
+                  key={`${row.rate}-${row.backing}`}
                   sx={{
                     backgroundColor: 'transparent',
                     backgroundImage: `linear-gradient(to left, ${barColor} ${pct}%, transparent ${pct}%)`,
@@ -241,18 +260,18 @@ const DepthLadder: React.FC<{
                   <TableCell
                     sx={{
                       ...cellSx,
-                      color: 'text.secondary',
                       display: { xs: 'none', sm: 'table-cell' },
                     }}
                     align="right"
                   >
-                    {fmtCaps(row.caps)}
+                    <Amount value={row.cap} unit={chainSymbol(row.backing)} />
                   </TableCell>
-                  <TableCell
-                    sx={{ ...cellSx, color: 'text.primary', fontWeight: 600 }}
-                    align="right"
-                  >
-                    {fmtCaps(row.cumCaps)}
+                  <TableCell sx={cellSx} align="right">
+                    <Amount
+                      value={row.cum}
+                      unit={chainSymbol(row.backing)}
+                      strong
+                    />
                   </TableCell>
                 </TableRow>
               );

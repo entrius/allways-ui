@@ -97,7 +97,7 @@ const MarketPage: React.FC = () => {
               them. */}
           <Box
             sx={{
-              maxWidth: 480,
+              maxWidth: 560,
               minHeight: { xs: 300, md: 220 },
               display: 'flex',
               flexDirection: 'column',
