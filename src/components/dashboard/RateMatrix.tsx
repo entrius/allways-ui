@@ -329,9 +329,8 @@ const RateMatrix: React.FC = () => {
       <Box
         component="table"
         sx={{
-          // The asset column hugs its labels; the number columns share the
-          // rest of the width between them.
-          width: '100%',
+          // Columns size to their content; the sheet leaves the rest of the
+          // page blank rather than stretching numbers across it.
           borderCollapse: 'separate',
           borderSpacing: 0,
           tableLayout: 'auto',
@@ -357,7 +356,6 @@ const RateMatrix: React.FC = () => {
                 left: 0,
                 zIndex: 3,
                 height: HEAD_H,
-                width: '1%',
                 textAlign: 'left',
                 overflow: 'visible',
                 borderRightColor: 'border.light',
