@@ -15,15 +15,11 @@ import {
 } from '../components/network';
 import TransactionsSection from '../components/network/TransactionsSection';
 
-// The two folded sections load their code the first time they are opened —
-// a visitor who only reads the tape never downloads the leaderboard or the
-// charts. Imported by path, not through the barrel, so nothing pulls them
-// back into this chunk.
+// The folded section loads its code the first time it is opened — a
+// visitor who only reads the tape never downloads the leaderboard. Imported
+// by path, not through the barrel, so nothing pulls it back into this chunk.
 const MinersSection = React.lazy(
   () => import('../components/network/MinersSection'),
-);
-const StatsSection = React.lazy(
-  () => import('../components/network/StatsSection'),
 );
 
 const SECTIONS = [
@@ -39,12 +35,6 @@ const SECTIONS = [
     subtitle:
       'Who is serving the network: crown share, success rate, collateral and volume per node.',
   },
-  {
-    id: 'stats',
-    title: 'Network Stats',
-    subtitle:
-      'All-time growth, throughput, revenue and network size, by day since launch.',
-  },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'];
@@ -52,11 +42,11 @@ type SectionId = (typeof SECTIONS)[number]['id'];
 const isSectionId = (v: string): v is SectionId =>
   SECTIONS.some((s) => s.id === v);
 
-// The tape is what the page is for; miners and the stats charts start
-// folded away under their headings, one click from open.
+// The tape is what the page is for; miners start folded away under their
+// heading, one click from open.
 const DEFAULT_OPEN: SectionId[] = ['transactions'];
 
-// Which sections are open is URL state (`?open=miners,stats`), not
+// Which sections are open is URL state (`?open=miners`), not
 // component state: browser-back from a transaction or a miner returns the
 // page as it was left, and a link can address a particular arrangement.
 // Absent means the default; present-but-empty means everything folded.
@@ -83,11 +73,10 @@ const SectionFallback: React.FC = () => (
 );
 
 /**
- * Transactions, miners and network stats on one page. The three used to be
- * separate tabs; they are one accordion now, under a pinned bar of the
- * figures worth remembering. Their old paths redirect here with a hash,
- * which opens that section and scrolls to it, so /miners still lands on the
- * miners view.
+ * Transactions and miners on one page. The two used to be separate tabs;
+ * they are one accordion now, under a pinned bar of the figures worth
+ * remembering. Their old paths redirect here with a hash, which opens that
+ * section and scrolls to it, so /miners still lands on the miners view.
  */
 const NetworkPage: React.FC = () => {
   const { hash } = useLocation();
@@ -166,7 +155,7 @@ const NetworkPage: React.FC = () => {
     <Page title="Network">
       <SEO
         title="Network"
-        description="Transactions, miners and network stats for Allways — Bittensor SN7"
+        description="Transactions and miners for Allways — Bittensor SN7"
       />
       <NetworkKpiStrip />
       <Box
@@ -198,7 +187,7 @@ const NetworkPage: React.FC = () => {
                 <TransactionsSection />
               ) : (
                 <Suspense fallback={<SectionFallback />}>
-                  {s.id === 'miners' ? <MinersSection /> : <StatsSection />}
+                  <MinersSection />
                 </Suspense>
               )}
             </SectionAccordion>
