@@ -22,7 +22,6 @@ import {
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
-import { hubChains } from '../../api/models/chains';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
 // Price grouping, shared by both books and expressed as a share of the price
@@ -53,9 +52,13 @@ const useDepth = (
 ) => {
   const { from, to, leg } = decomposeDirection(direction);
   return useMemo(() => {
-    // Capacity is tracked PER BACKING (its own asset, human units) — a sol-
-    // and a tao-backed quote on the same level never sum into one number.
-    const entries: { r: number; backing: string; cap: number }[] = [];
+    // Capacity is collateral in the miner's backing hub asset, which is the
+    // amount on that leg of the trade. A quote's own rate is exactly the
+    // exchange on that leg, so every level converts to the asset the taker
+    // SENDS: cap as-is when the backing is the sent asset, cap / rate when
+    // it is the received one. One unit for the whole ladder, so the running
+    // total walks down the book without resetting.
+    const entries: { r: number; send: number }[] = [];
     (miners ?? []).forEach((m) => {
       if (!minerServesPair(m, from, to)) return;
       if (!m.isActive || m.hasActiveSwap || m.isReserved) return;
@@ -66,7 +69,8 @@ const useDepth = (
       const raw = leg === 'reverse' ? m.counterRate : m.rate;
       const r = directionalRateFor(direction, raw) ?? 0;
       if (!Number.isFinite(r) || r <= 0) return;
-      entries.push({ r, backing, cap });
+      const send = backing === from ? cap : cap / r;
+      entries.push({ r, send });
     });
     if (!entries.length) return [];
 
@@ -76,54 +80,34 @@ const useDepth = (
     const base = Math.pow(10, Math.floor(Math.log10(best)) - 4);
     const bucketize = (mult: number) => {
       const tick = base * mult;
-      const buckets = new Map<number, Record<string, number>>();
+      const buckets = new Map<number, number>();
       for (const e of entries) {
         // Floor to the tick (epsilon dodges float drift), so a level's label
         // never overstates the rate a taker would get.
         const b = Math.floor(e.r / tick + 1e-9) * tick;
-        const caps = buckets.get(b) ?? {};
-        caps[e.backing] = (caps[e.backing] ?? 0) + e.cap;
-        buckets.set(b, caps);
+        buckets.set(b, (buckets.get(b) ?? 0) + e.send);
       }
       return buckets;
     };
 
-    // One ROW per (level, backing): a sol-backed and a tao-backed quote on
-    // the same level are two rows, each in its own unit with its own
-    // running total. Never a cross-denomination sum, never a "+" string.
-    const order = hubChains();
-    const toRows = (buckets: Map<number, Record<string, number>>) => {
-      // Levels are directional "to per 1 from" — more output per unit in is
-      // always better, so best-first is highest-first for every direction.
-      const rates = [...buckets.keys()].sort((a, b) => b - a);
-      const cum: Record<string, number> = {};
-      const rows: {
-        rate: string;
-        backing: string;
-        cap: number;
-        cum: number;
-      }[] = [];
-      for (const r of rates) {
-        const caps = buckets.get(r) ?? {};
-        for (const [b, v] of Object.entries(caps).sort(
-          ([a], [c]) => order.indexOf(a) - order.indexOf(c),
-        )) {
-          cum[b] = (cum[b] ?? 0) + v;
-          rows.push({ rate: formatRate(r), backing: b, cap: v, cum: cum[b] });
-        }
-      }
-      return rows;
-    };
-
-    let rows = toRows(bucketize(group ?? 1));
+    let buckets = bucketize(group ?? 1);
     if (group == null) {
       for (const { mult } of GROUP_OPTIONS) {
         if (mult == null) continue;
-        rows = toRows(bucketize(mult));
-        if (rows.length <= AUTO_FIT_ROWS) break;
+        buckets = bucketize(mult);
+        if (buckets.size <= AUTO_FIT_ROWS) break;
       }
     }
-    return rows;
+
+    // Levels are directional "to per 1 from" — more output per unit in is
+    // always better, so best-first is highest-first for every direction.
+    const rates = [...buckets.keys()].sort((a, b) => b - a);
+    let cum = 0;
+    return rates.map((r) => {
+      const cap = buckets.get(r) ?? 0;
+      cum += cap;
+      return { rate: formatRate(r), cap, cum };
+    });
   }, [miners, from, to, leg, direction, group]);
 };
 
@@ -155,14 +139,12 @@ const DepthLadder: React.FC<{
   const { from, to } = decomposeDirection(direction);
   const depthData = useDepth(miners, direction, group);
 
-  // Depth bars compare within a backing: each row's running total against
-  // the deepest total in its own unit.
-  const maxCum = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const r of depthData)
-      m[r.backing] = Math.max(m[r.backing] ?? 1, r.cum);
-    return m;
-  }, [depthData]);
+  // Depth bars: each row's running total against the book's full depth.
+  const maxCum = useMemo(
+    () => depthData.reduce((m, r) => Math.max(m, r.cum), 1),
+    [depthData],
+  );
+  const unit = chainSymbol(from);
 
   // Monochrome depth bars, matching the house chart style.
   const barColor = `color-mix(in srgb, ${theme.palette.text.primary} 10%, transparent)`;
@@ -244,10 +226,10 @@ const DepthLadder: React.FC<{
           </TableHead>
           <TableBody>
             {depthData.map((row) => {
-              const pct = (row.cum / (maxCum[row.backing] ?? 1)) * 100;
+              const pct = (row.cum / maxCum) * 100;
               return (
                 <TableRow
-                  key={`${row.rate}-${row.backing}`}
+                  key={row.rate}
                   sx={{
                     backgroundColor: 'transparent',
                     backgroundImage: `linear-gradient(to left, ${barColor} ${pct}%, transparent ${pct}%)`,
@@ -264,14 +246,10 @@ const DepthLadder: React.FC<{
                     }}
                     align="right"
                   >
-                    <Amount value={row.cap} unit={chainSymbol(row.backing)} />
+                    <Amount value={row.cap} unit={unit} />
                   </TableCell>
                   <TableCell sx={cellSx} align="right">
-                    <Amount
-                      value={row.cum}
-                      unit={chainSymbol(row.backing)}
-                      strong
-                    />
+                    <Amount value={row.cum} unit={unit} strong />
                   </TableCell>
                 </TableRow>
               );
@@ -357,9 +335,9 @@ const OrderbookDepth: React.FC<{
               <Box sx={{ maxWidth: 260 }}>
                 Resting liquidity, both directions of the selected pair at once:
                 active miners' collateral grouped by quoted rate, best rate
-                first — including capacity currently reserved or mid-swap. The
-                bar behind each row is the cumulative capacity walking down the
-                book.
+                first, expressed in the asset you send at each level's own rate.
+                Cumulative is how much you could send at that rate or better;
+                the bar behind each row draws it.
               </Box>
             }
             arrow
