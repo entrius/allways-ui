@@ -92,8 +92,11 @@ const MarketPage: React.FC = () => {
               onRangeChange={setRange}
             />
           </Box>
+          {/* Capped like the card: the ladders read at one width, and a
+              wide screen keeps its blank space rather than stretching them. */}
           <Box
             sx={{
+              maxWidth: 920,
               minHeight: { xs: 300, md: 220 },
               display: 'flex',
               flexDirection: 'column',
