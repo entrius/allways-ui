@@ -20,26 +20,13 @@ const SectionAccordion: React.FC<{
   /** Fires once the section has finished opening and its content is laid
    * out — the only moment an anchor can be scrolled to accurately. */
   onEntered?: () => void;
-  /** Scroll offset so an anchored section stops below the pinned ribbon. */
-  scrollMarginTop: number;
   first?: boolean;
   children: React.ReactNode;
-}> = ({
-  id,
-  title,
-  subtitle,
-  open,
-  onToggle,
-  onEntered,
-  scrollMarginTop,
-  first,
-  children,
-}) => (
+}> = ({ id, title, subtitle, open, onToggle, onEntered, first, children }) => (
   <Box
     component="section"
     id={id}
     sx={{
-      scrollMarginTop: `${scrollMarginTop}px`,
       borderTop: first ? 0 : '1px solid',
       borderColor: 'divider',
     }}

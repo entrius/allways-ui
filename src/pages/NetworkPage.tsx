@@ -8,11 +8,7 @@ import React, {
 import { Box, Skeleton, Stack } from '@mui/material';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
-import {
-  KPI_STRIP_H,
-  NetworkKpiStrip,
-  SectionAccordion,
-} from '../components/network';
+import { SectionAccordion } from '../components/network';
 import TransactionsSection from '../components/network/TransactionsSection';
 
 // The folded section loads its code the first time it is opened — a
@@ -74,9 +70,9 @@ const SectionFallback: React.FC = () => (
 
 /**
  * Transactions and miners on one page. The two used to be separate tabs;
- * they are one accordion now, under a pinned bar of the figures worth
- * remembering. Their old paths redirect here with a hash, which opens that
- * section and scrolls to it, so /miners still lands on the miners view.
+ * they are one accordion now. Their old paths redirect here with a hash,
+ * which opens that section and scrolls to it, so /miners still lands on the
+ * miners view.
  */
 const NetworkPage: React.FC = () => {
   const { hash } = useLocation();
@@ -100,8 +96,7 @@ const NetworkPage: React.FC = () => {
     const top =
       el.getBoundingClientRect().top -
       main.getBoundingClientRect().top +
-      main.scrollTop -
-      KPI_STRIP_H;
+      main.scrollTop;
     main.scrollTo({ top: Math.max(0, top) });
   }, []);
 
@@ -157,7 +152,6 @@ const NetworkPage: React.FC = () => {
         title="Network"
         description="Transactions and miners for Allways — Bittensor SN7"
       />
-      <NetworkKpiStrip />
       <Box
         sx={{
           backgroundColor: 'background.default',
@@ -174,7 +168,6 @@ const NetworkPage: React.FC = () => {
               key={s.id}
               {...s}
               first={i === 0}
-              scrollMarginTop={KPI_STRIP_H}
               open={open.has(s.id)}
               onToggle={() => toggle(s.id)}
               onEntered={() => {
