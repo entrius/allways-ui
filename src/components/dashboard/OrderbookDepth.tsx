@@ -406,8 +406,8 @@ const OrderbookDepth: React.FC<{
           flex: 1,
           minHeight: 0,
           display: 'grid',
-          // Phones read the book one side at a time, stacked.
-          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+          // One side at a time, stacked: the book reads down, not across.
+          gridTemplateColumns: '1fr',
           gap: 2.5,
         }}
       >
