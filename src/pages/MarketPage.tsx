@@ -29,7 +29,7 @@ const PANEL_W = 560;
 const MarketPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   // One window for the card's stats.
-  const [range, setRange] = useState<HeroRange>('1D');
+  const [range, setRange] = useState<HeroRange>('1H');
 
   // Selected DIRECTION, on the URL. Legacy links resolve too: ?direction=
   // directly, ?pair=BTC to that pair's forward route under the primary
