@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Typography, useTheme } from '@mui/material';
 import { alpha, keyframes } from '@mui/material/styles';
 import {
   orderByMarketCap,
@@ -194,11 +194,10 @@ const Cell: React.FC<{
   self: boolean;
   band: boolean;
   selected: boolean;
-  title: string;
   // Bumps every time the value changes; a fresh key restarts the flash.
   seq: number;
   onSelect: () => void;
-}> = ({ value, self, band, selected, title, seq, onSelect }) => {
+}> = ({ value, self, band, selected, seq, onSelect }) => {
   const empty = value === null || value === 0;
   const cell = (
     <Box
@@ -238,12 +237,7 @@ const Cell: React.FC<{
       {self ? '' : empty ? '—' : formatRate(value)}
     </Box>
   );
-  if (self) return cell;
-  return (
-    <Tooltip title={title} arrow placement="top" enterDelay={300}>
-      {cell}
-    </Tooltip>
-  );
+  return cell;
 };
 
 // The sheet is also the picker: clicking a number selects that DIRECTION
@@ -578,11 +572,6 @@ const RateMatrix: React.FC<{
                         selected={
                           outDir === direction && (!base || hub.id === base)
                         }
-                        title={
-                          out === null || out === 0
-                            ? 'No quote'
-                            : `Send 1 ${hub.symbol}, get ${formatRate(out)} ${asset.symbol}`
-                        }
                         seq={seq[`${k}|out`] ?? 0}
                         onSelect={() => onDirectionChange(outDir, hub.id)}
                       />
@@ -592,11 +581,6 @@ const RateMatrix: React.FC<{
                         band
                         selected={
                           backDir === direction && (!base || hub.id === base)
-                        }
-                        title={
-                          back === null || back === 0
-                            ? 'No quote'
-                            : `Send ${formatRate(back)} ${asset.symbol}, get 1 ${hub.symbol}`
                         }
                         seq={seq[`${k}|back`] ?? 0}
                         onSelect={() => onDirectionChange(backDir, hub.id)}
