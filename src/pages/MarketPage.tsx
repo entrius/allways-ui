@@ -62,7 +62,12 @@ const MarketPage: React.FC = () => {
           display: 'flex',
           flexDirection: { xs: 'column', md: 'row' },
           alignItems: 'stretch',
+          // Centred block with breathing room either side, rather than the
+          // sheet starting hard against the left edge of the viewport.
           width: '100%',
+          maxWidth: 1400,
+          mx: 'auto',
+          px: { xs: 0, md: 3 },
           // One screen below the 56px nav on desktop; each side scrolls on
           // its own. Auto height, stacked, on mobile.
           height: { xs: 'auto', md: 'calc(100dvh - 56px)' },
