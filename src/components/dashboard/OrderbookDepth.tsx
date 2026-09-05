@@ -275,7 +275,7 @@ const OrderbookDepth: React.FC<{
         onMouseLeave={() => setHover(null)}
         sx={{
           backgroundColor: inRange ? 'action.hover' : 'transparent',
-          backgroundImage: `linear-gradient(to left, ${alpha(color, 0.14)} ${pct}%, transparent ${pct}%)`,
+          backgroundImage: `linear-gradient(to right, ${alpha(color, 0.14)} ${pct}%, transparent ${pct}%)`,
           cursor: 'default',
           // The half you picked reads at full strength; the other half sits
           // back, the way its label does on the line. Hovering lifts it.
