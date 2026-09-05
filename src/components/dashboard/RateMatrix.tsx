@@ -457,9 +457,7 @@ const RateMatrix: React.FC<{
                   chains={chains}
                   logo={logo}
                   ticker={ticker}
-                  // The hub cell shows the network only when the ticker is
-                  // off, as the matrix does.
-                  network={network && !ticker}
+                  network={network}
                   logoSize={logoSize}
                 />
               </Box>
