@@ -191,14 +191,15 @@ const OrderbookDepth: React.FC<{
   const below = useMemo(() => cumulate(near.levels), [near]);
   const above = useMemo(() => cumulate(far.levels), [far]);
 
-  // Sizes count in the asset you would SEND for the direction you picked —
-  // USDC on USDC → SOL, SOL on SOL → USDC — so the numbers are the ones
-  // you'd type. Levels are held in the base asset; a level's own price
-  // converts it exactly, and the running total in the quote asset is the
-  // same sum the hover shows.
-  const sendsQuote = legs.from !== base;
-  const sizeOf = (row: Row) => (sendsQuote ? row.size * row.price : row.size);
-  const totalOf = (row: Row) => (sendsQuote ? row.quote : row.total);
+  // Sizes count in the ROW asset — USDC on TAO/USDC, HYPE on TAO/HYPE —
+  // whichever way the trade goes: the USDC you'd send one way is the USDC
+  // you'd receive the other. That is the asset a taker thinks in, and the
+  // unit the matrix already quotes the pair in; the hub's collateral is
+  // the plumbing behind it. Levels are held in the base asset; a level's
+  // own price converts exactly, and the running total in the quote asset
+  // is the same sum the hover shows.
+  const sizeOf = (row: Row) => row.size * row.price;
+  const totalOf = (row: Row) => row.quote;
   const maxAbove = above.reduce((m, r) => Math.max(m, totalOf(r)), 1);
   const maxBelow = below.reduce((m, r) => Math.max(m, totalOf(r)), 1);
 
@@ -229,8 +230,8 @@ const OrderbookDepth: React.FC<{
 
   const baseUnit = chainSymbol(from);
   const quoteUnit = chainSymbol(to);
-  // The column unit: what you send.
-  const unit = sendsQuote ? quoteUnit : baseUnit;
+  // The column unit: the row asset.
+  const unit = quoteUnit;
   const priceUnit = `${quoteUnit}/${unit}`;
   const sideLabel = (d: Direction) => d.replace('-', ' → ');
 
