@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Tooltip, Typography, useTheme } from '@mui/material';
 import { alpha, keyframes } from '@mui/material/styles';
-import { useChains, useCurrentCrown } from '../../api';
+import {
+  orderByMarketCap,
+  useChains,
+  useChainSupply,
+  useCurrentCrown,
+  useMarketCaps,
+} from '../../api';
 import { isToken, nativeOf, type ChainInfo } from '../../api/models/chains';
 import {
   crownLaneFor,
@@ -249,11 +255,14 @@ const RateMatrix: React.FC<{
   const [panelOpen, setPanelOpen] = useState(false);
 
   // Hubs first, in das priority order (the same order the rest of the site
-  // files pairs under), then every other asset in registry order.
+  // files pairs under), then every other asset by market cap, largest
+  // first, with same-asset deployments ordered by their chain's supply.
   const hubs = useMemo(() => chains.filter((c) => c.hub), [chains]);
+  const { data: caps } = useMarketCaps(chains);
+  const { data: supply } = useChainSupply(chains);
   const allAssets = useMemo(
-    () => [...hubs, ...chains.filter((c) => !c.hub)],
-    [chains, hubs],
+    () => orderByMarketCap(chains, caps, supply),
+    [chains, caps, supply],
   );
   // Hubs always show as rows; the rest honour hidden and favorites-only.
   const assets = useMemo(
