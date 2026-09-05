@@ -16,18 +16,18 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners, minerServesPair, type Miner } from '../../api';
 import {
   decomposeDirection,
-  directionLabel,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
 import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
+import { MOVE_COLORS } from './AllwaysMarketRate';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
-// Price grouping, shared by both books and expressed as a share of the price
+// Price grouping, shared by both sides and expressed as a share of the price
 // so one control reads the same on a 0.00096 book and a 715 book: levels
 // merge into buckets roughly this fraction of the price wide. null = auto,
-// which picks the finest option that fits the panel without a scrollbar.
+// which picks the finest option that fits each side without a scrollbar.
 type DepthGroup = number | null;
 const GROUP_OPTIONS: { label: string; mult: number | null }[] = [
   { label: 'Auto', mult: null },
@@ -38,39 +38,39 @@ const GROUP_OPTIONS: { label: string; mult: number | null }[] = [
 ];
 const AUTO_FIT_ROWS = 6;
 
-// One side of the book: TAKEABLE liquidity for a single direction grouped by
-// quoted rate, best rate first, with a cumulative running total. Only
-// collateral hittable this instant counts — active miners that are not
-// reserved or mid-swap — so the top of the book always agrees with the
-// chart's crown price. Stored rates are canonical "spoke per 1 anchor", and
-// converted to the DIRECTIONAL "to per 1 from" here, so higher is always the
-// better rate.
+interface Level {
+  // Directional rate of the level, "to per 1 from" of `direction`.
+  r: number;
+  // Capacity at this level in the asset the taker SENDS.
+  cap: number;
+}
+
+// One direction's TAKEABLE liquidity grouped by quoted rate, best rate
+// first. Only collateral hittable this instant counts — active miners that
+// are not reserved or mid-swap — so the top of the book always agrees with
+// the crown. Capacity is collateral on the miner's backing leg, and a quote's
+// own rate is exactly the exchange on that leg, so every level converts to
+// the asset the taker sends: cap as-is when the backing is the sent asset,
+// cap / rate when it is the received one.
 const useDepth = (
   miners: Miner[] | undefined,
   direction: Direction,
   group: DepthGroup,
-) => {
+): Level[] => {
   const { from, to, leg } = decomposeDirection(direction);
   return useMemo(() => {
-    // Capacity is collateral in the miner's backing hub asset, which is the
-    // amount on that leg of the trade. A quote's own rate is exactly the
-    // exchange on that leg, so every level converts to the asset the taker
-    // SENDS: cap as-is when the backing is the sent asset, cap / rate when
-    // it is the received one. One unit for the whole ladder, so the running
-    // total walks down the book without resetting.
-    const entries: { r: number; send: number }[] = [];
+    const entries: Level[] = [];
     (miners ?? []).forEach((m) => {
       if (!minerServesPair(m, from, to)) return;
       if (!m.isActive || m.hasActiveSwap || m.isReserved) return;
       if (!m.collateral) return;
       const backing = (m.backing ?? 'sol').toLowerCase();
-      const cap = unitsToHuman(m.collateral, backing);
-      if (!Number.isFinite(cap) || cap <= 0) return;
+      const collateral = unitsToHuman(m.collateral, backing);
+      if (!Number.isFinite(collateral) || collateral <= 0) return;
       const raw = leg === 'reverse' ? m.counterRate : m.rate;
       const r = directionalRateFor(direction, raw) ?? 0;
       if (!Number.isFinite(r) || r <= 0) return;
-      const send = backing === from ? cap : cap / r;
-      entries.push({ r, send });
+      entries.push({ r, cap: backing === from ? collateral : collateral / r });
     });
     if (!entries.length) return [];
 
@@ -85,7 +85,7 @@ const useDepth = (
         // Floor to the tick (epsilon dodges float drift), so a level's label
         // never overstates the rate a taker would get.
         const b = Math.floor(e.r / tick + 1e-9) * tick;
-        buckets.set(b, (buckets.get(b) ?? 0) + e.send);
+        buckets.set(b, (buckets.get(b) ?? 0) + e.cap);
       }
       return buckets;
     };
@@ -99,17 +99,19 @@ const useDepth = (
       }
     }
 
-    // Levels are directional "to per 1 from" — more output per unit in is
-    // always better, so best-first is highest-first for every direction.
-    const rates = [...buckets.keys()].sort((a, b) => b - a);
-    let cum = 0;
-    return rates.map((r) => {
-      const cap = buckets.get(r) ?? 0;
-      cum += cap;
-      return { rate: formatRate(r), cap, cum };
-    });
+    // More output per unit in is always better, so best-first is
+    // highest-first.
+    return [...buckets.keys()]
+      .sort((a, b) => b - a)
+      .map((r) => ({ r, cap: buckets.get(r) ?? 0 }));
   }, [miners, from, to, leg, direction, group]);
 };
+
+interface Row {
+  price: number;
+  size: number;
+  total: number;
+}
 
 // "2.23" in the number weight, the unit trailing in secondary type.
 const Amount: React.FC<{ value: number; unit: string; strong?: boolean }> = ({
@@ -130,21 +132,72 @@ const Amount: React.FC<{ value: number; unit: string; strong?: boolean }> = ({
   </>
 );
 
-const DepthLadder: React.FC<{
-  miners: Miner[] | undefined;
+// The pair's book in the traditional shape: one price column in the
+// selected direction's unit, the OTHER direction's levels stacked above the
+// spread (inverted into this unit, sized in the same asset), this
+// direction's levels below it, best rates meeting in the middle. Each side
+// is still its own instrument — nothing is netted or averaged across the
+// line — the layout just puts the two on one ruler.
+const OrderbookDepth: React.FC<{
   direction: Direction;
-  group: DepthGroup;
-}> = ({ miners, direction, group }) => {
+}> = ({ direction }) => {
   const theme = useTheme();
+  const { data: miners, isLoading } = useMiners();
+  const [group, setGroup] = useState<DepthGroup>(null);
   const { from, to } = decomposeDirection(direction);
-  const depthData = useDepth(miners, direction, group);
+  const reverse = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 
-  // Depth bars: each row's running total against the book's full depth.
-  const maxCum = useMemo(
-    () => depthData.reduce((m, r) => Math.max(m, r.cum), 1),
-    [depthData],
-  );
+  const near = useDepth(miners, direction, group);
+  const far = useDepth(miners, reverse, group);
+
+  // This direction: price is the level's own rate, size already in `from`.
+  // Totals accumulate from the best level (top of the block) downward.
+  const below = useMemo<Row[]>(() => {
+    let total = 0;
+    return near.map((l) => {
+      total += l.cap;
+      return { price: l.r, size: l.cap, total };
+    });
+  }, [near]);
+
+  // The other direction, on this ruler: a level paying q `from` per 1 `to`
+  // is a price of 1/q `to` per `from`, and its capacity in `to` is q times
+  // that in `from`. Best for its taker is the LOWEST price here, so totals
+  // accumulate from the level nearest the spread outward, and the block
+  // renders worst-first so the best sits against the line.
+  const above = useMemo<Row[]>(() => {
+    let total = 0;
+    return far
+      .map((l) => ({ price: 1 / l.r, size: l.cap * l.r }))
+      .map((l) => {
+        total += l.size;
+        return { ...l, total };
+      })
+      .reverse();
+  }, [far]);
+
+  const maxAbove = above.reduce((m, r) => Math.max(m, r.total), 1);
+  const maxBelow = below.reduce((m, r) => Math.max(m, r.total), 1);
+
+  // Signed spread between the two best levels, in this direction's unit,
+  // the same number the card reports.
+  const bestBelow = below[0]?.price ?? null;
+  const bestAbove = above.length ? above[above.length - 1].price : null;
+  const spreadPct =
+    bestBelow != null && bestAbove != null && bestAbove !== 0
+      ? ((bestBelow - bestAbove) / bestAbove) * 100
+      : null;
+  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
+  const spreadColor =
+    spreadPct == null || spreadPct === 0
+      ? theme.palette.text.secondary
+      : spreadPct > 0
+        ? move.up
+        : move.down;
+
   const unit = chainSymbol(from);
+  const priceUnit = `${chainSymbol(to)}/${chainSymbol(from)}`;
+  const sideLabel = (d: Direction) => d.replace('-', ' → ');
 
   // Monochrome depth bars, matching the house chart style.
   const barColor = `color-mix(in srgb, ${theme.palette.text.primary} 10%, transparent)`;
@@ -169,135 +222,51 @@ const DepthLadder: React.FC<{
     py: 0.5,
     fontVariantNumeric: 'tabular-nums' as const,
     whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
   };
 
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 0,
-        minWidth: 0,
-      }}
-    >
-      <TableContainer
+  const renderRow = (row: Row, max: number, side: Direction) => {
+    const pct = (row.total / max) * 100;
+    return (
+      <TableRow
+        key={`${side}-${row.price}`}
+        title={`${sideLabel(side)}: ${row.size.toFixed(2)} ${unit} at this level, ${row.total.toFixed(2)} ${unit} at this rate or better`}
         sx={{
-          flex: 1,
-          minHeight: 0,
-          // Vertical scroll only — the fixed table layout below guarantees the
-          // columns always fit the column width.
-          overflowX: 'hidden',
-          '&::-webkit-scrollbar': { width: 4 },
-          '&::-webkit-scrollbar-thumb': {
-            background: theme.palette.border.light,
-            borderRadius: 0,
-          },
+          backgroundColor: 'transparent',
+          backgroundImage: `linear-gradient(to left, ${barColor} ${pct}%, transparent ${pct}%)`,
+          '&:hover': { backgroundColor: 'action.hover' },
         }}
       >
-        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
-          <TableHead>
-            <TableRow>
-              {/* One sentence instead of caption + unit: rows below complete
-                  it ("1 BTC → 741.89 SOL"). */}
-              <TableCell sx={{ ...headerSx, width: { xs: '52%', sm: '40%' } }}>
-                1 {from.toUpperCase()} → {to.toUpperCase()}
-              </TableCell>
-              {/* Per-level capacity folds away on phones — rate + cumulative
-                  is the readable core; headers were truncating mid-word. */}
-              <TableCell
-                sx={{
-                  ...headerSx,
-                  width: '32%',
-                  display: { xs: 'none', sm: 'table-cell' },
-                }}
-                align="right"
-              >
-                Capacity
-              </TableCell>
-              <TableCell
-                sx={{ ...headerSx, width: { xs: '48%', sm: '28%' } }}
-                align="right"
-              >
-                Cumulative
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {depthData.map((row) => {
-              const pct = (row.cum / maxCum) * 100;
-              return (
-                <TableRow
-                  key={row.rate}
-                  sx={{
-                    backgroundColor: 'transparent',
-                    backgroundImage: `linear-gradient(to left, ${barColor} ${pct}%, transparent ${pct}%)`,
-                    '&:hover': { backgroundColor: 'action.hover' },
-                  }}
-                >
-                  <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
-                    {row.rate}
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      ...cellSx,
-                      display: { xs: 'none', sm: 'table-cell' },
-                    }}
-                    align="right"
-                  >
-                    <Amount value={row.cap} unit={unit} />
-                  </TableCell>
-                  <TableCell sx={cellSx} align="right">
-                    <Amount value={row.cum} unit={unit} strong />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+        <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
+          {formatRate(row.price)}
+        </TableCell>
+        <TableCell
+          sx={{ ...cellSx, display: { xs: 'none', sm: 'table-cell' } }}
+          align="right"
+        >
+          <Amount value={row.size} unit={unit} />
+        </TableCell>
+        <TableCell sx={cellSx} align="right">
+          <Amount value={row.total} unit={unit} strong />
+        </TableCell>
+      </TableRow>
+    );
+  };
 
-            {depthData.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={3}
-                  sx={{
-                    textAlign: 'center',
-                    borderBottom: 'none',
-                    py: 3,
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.72rem',
-                    color: 'text.secondary',
-                  }}
-                >
-                  No open liquidity for {directionLabel(direction)}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
+  const emptyRow = (side: Direction) => (
+    <TableRow key={`${side}-empty`}>
+      <TableCell
+        colSpan={3}
+        sx={{
+          ...cellSx,
+          textAlign: 'center',
+          py: 1.5,
+          color: 'text.secondary',
+        }}
+      >
+        No open liquidity for {sideLabel(side)}
+      </TableCell>
+    </TableRow>
   );
-};
-
-// Two-sided depth of market for the page's active PAIR: both directions'
-// ladders side by side, so the whole book is visible at once.
-const OrderbookDepth: React.FC<{
-  direction: Direction;
-}> = ({ direction }) => {
-  const theme = useTheme();
-  const { data: miners, isLoading } = useMiners();
-  // Price grouping shared by both ladders (percent-of-price, so one control
-  // fits both scales); auto coarsens each side until it fits the panel.
-  const [group, setGroup] = useState<DepthGroup>(null);
-  // Both ladders come from the SELECTED pair's own legs — canonical
-  // (anchor→spoke) first — never rebuilt around a hardcoded hub.
-  const { from, to, leg } = decomposeDirection(direction);
-  const forward = (
-    leg === 'forward' ? `${from}-${to}` : `${to}-${from}`
-  ).toUpperCase() as Direction;
-  const reverse = (
-    leg === 'forward' ? `${to}-${from}` : `${from}-${to}`
-  ).toUpperCase() as Direction;
 
   if (isLoading || !miners) return <OrderbookDepthSkeleton />;
 
@@ -333,11 +302,13 @@ const OrderbookDepth: React.FC<{
           <Tooltip
             title={
               <Box sx={{ maxWidth: 260 }}>
-                Resting liquidity, both directions of the selected pair at once:
-                active miners' collateral grouped by quoted rate, best rate
-                first, expressed in the asset you send at each level's own rate.
-                Cumulative is how much you could send at that rate or better;
-                the bar behind each row draws it.
+                Resting liquidity for the pair, both directions on one price
+                ruler: active miners' collateral grouped by quoted rate,
+                expressed in the asset you send at each level's own rate. Above
+                the line is {sideLabel(reverse)}, best rate nearest the line;
+                below it is {sideLabel(direction)}, best rate first. Total is
+                how much could move at that rate or better; the bar behind each
+                row draws it.
               </Box>
             }
             arrow
@@ -398,19 +369,94 @@ const OrderbookDepth: React.FC<{
         </Tooltip>
       </Box>
 
-      <Box
+      <TableContainer
         sx={{
           flex: 1,
           minHeight: 0,
-          display: 'grid',
-          // One side at a time, stacked: the book reads down, not across.
-          gridTemplateColumns: '1fr',
-          gap: 2.5,
+          overflowX: 'hidden',
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-thumb': {
+            background: theme.palette.border.light,
+            borderRadius: 0,
+          },
         }}
       >
-        <DepthLadder miners={miners} direction={forward} group={group} />
-        <DepthLadder miners={miners} direction={reverse} group={group} />
-      </Box>
+        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ ...headerSx, width: { xs: '52%', sm: '40%' } }}>
+                Rate ({priceUnit})
+              </TableCell>
+              <TableCell
+                sx={{
+                  ...headerSx,
+                  width: '32%',
+                  display: { xs: 'none', sm: 'table-cell' },
+                }}
+                align="right"
+              >
+                Size ({unit})
+              </TableCell>
+              <TableCell
+                sx={{ ...headerSx, width: { xs: '48%', sm: '28%' } }}
+                align="right"
+              >
+                Total ({unit})
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {above.length
+              ? above.map((row) => renderRow(row, maxAbove, reverse))
+              : emptyRow(reverse)}
+
+            {/* The line the two sides meet at: which direction is on which
+                side, and the gap between their best levels. */}
+            <TableRow>
+              <TableCell
+                colSpan={3}
+                sx={{
+                  ...cellSx,
+                  py: 0.6,
+                  borderTop: `1px solid ${theme.palette.border.light}`,
+                  borderBottom: `1px solid ${theme.palette.border.light}`,
+                  backgroundColor: 'background.default',
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.62rem',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    color: 'text.secondary',
+                  }}
+                >
+                  <span>↑ {sideLabel(reverse)}</span>
+                  <Box
+                    component="span"
+                    sx={{ fontWeight: 600, color: spreadColor }}
+                  >
+                    spread{' '}
+                    {spreadPct != null
+                      ? `${spreadPct > 0 ? '+' : ''}${spreadPct.toFixed(2)}%`
+                      : '—'}
+                  </Box>
+                  <span>↓ {sideLabel(direction)}</span>
+                </Box>
+              </TableCell>
+            </TableRow>
+
+            {below.length
+              ? below.map((row) => renderRow(row, maxBelow, direction))
+              : emptyRow(direction)}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 };
