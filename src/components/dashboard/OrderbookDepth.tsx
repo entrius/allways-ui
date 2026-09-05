@@ -191,8 +191,16 @@ const OrderbookDepth: React.FC<{
   const below = useMemo(() => cumulate(near.levels), [near]);
   const above = useMemo(() => cumulate(far.levels), [far]);
 
-  const maxAbove = above.reduce((m, r) => Math.max(m, r.total), 1);
-  const maxBelow = below.reduce((m, r) => Math.max(m, r.total), 1);
+  // Sizes count in the asset you would SEND for the direction you picked —
+  // USDC on USDC → SOL, SOL on SOL → USDC — so the numbers are the ones
+  // you'd type. Levels are held in the base asset; a level's own price
+  // converts it exactly, and the running total in the quote asset is the
+  // same sum the hover shows.
+  const sendsQuote = legs.from !== base;
+  const sizeOf = (row: Row) => (sendsQuote ? row.size * row.price : row.size);
+  const totalOf = (row: Row) => (sendsQuote ? row.quote : row.total);
+  const maxAbove = above.reduce((m, r) => Math.max(m, totalOf(r)), 1);
+  const maxBelow = below.reduce((m, r) => Math.max(m, totalOf(r)), 1);
 
   // Spread the way a book prints it: ask minus bid, as a number and as a
   // percent of their mid (the mid only normalises; it is never shown). Ask
@@ -219,8 +227,10 @@ const OrderbookDepth: React.FC<{
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const tone = { above: move.down, below: move.up } as const;
 
-  const unit = chainSymbol(from);
+  const baseUnit = chainSymbol(from);
   const quoteUnit = chainSymbol(to);
+  // The column unit: what you send.
+  const unit = sendsQuote ? quoteUnit : baseUnit;
   const priceUnit = `${quoteUnit}/${unit}`;
   const sideLabel = (d: Direction) => d.replace('-', ' → ');
 
@@ -252,7 +262,7 @@ const OrderbookDepth: React.FC<{
     side: 'above' | 'below',
     max: number,
   ) => {
-    const pct = (row.total / max) * 100;
+    const pct = (totalOf(row) / max) * 100;
     const color = tone[side];
     const inRange = hover?.side === side && i <= hover.i;
     const isHovered = hover?.side === side && i === hover.i;
@@ -277,10 +287,10 @@ const OrderbookDepth: React.FC<{
           sx={{ ...cellSx, display: { xs: 'none', sm: 'table-cell' } }}
           align="right"
         >
-          {row.size.toFixed(2)}
+          {sizeOf(row).toFixed(2)}
         </TableCell>
         <TableCell sx={{ ...cellSx, fontWeight: 600 }} align="right">
-          {row.total.toFixed(2)}
+          {totalOf(row).toFixed(2)}
         </TableCell>
       </TableRow>
     );
@@ -308,7 +318,7 @@ const OrderbookDepth: React.FC<{
             <Box component="span" sx={{ textAlign: 'right' }}>
               {avg != null ? fmtPrice(avg) : '—'} {quoteUnit}
             </Box>
-            <span>Sum {unit}</span>
+            <span>Sum {baseUnit}</span>
             <Box component="span" sx={{ textAlign: 'right' }}>
               {row.total.toFixed(2)}
             </Box>
