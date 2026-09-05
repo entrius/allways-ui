@@ -57,6 +57,10 @@ interface Side {
   levels: Level[];
   // The tick the levels were grouped on (0 when the side is empty).
   tick: number;
+  // The side's finest tick, and how many buckets each step of the picker
+  // would leave: the picker offers only steps that still separate levels.
+  scale: number;
+  bucketsAt: Record<number, number>;
 }
 
 // One direction's TAKEABLE liquidity, put on the pair's ruler (quote per 1
@@ -94,7 +98,8 @@ const useDepth = (
         sendsBase ? { price: r, size: sent } : { price: 1 / r, size: sent * r },
       );
     });
-    if (!entries.length) return { levels: [], tick: 0 };
+    if (!entries.length)
+      return { levels: [], tick: 0, scale: 0, bucketsAt: {} };
 
     // The level nearest the line sets the tick scale.
     const best = entries.reduce(
@@ -115,6 +120,10 @@ const useDepth = (
       return { buckets, tick };
     };
 
+    const bucketsAt: Record<number, number> = {};
+    for (const mult of GROUP_MULTS)
+      bucketsAt[mult] = bucketize(mult).buckets.size;
+
     let grouped = bucketize(group ?? 1);
     if (group == null) {
       for (const mult of GROUP_MULTS) {
@@ -128,6 +137,8 @@ const useDepth = (
         .sort((a, b) => (sendsBase ? b - a : a - b))
         .map((price) => ({ price, size: grouped.buckets.get(price) ?? 0 })),
       tick: grouped.tick,
+      scale,
+      bucketsAt,
     };
   }, [miners, from, to, leg, direction, group, sendsBase]);
 };
@@ -222,9 +233,24 @@ const OrderbookDepth: React.FC<{
   const tick = Math.min(near.tick || Infinity, far.tick || Infinity);
   const decimals = Number.isFinite(tick) ? tickDecimals(tick) : 5;
   const fmtPrice = (v: number) => v.toFixed(decimals);
-  // Tick labels for the precision picker, on this direction's scale.
-  const best = below[0]?.price ?? above[0]?.price ?? null;
-  const tickScale = best ? tickBase(best) : null;
+  // The picker's steps come from THIS book: the finest tick the quotes are
+  // made in, then tens upward, stopping once every side has folded to a
+  // single bucket — a step past that changes nothing. The current step is
+  // always offered so the control never shows a value it doesn't list.
+  const tickScale = near.scale || far.scale || null;
+  const fmtTick = (mult: number) =>
+    tickScale != null
+      ? (tickScale * mult).toFixed(tickDecimals(tickScale * mult))
+      : `×${mult}`;
+  const groupOptions = useMemo(() => {
+    const separates = (mult: number) =>
+      (near.bucketsAt[mult] ?? 0) > 1 || (far.bucketsAt[mult] ?? 0) > 1;
+    const mults = GROUP_MULTS.filter(
+      (mult, i) => i === 0 || separates(GROUP_MULTS[i - 1]) || mult === group,
+    );
+    return [null, ...mults];
+  }, [near.bucketsAt, far.bucketsAt, group]);
+  const autoTick = near.tick || far.tick || 0;
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const tone = { above: move.down, below: move.up } as const;
@@ -430,16 +456,14 @@ const OrderbookDepth: React.FC<{
               label="Price grouping"
               value={group}
               onChange={setGroup}
-              options={[null, ...GROUP_MULTS].map((mult) => ({
+              options={groupOptions.map((mult) => ({
                 value: mult,
                 label:
                   mult == null
-                    ? 'Auto'
-                    : tickScale != null
-                      ? (tickScale * mult).toFixed(
-                          tickDecimals(tickScale * mult),
-                        )
-                      : `×${mult}`,
+                    ? autoTick
+                      ? `Auto · ${autoTick.toFixed(tickDecimals(autoTick))}`
+                      : 'Auto'
+                    : fmtTick(mult),
               }))}
             />
           </Box>
