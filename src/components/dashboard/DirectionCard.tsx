@@ -10,7 +10,7 @@ import {
 import { chainName, chainSymbol, formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
-import RangeChips from '../RangeChips';
+import MonoSelect from '../MonoSelect';
 import RailTooltip from './railTooltip';
 import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
 
@@ -227,7 +227,12 @@ const DirectionCard: React.FC<{
           </RailTooltip>
         )}
         <Box sx={{ ml: 'auto', flexShrink: 0 }}>
-          <RangeChips value={range} options={RANGES} onChange={onRangeChange} />
+          <MonoSelect<HeroRange>
+            label="Time range"
+            value={range}
+            onChange={onRangeChange}
+            options={RANGES.map((r) => ({ value: r, label: r }))}
+          />
         </Box>
       </Box>
 

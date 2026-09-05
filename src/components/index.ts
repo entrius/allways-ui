@@ -22,3 +22,4 @@ export * from './agents';
 export * from './miners';
 export * from './swap';
 export * from './stats';
+export { default as MonoSelect } from './MonoSelect';

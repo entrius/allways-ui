@@ -24,6 +24,7 @@ import { FONTS } from '../../theme';
 import { chainSymbol, unitsToHuman } from '../../utils/format';
 import { MOVE_COLORS } from './AllwaysMarketRate';
 import { OrderbookDepthSkeleton } from './Skeletons';
+import MonoSelect from '../MonoSelect';
 
 // Price grouping, the way an exchange's precision picker works: levels
 // merge into buckets one tick wide, and the picker lists the tick sizes
@@ -268,6 +269,9 @@ const OrderbookDepth: React.FC<{
     const inRange = hover?.side === side && i <= hover.i;
     const isHovered = hover?.side === side && i === hover.i;
     const avg = row.total > 0 ? row.quote / row.total : null;
+    // Which direction this side is, and whether its taker sends the base.
+    const sideDir = side === 'above' ? sellDir : buyDir;
+    const sideSendsBase = side === 'below';
     const cell = (
       <TableRow
         key={`${side}-${row.price}`}
@@ -305,27 +309,34 @@ const OrderbookDepth: React.FC<{
         disableFocusListener
         disableTouchListener
         title={
-          <Box
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.66rem',
-              display: 'grid',
-              gridTemplateColumns: 'auto auto',
-              columnGap: 1.5,
-              rowGap: 0.25,
-            }}
-          >
-            <span>Avg rate</span>
-            <Box component="span" sx={{ textAlign: 'right' }}>
-              {avg != null ? fmtPrice(avg) : '—'} {quoteUnit}
+          <Box sx={{ fontFamily: FONTS.mono, fontSize: '0.66rem' }}>
+            <Box sx={{ fontWeight: 700, mb: 0.5 }}>
+              {sideLabel(sideDir)} · fill down to {fmtPrice(row.price)}
             </Box>
-            <span>Sum {baseUnit}</span>
-            <Box component="span" sx={{ textAlign: 'right' }}>
-              {row.total.toFixed(2)}
-            </Box>
-            <span>Sum {quoteUnit}</span>
-            <Box component="span" sx={{ textAlign: 'right' }}>
-              {row.quote.toFixed(2)}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'auto auto',
+                columnGap: 1.5,
+                rowGap: 0.25,
+              }}
+            >
+              <span>You send</span>
+              <Box component="span" sx={{ textAlign: 'right' }}>
+                {sideSendsBase
+                  ? `${row.total.toFixed(2)} ${baseUnit}`
+                  : `${row.quote.toFixed(2)} ${quoteUnit}`}
+              </Box>
+              <span>You get</span>
+              <Box component="span" sx={{ textAlign: 'right' }}>
+                {sideSendsBase
+                  ? `${row.quote.toFixed(2)} ${quoteUnit}`
+                  : `${row.total.toFixed(2)} ${baseUnit}`}
+              </Box>
+              <span>Avg rate</span>
+              <Box component="span" sx={{ textAlign: 'right' }}>
+                {avg != null ? fmtPrice(avg) : '—'} {quoteUnit}/{baseUnit}
+              </Box>
             </Box>
           </Box>
         }
@@ -385,14 +396,14 @@ const OrderbookDepth: React.FC<{
           <Tooltip
             title={
               <Box sx={{ maxWidth: 260 }}>
-                Resting liquidity for the pair, both directions on one price
-                ruler: active miners' collateral grouped by rate, in the asset
-                you send at each level's own rate. Red, above the line, is{' '}
-                {sideLabel(sellDir)} with its best rate nearest the line; green,
-                below, is {sideLabel(buyDir)}, best first. The dot marks the
-                direction you picked in the matrix; its best level is the number
-                you clicked. Total is how much could move at that rate or
-                better. Hover a level for the average rate and sums down to it.
+                Every open quote for this pair, priced in {quoteUnit} per{' '}
+                {baseUnit}. Red rows above the line are miners taking{' '}
+                {quoteUnit} and paying {baseUnit}; green rows below take{' '}
+                {baseUnit} and pay {quoteUnit}. The best rate on each side sits
+                against the line. Size is how much {quoteUnit} that level can
+                move; Total adds up the levels from the line down to it. The dot
+                marks the direction you picked in the matrix. Hover a row to see
+                what filling down to it would send and get.
               </Box>
             }
             arrow
@@ -414,50 +425,23 @@ const OrderbookDepth: React.FC<{
           arrow
           placement="top"
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-            {[null, ...GROUP_MULTS].map((mult) => {
-              const label =
-                mult == null
-                  ? 'Auto'
-                  : tickScale != null
-                    ? (tickScale * mult).toFixed(tickDecimals(tickScale * mult))
-                    : `×${mult}`;
-              return (
-                <Box
-                  key={label}
-                  component="button"
-                  onClick={() => setGroup(mult)}
-                  sx={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.6rem',
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    px: 0.75,
-                    py: 0.25,
-                    fontVariantNumeric: 'tabular-nums',
-                    color:
-                      group === mult
-                        ? theme.palette.background.paper
-                        : theme.palette.text.secondary,
-                    backgroundColor:
-                      group === mult
-                        ? theme.palette.text.primary
-                        : 'transparent',
-                    fontWeight: 600,
-                    '&:hover': {
-                      backgroundColor:
-                        group === mult
-                          ? theme.palette.text.primary
-                          : theme.palette.action.hover,
-                    },
-                  }}
-                >
-                  {label}
-                </Box>
-              );
-            })}
+          <Box>
+            <MonoSelect<DepthGroup>
+              label="Price grouping"
+              value={group}
+              onChange={setGroup}
+              options={[null, ...GROUP_MULTS].map((mult) => ({
+                value: mult,
+                label:
+                  mult == null
+                    ? 'Auto'
+                    : tickScale != null
+                      ? (tickScale * mult).toFixed(
+                          tickDecimals(tickScale * mult),
+                        )
+                      : `×${mult}`,
+              }))}
+            />
           </Box>
         </Tooltip>
       </Box>
