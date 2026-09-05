@@ -6,8 +6,11 @@ import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateMatrix from '../components/dashboard/RateMatrix';
 import { isDirection } from '../api';
-import { hubChain } from '../api/models/chains';
-import type { Direction } from '../api/models/MinersDashboard';
+import { hubChain, hubChains, hubLeg } from '../api/models/chains';
+import {
+  decomposeDirection,
+  type Direction,
+} from '../api/models/MinersDashboard';
 import type { HeroRange } from '../components/dashboard/AllwaysMarketRate';
 
 // Opening instrument when the URL says nothing. Kept off the URL so a bare
@@ -38,13 +41,31 @@ const MarketPage: React.FC = () => {
       ? legacyDir
       : DEFAULT_DIRECTION;
 
+  // The hub column the cell was clicked in. The right side is denominated
+  // the way the matrix is — the other asset per 1 of this hub — so the
+  // number you clicked is the number you see. Only the hub↔hub pair can
+  // differ from its anchor, so only then does it ride on the URL.
+  const { from, to } = decomposeDirection(direction);
+  const anchor = hubLeg(from, to) ?? from;
+  const baseParam = params.get('base')?.toLowerCase();
+  const base =
+    baseParam &&
+    (baseParam === from || baseParam === to) &&
+    hubChains().includes(baseParam)
+      ? baseParam
+      : anchor;
+
   const setDirection = useCallback(
-    (value: Direction) => {
+    (value: Direction, hub: string) => {
       const next = new URLSearchParams(params);
       next.delete('direction');
       next.delete('pair');
       if (value === DEFAULT_DIRECTION) next.delete('dir');
       else next.set('dir', value);
+      const legs = decomposeDirection(value);
+      if (hub === (hubLeg(legs.from, legs.to) ?? legs.from))
+        next.delete('base');
+      else next.set('base', hub);
       // replace: picking a cell is not a navigation step.
       setParams(next, { replace: true });
     },
@@ -77,7 +98,11 @@ const MarketPage: React.FC = () => {
         {/* Two equal halves, so the rule between them sits at the centre
             of the screen. The sheet scrolls inside its half if it is wider. */}
         <Box sx={{ flex: '1 1 0', minWidth: 0, minHeight: 0 }}>
-          <RateMatrix direction={direction} onDirectionChange={setDirection} />
+          <RateMatrix
+            direction={direction}
+            base={base}
+            onDirectionChange={setDirection}
+          />
         </Box>
         <Stack
           sx={{
@@ -95,6 +120,7 @@ const MarketPage: React.FC = () => {
           <Box sx={{ maxWidth: 360 }}>
             <DirectionCard
               direction={direction}
+              base={base}
               range={range}
               onRangeChange={setRange}
             />
@@ -111,7 +137,7 @@ const MarketPage: React.FC = () => {
               minWidth: 0,
             }}
           >
-            <OrderbookDepth direction={direction} />
+            <OrderbookDepth direction={direction} base={base} />
           </Box>
         </Stack>
       </Box>

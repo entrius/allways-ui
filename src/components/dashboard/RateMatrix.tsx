@@ -236,8 +236,11 @@ const Cell: React.FC<{
 // panels beside it.
 const RateMatrix: React.FC<{
   direction: Direction;
-  onDirectionChange: (direction: Direction) => void;
-}> = ({ direction, onDirectionChange }) => {
+  // The hub column the selection was made in. Only matters for the hub↔hub
+  // pair, which appears under both hub columns.
+  base?: string;
+  onDirectionChange: (direction: Direction, hub: string) => void;
+}> = ({ direction, base, onDirectionChange }) => {
   const theme = useTheme();
   const { data: chains } = useChains();
   const { data: crown, dataUpdatedAt, isError } = useCurrentCrown();
@@ -535,27 +538,31 @@ const RateMatrix: React.FC<{
                         value={out}
                         self={self}
                         band={false}
-                        selected={outDir === direction}
+                        selected={
+                          outDir === direction && (!base || hub.id === base)
+                        }
                         title={
                           out === null || out === 0
                             ? 'No quote'
                             : `Send 1 ${hub.symbol}, get ${formatRate(out)} ${asset.symbol}`
                         }
                         seq={seq[`${k}|out`] ?? 0}
-                        onSelect={() => onDirectionChange(outDir)}
+                        onSelect={() => onDirectionChange(outDir, hub.id)}
                       />
                       <Cell
                         value={back}
                         self={self}
                         band
-                        selected={backDir === direction}
+                        selected={
+                          backDir === direction && (!base || hub.id === base)
+                        }
                         title={
                           back === null || back === 0
                             ? 'No quote'
                             : `Send ${formatRate(back)} ${asset.symbol}, get 1 ${hub.symbol}`
                         }
                         seq={seq[`${k}|back`] ?? 0}
-                        onSelect={() => onDirectionChange(backDir)}
+                        onSelect={() => onDirectionChange(backDir, hub.id)}
                       />
                     </React.Fragment>
                   );

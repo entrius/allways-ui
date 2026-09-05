@@ -3,7 +3,6 @@ import { Box, Typography } from '@mui/material';
 import { alpha, keyframes } from '@mui/material/styles';
 import type { ChainInfo } from '../../api/models/chains';
 import { FONTS } from '../../theme';
-import { useThemeMode } from '../../ThemeContext';
 import {
   HEADER_PRESETS,
   sameParts,
@@ -164,7 +163,6 @@ const RateMatrixSettings: React.FC<{
   onClose,
   top,
 }) => {
-  const { mode, toggleTheme } = useThemeMode();
   return (
     <>
       <Box
@@ -212,33 +210,7 @@ const RateMatrixSettings: React.FC<{
           textAlign: 'left',
         }}
       >
-        <Box sx={rowSx}>
-          <Typography component="span" sx={labelSx}>
-            theme
-          </Typography>
-          <Seg
-            options={[
-              { value: 'dark', label: 'dark' },
-              { value: 'light', label: 'light' },
-            ]}
-            value={mode}
-            onChange={(v) => {
-              if (v !== mode) toggleTheme();
-            }}
-          />
-        </Box>
-
-        <Typography
-          component="div"
-          sx={{
-            ...labelSx,
-            pt: 1,
-            pb: 0.25,
-            mt: 0.5,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
+        <Typography component="div" sx={{ ...labelSx, pt: 0.25, pb: 0.25 }}>
           labels
         </Typography>
         <Box sx={rowSx}>

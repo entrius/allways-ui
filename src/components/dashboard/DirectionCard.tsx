@@ -72,62 +72,87 @@ const Stat: React.FC<{ label: string; value: string; hint: string }> = ({
   </RailTooltip>
 );
 
-// The selected route's card, symbol-page shape: identity, then the number,
-// then a key-stats list. Lifted out of the old pairs rail so it can sit
-// beside the rate matrix. Bands are separated by whitespace and type weight
-// rather than rules.
+// The selected cell's card, exchange-header shape: pair, the number you
+// clicked as the headline, the sentence it means, then the window's
+// high/low and the spread. Everything is denominated the way the matrix is
+// — the other asset per 1 of the hub column — so the headline IS the cell.
 const DirectionCard: React.FC<{
   direction: Direction;
+  // The hub column the cell sits in; prices read as quote per 1 of this.
+  base: string;
   range: HeroRange;
   onRangeChange: (range: HeroRange) => void;
-}> = ({ direction, range, onRangeChange }) => {
+}> = ({ direction, base, range, onRangeChange }) => {
   const theme = useTheme();
   const secs = RANGE_SECS[range];
-  const { from, to } = decomposeDirection(direction);
-  const reverseDir = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
+  const legs = decomposeDirection(direction);
+  const quote = legs.from === base ? legs.to : legs.from;
+  // A direction's natural quote is "received per 1 sent". When the sent
+  // asset is the quote, that is the inverse of the matrix's unit.
+  const inverted = legs.from !== base;
+  const toPrice = (natural: number | null): number | null =>
+    natural == null || !Number.isFinite(natural)
+      ? null
+      : inverted
+        ? natural > 0
+          ? 1 / natural
+          : null
+        : natural;
+  const reverseDir =
+    `${legs.to.toUpperCase()}-${legs.from.toUpperCase()}` as Direction;
 
   const { data: crown } = useCurrentCrown();
-  const selRate = directionalRateFor(
+  // Lane scored on the base hub, the same lane the matrix column shows.
+  const natural = directionalRateFor(
     direction,
-    crownLaneFor(crown, direction)?.rate,
+    crownLaneFor(crown, direction, base)?.rate,
   );
-  const revRate = directionalRateFor(
+  const price = toPrice(natural);
+  const revNatural = directionalRateFor(
     reverseDir,
-    crownLaneFor(crown, reverseDir)?.rate,
+    crownLaneFor(crown, reverseDir, base)?.rate,
   );
-  // Both routes' rates in one numeraire (to per 1 from): the selected route
-  // as-is vs the reverse route inverted.
-  const revImplied = revRate ? 1 / revRate : null;
-  // Spread the way every exchange prints it: the gap between the two sides'
-  // best rates as a positive percent of their mid. The mid is only used to
-  // normalise; it is never shown.
+  // The reverse route on the same ruler: it is the inverse whenever this
+  // one is not, and vice versa.
+  const revPrice =
+    revNatural == null || !Number.isFinite(revNatural)
+      ? null
+      : inverted
+        ? revNatural
+        : revNatural > 0
+          ? 1 / revNatural
+          : null;
+  // Spread the way every exchange prints it: the gap between the two
+  // sides' best rates as a positive percent of their mid. The mid only
+  // normalises; it is never shown.
   const spreadPct =
-    selRate != null && revImplied != null && selRate + revImplied > 0
-      ? (Math.abs(selRate - revImplied) / ((selRate + revImplied) / 2)) * 100
+    price != null && revPrice != null && price + revPrice > 0
+      ? (Math.abs(price - revPrice) / ((price + revPrice) / 2)) * 100
       : null;
 
   const { data: allSeries } = useCrownRateHistoryAll(secs);
   const selRows = allSeries?.[direction];
-  const selChg = useMemo(() => {
-    if (!selRows?.length || selRate == null) return null;
-    const first = directionalRateFor(direction, selRows[0].rate);
-    return first != null && first !== 0
-      ? ((selRate - first) / first) * 100
-      : null;
-  }, [selRows, selRate, direction]);
-  // The window's high and low, the two numbers every exchange header puts
-  // beside the change. The live crown counts as a point so the range never
-  // excludes the current rate.
-  const { high, low } = useMemo(() => {
+  // Move, high and low over the window, all on the displayed ruler. The
+  // live rate counts as a point so the range never excludes it.
+  const { chg, high, low } = useMemo(() => {
     const pts = (selRows ?? [])
-      .map((r) => directionalRateFor(direction, r.rate))
+      .map((r) => toPrice(directionalRateFor(direction, r.rate)))
       .filter((v): v is number => v != null && Number.isFinite(v));
-    if (selRate != null) pts.push(selRate);
-    if (!pts.length) return { high: null, low: null };
-    return { high: Math.max(...pts), low: Math.min(...pts) };
-  }, [selRows, selRate, direction]);
+    const first = pts[0] ?? null;
+    if (price != null) pts.push(price);
+    const chg =
+      first != null && first !== 0 && price != null
+        ? ((price - first) / first) * 100
+        : null;
+    if (!pts.length) return { chg, high: null, low: null };
+    return { chg, high: Math.max(...pts), low: Math.min(...pts) };
+    // toPrice is derived from `inverted`, listed instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selRows, price, direction, inverted]);
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
+  const baseSym = chainSymbol(base);
+  const quoteSym = chainSymbol(quote);
 
   return (
     <Stack sx={{ minWidth: 0 }}>
@@ -140,16 +165,15 @@ const DirectionCard: React.FC<{
           minWidth: 0,
         }}
       >
-        {/* The marks overlap into one pair glyph: the instrument is one
-            object, not two assets that happen to be adjacent. */}
+        {/* Pair, hub first, the way the matrix column and row read. */}
         <Box
           sx={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
         >
           <Box sx={{ display: 'inline-flex', position: 'relative', zIndex: 1 }}>
-            <ChainLogo chain={from} size={16} />
+            <ChainLogo chain={base} size={16} />
           </Box>
           <Box sx={{ display: 'inline-flex', ml: -0.55 }}>
-            <ChainLogo chain={to} size={16} />
+            <ChainLogo chain={quote} size={16} />
           </Box>
         </Box>
         <Box
@@ -162,15 +186,15 @@ const DirectionCard: React.FC<{
             ...ellipsisSx,
           }}
         >
-          {chainSymbol(from)}
+          {baseSym}
           <Box component="span" sx={{ color: 'text.disabled' }}>
             /
           </Box>
-          {chainSymbol(to)}
+          {quoteSym}
         </Box>
-        {selChg != null && (
+        {chg != null && (
           <RailTooltip
-            title={`How far this route's rate moved over ${range}.`}
+            title={`How far this rate moved over ${range}.`}
             placement="top"
           >
             <Box
@@ -183,15 +207,11 @@ const DirectionCard: React.FC<{
                 fontWeight: 700,
                 fontVariantNumeric: 'tabular-nums',
                 color:
-                  selChg === 0
-                    ? 'text.secondary'
-                    : selChg > 0
-                      ? move.up
-                      : move.down,
+                  chg === 0 ? 'text.secondary' : chg > 0 ? move.up : move.down,
               }}
             >
-              {selChg > 0 ? '▲ ' : selChg < 0 ? '▼ ' : ''}
-              {fmtChg(selChg)}
+              {chg > 0 ? '▲ ' : chg < 0 ? '▼ ' : ''}
+              {fmtChg(chg)}
             </Box>
           </RailTooltip>
         )}
@@ -200,7 +220,7 @@ const DirectionCard: React.FC<{
         </Box>
       </Box>
 
-      {/* Which chains those three letters actually mean, sent-side first. */}
+      {/* Which chains those letters actually mean, hub first. */}
       <Typography
         sx={{
           fontSize: '0.72rem',
@@ -210,15 +230,14 @@ const DirectionCard: React.FC<{
           ...ellipsisSx,
         }}
       >
-        {chainName(from)}
+        {chainName(base)}
         <Box component="span" sx={{ color: 'text.disabled', px: 0.4 }}>
           /
         </Box>
-        {chainName(to)}
+        {chainName(quote)}
       </Typography>
 
-      {/* The rate, quoted the way a rate is quoted: the number, its unit,
-          then what one unit of it buys. */}
+      {/* The number you clicked, in the unit you clicked it in. */}
       <Box
         sx={{
           display: 'flex',
@@ -240,7 +259,7 @@ const DirectionCard: React.FC<{
             flexShrink: 0,
           }}
         >
-          {selRate != null ? formatRate(selRate) : '—'}
+          {price != null ? formatRate(price) : '—'}
         </Typography>
         <Typography
           sx={{
@@ -252,14 +271,32 @@ const DirectionCard: React.FC<{
             flexShrink: 0,
           }}
         >
-          {chainSymbol(to)}
+          {quoteSym}
         </Typography>
         <Typography
           sx={{ fontSize: '0.72rem', color: 'text.disabled', ...ellipsisSx }}
         >
-          per {chainSymbol(from)}
+          per {baseSym}
         </Typography>
       </Box>
+
+      {/* The sentence the cell means, read the way the matrix's hover
+          reads it. */}
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.68rem',
+          color: 'text.secondary',
+          pt: 0.5,
+          ...ellipsisSx,
+        }}
+      >
+        {price == null
+          ? 'No quote'
+          : inverted
+            ? `Send ${formatRate(price)} ${quoteSym} → get 1 ${baseSym}`
+            : `Send 1 ${baseSym} → get ${formatRate(price)} ${quoteSym}`}
+      </Typography>
 
       {/* The header ribbon every exchange puts under the price: the
           window's high and low beside the spread, label over value. */}
@@ -275,17 +312,17 @@ const DirectionCard: React.FC<{
         <Stat
           label={`${range} High`}
           value={high != null ? formatRate(high) : '—'}
-          hint={`Highest crown rate for this route over ${range}, in ${chainSymbol(to)} per ${chainSymbol(from)}.`}
+          hint={`Highest crown rate for this direction over ${range}, in ${quoteSym} per ${baseSym}.`}
         />
         <Stat
           label={`${range} Low`}
           value={low != null ? formatRate(low) : '—'}
-          hint={`Lowest crown rate for this route over ${range}, in ${chainSymbol(to)} per ${chainSymbol(from)}.`}
+          hint={`Lowest crown rate for this direction over ${range}, in ${quoteSym} per ${baseSym}.`}
         />
         <Stat
           label="Spread"
           value={spreadPct != null ? `${spreadPct.toFixed(2)}%` : '—'}
-          hint={`Gap between this route's crown and the reverse route's (${chainSymbol(to)} → ${chainSymbol(from)}, which pays ${revImplied != null ? formatRate(revImplied) : '—'} in this unit), as a share of the two.`}
+          hint={`Gap between this direction's crown and the reverse direction's (${revPrice != null ? formatRate(revPrice) : '—'} ${quoteSym} per ${baseSym}, the other cell in this row), as a share of the two.`}
         />
       </Box>
     </Stack>

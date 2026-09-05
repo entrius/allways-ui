@@ -45,31 +45,37 @@ const tickDecimals = (tick: number): number =>
   Math.max(0, -Math.floor(Math.log10(tick) + 1e-9));
 
 interface Level {
-  // Directional rate of the level, "to per 1 from" of `direction`.
-  r: number;
-  // Capacity at this level in the asset the taker SENDS.
-  cap: number;
+  // Price on the ruler: quote per 1 base.
+  price: number;
+  // Capacity at this level in the base asset.
+  size: number;
 }
 
 interface Side {
+  // Nearest the line first.
   levels: Level[];
   // The tick the levels were grouped on (0 when the side is empty).
   tick: number;
 }
 
-// One direction's TAKEABLE liquidity grouped by quoted rate, best rate
-// first. Only collateral hittable this instant counts — active miners that
-// are not reserved or mid-swap — so the top of the book always agrees with
-// the crown. Capacity is collateral on the miner's backing leg, and a quote's
-// own rate is exactly the exchange on that leg, so every level converts to
-// the asset the taker sends: cap as-is when the backing is the sent asset,
-// cap / rate when it is the received one.
+// One direction's TAKEABLE liquidity, put on the pair's ruler (quote per 1
+// base) and grouped by tick, nearest-the-line first. Only collateral
+// hittable this instant counts — active miners that are not reserved or
+// mid-swap — so the top of the book always agrees with the crown. Capacity
+// is collateral on the miner's backing leg, and a quote's own rate is
+// exactly the exchange on that leg, so every level converts to the asset
+// the taker sends; senders of the quote are then flipped onto the ruler
+// (price = 1/rate, size = sent × rate). Grouping rounds AWAY from the
+// taker — down for base senders, up for quote senders — so a level's label
+// never overstates the rate a taker would get.
 const useDepth = (
   miners: Miner[] | undefined,
   direction: Direction,
+  base: string,
   group: DepthGroup,
 ): Side => {
   const { from, to, leg } = decomposeDirection(direction);
+  const sendsBase = from === base;
   return useMemo(() => {
     const entries: Level[] = [];
     (miners ?? []).forEach((m) => {
@@ -82,20 +88,28 @@ const useDepth = (
       const raw = leg === 'reverse' ? m.counterRate : m.rate;
       const r = directionalRateFor(direction, raw) ?? 0;
       if (!Number.isFinite(r) || r <= 0) return;
-      entries.push({ r, cap: backing === from ? collateral : collateral / r });
+      const sent = backing === from ? collateral : collateral / r;
+      entries.push(
+        sendsBase ? { price: r, size: sent } : { price: 1 / r, size: sent * r },
+      );
     });
     if (!entries.length) return { levels: [], tick: 0 };
 
-    const best = entries.reduce((mx, e) => (e.r > mx ? e.r : mx), 0);
-    const base = tickBase(best);
+    // The level nearest the line sets the tick scale.
+    const best = entries.reduce(
+      (b, e) => (sendsBase ? Math.max(b, e.price) : Math.min(b, e.price)),
+      sendsBase ? 0 : Infinity,
+    );
+    const scale = tickBase(best);
     const bucketize = (mult: number) => {
-      const tick = base * mult;
+      const tick = scale * mult;
       const buckets = new Map<number, number>();
       for (const e of entries) {
-        // Floor to the tick (epsilon dodges float drift), so a level's label
-        // never overstates the rate a taker would get.
-        const b = Math.floor(e.r / tick + 1e-9) * tick;
-        buckets.set(b, (buckets.get(b) ?? 0) + e.cap);
+        // Epsilon dodges float drift at exact tick multiples.
+        const q = e.price / tick;
+        const b =
+          (sendsBase ? Math.floor(q + 1e-9) : Math.ceil(q - 1e-9)) * tick;
+        buckets.set(b, (buckets.get(b) ?? 0) + e.size);
       }
       return { buckets, tick };
     };
@@ -108,15 +122,13 @@ const useDepth = (
       }
     }
 
-    // More output per unit in is always better, so best-first is
-    // highest-first.
     return {
       levels: [...grouped.buckets.keys()]
-        .sort((a, b) => b - a)
-        .map((r) => ({ r, cap: grouped.buckets.get(r) ?? 0 })),
+        .sort((a, b) => (sendsBase ? b - a : a - b))
+        .map((price) => ({ price, size: grouped.buckets.get(price) ?? 0 })),
       tick: grouped.tick,
     };
-  }, [miners, from, to, leg, direction, group]);
+  }, [miners, from, to, leg, direction, group, sendsBase]);
 };
 
 interface Row {
@@ -136,8 +148,13 @@ interface Row {
 // it expects; the words stay directional (the side you send from) because
 // each side is its own instrument — nothing is netted across the line.
 const OrderbookDepth: React.FC<{
+  // The selected direction — decides which side of the line is "yours".
   direction: Direction;
-}> = ({ direction }) => {
+  // The hub the book is priced against: prices are the other asset per 1
+  // of this, exactly the matrix's unit, so the cell you clicked is a level
+  // on this ladder.
+  base: string;
+}> = ({ direction, base }) => {
   const theme = useTheme();
   const { data: miners, isLoading } = useMiners();
   const [group, setGroup] = useState<DepthGroup>(null);
@@ -148,39 +165,31 @@ const OrderbookDepth: React.FC<{
     side: 'above' | 'below';
     i: number;
   } | null>(null);
-  const { from, to } = decomposeDirection(direction);
-  const reverse = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
+  const legs = decomposeDirection(direction);
+  const from = base;
+  const to = legs.from === base ? legs.to : legs.from;
+  // Below the line: senders of the base (their rate IS the price). Above:
+  // senders of the quote (their rate inverts onto this ruler).
+  const buyDir = `${from.toUpperCase()}-${to.toUpperCase()}` as Direction;
+  const sellDir = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
+  const selectedSide: 'above' | 'below' =
+    direction === sellDir ? 'above' : 'below';
 
-  const near = useDepth(miners, direction, group);
-  const far = useDepth(miners, reverse, group);
+  const near = useDepth(miners, buyDir, base, group);
+  const far = useDepth(miners, sellDir, base, group);
 
-  // This direction: price is the level's own rate, size already in `from`.
-  // Index 0 is the best level, right under the line.
-  const below = useMemo<Row[]>(() => {
+  // Running totals outward from the line, both sides already on the ruler.
+  const cumulate = (levels: Level[]): Row[] => {
     let total = 0;
     let quote = 0;
-    return near.levels.map((l) => {
-      total += l.cap;
-      quote += l.cap * l.r;
-      return { price: l.r, size: l.cap, total, quote };
+    return levels.map((l) => {
+      total += l.size;
+      quote += l.size * l.price;
+      return { price: l.price, size: l.size, total, quote };
     });
-  }, [near]);
-
-  // The other direction, on this ruler: a level paying q `from` per 1 `to`
-  // is a price of 1/q `to` per `from`, and its capacity in `to` is q times
-  // that in `from`. Best for its taker is the LOWEST price here, so index 0
-  // is again the level nearest the line; the block renders reversed.
-  const above = useMemo<Row[]>(() => {
-    let total = 0;
-    let quote = 0;
-    return far.levels.map((l) => {
-      const price = 1 / l.r;
-      const size = l.cap * l.r;
-      total += size;
-      quote += size * price;
-      return { price, size, total, quote };
-    });
-  }, [far]);
+  };
+  const below = useMemo(() => cumulate(near.levels), [near]);
+  const above = useMemo(() => cumulate(far.levels), [far]);
 
   const maxAbove = above.reduce((m, r) => Math.max(m, r.total), 1);
   const maxBelow = below.reduce((m, r) => Math.max(m, r.total), 1);
@@ -204,8 +213,8 @@ const OrderbookDepth: React.FC<{
   const decimals = Number.isFinite(tick) ? tickDecimals(tick) : 5;
   const fmtPrice = (v: number) => v.toFixed(decimals);
   // Tick labels for the precision picker, on this direction's scale.
-  const best = near.levels[0]?.r ?? above[0]?.price ?? null;
-  const base = best ? tickBase(best) : null;
+  const best = below[0]?.price ?? above[0]?.price ?? null;
+  const tickScale = best ? tickBase(best) : null;
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const tone = { above: move.down, below: move.up } as const;
@@ -364,10 +373,11 @@ const OrderbookDepth: React.FC<{
                 Resting liquidity for the pair, both directions on one price
                 ruler: active miners' collateral grouped by rate, in the asset
                 you send at each level's own rate. Red, above the line, is{' '}
-                {sideLabel(reverse)} with its best rate nearest the line; green,
-                below, is {sideLabel(direction)}, best first. Total is how much
-                could move at that rate or better. Hover a level for the average
-                rate and sums down to it.
+                {sideLabel(sellDir)} with its best rate nearest the line; green,
+                below, is {sideLabel(buyDir)}, best first. The dot marks the
+                direction you picked in the matrix; its best level is the number
+                you clicked. Total is how much could move at that rate or
+                better. Hover a level for the average rate and sums down to it.
               </Box>
             }
             arrow
@@ -394,8 +404,8 @@ const OrderbookDepth: React.FC<{
               const label =
                 mult == null
                   ? 'Auto'
-                  : base != null
-                    ? (base * mult).toFixed(tickDecimals(base * mult))
+                  : tickScale != null
+                    ? (tickScale * mult).toFixed(tickDecimals(tickScale * mult))
                     : `×${mult}`;
               return (
                 <Box
@@ -478,7 +488,7 @@ const OrderbookDepth: React.FC<{
               ? [...above]
                   .map((row, i) => renderRow(row, i, 'above', maxAbove))
                   .reverse()
-              : emptyRow(reverse)}
+              : emptyRow(sellDir)}
 
             {/* The line the two sides meet at: which direction is on which
                 side, and the gap between their best levels. */}
@@ -506,8 +516,15 @@ const OrderbookDepth: React.FC<{
                     color: 'text.secondary',
                   }}
                 >
-                  <Box component="span" sx={{ color: tone.above }}>
-                    ↑ {sideLabel(reverse)}
+                  <Box
+                    component="span"
+                    sx={{
+                      color: tone.above,
+                      fontWeight: selectedSide === 'above' ? 700 : 400,
+                    }}
+                  >
+                    ↑ {sideLabel(sellDir)}
+                    {selectedSide === 'above' ? ' ●' : ''}
                   </Box>
                   <Box component="span" sx={{ color: 'text.primary' }}>
                     spread{' '}
@@ -521,8 +538,15 @@ const OrderbookDepth: React.FC<{
                       </Box>
                     )}
                   </Box>
-                  <Box component="span" sx={{ color: tone.below }}>
-                    ↓ {sideLabel(direction)}
+                  <Box
+                    component="span"
+                    sx={{
+                      color: tone.below,
+                      fontWeight: selectedSide === 'below' ? 700 : 400,
+                    }}
+                  >
+                    {selectedSide === 'below' ? '● ' : ''}
+                    {sideLabel(buyDir)} ↓
                   </Box>
                 </Box>
               </TableCell>
@@ -530,7 +554,7 @@ const OrderbookDepth: React.FC<{
 
             {below.length
               ? below.map((row, i) => renderRow(row, i, 'below', maxBelow))
-              : emptyRow(direction)}
+              : emptyRow(buyDir)}
           </TableBody>
         </Table>
       </TableContainer>
