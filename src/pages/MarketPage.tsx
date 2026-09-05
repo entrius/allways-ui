@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Box, Stack } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
@@ -6,7 +6,14 @@ import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
 import RateMatrix from '../components/dashboard/RateMatrix';
-import { isDirection } from '../api';
+import {
+  isDirection,
+  useCompleteSwapHistory,
+  useUsdPrices,
+  type ActiveSwap,
+} from '../api';
+import { hubLegVolume } from '../components/dashboard/marketRate';
+import { usdFromHuman, type UsdPrices } from '../utils/format';
 import { hubChain, hubChains, hubLeg } from '../api/models/chains';
 import {
   decomposeDirection,
@@ -14,9 +21,46 @@ import {
 } from '../api/models/MinersDashboard';
 import type { HeroRange } from '../components/dashboard/AllwaysMarketRate';
 
-// Opening instrument when the URL says nothing. Kept off the URL so a bare
-// /market and /market?dir=SOL-BTC render the same thing.
-const DEFAULT_DIRECTION: Direction = 'SOL-BTC';
+// Opening instrument when the URL says nothing and no swap has settled yet.
+// Otherwise the page opens on the busiest direction (see busiestDirection).
+const FALLBACK_DIRECTION: Direction = 'SOL-BTC';
+
+// Windows tried in turn for "recent": the last day, then the week, then the
+// month, so a quiet day still opens on something real.
+const RECENT_WINDOWS_SECS = [86_400, 604_800, 2_592_000];
+
+// The direction with the most settled volume in the most recent window that
+// has any, in USD where the hub is priced (so SOL- and TAO-anchored routes
+// compare), else in hub units.
+const busiestDirection = (
+  swaps: ActiveSwap[] | undefined,
+  prices: UsdPrices,
+): Direction | null => {
+  if (!swaps?.length) return null;
+  const now = Date.now() / 1000;
+  for (const secs of RECENT_WINDOWS_SECS) {
+    const cutoff = now - secs;
+    const vol = new Map<Direction, number>();
+    for (const s of swaps) {
+      if (s.status !== 'COMPLETED' || s.initiatedAt == null) continue;
+      if (Number(s.initiatedAt) < cutoff) continue;
+      const src = s.sourceChain?.toLowerCase();
+      const dst = s.destChain?.toLowerCase();
+      if (!src || !dst) continue;
+      const dir = `${src}-${dst}`.toUpperCase();
+      if (!isDirection(dir)) continue;
+      const hub = hubLeg(src, dst) ?? src;
+      const v = hubLegVolume(s, hub);
+      if (!Number.isFinite(v) || v <= 0) continue;
+      vol.set(dir, (vol.get(dir) ?? 0) + (usdFromHuman(v, hub, prices) ?? v));
+    }
+    let best: Direction | null = null;
+    let max = 0;
+    for (const [dir, v] of vol) if (v > max) [best, max] = [dir, v];
+    if (best) return best;
+  }
+  return null;
+};
 
 // The card, chart and book share one width, so the right side reads as a
 // single column rather than three panels of different sizes.
@@ -31,6 +75,14 @@ const MarketPage: React.FC = () => {
   // One window for the card's stats.
   const [range, setRange] = useState<HeroRange>('1H');
 
+  // Where the page opens with nothing on the URL: the recent busiest cell.
+  const { data: swaps } = useCompleteSwapHistory();
+  const prices = useUsdPrices();
+  const defaultDirection = useMemo(
+    () => busiestDirection(swaps, prices) ?? FALLBACK_DIRECTION,
+    [swaps, prices],
+  );
+
   // Selected DIRECTION, on the URL. Legacy links resolve too: ?direction=
   // directly, ?pair=BTC to that pair's forward route under the primary
   // hub; anything unrecognised falls back to the default.
@@ -44,7 +96,7 @@ const MarketPage: React.FC = () => {
     ? dirParam
     : isDirection(legacyDir)
       ? legacyDir
-      : DEFAULT_DIRECTION;
+      : defaultDirection;
 
   // The hub column the cell was clicked in. The right side is denominated
   // the way the matrix is — the other asset per 1 of this hub — so the
@@ -65,7 +117,7 @@ const MarketPage: React.FC = () => {
       const next = new URLSearchParams(params);
       next.delete('direction');
       next.delete('pair');
-      if (value === DEFAULT_DIRECTION) next.delete('dir');
+      if (value === defaultDirection) next.delete('dir');
       else next.set('dir', value);
       const legs = decomposeDirection(value);
       if (hub === (hubLeg(legs.from, legs.to) ?? legs.from))
@@ -74,7 +126,7 @@ const MarketPage: React.FC = () => {
       // replace: picking a cell is not a navigation step.
       setParams(next, { replace: true });
     },
-    [params, setParams],
+    [params, setParams, defaultDirection],
   );
 
   return (
