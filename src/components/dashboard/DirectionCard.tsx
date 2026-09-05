@@ -37,35 +37,38 @@ const fmtChg = (chg: number): string => {
   return `${sign}${chg.toFixed(2)}%`;
 };
 
-const StatRow: React.FC<{
-  label: string;
-  value: string;
-  hint: string;
-  valueColor?: string;
-}> = ({ label, value, hint, valueColor }) => (
+// One ribbon stat: small label over a mono value.
+const Stat: React.FC<{ label: string; value: string; hint: string }> = ({
+  label,
+  value,
+  hint,
+}) => (
   <RailTooltip title={hint} placement="top">
-    <Stack
-      direction="row"
-      alignItems="baseline"
-      spacing={0.75}
-      sx={{ justifyContent: 'space-between', width: '100%', py: 0.35 }}
-    >
-      <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.6rem',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'text.secondary',
+          whiteSpace: 'nowrap',
+        }}
+      >
         {label}
       </Typography>
       <Typography
         sx={{
           fontFamily: FONTS.mono,
-          fontSize: '0.74rem',
+          fontSize: '0.78rem',
           fontWeight: 600,
           fontVariantNumeric: 'tabular-nums',
           whiteSpace: 'nowrap',
-          color: valueColor ?? 'text.primary',
         }}
       >
         {value}
       </Typography>
-    </Stack>
+    </Box>
   </RailTooltip>
 );
 
@@ -95,11 +98,12 @@ const DirectionCard: React.FC<{
   // Both routes' rates in one numeraire (to per 1 from): the selected route
   // as-is vs the reverse route inverted.
   const revImplied = revRate ? 1 / revRate : null;
-  // SIGNED spread against the reverse route. Equals the round-trip gain:
-  // positive means out-and-back at these crowns comes out ahead.
+  // Spread the way every exchange prints it: the gap between the two sides'
+  // best rates as a positive percent of their mid. The mid is only used to
+  // normalise; it is never shown.
   const spreadPct =
-    selRate != null && revImplied != null && revImplied !== 0
-      ? ((selRate - revImplied) / revImplied) * 100
+    selRate != null && revImplied != null && selRate + revImplied > 0
+      ? (Math.abs(selRate - revImplied) / ((selRate + revImplied) / 2)) * 100
       : null;
 
   const { data: allSeries } = useCrownRateHistoryAll(secs);
@@ -111,14 +115,19 @@ const DirectionCard: React.FC<{
       ? ((selRate - first) / first) * 100
       : null;
   }, [selRows, selRate, direction]);
+  // The window's high and low, the two numbers every exchange header puts
+  // beside the change. The live crown counts as a point so the range never
+  // excludes the current rate.
+  const { high, low } = useMemo(() => {
+    const pts = (selRows ?? [])
+      .map((r) => directionalRateFor(direction, r.rate))
+      .filter((v): v is number => v != null && Number.isFinite(v));
+    if (selRate != null) pts.push(selRate);
+    if (!pts.length) return { high: null, low: null };
+    return { high: Math.max(...pts), low: Math.min(...pts) };
+  }, [selRows, selRate, direction]);
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
-  const spreadColor =
-    spreadPct == null || spreadPct === 0
-      ? theme.palette.text.secondary
-      : spreadPct > 0
-        ? move.up
-        : move.down;
 
   return (
     <Stack sx={{ minWidth: 0 }}>
@@ -181,6 +190,7 @@ const DirectionCard: React.FC<{
                       : move.down,
               }}
             >
+              {selChg > 0 ? '▲ ' : selChg < 0 ? '▼ ' : ''}
               {fmtChg(selChg)}
             </Box>
           </RailTooltip>
@@ -251,19 +261,31 @@ const DirectionCard: React.FC<{
         </Typography>
       </Box>
 
-      <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, pt: 1.75 }}>
-        Key stats
-      </Typography>
-      <Box sx={{ pt: 0.5 }}>
-        <StatRow
+      {/* The header ribbon every exchange puts under the price: the
+          window's high and low beside the spread, label over value. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, auto)',
+          justifyContent: 'start',
+          columnGap: 3,
+          pt: 1.5,
+        }}
+      >
+        <Stat
+          label={`${range} High`}
+          value={high != null ? formatRate(high) : '—'}
+          hint={`Highest crown rate for this route over ${range}, in ${chainSymbol(to)} per ${chainSymbol(from)}.`}
+        />
+        <Stat
+          label={`${range} Low`}
+          value={low != null ? formatRate(low) : '—'}
+          hint={`Lowest crown rate for this route over ${range}, in ${chainSymbol(to)} per ${chainSymbol(from)}.`}
+        />
+        <Stat
           label="Spread"
-          value={
-            spreadPct != null
-              ? `${spreadPct > 0 ? '+' : ''}${spreadPct.toFixed(2)}%`
-              : '—'
-          }
-          valueColor={spreadPct != null ? spreadColor : undefined}
-          hint={`Gap against the reverse route, ${chainSymbol(to)} → ${chainSymbol(from)}, which pays ${revImplied != null ? formatRate(revImplied) : '—'} in this route's unit. Positive: a round trip comes out ahead. Negative: it costs you this much.`}
+          value={spreadPct != null ? `${spreadPct.toFixed(2)}%` : '—'}
+          hint={`Gap between this route's crown and the reverse route's (${chainSymbol(to)} → ${chainSymbol(from)}, which pays ${revImplied != null ? formatRate(revImplied) : '—'} in this unit), as a share of the two.`}
         />
       </Box>
     </Stack>

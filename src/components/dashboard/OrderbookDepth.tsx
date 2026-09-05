@@ -12,6 +12,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useMiners, minerServesPair, type Miner } from '../../api';
 import {
@@ -20,29 +21,40 @@ import {
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
+import { chainSymbol, unitsToHuman } from '../../utils/format';
 import { MOVE_COLORS } from './AllwaysMarketRate';
 import { OrderbookDepthSkeleton } from './Skeletons';
 
-// Price grouping, shared by both sides and expressed as a share of the price
-// so one control reads the same on a 0.00096 book and a 715 book: levels
-// merge into buckets roughly this fraction of the price wide. null = auto,
-// which picks the finest option that fits each side without a scrollbar.
+// Price grouping, the way an exchange's precision picker works: levels
+// merge into buckets one tick wide, and the picker lists the tick sizes
+// themselves (0.0001, 0.001, ...) rather than a percentage. The tick scale
+// follows the book — the finest option is ~0.001% of the best rate — so the
+// same four steps fit a 0.00096 book and a 715 book. null = auto, which
+// picks the finest step that fits each side without a scrollbar.
 type DepthGroup = number | null;
-const GROUP_OPTIONS: { label: string; mult: number | null }[] = [
-  { label: 'Auto', mult: null },
-  { label: '0.001%', mult: 1 },
-  { label: '0.01%', mult: 10 },
-  { label: '0.1%', mult: 100 },
-  { label: '1%', mult: 1000 },
-];
+const GROUP_MULTS = [1, 10, 100, 1000] as const;
 const AUTO_FIT_ROWS = 6;
+
+// The finest tick for a book whose best rate is `best`.
+const tickBase = (best: number): number =>
+  Math.pow(10, Math.floor(Math.log10(best)) - 4);
+
+// Decimal places that print a tick exactly: every price in a book shares
+// them, so the price column lines up like a ladder.
+const tickDecimals = (tick: number): number =>
+  Math.max(0, -Math.floor(Math.log10(tick) + 1e-9));
 
 interface Level {
   // Directional rate of the level, "to per 1 from" of `direction`.
   r: number;
   // Capacity at this level in the asset the taker SENDS.
   cap: number;
+}
+
+interface Side {
+  levels: Level[];
+  // The tick the levels were grouped on (0 when the side is empty).
+  tick: number;
 }
 
 // One direction's TAKEABLE liquidity grouped by quoted rate, best rate
@@ -56,7 +68,7 @@ const useDepth = (
   miners: Miner[] | undefined,
   direction: Direction,
   group: DepthGroup,
-): Level[] => {
+): Side => {
   const { from, to, leg } = decomposeDirection(direction);
   return useMemo(() => {
     const entries: Level[] = [];
@@ -72,12 +84,10 @@ const useDepth = (
       if (!Number.isFinite(r) || r <= 0) return;
       entries.push({ r, cap: backing === from ? collateral : collateral / r });
     });
-    if (!entries.length) return [];
+    if (!entries.length) return { levels: [], tick: 0 };
 
-    // The side's concrete tick for a grouping option: ~0.001% of the best
-    // rate at the finest setting, scaling ×10 per step.
     const best = entries.reduce((mx, e) => (e.r > mx ? e.r : mx), 0);
-    const base = Math.pow(10, Math.floor(Math.log10(best)) - 4);
+    const base = tickBase(best);
     const bucketize = (mult: number) => {
       const tick = base * mult;
       const buckets = new Map<number, number>();
@@ -87,23 +97,25 @@ const useDepth = (
         const b = Math.floor(e.r / tick + 1e-9) * tick;
         buckets.set(b, (buckets.get(b) ?? 0) + e.cap);
       }
-      return buckets;
+      return { buckets, tick };
     };
 
-    let buckets = bucketize(group ?? 1);
+    let grouped = bucketize(group ?? 1);
     if (group == null) {
-      for (const { mult } of GROUP_OPTIONS) {
-        if (mult == null) continue;
-        buckets = bucketize(mult);
-        if (buckets.size <= AUTO_FIT_ROWS) break;
+      for (const mult of GROUP_MULTS) {
+        grouped = bucketize(mult);
+        if (grouped.buckets.size <= AUTO_FIT_ROWS) break;
       }
     }
 
     // More output per unit in is always better, so best-first is
     // highest-first.
-    return [...buckets.keys()]
-      .sort((a, b) => b - a)
-      .map((r) => ({ r, cap: buckets.get(r) ?? 0 }));
+    return {
+      levels: [...grouped.buckets.keys()]
+        .sort((a, b) => b - a)
+        .map((r) => ({ r, cap: grouped.buckets.get(r) ?? 0 })),
+      tick: grouped.tick,
+    };
   }, [miners, from, to, leg, direction, group]);
 };
 
@@ -111,39 +123,31 @@ interface Row {
   price: number;
   size: number;
   total: number;
+  // Cumulative value of the levels up to this one, in the received asset
+  // (size × price summed), for the hover's average and sums.
+  quote: number;
 }
-
-// "2.23" in the number weight, the unit trailing in secondary type.
-const Amount: React.FC<{ value: number; unit: string; strong?: boolean }> = ({
-  value,
-  unit,
-  strong,
-}) => (
-  <>
-    <Box
-      component="span"
-      sx={{ color: 'text.primary', fontWeight: strong ? 600 : 400 }}
-    >
-      {value.toFixed(2)}
-    </Box>
-    <Box component="span" sx={{ color: 'text.secondary', pl: 0.5 }}>
-      {unit}
-    </Box>
-  </>
-);
 
 // The pair's book in the traditional shape: one price column in the
 // selected direction's unit, the OTHER direction's levels stacked above the
 // spread (inverted into this unit, sized in the same asset), this
-// direction's levels below it, best rates meeting in the middle. Each side
-// is still its own instrument — nothing is netted or averaged across the
-// line — the layout just puts the two on one ruler.
+// direction's levels below it, best rates meeting in the middle. Above is
+// tinted red and below green, as on every exchange, so the eye lands where
+// it expects; the words stay directional (the side you send from) because
+// each side is its own instrument — nothing is netted across the line.
 const OrderbookDepth: React.FC<{
   direction: Direction;
 }> = ({ direction }) => {
   const theme = useTheme();
   const { data: miners, isLoading } = useMiners();
   const [group, setGroup] = useState<DepthGroup>(null);
+  // Hovered level, keyed by side and index from the line outward: every
+  // level between the line and it lights up, and the hovered row explains
+  // what filling down to it would cost, the way Binance's "Avg & Sum" does.
+  const [hover, setHover] = useState<{
+    side: 'above' | 'below';
+    i: number;
+  } | null>(null);
   const { from, to } = decomposeDirection(direction);
   const reverse = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 
@@ -151,56 +155,65 @@ const OrderbookDepth: React.FC<{
   const far = useDepth(miners, reverse, group);
 
   // This direction: price is the level's own rate, size already in `from`.
-  // Totals accumulate from the best level (top of the block) downward.
+  // Index 0 is the best level, right under the line.
   const below = useMemo<Row[]>(() => {
     let total = 0;
-    return near.map((l) => {
+    let quote = 0;
+    return near.levels.map((l) => {
       total += l.cap;
-      return { price: l.r, size: l.cap, total };
+      quote += l.cap * l.r;
+      return { price: l.r, size: l.cap, total, quote };
     });
   }, [near]);
 
   // The other direction, on this ruler: a level paying q `from` per 1 `to`
   // is a price of 1/q `to` per `from`, and its capacity in `to` is q times
-  // that in `from`. Best for its taker is the LOWEST price here, so totals
-  // accumulate from the level nearest the spread outward, and the block
-  // renders worst-first so the best sits against the line.
+  // that in `from`. Best for its taker is the LOWEST price here, so index 0
+  // is again the level nearest the line; the block renders reversed.
   const above = useMemo<Row[]>(() => {
     let total = 0;
-    return far
-      .map((l) => ({ price: 1 / l.r, size: l.cap * l.r }))
-      .map((l) => {
-        total += l.size;
-        return { ...l, total };
-      })
-      .reverse();
+    let quote = 0;
+    return far.levels.map((l) => {
+      const price = 1 / l.r;
+      const size = l.cap * l.r;
+      total += size;
+      quote += size * price;
+      return { price, size, total, quote };
+    });
   }, [far]);
 
   const maxAbove = above.reduce((m, r) => Math.max(m, r.total), 1);
   const maxBelow = below.reduce((m, r) => Math.max(m, r.total), 1);
 
-  // Signed spread between the two best levels, in this direction's unit,
-  // the same number the card reports.
+  // Spread between the two sides' best levels, absolute and as a percent of
+  // their mid — the pair of numbers every exchange prints on the line. The
+  // mid only normalises the percent; it is never shown.
   const bestBelow = below[0]?.price ?? null;
-  const bestAbove = above.length ? above[above.length - 1].price : null;
-  const spreadPct =
-    bestBelow != null && bestAbove != null && bestAbove !== 0
-      ? ((bestBelow - bestAbove) / bestAbove) * 100
+  const bestAbove = above[0]?.price ?? null;
+  const spreadAbs =
+    bestBelow != null && bestAbove != null
+      ? Math.abs(bestAbove - bestBelow)
       : null;
+  const spreadPct =
+    spreadAbs != null && bestAbove != null && bestBelow != null
+      ? (spreadAbs / ((bestAbove + bestBelow) / 2)) * 100
+      : null;
+
+  // One decimal count for the whole book, from the finer of the two ticks.
+  const tick = Math.min(near.tick || Infinity, far.tick || Infinity);
+  const decimals = Number.isFinite(tick) ? tickDecimals(tick) : 5;
+  const fmtPrice = (v: number) => v.toFixed(decimals);
+  // Tick labels for the precision picker, on this direction's scale.
+  const best = near.levels[0]?.r ?? above[0]?.price ?? null;
+  const base = best ? tickBase(best) : null;
+
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
-  const spreadColor =
-    spreadPct == null || spreadPct === 0
-      ? theme.palette.text.secondary
-      : spreadPct > 0
-        ? move.up
-        : move.down;
+  const tone = { above: move.down, below: move.up } as const;
 
   const unit = chainSymbol(from);
-  const priceUnit = `${chainSymbol(to)}/${chainSymbol(from)}`;
+  const quoteUnit = chainSymbol(to);
+  const priceUnit = `${quoteUnit}/${unit}`;
   const sideLabel = (d: Direction) => d.replace('-', ' → ');
-
-  // Monochrome depth bars, matching the house chart style.
-  const barColor = `color-mix(in srgb, ${theme.palette.text.primary} 10%, transparent)`;
 
   const headerSx = {
     fontFamily: FONTS.mono,
@@ -224,31 +237,77 @@ const OrderbookDepth: React.FC<{
     whiteSpace: 'nowrap' as const,
   };
 
-  const renderRow = (row: Row, max: number, side: Direction) => {
+  const renderRow = (
+    row: Row,
+    i: number,
+    side: 'above' | 'below',
+    max: number,
+  ) => {
     const pct = (row.total / max) * 100;
-    return (
+    const color = tone[side];
+    const inRange = hover?.side === side && i <= hover.i;
+    const isHovered = hover?.side === side && i === hover.i;
+    const avg = row.total > 0 ? row.quote / row.total : null;
+    const cell = (
       <TableRow
         key={`${side}-${row.price}`}
-        title={`${sideLabel(side)}: ${row.size.toFixed(2)} ${unit} at this level, ${row.total.toFixed(2)} ${unit} at this rate or better`}
+        onMouseEnter={() => setHover({ side, i })}
+        onMouseLeave={() => setHover(null)}
         sx={{
-          backgroundColor: 'transparent',
-          backgroundImage: `linear-gradient(to left, ${barColor} ${pct}%, transparent ${pct}%)`,
-          '&:hover': { backgroundColor: 'action.hover' },
+          backgroundColor: inRange ? 'action.hover' : 'transparent',
+          backgroundImage: `linear-gradient(to left, ${alpha(color, 0.14)} ${pct}%, transparent ${pct}%)`,
+          cursor: 'default',
         }}
       >
-        <TableCell sx={{ ...cellSx, color: 'text.primary' }}>
-          {formatRate(row.price)}
-        </TableCell>
+        <TableCell sx={{ ...cellSx, color }}>{fmtPrice(row.price)}</TableCell>
         <TableCell
           sx={{ ...cellSx, display: { xs: 'none', sm: 'table-cell' } }}
           align="right"
         >
-          <Amount value={row.size} unit={unit} />
+          {row.size.toFixed(2)}
         </TableCell>
-        <TableCell sx={cellSx} align="right">
-          <Amount value={row.total} unit={unit} strong />
+        <TableCell sx={{ ...cellSx, fontWeight: 600 }} align="right">
+          {row.total.toFixed(2)}
         </TableCell>
       </TableRow>
+    );
+    return (
+      <Tooltip
+        key={`${side}-${row.price}-tip`}
+        open={isHovered}
+        placement="left"
+        arrow
+        disableHoverListener
+        disableFocusListener
+        disableTouchListener
+        title={
+          <Box
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.66rem',
+              display: 'grid',
+              gridTemplateColumns: 'auto auto',
+              columnGap: 1.5,
+              rowGap: 0.25,
+            }}
+          >
+            <span>Avg rate</span>
+            <Box component="span" sx={{ textAlign: 'right' }}>
+              {avg != null ? fmtPrice(avg) : '—'} {quoteUnit}
+            </Box>
+            <span>Sum {unit}</span>
+            <Box component="span" sx={{ textAlign: 'right' }}>
+              {row.total.toFixed(2)}
+            </Box>
+            <span>Sum {quoteUnit}</span>
+            <Box component="span" sx={{ textAlign: 'right' }}>
+              {row.quote.toFixed(2)}
+            </Box>
+          </Box>
+        }
+      >
+        {cell}
+      </Tooltip>
     );
   };
 
@@ -297,18 +356,18 @@ const OrderbookDepth: React.FC<{
               color: 'text.secondary',
             }}
           >
-            Orderbook
+            Order book
           </Typography>
           <Tooltip
             title={
               <Box sx={{ maxWidth: 260 }}>
                 Resting liquidity for the pair, both directions on one price
-                ruler: active miners' collateral grouped by quoted rate,
-                expressed in the asset you send at each level's own rate. Above
-                the line is {sideLabel(reverse)}, best rate nearest the line;
-                below it is {sideLabel(direction)}, best rate first. Total is
-                how much could move at that rate or better; the bar behind each
-                row draws it.
+                ruler: active miners' collateral grouped by rate, in the asset
+                you send at each level's own rate. Red, above the line, is{' '}
+                {sideLabel(reverse)} with its best rate nearest the line; green,
+                below, is {sideLabel(direction)}, best first. Total is how much
+                could move at that rate or better. Hover a level for the average
+                rate and sums down to it.
               </Box>
             }
             arrow
@@ -319,52 +378,61 @@ const OrderbookDepth: React.FC<{
             </IconButton>
           </Tooltip>
         </Box>
-        {/* Grouping, phrased as bucket width relative to price so the same
-            chips make sense on both sides of the book. */}
+        {/* Precision picker: the tick sizes themselves, like an exchange's. */}
         <Tooltip
           title={
             <Box sx={{ maxWidth: 260 }}>
-              Group nearby price levels into buckets this wide (as a share of
-              the price) — e.g. 0.1% merges quotes within about 0.1% of each
-              other.
+              Group levels into price buckets this wide. Auto picks the finest
+              that fits.
             </Box>
           }
           arrow
           placement="top"
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-            {GROUP_OPTIONS.map(({ label, mult }) => (
-              <Box
-                key={label}
-                component="button"
-                onClick={() => setGroup(mult)}
-                sx={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.6rem',
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  px: 0.75,
-                  py: 0.25,
-                  color:
-                    group === mult
-                      ? theme.palette.background.paper
-                      : theme.palette.text.secondary,
-                  backgroundColor:
-                    group === mult ? theme.palette.text.primary : 'transparent',
-                  fontWeight: 600,
-                  '&:hover': {
+            {[null, ...GROUP_MULTS].map((mult) => {
+              const label =
+                mult == null
+                  ? 'Auto'
+                  : base != null
+                    ? (base * mult).toFixed(tickDecimals(base * mult))
+                    : `×${mult}`;
+              return (
+                <Box
+                  key={label}
+                  component="button"
+                  onClick={() => setGroup(mult)}
+                  sx={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.6rem',
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    px: 0.75,
+                    py: 0.25,
+                    fontVariantNumeric: 'tabular-nums',
+                    color:
+                      group === mult
+                        ? theme.palette.background.paper
+                        : theme.palette.text.secondary,
                     backgroundColor:
                       group === mult
                         ? theme.palette.text.primary
-                        : theme.palette.action.hover,
-                  },
-                }}
-              >
-                {label}
-              </Box>
-            ))}
+                        : 'transparent',
+                    fontWeight: 600,
+                    '&:hover': {
+                      backgroundColor:
+                        group === mult
+                          ? theme.palette.text.primary
+                          : theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  {label}
+                </Box>
+              );
+            })}
           </Box>
         </Tooltip>
       </Box>
@@ -385,7 +453,7 @@ const OrderbookDepth: React.FC<{
           <TableHead>
             <TableRow>
               <TableCell sx={{ ...headerSx, width: { xs: '52%', sm: '40%' } }}>
-                Rate ({priceUnit})
+                Price ({priceUnit})
               </TableCell>
               <TableCell
                 sx={{
@@ -407,7 +475,9 @@ const OrderbookDepth: React.FC<{
           </TableHead>
           <TableBody>
             {above.length
-              ? above.map((row) => renderRow(row, maxAbove, reverse))
+              ? [...above]
+                  .map((row, i) => renderRow(row, i, 'above', maxAbove))
+                  .reverse()
               : emptyRow(reverse)}
 
             {/* The line the two sides meet at: which direction is on which
@@ -436,23 +506,30 @@ const OrderbookDepth: React.FC<{
                     color: 'text.secondary',
                   }}
                 >
-                  <span>↑ {sideLabel(reverse)}</span>
-                  <Box
-                    component="span"
-                    sx={{ fontWeight: 600, color: spreadColor }}
-                  >
-                    spread{' '}
-                    {spreadPct != null
-                      ? `${spreadPct > 0 ? '+' : ''}${spreadPct.toFixed(2)}%`
-                      : '—'}
+                  <Box component="span" sx={{ color: tone.above }}>
+                    ↑ {sideLabel(reverse)}
                   </Box>
-                  <span>↓ {sideLabel(direction)}</span>
+                  <Box component="span" sx={{ color: 'text.primary' }}>
+                    spread{' '}
+                    <Box component="span" sx={{ fontWeight: 600 }}>
+                      {spreadAbs != null ? fmtPrice(spreadAbs) : '—'}
+                    </Box>
+                    {spreadPct != null && (
+                      <Box component="span" sx={{ color: 'text.secondary' }}>
+                        {' '}
+                        ({spreadPct.toFixed(2)}%)
+                      </Box>
+                    )}
+                  </Box>
+                  <Box component="span" sx={{ color: tone.below }}>
+                    ↓ {sideLabel(direction)}
+                  </Box>
                 </Box>
               </TableCell>
             </TableRow>
 
             {below.length
-              ? below.map((row) => renderRow(row, maxBelow, direction))
+              ? below.map((row, i) => renderRow(row, i, 'below', maxBelow))
               : emptyRow(direction)}
           </TableBody>
         </Table>
