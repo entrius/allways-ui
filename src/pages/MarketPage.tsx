@@ -74,12 +74,14 @@ const MarketPage: React.FC = () => {
           minHeight: 0,
         }}
       >
-        <Box sx={{ flexShrink: 0, minWidth: 0, minHeight: 0 }}>
+        {/* Two equal halves, so the rule between them sits at the centre
+            of the screen. The sheet scrolls inside its half if it is wider. */}
+        <Box sx={{ flex: '1 1 0', minWidth: 0, minHeight: 0 }}>
           <RateMatrix direction={direction} onDirectionChange={setDirection} />
         </Box>
         <Stack
           sx={{
-            flex: 1,
+            flex: '1 1 0',
             minWidth: 0,
             minHeight: 0,
             overflowY: 'auto',
