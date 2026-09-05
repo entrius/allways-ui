@@ -238,14 +238,12 @@ const OrderbookDepth: React.FC<{
   // single bucket — a step past that changes nothing. The current step is
   // always offered so the control never shows a value it doesn't list.
   const tickScale = near.scale || far.scale || null;
-  // Labels the way Hyperliquid does them: the tick as a number when it
-  // prints in four decimals or fewer, otherwise as significant figures of
-  // the price (the finest step is five, each coarser step one fewer), so a
-  // low-priced pair never shows a six-decimal option.
-  const asSigFigs = tickScale != null && tickDecimals(tickScale) > 4;
+  // Labels are the tick itself, printed plainly — 0.01, 0.1, 1, 10 — the
+  // way Binance, Hyperliquid and Coinbase all label this control. On a
+  // low-priced book that means small decimals (0.000001), which is also
+  // what those venues show for their low-priced markets.
   const fmtTick = (mult: number) => {
     if (tickScale == null) return `×${mult}`;
-    if (asSigFigs) return `${5 - Math.round(Math.log10(mult))} s.f.`;
     const tick = tickScale * mult;
     return tick.toFixed(tickDecimals(tick));
   };
