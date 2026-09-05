@@ -14,14 +14,21 @@ import {
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { useMiners, minerServesPair, type Miner } from '../../api';
 import {
+  minerServesPair,
+  useCurrentCrown,
+  useMiners,
+  type Miner,
+} from '../../api';
+import {
+  crownLaneFor,
   decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { FONTS } from '../../theme';
-import { chainSymbol, unitsToHuman } from '../../utils/format';
+import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
+import { chainInfo, chainList } from '../../api/models/chains';
 import { MOVE_COLORS } from './AllwaysMarketRate';
 import { OrderbookDepthSkeleton } from './Skeletons';
 import MonoSelect from '../MonoSelect';
@@ -237,7 +244,22 @@ const OrderbookDepth: React.FC<{
   // made in, then tens upward, stopping once every side has folded to a
   // single bucket — a step past that changes nothing. The current step is
   // always offered so the control never shows a value it doesn't list.
-  const tickScale = near.scale || far.scale || null;
+  // With no levels on either side, the picker still needs a scale: take it
+  // from the crown rate, on the same ruler.
+  const { data: crown } = useCurrentCrown();
+  const crownBuy = directionalRateFor(
+    buyDir,
+    crownLaneFor(crown, buyDir, base)?.rate,
+  );
+  const crownSellNatural = directionalRateFor(
+    sellDir,
+    crownLaneFor(crown, sellDir, base)?.rate,
+  );
+  const crownPrice =
+    crownBuy ??
+    (crownSellNatural && crownSellNatural > 0 ? 1 / crownSellNatural : null);
+  const tickScale =
+    near.scale || far.scale || (crownPrice ? tickBase(crownPrice) : null);
   // Labels are the tick itself, printed plainly — 0.01, 0.1, 1, 10 — the
   // way Binance, Hyperliquid and Coinbase all label this control. On a
   // low-priced book that means small decimals (0.000001), which is also
@@ -267,8 +289,21 @@ const OrderbookDepth: React.FC<{
   const quoteUnit = chainSymbol(to);
   // The column unit: the row asset.
   const unit = quoteUnit;
-  const priceUnit = `${quoteUnit}/${unit}`;
-  const sideLabel = (d: Direction) => d.replace('-', ' → ');
+  const priceUnit = `${quoteUnit}/${baseUnit}`;
+  // "USDC (Solana) → SOL": tickers, with the network added only where the
+  // same ticker is listed on more than one network.
+  const assetLabel = (id: string) => {
+    const c = chainInfo(id);
+    if (!c) return id.toUpperCase();
+    const shared = chainList().some(
+      (o) => o.id !== c.id && o.symbol === c.symbol,
+    );
+    return shared && c.network ? `${c.symbol} (${c.network})` : c.symbol;
+  };
+  const sideLabel = (d: Direction) => {
+    const l = decomposeDirection(d);
+    return `${assetLabel(l.from)} → ${assetLabel(l.to)}`;
+  };
 
   const headerSx = {
     fontFamily: FONTS.mono,
@@ -391,7 +426,19 @@ const OrderbookDepth: React.FC<{
           color: 'text.secondary',
         }}
       >
-        No open liquidity for {sideLabel(side)}
+        {(side === buyDir ? crownBuy : crownSellNatural) != null ? (
+          <>
+            {sideLabel(side)}: the validator scores a crown at{' '}
+            {formatRate(
+              side === buyDir
+                ? (crownBuy as number)
+                : (crownSellNatural as number),
+            )}
+            , but no takeable quote is indexed for it yet
+          </>
+        ) : (
+          <>No open liquidity for {sideLabel(side)}</>
+        )}
       </TableCell>
     </TableRow>
   );
