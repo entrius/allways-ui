@@ -18,6 +18,10 @@ import type { HeroRange } from '../components/dashboard/AllwaysMarketRate';
 // /market and /market?dir=SOL-BTC render the same thing.
 const DEFAULT_DIRECTION: Direction = 'SOL-BTC';
 
+// The card, chart and book share one width, so the right side reads as a
+// single column rather than three panels of different sizes.
+const PANEL_W = 560;
+
 // The market page: every route's live crown rate on one sheet (the rate
 // matrix, which is also the picker), with the selected direction's card and
 // its pair's orderbook beside it. Everything transactional (history,
@@ -118,7 +122,7 @@ const MarketPage: React.FC = () => {
             borderColor: { md: 'divider' },
           }}
         >
-          <Box sx={{ maxWidth: 360 }}>
+          <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
             <DirectionCard
               direction={direction}
               base={base}
@@ -128,7 +132,7 @@ const MarketPage: React.FC = () => {
           </Box>
           {/* The rate over the window, on the same ruler as the card above
               and the book below. */}
-          <Box sx={{ maxWidth: 560, minWidth: 0 }}>
+          <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
             <RateChart direction={direction} base={base} range={range} />
           </Box>
           {/* Capped like the card: the stacked ladders read at one width,
@@ -136,7 +140,7 @@ const MarketPage: React.FC = () => {
               them. */}
           <Box
             sx={{
-              maxWidth: 560,
+              maxWidth: PANEL_W,
               minHeight: { xs: 300, md: 220 },
               display: 'flex',
               flexDirection: 'column',

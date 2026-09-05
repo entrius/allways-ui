@@ -314,9 +314,8 @@ const DirectionCard: React.FC<{
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, auto)',
-          justifyContent: 'start',
-          columnGap: 3,
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          columnGap: 2,
           pt: 1.5,
         }}
       >
