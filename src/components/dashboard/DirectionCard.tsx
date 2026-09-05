@@ -38,11 +38,12 @@ const fmtChg = (chg: number): string => {
 };
 
 // One ribbon stat: small label over a mono value.
-const Stat: React.FC<{ label: string; value: string; hint: string }> = ({
-  label,
-  value,
-  hint,
-}) => (
+const Stat: React.FC<{
+  label: string;
+  value: string;
+  hint: string;
+  color?: string;
+}> = ({ label, value, hint, color }) => (
   <RailTooltip title={hint} placement="top">
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
       <Typography
@@ -64,6 +65,7 @@ const Stat: React.FC<{ label: string; value: string; hint: string }> = ({
           fontWeight: 600,
           fontVariantNumeric: 'tabular-nums',
           whiteSpace: 'nowrap',
+          color: color ?? 'text.primary',
         }}
       >
         {value}
@@ -122,13 +124,17 @@ const DirectionCard: React.FC<{
         : revNatural > 0
           ? 1 / revNatural
           : null;
-  // Spread the way every exchange prints it: the gap between the two
-  // sides' best rates as a positive percent of their mid. The mid only
-  // normalises; it is never shown.
+  // Spread the way a book prints it: ask minus bid as a percent of their
+  // mid (the mid only normalises; it is never shown). On this ruler the
+  // base sender's crown is the bid and the quote sender's is the ask.
+  // Negative means the two crowns cross: a round trip comes out ahead.
+  const bid = inverted ? revPrice : price;
+  const ask = inverted ? price : revPrice;
   const spreadPct =
-    price != null && revPrice != null && price + revPrice > 0
-      ? (Math.abs(price - revPrice) / ((price + revPrice) / 2)) * 100
+    bid != null && ask != null && bid + ask > 0
+      ? ((ask - bid) / ((ask + bid) / 2)) * 100
       : null;
+  const crossed = spreadPct != null && spreadPct < 0;
 
   const { data: allSeries } = useCrownRateHistoryAll(secs);
   const selRows = allSeries?.[direction];
@@ -320,9 +326,14 @@ const DirectionCard: React.FC<{
           hint={`Lowest crown rate for this direction over ${range}, in ${quoteSym} per ${baseSym}.`}
         />
         <Stat
-          label="Spread"
+          label={crossed ? 'Crossed' : 'Spread'}
           value={spreadPct != null ? `${spreadPct.toFixed(2)}%` : '—'}
-          hint={`Gap between this direction's crown and the reverse direction's (${revPrice != null ? formatRate(revPrice) : '—'} ${quoteSym} per ${baseSym}, the other cell in this row), as a share of the two.`}
+          color={crossed ? move.up : undefined}
+          hint={
+            crossed
+              ? `The two crowns overlap: ${baseSym} → ${quoteSym} pays more ${quoteSym} than ${quoteSym} → ${baseSym} asks for. Out and back at these rates comes out ahead by this much.`
+              : `Gap between this direction's crown and the reverse direction's (${revPrice != null ? formatRate(revPrice) : '—'} ${quoteSym} per ${baseSym}, the other cell in this row), as a share of the two.`
+          }
         />
       </Box>
     </Stack>

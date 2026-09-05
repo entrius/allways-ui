@@ -194,19 +194,19 @@ const OrderbookDepth: React.FC<{
   const maxAbove = above.reduce((m, r) => Math.max(m, r.total), 1);
   const maxBelow = below.reduce((m, r) => Math.max(m, r.total), 1);
 
-  // Spread between the two sides' best levels, absolute and as a percent of
-  // their mid — the pair of numbers every exchange prints on the line. The
-  // mid only normalises the percent; it is never shown.
-  const bestBelow = below[0]?.price ?? null;
-  const bestAbove = above[0]?.price ?? null;
-  const spreadAbs =
-    bestBelow != null && bestAbove != null
-      ? Math.abs(bestAbove - bestBelow)
-      : null;
+  // Spread the way a book prints it: ask minus bid, as a number and as a
+  // percent of their mid (the mid only normalises; it is never shown). Ask
+  // is the best level of the quote senders (above), bid the best of the
+  // base senders (below). Negative means the book is crossed — the two
+  // sides overlap, and a round trip comes out ahead.
+  const bid = below[0]?.price ?? null;
+  const ask = above[0]?.price ?? null;
+  const spreadAbs = bid != null && ask != null ? ask - bid : null;
   const spreadPct =
-    spreadAbs != null && bestAbove != null && bestBelow != null
-      ? (spreadAbs / ((bestAbove + bestBelow) / 2)) * 100
+    spreadAbs != null && bid != null && ask != null && ask + bid > 0
+      ? (spreadAbs / ((ask + bid) / 2)) * 100
       : null;
+  const crossed = spreadAbs != null && spreadAbs < 0;
 
   // One decimal count for the whole book, from the finer of the two ticks.
   const tick = Math.min(near.tick || Infinity, far.tick || Infinity);
@@ -530,18 +530,37 @@ const OrderbookDepth: React.FC<{
                     ↑ {sideLabel(sellDir)}
                     {selectedSide === 'above' ? ' ●' : ''}
                   </Box>
-                  <Box component="span" sx={{ color: 'text.primary' }}>
-                    spread{' '}
-                    <Box component="span" sx={{ fontWeight: 600 }}>
-                      {spreadAbs != null ? fmtPrice(spreadAbs) : '—'}
-                    </Box>
-                    {spreadPct != null && (
-                      <Box component="span" sx={{ color: 'text.secondary' }}>
-                        {' '}
-                        ({spreadPct.toFixed(2)}%)
+                  <Tooltip
+                    arrow
+                    placement="top"
+                    title={
+                      crossed
+                        ? 'Crossed: the best level above pays less than the best level below asks. Out and back at these two comes out ahead.'
+                        : 'Best level above minus best level below, and that as a share of their mid.'
+                    }
+                  >
+                    <Box
+                      component="span"
+                      sx={{
+                        color: crossed ? move.up : 'text.primary',
+                        cursor: 'help',
+                      }}
+                    >
+                      {crossed ? 'crossed ' : 'spread '}
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        {spreadAbs != null ? fmtPrice(spreadAbs) : '—'}
                       </Box>
-                    )}
-                  </Box>
+                      {spreadPct != null && (
+                        <Box
+                          component="span"
+                          sx={{ color: crossed ? move.up : 'text.secondary' }}
+                        >
+                          {' '}
+                          ({spreadPct.toFixed(2)}%)
+                        </Box>
+                      )}
+                    </Box>
+                  </Tooltip>
                   <Box
                     component="span"
                     sx={{
