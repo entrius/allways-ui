@@ -238,19 +238,29 @@ const OrderbookDepth: React.FC<{
   // single bucket — a step past that changes nothing. The current step is
   // always offered so the control never shows a value it doesn't list.
   const tickScale = near.scale || far.scale || null;
-  const fmtTick = (mult: number) =>
-    tickScale != null
-      ? (tickScale * mult).toFixed(tickDecimals(tickScale * mult))
-      : `×${mult}`;
+  // Labels the way Hyperliquid does them: the tick as a number when it
+  // prints in four decimals or fewer, otherwise as significant figures of
+  // the price (the finest step is five, each coarser step one fewer), so a
+  // low-priced pair never shows a six-decimal option.
+  const asSigFigs = tickScale != null && tickDecimals(tickScale) > 4;
+  const fmtTick = (mult: number) => {
+    if (tickScale == null) return `×${mult}`;
+    if (asSigFigs) return `${5 - Math.round(Math.log10(mult))} s.f.`;
+    const tick = tickScale * mult;
+    return tick.toFixed(tickDecimals(tick));
+  };
   const groupOptions = useMemo(() => {
     const separates = (mult: number) =>
       (near.bucketsAt[mult] ?? 0) > 1 || (far.bucketsAt[mult] ?? 0) > 1;
     const mults = GROUP_MULTS.filter(
       (mult, i) => i === 0 || separates(GROUP_MULTS[i - 1]) || mult === group,
     );
-    return [null, ...mults];
+    return mults;
   }, [near.bucketsAt, far.bucketsAt, group]);
+  // With no pick made, the chip shows the step auto-resolution landed on.
   const autoTick = near.tick || far.tick || 0;
+  const autoMult =
+    tickScale && autoTick ? Math.round(autoTick / tickScale) : null;
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const tone = { above: move.down, below: move.up } as const;
@@ -444,26 +454,20 @@ const OrderbookDepth: React.FC<{
         <Tooltip
           title={
             <Box sx={{ maxWidth: 260 }}>
-              Group levels into price buckets this wide. Auto picks the finest
-              that fits.
+              Group nearby levels into price buckets this wide.
             </Box>
           }
           arrow
           placement="top"
         >
           <Box>
-            <MonoSelect<DepthGroup>
+            <MonoSelect<number>
               label="Price grouping"
-              value={group}
+              value={group ?? autoMult ?? 1}
               onChange={setGroup}
               options={groupOptions.map((mult) => ({
                 value: mult,
-                label:
-                  mult == null
-                    ? autoTick
-                      ? `Auto · ${autoTick.toFixed(tickDecimals(autoTick))}`
-                      : 'Auto'
-                    : fmtTick(mult),
+                label: fmtTick(mult),
               }))}
             />
           </Box>
