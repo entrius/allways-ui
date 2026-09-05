@@ -8,9 +8,15 @@ import {
   useCurrentCrown,
   useMarketCaps,
 } from '../../api';
-import { isToken, nativeOf, type ChainInfo } from '../../api/models/chains';
+import {
+  hubLeg,
+  isToken,
+  nativeOf,
+  type ChainInfo,
+} from '../../api/models/chains';
 import {
   crownLaneFor,
+  decomposeDirection,
   type CurrentCrownMap,
   type Direction,
 } from '../../api/models/MinersDashboard';
@@ -209,8 +215,9 @@ const Cell: React.FC<{
         fontWeight: selected ? 700 : 500,
         fontVariantNumeric: 'tabular-nums',
         color: empty ? 'text.disabled' : 'text.primary',
-        // The picked direction reads like the old watchlist's selected row:
-        // a filled cell with a rule on its leading edge.
+        // The picked cell reads like a spreadsheet's active cell: a full
+        // ring in the text colour, drawn with outline so it never fights
+        // the flash's inset shadow, over a filled background.
         backgroundColor: self
           ? 'background.default'
           : selected
@@ -218,9 +225,11 @@ const Cell: React.FC<{
             : band
               ? 'action.hover'
               : 'transparent',
-        boxShadow: selected
-          ? (t) => `inset 2px 0 0 ${t.palette.text.primary}`
-          : undefined,
+        outline: selected ? '2px solid' : undefined,
+        outlineColor: selected ? 'text.primary' : undefined,
+        outlineOffset: -2,
+        position: selected ? 'relative' : undefined,
+        zIndex: selected ? 1 : undefined,
         cursor: self ? 'default' : 'pointer',
         '&:hover': self ? undefined : { backgroundColor: 'action.selected' },
         ...(seq > 0 && !self ? { animation: `${flash} 1.4s ease-out` } : {}),
@@ -252,6 +261,11 @@ const RateMatrix: React.FC<{
   const { data: crown, dataUpdatedAt, isError } = useCurrentCrown();
   const { settings, update, toggleHidden, toggleFavorite, reset } =
     useMatrixSettings();
+  // The picked cell's row asset and hub column, so their headers can light
+  // up the way a spreadsheet marks the active cell's row and column.
+  const selLegs = decomposeDirection(direction);
+  const selHub = base ?? hubLeg(selLegs.from, selLegs.to) ?? selLegs.from;
+  const selAsset = selLegs.from === selHub ? selLegs.to : selLegs.from;
   const [panelOpen, setPanelOpen] = useState(false);
 
   // Hubs first, in das priority order (the same order the rest of the site
@@ -464,6 +478,13 @@ const RateMatrix: React.FC<{
                   cursor: 'help',
                   textAlign: logoOnly ? 'center' : 'left',
                   borderBottomColor: 'border.light',
+                  ...(hub.id === selHub
+                    ? {
+                        backgroundColor: 'action.selected',
+                        boxShadow: (t) =>
+                          `inset 0 -2px 0 ${t.palette.text.primary}`,
+                      }
+                    : {}),
                 }}
               >
                 <AssetLabel
@@ -496,6 +517,13 @@ const RateMatrix: React.FC<{
                     // Room for the star at the right edge.
                     pr: asset.hub ? undefined : 3,
                     '&:hover .matrix-star': { opacity: 1 },
+                    ...(asset.id === selAsset
+                      ? {
+                          backgroundColor: 'action.selected',
+                          boxShadow: (t) =>
+                            `inset -2px 0 0 ${t.palette.text.primary}`,
+                        }
+                      : {}),
                   }}
                 >
                   <AssetLabel
