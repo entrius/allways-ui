@@ -12,3 +12,4 @@ export { default as PairsRail } from './PairsRail';
 export * from './Skeletons';
 export { default as RateMatrix } from './RateMatrix';
 export { default as DirectionCard } from './DirectionCard';
+export { default as RateChart } from './RateChart';

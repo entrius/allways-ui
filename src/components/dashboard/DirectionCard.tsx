@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCrownRateHistoryAll, useCurrentCrown } from '../../api';
+import { useCrownRateHistory, useCurrentCrown } from '../../api';
 import {
   crownLaneFor,
   decomposeDirection,
@@ -136,8 +136,13 @@ const DirectionCard: React.FC<{
       : null;
   const crossed = spreadPct != null && spreadPct < 0;
 
-  const { data: allSeries } = useCrownRateHistoryAll(secs);
-  const selRows = allSeries?.[direction];
+  // The same rows the chart draws, on the base hub's lane, so the ribbon's
+  // high and low are points on the line below.
+  const { data: selRows } = useCrownRateHistory({
+    direction,
+    secs,
+    backing: base,
+  });
   // Move, high and low over the window, all on the displayed ruler. The
   // live rate counts as a point so the range never excludes it.
   const { chg, high, low } = useMemo(() => {

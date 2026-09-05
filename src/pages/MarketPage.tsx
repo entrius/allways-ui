@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
+import RateChart from '../components/dashboard/RateChart';
 import RateMatrix from '../components/dashboard/RateMatrix';
 import { isDirection } from '../api';
 import { hubChain, hubChains, hubLeg } from '../api/models/chains';
@@ -124,6 +125,11 @@ const MarketPage: React.FC = () => {
               range={range}
               onRangeChange={setRange}
             />
+          </Box>
+          {/* The rate over the window, on the same ruler as the card above
+              and the book below. */}
+          <Box sx={{ maxWidth: 560, minWidth: 0 }}>
+            <RateChart direction={direction} base={base} range={range} />
           </Box>
           {/* Capped like the card: the stacked ladders read at one width,
               and a wide screen keeps its blank space rather than stretching
