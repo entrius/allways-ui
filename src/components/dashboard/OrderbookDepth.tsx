@@ -180,7 +180,9 @@ const SideTag: React.FC<{
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         maxWidth: '100%',
-        color: selected ? color : alpha(color, 0.75),
+        // Text stays in the reading colour; the side's colour carries the
+        // tint and the border only.
+        color: selected ? 'text.primary' : 'text.secondary',
         backgroundColor: selected ? alpha(color, 0.14) : 'transparent',
         border: '1px solid',
         borderColor: selected ? alpha(color, 0.35) : alpha(color, 0.25),
