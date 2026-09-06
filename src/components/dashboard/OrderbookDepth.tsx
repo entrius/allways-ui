@@ -150,6 +150,47 @@ const useDepth = (
   }, [miners, from, to, leg, direction, group, sendsBase]);
 };
 
+// One side's direction on the spread line: a small tag in the side's
+// colour. The picked side is filled; the other is an outline.
+const SideTag: React.FC<{
+  label: string;
+  color: string;
+  selected: boolean;
+  align: 'left' | 'right';
+}> = ({ label, color, selected, align }) => (
+  <Box
+    sx={{
+      display: 'flex',
+      justifyContent: align === 'left' ? 'flex-start' : 'flex-end',
+      minWidth: 0,
+    }}
+  >
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-block',
+        px: 0.75,
+        py: 0.2,
+        fontFamily: FONTS.mono,
+        fontSize: '0.6rem',
+        fontWeight: selected ? 700 : 500,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        maxWidth: '100%',
+        color: selected ? color : alpha(color, 0.75),
+        backgroundColor: selected ? alpha(color, 0.14) : 'transparent',
+        border: '1px solid',
+        borderColor: selected ? alpha(color, 0.35) : alpha(color, 0.25),
+      }}
+    >
+      {label}
+    </Box>
+  </Box>
+);
+
 interface Row {
   price: number;
   size: number;
@@ -562,42 +603,35 @@ const OrderbookDepth: React.FC<{
                   .reverse()
               : emptyRow(sellDir)}
 
-            {/* The line the two sides meet at: which direction is on which
-                side, and the gap between their best levels. */}
+            {/* The line the two sides meet at. A quiet band: each side's
+                direction as a tag in its colour (the picked one filled), the
+                spread between their best levels in the middle. */}
             <TableRow>
               <TableCell
                 colSpan={3}
                 sx={{
                   ...cellSx,
-                  py: 0.6,
+                  px: 0.75,
+                  py: 0.5,
                   borderTop: `1px solid ${theme.palette.border.light}`,
                   borderBottom: `1px solid ${theme.palette.border.light}`,
-                  backgroundColor: 'background.default',
+                  backgroundColor: 'surface.light',
                 }}
               >
                 <Box
                   sx={{
-                    display: 'flex',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto 1fr',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
                     gap: 1,
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.62rem',
-                    letterSpacing: '0.05em',
-                    textTransform: 'uppercase',
-                    color: 'text.secondary',
                   }}
                 >
-                  <Box
-                    component="span"
-                    sx={{
-                      color: tone.above,
-                      fontWeight: selectedSide === 'above' ? 700 : 400,
-                    }}
-                  >
-                    ↑ {sideLabel(sellDir)}
-                    {selectedSide === 'above' ? ' ●' : ''}
-                  </Box>
+                  <SideTag
+                    label={sideLabel(sellDir)}
+                    color={tone.above}
+                    selected={selectedSide === 'above'}
+                    align="left"
+                  />
                   <Tooltip
                     arrow
                     placement="top"
@@ -610,35 +644,56 @@ const OrderbookDepth: React.FC<{
                     <Box
                       component="span"
                       sx={{
-                        color: crossed ? move.up : 'text.primary',
+                        display: 'inline-flex',
+                        alignItems: 'baseline',
+                        gap: 0.75,
                         cursor: 'help',
+                        fontFamily: FONTS.mono,
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {crossed ? 'crossed ' : 'spread '}
-                      <Box component="span" sx={{ fontWeight: 600 }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          fontSize: '0.58rem',
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          color: crossed ? move.up : 'text.secondary',
+                        }}
+                      >
+                        {crossed ? 'Crossed' : 'Spread'}
+                      </Box>
+                      <Box
+                        component="span"
+                        sx={{
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          fontVariantNumeric: 'tabular-nums',
+                          color: crossed ? move.up : 'text.primary',
+                        }}
+                      >
                         {spreadAbs != null ? fmtPrice(spreadAbs) : '—'}
                       </Box>
                       {spreadPct != null && (
                         <Box
                           component="span"
-                          sx={{ color: crossed ? move.up : 'text.secondary' }}
+                          sx={{
+                            fontSize: '0.66rem',
+                            fontVariantNumeric: 'tabular-nums',
+                            color: crossed ? move.up : 'text.secondary',
+                          }}
                         >
-                          {' '}
-                          ({spreadPct.toFixed(2)}%)
+                          {spreadPct.toFixed(2)}%
                         </Box>
                       )}
                     </Box>
                   </Tooltip>
-                  <Box
-                    component="span"
-                    sx={{
-                      color: tone.below,
-                      fontWeight: selectedSide === 'below' ? 700 : 400,
-                    }}
-                  >
-                    {selectedSide === 'below' ? '● ' : ''}
-                    {sideLabel(buyDir)} ↓
-                  </Box>
+                  <SideTag
+                    label={sideLabel(buyDir)}
+                    color={tone.below}
+                    selected={selectedSide === 'below'}
+                    align="right"
+                  />
                 </Box>
               </TableCell>
             </TableRow>
