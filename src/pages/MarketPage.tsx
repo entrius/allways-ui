@@ -1,7 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
+import { FONTS } from '../theme';
 import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
@@ -135,73 +136,105 @@ const MarketPage: React.FC = () => {
         title="Markets"
         description="Live cross-chain rates for every route on Allways — Bittensor SN7"
       />
+      {/* Same frame as the Network page: centred 1400 block, the page's
+          side padding, a mono heading with a one-line subtitle, and the
+          page scrolling as a page rather than a viewport-locked split. */}
       <Box
         sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: 'stretch',
-          // Centred block with breathing room either side, rather than the
-          // sheet starting hard against the left edge of the viewport.
           width: '100%',
           maxWidth: 1400,
           mx: 'auto',
-          px: { xs: 0, md: 3 },
-          // One screen below the 56px nav on desktop; each side scrolls on
-          // its own. Auto height, stacked, on mobile.
-          height: { xs: 'auto', md: 'calc(100dvh - 56px)' },
-          minHeight: 0,
+          px: { xs: 1.5, sm: 2, md: 3 },
+          pb: { xs: 2, md: 3 },
         }}
       >
-        {/* Two equal halves, so the rule between them sits at the centre
-            of the screen. The sheet scrolls inside its half if it is wider. */}
-        <Box sx={{ flex: '1 1 0', minWidth: 0, minHeight: 0 }}>
-          <RateMatrix
-            direction={direction}
-            base={base}
-            onDirectionChange={setDirection}
-          />
-        </Box>
-        <Stack
-          sx={{
-            flex: '1 1 0',
-            minWidth: 0,
-            minHeight: 0,
-            overflowY: 'auto',
-            gap: 3,
-            px: { xs: 1.5, sm: 2, md: 3 },
-            py: 2,
-            borderLeft: { md: '1px solid' },
-            borderColor: { md: 'divider' },
-          }}
-        >
-          <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
-            <DirectionCard
-              direction={direction}
-              base={base}
-              range={range}
-              onRangeChange={setRange}
-            />
-          </Box>
-          {/* The rate over the window, on the same ruler as the card above
-              and the book below. */}
-          <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
-            <RateChart direction={direction} base={base} range={range} />
-          </Box>
-          {/* Capped like the card: the stacked ladders read at one width,
-              and a wide screen keeps its blank space rather than stretching
-              them. */}
-          <Box
+        <Box sx={{ pt: { xs: 1.5, md: 2 }, pb: { xs: 1.5, md: 2 } }}>
+          <Typography
+            component="h1"
             sx={{
-              maxWidth: PANEL_W,
-              minHeight: { xs: 300, md: 220 },
-              display: 'flex',
-              flexDirection: 'column',
-              minWidth: 0,
+              fontFamily: FONTS.mono,
+              fontSize: { xs: '0.8rem', md: '0.9rem' },
+              fontWeight: 700,
+              lineHeight: 1.4,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'text.primary',
             }}
           >
-            <OrderbookDepth direction={direction} base={base} />
+            Markets
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.68rem',
+              color: 'text.secondary',
+              mt: 0.5,
+              maxWidth: 720,
+            }}
+          >
+            Every route's live rate, as the row asset per 1 of the hub column.
+            Click a cell for its chart and order book.
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: 'stretch',
+            width: '100%',
+            borderTop: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          {/* Two equal halves, so the rule between them sits at the centre
+            of the screen. The sheet scrolls inside its half if it is wider. */}
+          <Box sx={{ flex: '1 1 0', minWidth: 0, minHeight: 0 }}>
+            <RateMatrix
+              direction={direction}
+              base={base}
+              onDirectionChange={setDirection}
+            />
           </Box>
-        </Stack>
+          <Stack
+            sx={{
+              flex: '1 1 0',
+              minWidth: 0,
+              gap: 3,
+              pl: { xs: 0, md: 3 },
+              pt: { xs: 3, md: 2 },
+              borderLeft: { md: '1px solid' },
+              borderColor: { md: 'divider' },
+            }}
+          >
+            <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
+              <DirectionCard
+                direction={direction}
+                base={base}
+                range={range}
+                onRangeChange={setRange}
+              />
+            </Box>
+            {/* The rate over the window, on the same ruler as the card above
+              and the book below. */}
+            <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
+              <RateChart direction={direction} base={base} range={range} />
+            </Box>
+            {/* Capped like the card: the stacked ladders read at one width,
+              and a wide screen keeps its blank space rather than stretching
+              them. */}
+            <Box
+              sx={{
+                maxWidth: PANEL_W,
+                minHeight: { xs: 300, md: 220 },
+                display: 'flex',
+                flexDirection: 'column',
+                minWidth: 0,
+              }}
+            >
+              <OrderbookDepth direction={direction} base={base} />
+            </Box>
+          </Stack>
+        </Box>
       </Box>
     </Page>
   );

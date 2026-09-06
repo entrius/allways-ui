@@ -357,11 +357,11 @@ const RateMatrix: React.FC<{
   return (
     <Box
       sx={{
-        // The sheet scrolls; header row and asset column stay pinned. On
-        // desktop it is the page's own scroller.
+        // The page scrolls; the header row and asset column stay pinned
+        // within it. Sideways the sheet scrolls on its own if it is wider
+        // than its half.
         width: '100%',
-        height: { xs: 'auto', md: 'calc(100dvh - 56px)' },
-        overflow: 'auto',
+        overflowX: 'auto',
         '--matrix-flash': alpha(theme.palette.primary.main, 0.28),
       }}
     >
