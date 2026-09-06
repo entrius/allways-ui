@@ -172,8 +172,8 @@ const MarketPage: React.FC = () => {
               maxWidth: 720,
             }}
           >
-            Every route's live rate, as the row asset per 1 of the hub column.
-            Click a cell for its chart and order book.
+            The best live rate for every route. Click one for its chart and
+            order book.
           </Typography>
         </Box>
         <Box
