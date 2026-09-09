@@ -162,6 +162,16 @@ const Workspace: React.FC<{
     setLayouts(defaultLayouts);
   }, [defaultLayouts, storageKey]);
 
+  // The grid measures its width a frame after mount and after any change
+  // of desk; nudge a window resize so a chart that drew at the first width
+  // redraws at the settled one.
+  useEffect(() => {
+    const id = requestAnimationFrame(() =>
+      window.dispatchEvent(new Event('resize')),
+    );
+    return () => cancelAnimationFrame(id);
+  }, [layouts, hidden]);
+
   const byId = useMemo(() => new Map(panels.map((p) => [p.id, p])), [panels]);
   const shownPanels = useMemo(
     () => panels.filter((p) => !hidden.has(p.id)),

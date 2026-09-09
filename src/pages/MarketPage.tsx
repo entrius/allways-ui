@@ -70,29 +70,32 @@ const busiestDirection = (
 // The page's own desk: the sheet down the left, the rate over its history
 // over the book down the right. Twelve columns, 24px rows.
 const MARKET_LAYOUTS: Layouts = {
+  // Sizes come from each widget's content measured at the desk's width
+  // (a row is 24px with a 24px gutter): the sheet's 19 assets, the rate
+  // card, a chart tall enough to read, the book with room for its ladder.
   lg: [
-    { i: 'matrix', x: 0, y: 0, w: 6, h: 40 },
-    { i: 'rate', x: 6, y: 0, w: 6, h: 7 },
-    { i: 'chart', x: 6, y: 7, w: 6, h: 12 },
-    { i: 'book', x: 6, y: 19, w: 6, h: 21 },
+    { i: 'matrix', x: 0, y: 0, w: 6, h: 16 },
+    { i: 'rate', x: 6, y: 0, w: 6, h: 5 },
+    { i: 'chart', x: 6, y: 5, w: 6, h: 6 },
+    { i: 'book', x: 6, y: 11, w: 6, h: 11 },
   ],
   md: [
-    { i: 'matrix', x: 0, y: 0, w: 6, h: 40 },
-    { i: 'rate', x: 6, y: 0, w: 6, h: 7 },
-    { i: 'chart', x: 6, y: 7, w: 6, h: 12 },
-    { i: 'book', x: 6, y: 19, w: 6, h: 21 },
+    { i: 'matrix', x: 0, y: 0, w: 6, h: 16 },
+    { i: 'rate', x: 6, y: 0, w: 6, h: 5 },
+    { i: 'chart', x: 6, y: 5, w: 6, h: 6 },
+    { i: 'book', x: 6, y: 11, w: 6, h: 11 },
   ],
   sm: [
-    { i: 'rate', x: 0, y: 0, w: 6, h: 7 },
-    { i: 'matrix', x: 0, y: 7, w: 6, h: 24 },
-    { i: 'chart', x: 0, y: 31, w: 6, h: 12 },
-    { i: 'book', x: 0, y: 43, w: 6, h: 21 },
+    { i: 'rate', x: 0, y: 0, w: 6, h: 5 },
+    { i: 'matrix', x: 0, y: 5, w: 6, h: 16 },
+    { i: 'chart', x: 0, y: 21, w: 6, h: 6 },
+    { i: 'book', x: 0, y: 27, w: 6, h: 11 },
   ],
   xs: [
-    { i: 'rate', x: 0, y: 0, w: 2, h: 7 },
-    { i: 'matrix', x: 0, y: 7, w: 2, h: 24 },
-    { i: 'chart', x: 0, y: 31, w: 2, h: 12 },
-    { i: 'book', x: 0, y: 43, w: 2, h: 24 },
+    { i: 'rate', x: 0, y: 0, w: 2, h: 5 },
+    { i: 'matrix', x: 0, y: 5, w: 2, h: 16 },
+    { i: 'chart', x: 0, y: 21, w: 2, h: 6 },
+    { i: 'book', x: 0, y: 27, w: 2, h: 13 },
   ],
 };
 
@@ -173,7 +176,7 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v2"
+          storageKey="allways.market.workspace.v3"
           defaultLayouts={MARKET_LAYOUTS}
           panels={[
             {
