@@ -12,8 +12,8 @@ import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
 import {
   BlockIndicator,
+  AssetMark,
   Card,
-  ChainLogo,
   LabelValue,
   PageIntro,
   PageWrapper,
@@ -348,118 +348,157 @@ const SwapDetailPage: React.FC = () => {
         </Typography>
       )}
 
-      {/* Timeline */}
-      <Card>
-        <SectionTitle>Timeline</SectionTitle>
-        <Stack spacing={1.5}>
-          {/* Hide Completed row on timed-out swaps \u2014 it never completed.
+      {/* Timeline beside the raw identifiers: two short cards share a row. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: 'minmax(0, 1fr) minmax(0, 1fr)',
+          },
+          gap: { xs: 2, md: 3 },
+          mb: { xs: 2, md: 3 },
+        }}
+      >
+        {/* Timeline */}
+        <Card sx={{ mb: 0, height: '100%' }}>
+          <SectionTitle>Timeline</SectionTitle>
+          <Stack spacing={1.5}>
+            {/* Hide Completed row on timed-out swaps \u2014 it never completed.
               Hide Timeout row on completed swaps \u2014 it never fired. */}
-          {/* Hide Completed row on timed-out swaps \u2014 it never completed.
+            {/* Hide Completed row on timed-out swaps \u2014 it never completed.
               Hide Timeout row on completed swaps \u2014 it never fired.
               Only the terminal row that actually fired carries semantic
               color (green \u2713 for success, red \u2717 for timeout); other
               "done" rows stay neutral so the eye lands on finality. */}
-          {steps
-            .filter((s) => !(isTimedOut && s.label === 'Completed'))
-            .filter(
-              (s) =>
-                !(
-                  isExpired &&
-                  (s.label === 'Fulfilled' || s.label === 'Completed')
-                ),
-            )
-            .map((step) => {
-              const stepState: TimelineStepState = step.done
-                ? 'done'
-                : step.failed
-                  ? 'failed'
-                  : 'pending';
-              const isTerminalCompleted =
-                step.label === 'Completed' && step.done;
-              // The row the user is actually waiting on: say what it waits
-              // for and how long it has been, not just a dash.
-              const awaitingInitiate =
-                step.label === 'Initiated' && isPending && !step.at;
+            {steps
+              .filter((s) => !(isTimedOut && s.label === 'Completed'))
+              .filter(
+                (s) =>
+                  !(
+                    isExpired &&
+                    (s.label === 'Fulfilled' || s.label === 'Completed')
+                  ),
+              )
+              .map((step) => {
+                const stepState: TimelineStepState = step.done
+                  ? 'done'
+                  : step.failed
+                    ? 'failed'
+                    : 'pending';
+                const isTerminalCompleted =
+                  step.label === 'Completed' && step.done;
+                // The row the user is actually waiting on: say what it waits
+                // for and how long it has been, not just a dash.
+                const awaitingInitiate =
+                  step.label === 'Initiated' && isPending && !step.at;
+                return (
+                  <TimelineStep
+                    key={step.label}
+                    state={awaitingInitiate ? 'active' : stepState}
+                    glyph={isTerminalCompleted ? '\u2713' : undefined}
+                    color={
+                      isTerminalCompleted ? 'var(--color-success)' : undefined
+                    }
+                    label={step.label}
+                    detail={
+                      step.at ? (
+                        formatWallClock(step.at, { seconds: true })
+                      ) : awaitingInitiate ? (
+                        <>
+                          awaiting{' '}
+                          {sourceWait
+                            ? `${sourceWait.confirmations} ${sourceName} confirmation${sourceWait.confirmations === 1 ? '' : 's'}`
+                            : 'deposit confirmation'}
+                          {pendingElapsed != null && pendingElapsed >= 0 && (
+                            <> · {formatDurationSecs(pendingElapsed)} elapsed</>
+                          )}
+                        </>
+                      ) : (
+                        '\u2014'
+                      )
+                    }
+                  />
+                );
+              })}
+            {swap.timeoutAt && swap.status !== 'COMPLETED' && (
+              <TimelineStep
+                state={isTimedOut ? 'failed' : 'pending'}
+                glyph={isTimedOut ? undefined : '\u23F1'}
+                color={isTimedOut ? 'var(--color-danger)' : undefined}
+                label="Timeout"
+                detail={
+                  <>
+                    {formatWallClock(swap.timeoutAt, { seconds: true })}
+                    {!isTimedOut && (
+                      <> ({formatCountdown(swap.timeoutAt)} remaining)</>
+                    )}
+                  </>
+                }
+              />
+            )}
+            {swap.timeoutAt && !isTimedOut && swap.status !== 'COMPLETED' && (
+              <Typography
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.65rem',
+                  color: 'text.secondary',
+                  pl: 4,
+                  lineHeight: 1.4,
+                }}
+              >
+                Timeout may extend if validators need additional time to safely
+                confirm the destination tx.
+              </Typography>
+            )}
+            {(() => {
+              const ext = deriveSwapExtensionStatus(swap);
+              if (ext.kind === 'none') return null;
               return (
-                <TimelineStep
-                  key={step.label}
-                  state={awaitingInitiate ? 'active' : stepState}
-                  glyph={isTerminalCompleted ? '\u2713' : undefined}
-                  color={
-                    isTerminalCompleted ? 'var(--color-success)' : undefined
-                  }
-                  label={step.label}
-                  detail={
-                    step.at ? (
-                      formatWallClock(step.at, { seconds: true })
-                    ) : awaitingInitiate ? (
-                      <>
-                        awaiting{' '}
-                        {sourceWait
-                          ? `${sourceWait.confirmations} ${sourceName} confirmation${sourceWait.confirmations === 1 ? '' : 's'}`
-                          : 'deposit confirmation'}
-                        {pendingElapsed != null && pendingElapsed >= 0 && (
-                          <> · {formatDurationSecs(pendingElapsed)} elapsed</>
-                        )}
-                      </>
-                    ) : (
-                      '\u2014'
-                    )
-                  }
-                />
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: 'text.secondary',
+                      minWidth: 80,
+                    }}
+                  >
+                    Extensions
+                  </Typography>
+                  <ExtensionChip status={ext} />
+                </Stack>
               );
-            })}
-          {swap.timeoutAt && swap.status !== 'COMPLETED' && (
-            <TimelineStep
-              state={isTimedOut ? 'failed' : 'pending'}
-              glyph={isTimedOut ? undefined : '\u23F1'}
-              color={isTimedOut ? 'var(--color-danger)' : undefined}
-              label="Timeout"
-              detail={
-                <>
-                  {formatWallClock(swap.timeoutAt, { seconds: true })}
-                  {!isTimedOut && (
-                    <> ({formatCountdown(swap.timeoutAt)} remaining)</>
-                  )}
-                </>
-              }
-            />
-          )}
-          {swap.timeoutAt && !isTimedOut && swap.status !== 'COMPLETED' && (
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.65rem',
-                color: 'text.secondary',
-                pl: 4,
-                lineHeight: 1.4,
-              }}
-            >
-              Timeout may extend if validators need additional time to safely
-              confirm the destination tx.
-            </Typography>
-          )}
-          {(() => {
-            const ext = deriveSwapExtensionStatus(swap);
-            if (ext.kind === 'none') return null;
-            return (
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.7rem',
-                    color: 'text.secondary',
-                    minWidth: 80,
-                  }}
-                >
-                  Extensions
-                </Typography>
-                <ExtensionChip status={ext} />
-              </Stack>
-            );
-          })()}
-        </Stack>
-      </Card>
+            })()}
+          </Stack>
+        </Card>
+        {/* Details — the raw identifiers behind the swap */}
+        <Card sx={{ mb: 0, height: '100%' }}>
+          <SectionTitle>Details</SectionTitle>
+          <Stack spacing={1}>
+            {swap.userAddress && (
+              <LabelAddr label="User" address={swap.userAddress} />
+            )}
+            {swap.swapKey && (
+              <LabelValue label="Swap key" value={swap.swapKey} copyable />
+            )}
+            <LabelValue label="Internal ID" value={swap.swapId} copyable />
+            {swap.solAmount && (
+              <LabelValue
+                label="Backing"
+                value={backingAmount(swap.solAmount)}
+              />
+            )}
+            {swap.reservationRequestHash && (
+              <LabelValue
+                label="Reservation"
+                value={swap.reservationRequestHash}
+                copyable
+              />
+            )}
+          </Stack>
+        </Card>
+      </Box>
 
       {/* Refund (timed-out slash) */}
       {refund && (
@@ -599,7 +638,17 @@ const SwapDetailPage: React.FC = () => {
         if (!hasSend && !hasRecv) return null;
         return (
           <Card>
-            <Stack spacing={2.5}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'minmax(0, 1fr) minmax(0, 1fr)',
+                },
+                columnGap: { md: 6 },
+                rowGap: 2.5,
+              }}
+            >
               {hasSend && (
                 <Stack spacing={1}>
                   <SectionTitle>
@@ -612,7 +661,7 @@ const SwapDetailPage: React.FC = () => {
                       <span>Sends</span>
                       {swap.sourceChain && (
                         <>
-                          <ChainLogo chain={swap.sourceChain} size={16} />
+                          <AssetMark chain={swap.sourceChain} size={16} />
                           <span>{assetLabel(swap.sourceChain)}</span>
                         </>
                       )}
@@ -648,7 +697,7 @@ const SwapDetailPage: React.FC = () => {
                       <span>Receives</span>
                       {swap.destChain && (
                         <>
-                          <ChainLogo chain={swap.destChain} size={16} />
+                          <AssetMark chain={swap.destChain} size={16} />
                           <span>{assetLabel(swap.destChain)}</span>
                         </>
                       )}
@@ -678,34 +727,10 @@ const SwapDetailPage: React.FC = () => {
                   )}
                 </Stack>
               )}
-            </Stack>
+            </Box>
           </Card>
         );
       })()}
-
-      {/* Details — the raw identifiers behind the swap */}
-      <Card>
-        <SectionTitle>Details</SectionTitle>
-        <Stack spacing={1}>
-          {swap.userAddress && (
-            <LabelAddr label="User" address={swap.userAddress} />
-          )}
-          {swap.swapKey && (
-            <LabelValue label="Swap key" value={swap.swapKey} copyable />
-          )}
-          <LabelValue label="Internal ID" value={swap.swapId} copyable />
-          {swap.solAmount && (
-            <LabelValue label="Backing" value={backingAmount(swap.solAmount)} />
-          )}
-          {swap.reservationRequestHash && (
-            <LabelValue
-              label="Reservation"
-              value={swap.reservationRequestHash}
-              copyable
-            />
-          )}
-        </Stack>
-      </Card>
 
       {/* Event History */}
       {events.length > 0 && (

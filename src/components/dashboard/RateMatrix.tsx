@@ -9,12 +9,7 @@ import {
   useCurrentCrown,
   useMarketCaps,
 } from '../../api';
-import {
-  hubLeg,
-  isToken,
-  nativeOf,
-  type ChainInfo,
-} from '../../api/models/chains';
+import { hubLeg, type ChainInfo } from '../../api/models/chains';
 import {
   crownLaneFor,
   decomposeDirection,
@@ -23,7 +18,7 @@ import {
 } from '../../api/models/MinersDashboard';
 import { directionalRate, formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
-import { ChainLogo } from '../ChainLogo';
+import { ChainLogo, NetworkBadge } from '../ChainLogo';
 import RateMatrixSettings from './RateMatrixSettings';
 import { useMatrixSettings } from './matrixSettings';
 
@@ -79,58 +74,6 @@ const cellRates = (
     ),
   ),
 });
-
-// Badge art for networks das lists no native coin for. Served from /public.
-const LOCAL_NETWORK_BADGES: Record<string, string> = {
-  Arbitrum: '/networks/arbitrum.png',
-  Base: '/networks/base.svg',
-};
-
-// Small network mark on a token's logo, bottom-right, ringed in the sheet
-// tone so it reads as a separate mark. Nothing for a native coin.
-const NetworkBadge: React.FC<{
-  chain: ChainInfo;
-  chains: ChainInfo[];
-  logoSize: number;
-}> = ({ chain, chains, logoSize }) => {
-  if (!isToken(chain, chains)) return null;
-  const native = nativeOf(chain, chains);
-  const local = chain.network ? LOCAL_NETWORK_BADGES[chain.network] : undefined;
-  if (!native && !local) return null;
-  const size = Math.round(logoSize * 0.5);
-  return (
-    <Box
-      sx={{
-        position: 'absolute',
-        right: -3,
-        bottom: -2,
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        boxShadow: (t) => `0 0 0 1.5px ${t.palette.background.default}`,
-        backgroundColor: 'background.default',
-        lineHeight: 0,
-      }}
-    >
-      {native ? (
-        <ChainLogo chain={native.id} size={size} />
-      ) : (
-        <Box
-          component="img"
-          src={local}
-          alt=""
-          draggable={false}
-          sx={{
-            width: size,
-            height: size,
-            borderRadius: '50%',
-            display: 'block',
-          }}
-        />
-      )}
-    </Box>
-  );
-};
 
 // One asset mention, drawn from whichever label parts are switched on.
 const AssetLabel: React.FC<{

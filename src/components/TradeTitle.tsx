@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { ChainLogo } from './ChainLogo';
+import { AssetMark } from './ChainLogo';
 
 // A trade as a display title: each leg's asset mark before its amount, an
 // arrow between. Sized in em so it follows the title it sits in.
@@ -23,10 +23,12 @@ const Leg: React.FC<{ chain: string | null; text: React.ReactNode }> = ({
         sx={{
           display: 'inline-flex',
           flexShrink: 0,
-          '& img, & svg': { width: '0.8em', height: '0.8em' },
+          // Sized to the title: the mark and its network badge scale together.
+          '& > span': { width: '0.8em', height: '0.8em' },
+          '& > span > img': { width: '100%', height: '100%' },
         }}
       >
-        <ChainLogo chain={chain} size={32} />
+        <AssetMark chain={chain} size={32} />
       </Box>
     )}
     <span>{text}</span>
