@@ -6,7 +6,6 @@ import {
   Stack,
   Tooltip,
   Typography,
-  useTheme,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
@@ -163,13 +162,19 @@ const Row: React.FC<{
   );
 };
 
-const SymbolSearch: React.FC<{
-  open: boolean;
+/**
+ * The search itself: field, hub filter, results, count. Lives in the dialog
+ * on the rate card and, embedded, as a desk widget; the two never drift
+ * because they are this one component.
+ */
+export const SymbolSearchPanel: React.FC<{
   direction: Direction;
-  onClose: () => void;
   onSelect: (direction: Direction) => void;
-}> = ({ open, direction, onClose, onSelect }) => {
-  const theme = useTheme();
+  /** Focus the field on mount (the dialog); a widget waits to be clicked. */
+  autoFocus?: boolean;
+  /** Inside a widget: no outer padding, the list fills the widget. */
+  embedded?: boolean;
+}> = ({ direction, onSelect, autoFocus = false, embedded = false }) => {
   const [query, setQuery] = useState('');
   const [hub, setHub] = useState<string>('all');
   const [focused, setFocused] = useState(false);
@@ -187,7 +192,7 @@ const SymbolSearch: React.FC<{
   // ...and in pixels, from the hidden span holding the text up to the caret.
   useLayoutEffect(() => {
     setCaretX(measureRef.current?.offsetWidth ?? 0);
-  }, [query, caret, open]);
+  }, [query, caret]);
   const all = useDirections();
   const hubs = hubChains();
 
@@ -201,73 +206,28 @@ const SymbolSearch: React.FC<{
     // Doubly-backed routes first. The hub↔hub route is the only one two hubs
     // stand behind, which is the strongest thing this list can say about a
     // route, so it opens every hub's list rather than landing wherever the
-    // registry happens to order it — under the SOL hub that used to bury
-    // SOL/TAO below SOL/BTC. sort() is stable, so everything else keeps the
-    // registry's order.
+    // registry happens to order it. sort() is stable, so everything else
+    // keeps the registry's order.
     return [...filtered].sort(
       (a, b) => lanesFor(b).length - lanesFor(a).length,
     );
   }, [all, query, hub]);
 
-  const pick = (d: Direction) => {
-    onSelect(d);
-    onClose();
-  };
+  const px = embedded ? 0 : 2;
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="sm"
-      // Reset per opening: a search box remembering last time's query is a
-      // small betrayal every time you reopen it.
-      TransitionProps={{
-        onEnter: () => {
-          setQuery('');
-          setHub('all');
-          setCaret(0);
-        },
-      }}
-      PaperProps={{
-        sx: {
-          backgroundImage: 'none',
-          // Square. This is a terminal surface, and the rest of the market
-          // page has no rounded panels for it to agree with.
-          borderRadius: 0,
-          // Constant size, whatever the query returns. A panel that resizes
-          // on every keystroke moves the rows out from under the pointer and
-          // makes the whole dialog twitch as you type; holding the frame
-          // still means only the CONTENT changes. Capped so it still fits a
-          // short viewport.
-          height: 560,
-          maxHeight: 'calc(100vh - 64px)',
-          display: 'flex',
-          flexDirection: 'column',
-        },
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
       }}
     >
-      <Stack sx={{ px: 2, pt: 2, pb: 1, flexShrink: 0 }} spacing={1.5}>
-        <Stack direction="row" alignItems="center">
-          <Typography sx={{ fontSize: '1rem', fontWeight: 700, flex: 1 }}>
-            Symbol search
-          </Typography>
-          <Box
-            component="button"
-            onClick={onClose}
-            aria-label="Close"
-            sx={{
-              all: 'unset',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              color: 'text.secondary',
-              '&:hover': { color: 'text.primary' },
-            }}
-          >
-            <CloseIcon sx={{ fontSize: 20 }} />
-          </Box>
-        </Stack>
-
+      <Stack
+        sx={{ px, pt: embedded ? 0 : 1, pb: 1, flexShrink: 0 }}
+        spacing={1.5}
+      >
         <Stack
           direction="row"
           alignItems="center"
@@ -308,7 +268,7 @@ const SymbolSearch: React.FC<{
             </Box>
             <InputBase
               inputRef={inputRef}
-              autoFocus
+              autoFocus={autoFocus}
               fullWidth
               value={query}
               onChange={(e) => {
@@ -323,7 +283,7 @@ const SymbolSearch: React.FC<{
               onKeyDown={(e) => {
                 // Enter takes the top hit, so a route you can name is two
                 // keystrokes away rather than a reach for the mouse.
-                if (e.key === 'Enter' && results.length) pick(results[0]);
+                if (e.key === 'Enter' && results.length) onSelect(results[0]);
               }}
               placeholder="Search routes, e.g. SOL BTC or Bittensor"
               sx={{ fontSize: FIELD_FONT, caretColor: 'transparent' }}
@@ -376,32 +336,38 @@ const SymbolSearch: React.FC<{
           )}
         </Stack>
 
-        {/* Hub filters. A broker splits its search by asset class; every
-            route here is the same class, so the meaningful split is which
-            hub settles it. */}
-        <Stack direction="row" spacing={0.75}>
+        {/* Hub filters, in the site's segmented style. A broker splits its
+            search by asset class; every route here is the same class, so the
+            meaningful split is which hub settles it. */}
+        <Stack direction="row" spacing={0.5}>
           {['all', ...hubs].map((h) => {
             const on = h === hub;
             return (
               <Box
                 key={h}
                 component="button"
+                type="button"
                 onClick={() => setHub(h)}
+                aria-pressed={on}
                 sx={{
                   all: 'unset',
+                  boxSizing: 'border-box',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.25,
+                  gap: 0.6,
+                  px: 1,
                   py: 0.4,
-                  borderRadius: 5,
-                  fontSize: '0.72rem',
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.65rem',
                   fontWeight: 600,
-                  color: on
-                    ? theme.palette.background.default
-                    : theme.palette.text.secondary,
-                  backgroundColor: on ? 'text.primary' : 'action.hover',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  color: on ? 'background.paper' : 'text.secondary',
+                  backgroundColor: on ? 'text.primary' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: on ? 'text.primary' : 'action.hover',
+                  },
                 }}
               >
                 {h !== 'all' && <ChainLogo chain={h} size={13} />}
@@ -414,7 +380,20 @@ const SymbolSearch: React.FC<{
 
       {/* Takes all remaining height and scrolls internally, so a 1-result
           query leaves empty space rather than collapsing the frame. */}
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pb: 1 }}>
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          pb: 1,
+          mx: embedded ? -1.5 : 0,
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-thumb': {
+            background: (t) => t.palette.border.light,
+            borderRadius: 0,
+          },
+        }}
+      >
         {results.length === 0 ? (
           <Typography
             sx={{
@@ -434,7 +413,7 @@ const SymbolSearch: React.FC<{
               key={d}
               direction={d}
               selected={d === direction}
-              onSelect={pick}
+              onSelect={onSelect}
             />
           ))
         )}
@@ -442,9 +421,11 @@ const SymbolSearch: React.FC<{
 
       <Typography
         sx={{
-          px: 2,
-          py: 1,
-          fontSize: '0.68rem',
+          px,
+          pt: 1,
+          pb: embedded ? 0 : 1,
+          fontFamily: FONTS.mono,
+          fontSize: '0.62rem',
           color: 'text.disabled',
           textAlign: 'center',
           borderTop: '1px solid',
@@ -455,6 +436,72 @@ const SymbolSearch: React.FC<{
         {results.length} of {all.length} routes · each direction is its own
         market
       </Typography>
+    </Box>
+  );
+};
+
+const SymbolSearch: React.FC<{
+  open: boolean;
+  direction: Direction;
+  onClose: () => void;
+  onSelect: (direction: Direction) => void;
+}> = ({ open, direction, onClose, onSelect }) => {
+  // Reset per opening: a search box remembering last time's query is a
+  // small betrayal every time you reopen it. A fresh key remounts the panel.
+  const [session, setSession] = useState(0);
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      TransitionProps={{ onEnter: () => setSession((n) => n + 1) }}
+      PaperProps={{
+        sx: {
+          backgroundImage: 'none',
+          // Square. This is a terminal surface, and the rest of the market
+          // page has no rounded panels for it to agree with.
+          borderRadius: 0,
+          // Constant size, whatever the query returns. A panel that resizes
+          // on every keystroke moves the rows out from under the pointer and
+          // makes the whole dialog twitch as you type; holding the frame
+          // still means only the CONTENT changes. Capped so it still fits a
+          // short viewport.
+          height: 560,
+          maxHeight: 'calc(100vh - 64px)',
+          display: 'flex',
+          flexDirection: 'column',
+        },
+      }}
+    >
+      <Stack direction="row" alignItems="center" sx={{ px: 2, pt: 2 }}>
+        <Typography sx={{ fontSize: '1rem', fontWeight: 700, flex: 1 }}>
+          Symbol search
+        </Typography>
+        <Box
+          component="button"
+          onClick={onClose}
+          aria-label="Close"
+          sx={{
+            all: 'unset',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            color: 'text.secondary',
+            '&:hover': { color: 'text.primary' },
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 20 }} />
+        </Box>
+      </Stack>
+      <SymbolSearchPanel
+        key={session}
+        direction={direction}
+        autoFocus
+        onSelect={(d) => {
+          onSelect(d);
+          onClose();
+        }}
+      />
     </Dialog>
   );
 };
