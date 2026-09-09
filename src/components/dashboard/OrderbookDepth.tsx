@@ -291,7 +291,10 @@ const OrderbookDepth: React.FC<{
   base: string;
   // Given, the side headings become the toggle between the two directions.
   onDirectionChange?: (direction: Direction, hub: string) => void;
-}> = ({ direction, base, onDirectionChange }) => {
+  // Inside a workspace panel the panel's own title says "Order book"; drop
+  // the word here and keep the units, the info glyph and the picker.
+  embedded?: boolean;
+}> = ({ direction, base, onDirectionChange, embedded = false }) => {
   const theme = useTheme();
   const { data: miners, isLoading } = useMiners();
   const [group, setGroup] = useState<DepthGroup>(null);
@@ -753,17 +756,19 @@ const OrderbookDepth: React.FC<{
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'text.secondary',
-            }}
-          >
-            Order book
-          </Typography>
+          {!embedded && (
+            <Typography
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.7rem',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'text.secondary',
+              }}
+            >
+              Order book
+            </Typography>
+          )}
           <Typography
             sx={{
               fontFamily: FONTS.mono,
@@ -775,7 +780,7 @@ const OrderbookDepth: React.FC<{
               minWidth: 0,
             }}
           >
-            · prices in {priceUnit}, sizes in {unit}
+            {embedded ? '' : '· '}prices in {priceUnit}, sizes in {unit}
           </Typography>
           <RailTooltip
             placement="right"

@@ -21,7 +21,9 @@ const RateChart: React.FC<{
   direction: Direction;
   base: string;
   range: HeroRange;
-}> = ({ direction, base, range }) => {
+  /** Fixed px height, or '100%' to fill a sized parent. */
+  height?: number | string;
+}> = ({ direction, base, range, height = 220 }) => {
   const theme = useTheme();
   const secs = RANGE_SECS[range];
   const legs = decomposeDirection(direction);
@@ -79,7 +81,7 @@ const RateChart: React.FC<{
   );
 
   return (
-    <Box sx={{ height: 220, minWidth: 0 }}>
+    <Box sx={{ height, minWidth: 0, minHeight: 160 }}>
       <TimeSeriesChart
         series={series}
         loading={isLoading}

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Box, Stack } from '@mui/material';
+import { Box } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
@@ -7,6 +7,8 @@ import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
 import RateMatrix from '../components/dashboard/RateMatrix';
+import Workspace from '../components/workspace/Workspace';
+import type { Layouts } from 'react-grid-layout';
 import {
   isDirection,
   useCompleteSwapHistory,
@@ -65,7 +67,34 @@ const busiestDirection = (
 
 // The card, chart and book share one width, so the right side reads as a
 // single column rather than three panels of different sizes.
-const PANEL_W = 640;
+// The page's own desk: the sheet down the left, the rate over its history
+// over the book down the right. Twelve columns, 24px rows.
+const MARKET_LAYOUTS: Layouts = {
+  lg: [
+    { i: 'matrix', x: 0, y: 0, w: 6, h: 40 },
+    { i: 'rate', x: 6, y: 0, w: 6, h: 7 },
+    { i: 'chart', x: 6, y: 7, w: 6, h: 12 },
+    { i: 'book', x: 6, y: 19, w: 6, h: 21 },
+  ],
+  md: [
+    { i: 'matrix', x: 0, y: 0, w: 6, h: 40 },
+    { i: 'rate', x: 6, y: 0, w: 6, h: 7 },
+    { i: 'chart', x: 6, y: 7, w: 6, h: 12 },
+    { i: 'book', x: 6, y: 19, w: 6, h: 21 },
+  ],
+  sm: [
+    { i: 'rate', x: 0, y: 0, w: 6, h: 7 },
+    { i: 'matrix', x: 0, y: 7, w: 6, h: 24 },
+    { i: 'chart', x: 0, y: 31, w: 6, h: 12 },
+    { i: 'book', x: 0, y: 43, w: 6, h: 21 },
+  ],
+  xs: [
+    { i: 'rate', x: 0, y: 0, w: 2, h: 7 },
+    { i: 'matrix', x: 0, y: 7, w: 2, h: 24 },
+    { i: 'chart', x: 0, y: 31, w: 2, h: 12 },
+    { i: 'book', x: 0, y: 43, w: 2, h: 24 },
+  ],
+};
 
 // The market page: every route's live crown rate on one sheet (the rate
 // matrix, which is also the picker), with the selected direction's card and
@@ -139,64 +168,74 @@ const MarketPage: React.FC = () => {
       {/* The site's one page frame; the matrix needs no heading, it is
           the page. */}
       <Box sx={PAGE_FRAME_SX}>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' },
-            alignItems: 'flex-start',
-            width: '100%',
-            gap: { xs: 4, md: 6 },
-          }}
-        >
-          {/* The sheet takes its natural width against the frame's left
-              edge; the rail takes what is left, no rule between them. */}
-          <Box sx={{ flex: '0 1 auto', minWidth: 0, minHeight: 0 }}>
-            <RateMatrix
-              direction={direction}
-              base={base}
-              onDirectionChange={setDirection}
-            />
-          </Box>
-          <Stack
-            sx={{
-              flex: '1 1 0',
-              minWidth: 0,
-              gap: 3,
-            }}
-          >
-            <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
-              <DirectionCard
-                direction={direction}
-                base={base}
-                range={range}
-                onRangeChange={setRange}
-              />
-            </Box>
-            {/* The rate over the window, on the same ruler as the card above
-              and the book below. */}
-            <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>
-              <RateChart direction={direction} base={base} range={range} />
-            </Box>
-            {/* Capped like the card: the stacked ladders read at one width,
-              and a wide screen keeps its blank space rather than stretching
-              them. */}
-            <Box
-              sx={{
-                maxWidth: PANEL_W,
-                minHeight: { xs: 300, md: 220 },
-                display: 'flex',
-                flexDirection: 'column',
-                minWidth: 0,
-              }}
-            >
-              <OrderbookDepth
-                direction={direction}
-                base={base}
-                onDirectionChange={setDirection}
-              />
-            </Box>
-          </Stack>
-        </Box>
+        {/* The page is a workspace: the sheet, the rate, its history and the
+            book are panels a person drags and resizes into their own desk,
+            the way a terminal lets them. The arrangement is remembered. */}
+        <Workspace
+          storageKey="allways.market.workspace.v1"
+          defaultLayouts={MARKET_LAYOUTS}
+          panels={[
+            {
+              id: 'matrix',
+              title: 'Markets',
+              minW: 4,
+              minH: 8,
+              node: (
+                <RateMatrix
+                  direction={direction}
+                  base={base}
+                  onDirectionChange={setDirection}
+                />
+              ),
+            },
+            {
+              id: 'rate',
+              title: 'Rate',
+              minW: 3,
+              minH: 5,
+              node: (
+                <DirectionCard
+                  direction={direction}
+                  base={base}
+                  range={range}
+                  onRangeChange={setRange}
+                />
+              ),
+            },
+            {
+              id: 'chart',
+              title: 'History',
+              minW: 3,
+              minH: 6,
+              node: (
+                <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <RateChart
+                      direction={direction}
+                      base={base}
+                      range={range}
+                      height="100%"
+                    />
+                  </Box>
+                </Box>
+              ),
+            },
+            {
+              id: 'book',
+              title: 'Order book',
+              minW: 3,
+              minH: 8,
+              node: (
+                <OrderbookDepth
+                  direction={direction}
+                  base={base}
+                  onDirectionChange={setDirection}
+                  embedded
+                />
+              ),
+            },
+          ]}
+        />
       </Box>
     </Page>
   );
