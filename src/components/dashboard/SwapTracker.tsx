@@ -383,10 +383,14 @@ const SwapTracker: React.FC<{
       if (nextPage <= 1) p.delete('page');
       else p.set('page', String(nextPage));
       setSearchParams(p, { replace: true });
-      // A new page starts at the top of the tape, not mid-scroll.
-      scrollRef.current?.scrollTo({ top: 0 });
+      // A new page starts at the top of the tape, not mid-scroll. Embedded,
+      // the tape scrolls with the page, so the page is what moves.
+      const el = scrollRef.current;
+      if (!el) return;
+      if (embedded) el.scrollIntoView({ block: 'start', behavior: 'auto' });
+      else el.scrollTo({ top: 0 });
     },
-    [searchParams, setSearchParams],
+    [searchParams, setSearchParams, embedded],
   );
   const debouncedSearch = useDebounce(search, 300);
 
@@ -589,7 +593,9 @@ const SwapTracker: React.FC<{
   ) : (
     <Box
       sx={{
-        height: '100%',
+        // Embedded in a page the tape is as tall as its rows and scrolls
+        // with the page; on its own it fills its box and scrolls inside.
+        height: embedded ? 'auto' : '100%',
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
@@ -833,9 +839,9 @@ const SwapTracker: React.FC<{
           <Box
             ref={scrollRef}
             sx={{
-              flex: 1,
+              flex: embedded ? 'none' : 1,
               minHeight: 0,
-              overflowY: 'auto',
+              overflowY: embedded ? 'visible' : 'auto',
               // The headings above ARE the tape's header; one rule separates
               // them from the rows, as on the markets rail.
               borderTop: '1px solid',

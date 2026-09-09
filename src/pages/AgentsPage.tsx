@@ -53,27 +53,14 @@ const AgentsPage: React.FC = () => {
             <AgentMarkdownCard />
           </Box>
 
-          {/* Two compact steps share a row, the landing card grid's gap
-              between them. */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                md: 'minmax(0, 1fr) minmax(0, 1fr)',
-              },
-              gap: { xs: 4, md: 3 },
-              alignItems: 'start',
-            }}
-          >
-            <Box>
-              <SectionLabel>2 · Bootstrap with live state</SectionLabel>
-              <SnapshotDownload />
-            </Box>
-            <Box>
-              <SectionLabel>3 · Quote against the orderbook</SectionLabel>
-              <RateQuoteHelper />
-            </Box>
+          <Box>
+            <SectionLabel>2 · Bootstrap with live state</SectionLabel>
+            <SnapshotDownload />
+          </Box>
+
+          <Box>
+            <SectionLabel>3 · Quote against the orderbook</SectionLabel>
+            <RateQuoteHelper />
           </Box>
 
           <Box>
