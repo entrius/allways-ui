@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { Box, useTheme } from '@mui/material';
 import { FONTS } from '../theme';
-import { chainInfo } from '../api/models/chains';
+import {
+  chainInfo,
+  chainList,
+  isToken,
+  nativeOf,
+  type ChainInfo,
+} from '../api/models/chains';
 
 // Logo PNGs are served by das (same assets as its OG cards); the registry
 // entry carries the path. Unknown chains — or a failed image load — fall back
@@ -146,3 +152,79 @@ export const PairLabel: React.FC<{
     <TickerSymbol chain={to} logoSize={logoSize} />
   </Box>
 );
+
+// Badge art for networks das lists no native coin for. Served from /public.
+const LOCAL_NETWORK_BADGES: Record<string, string> = {
+  Arbitrum: '/networks/arbitrum.png',
+  Base: '/networks/base.svg',
+};
+
+// Small network mark on a token's logo, bottom-right, ringed in the page
+// tone so it reads as a separate mark. Nothing for a native coin.
+export const NetworkBadge: React.FC<{
+  chain: ChainInfo;
+  chains: ChainInfo[];
+  logoSize: number;
+}> = ({ chain, chains, logoSize }) => {
+  if (!isToken(chain, chains)) return null;
+  const native = nativeOf(chain, chains);
+  const local = chain.network ? LOCAL_NETWORK_BADGES[chain.network] : undefined;
+  if (!native && !local) return null;
+  const size = Math.round(logoSize * 0.5);
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        right: -3,
+        bottom: -2,
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        boxShadow: (t) => `0 0 0 1.5px ${t.palette.background.default}`,
+        backgroundColor: 'background.default',
+        lineHeight: 0,
+      }}
+    >
+      {native ? (
+        <ChainLogo chain={native.id} size={size} />
+      ) : (
+        <Box
+          component="img"
+          src={local}
+          alt=""
+          draggable={false}
+          sx={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            display: 'block',
+          }}
+        />
+      )}
+    </Box>
+  );
+};
+
+// The asset's full mark: its logo with the network badge a token carries on
+// the matrix, so USDC on Base wears Base's mark wherever it appears.
+export const AssetMark: React.FC<{ chain: string; size?: number }> = ({
+  chain,
+  size = 16,
+}) => {
+  const chains = chainList();
+  const info = chainInfo(chain);
+  return (
+    <Box
+      component="span"
+      sx={{
+        position: 'relative',
+        display: 'inline-flex',
+        lineHeight: 0,
+        flexShrink: 0,
+      }}
+    >
+      <ChainLogo chain={chain} size={size} />
+      {info && <NetworkBadge chain={info} chains={chains} logoSize={size} />}
+    </Box>
+  );
+};

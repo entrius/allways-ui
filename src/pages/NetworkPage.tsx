@@ -8,42 +8,25 @@ import React, {
 import { Box, Skeleton, Stack } from '@mui/material';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
-import {
-  KPI_STRIP_H,
-  NetworkKpiStrip,
-  SectionAccordion,
-} from '../components/network';
+import { SectionAccordion } from '../components/network';
 import TransactionsSection from '../components/network/TransactionsSection';
+import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 
-// The two folded sections load their code the first time they are opened —
-// a visitor who only reads the tape never downloads the leaderboard or the
-// charts. Imported by path, not through the barrel, so nothing pulls them
-// back into this chunk.
+// The folded section loads its code the first time it is opened — a
+// visitor who only reads the tape never downloads the leaderboard. Imported
+// by path, not through the barrel, so nothing pulls it back into this chunk.
 const MinersSection = React.lazy(
   () => import('../components/network/MinersSection'),
 );
-const StatsSection = React.lazy(
-  () => import('../components/network/StatsSection'),
-);
 
+// The tape needs no heading: it is the page. Only the miners fold.
+const TAPE_ID = 'transactions';
 const SECTIONS = [
-  {
-    id: 'transactions',
-    title: 'Transactions',
-    subtitle:
-      'Every cross-chain transaction in order, live. Click a row for its full timeline.',
-  },
   {
     id: 'miners',
     title: 'Miners',
     subtitle:
       'Who is serving the network: crown share, success rate, collateral and volume per node.',
-  },
-  {
-    id: 'stats',
-    title: 'Network Stats',
-    subtitle:
-      'All-time growth, throughput, revenue and network size, by day since launch.',
   },
 ] as const;
 
@@ -52,11 +35,11 @@ type SectionId = (typeof SECTIONS)[number]['id'];
 const isSectionId = (v: string): v is SectionId =>
   SECTIONS.some((s) => s.id === v);
 
-// The tape is what the page is for; miners and the stats charts start
-// folded away under their headings, one click from open.
-const DEFAULT_OPEN: SectionId[] = ['transactions'];
+// The tape is what the page is for; miners start folded away under their
+// heading, one click from open.
+const DEFAULT_OPEN: SectionId[] = [];
 
-// Which sections are open is URL state (`?open=miners,stats`), not
+// Which sections are open is URL state (`?open=miners`), not
 // component state: browser-back from a transaction or a miner returns the
 // page as it was left, and a link can address a particular arrangement.
 // Absent means the default; present-but-empty means everything folded.
@@ -83,9 +66,8 @@ const SectionFallback: React.FC = () => (
 );
 
 /**
- * Transactions, miners and network stats on one page. The three used to be
- * separate tabs; they are one accordion now, under a pinned bar of the
- * figures worth remembering. Their old paths redirect here with a hash,
+ * Transactions and miners on one page. The two used to be separate tabs;
+ * they are one accordion now. Their old paths redirect here with a hash,
  * which opens that section and scrolls to it, so /miners still lands on the
  * miners view.
  */
@@ -111,8 +93,7 @@ const NetworkPage: React.FC = () => {
     const top =
       el.getBoundingClientRect().top -
       main.getBoundingClientRect().top +
-      main.scrollTop -
-      KPI_STRIP_H;
+      main.scrollTop;
     main.scrollTo({ top: Math.max(0, top) });
   }, []);
 
@@ -138,6 +119,12 @@ const NetworkPage: React.FC = () => {
 
   useEffect(() => {
     const id = hash.replace('#', '');
+    if (id === TAPE_ID) {
+      // The tape is always open and sits at the top: just land on it.
+      requestAnimationFrame(() => scrollTo(TAPE_ID));
+      navigate({ search: searchParams.toString() }, { replace: true });
+      return;
+    }
     if (!isSectionId(id)) return;
     const shown = openRef.current;
     const next = new URLSearchParams(searchParams);
@@ -166,26 +153,17 @@ const NetworkPage: React.FC = () => {
     <Page title="Network">
       <SEO
         title="Network"
-        description="Transactions, miners and network stats for Allways — Bittensor SN7"
+        description="Transactions and miners for Allways — Bittensor SN7"
       />
-      <NetworkKpiStrip />
-      <Box
-        sx={{
-          backgroundColor: 'background.default',
-          px: { xs: 1.5, sm: 2, md: 3 },
-          pb: { xs: 2, md: 3 },
-          width: '100%',
-          maxWidth: 1400,
-          mx: 'auto',
-        }}
-      >
+      <Box sx={{ ...PAGE_FRAME_SX, backgroundColor: 'background.default' }}>
         <Stack>
-          {SECTIONS.map((s, i) => (
+          <Box component="section" id={TAPE_ID} sx={{ pb: { xs: 3, md: 4 } }}>
+            <TransactionsSection />
+          </Box>
+          {SECTIONS.map((s) => (
             <SectionAccordion
               key={s.id}
               {...s}
-              first={i === 0}
-              scrollMarginTop={KPI_STRIP_H}
               open={open.has(s.id)}
               onToggle={() => toggle(s.id)}
               onEntered={() => {
@@ -194,13 +172,9 @@ const NetworkPage: React.FC = () => {
                 scrollTo(s.id);
               }}
             >
-              {s.id === 'transactions' ? (
-                <TransactionsSection />
-              ) : (
-                <Suspense fallback={<SectionFallback />}>
-                  {s.id === 'miners' ? <MinersSection /> : <StatsSection />}
-                </Suspense>
-              )}
+              <Suspense fallback={<SectionFallback />}>
+                <MinersSection />
+              </Suspense>
             </SectionAccordion>
           ))}
         </Stack>

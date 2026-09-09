@@ -1,17 +1,13 @@
 import React, { useCallback } from 'react';
-import { Box, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
-import {
-  Link as RouterLink,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { Box, Stack, useMediaQuery, useTheme } from '@mui/material';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   CrownHistoryPanel,
   CrownRateChart,
   MinerDetailHeader,
   MinerSwapHistory,
   Page,
+  PageIntro,
   RateHistoryTable,
   ScoringPanel,
   SEO,
@@ -28,8 +24,8 @@ import {
   type Range,
   type RateRange,
 } from '../api';
-import { FONTS } from '../theme';
 import { shortHotkey } from '../utils/format';
+import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 
 const MinerDetailPage: React.FC = () => {
   const { hotkey = '' } = useParams<{ hotkey: string }>();
@@ -97,33 +93,14 @@ const MinerDetailPage: React.FC = () => {
         title={`Miner ${uid ?? shortHotkey(hotkey)}`}
         description={`Allways miner detail · uid ${uid ?? '?'} · ${shortHotkey(hotkey)}`}
       />
-      <Stack
-        sx={{
-          px: { xs: 1.5, sm: 2, md: 4 },
-          py: { xs: 2, sm: 3, md: 4 },
-          maxWidth: 1400,
-          mx: 'auto',
-          width: '100%',
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-          <Typography
-            component={RouterLink}
-            to="/network#miners"
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              color: 'text.secondary',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.5,
-              '&:hover': { color: 'primary.main' },
-            }}
-          >
-            <ArrowBackIcon sx={{ fontSize: 14 }} /> Miners
-          </Typography>
-        </Stack>
+      <Stack sx={PAGE_FRAME_SX}>
+        <PageIntro
+          back={{ to: '/network#miners', label: 'Miners' }}
+          eyebrow="Miner · Bittensor Subnet 7"
+          title={uid != null ? `UID ${uid}` : shortHotkey(hotkey)}
+          aside={<MinerDetailHeader.Badges hotkey={hotkey} stats={stats} />}
+          mb={{ xs: 3, md: 4 }}
+        />
 
         <MinerDetailHeader
           hotkey={hotkey}

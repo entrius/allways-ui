@@ -26,10 +26,11 @@ export const TimelineStep: React.FC<{
    */
   color?: string;
   /**
-   * Default 80 — bump if labels in your timeline are wordier.
+   * Default 128, wide enough for "Deposit claimed" in the step mono, so
+   * every row's timestamp starts on the same column.
    */
   labelMinWidth?: number;
-}> = ({ state, label, detail, glyph, color, labelMinWidth = 80 }) => {
+}> = ({ state, label, detail, glyph, color, labelMinWidth = 128 }) => {
   const theme = useTheme();
   const stepColor =
     color ??
@@ -79,20 +80,11 @@ export const TimelineStep: React.FC<{
   );
 };
 
+// A card's heading: the landing card's blue eyebrow.
 export const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
-  <Typography
-    sx={{
-      fontFamily: FONTS.mono,
-      fontSize: '0.7rem',
-      fontWeight: 600,
-      color: 'text.secondary',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px',
-      mb: 1.5,
-    }}
-  >
+  <Typography variant="eyebrow" sx={{ display: 'block', mb: 1.75 }}>
     {children}
   </Typography>
 );

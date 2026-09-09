@@ -1,17 +1,12 @@
 import React from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import {
-  Box,
-  CircularProgress,
-  Stack,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { useReservationsBySource } from '../api';
 import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
-import { PageWrapper } from '../components';
+import { PageIntro, PageWrapper, StatusChip } from '../components';
+import { assetLabel } from '../api/models/chains';
+import { formatWallClock, shortAddr } from '../utils/format';
 
 const ReservationsBySourcePage: React.FC = () => {
   const { address } = useParams<{ address: string }>();
@@ -20,9 +15,12 @@ const ReservationsBySourcePage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', pt: 10 }}>
-        <CircularProgress size={24} />
-      </Box>
+      <PageWrapper>
+        <Skeleton variant="text" width={120} sx={{ mb: 1 }} />
+        <Skeleton variant="text" width={320} height={48} sx={{ mb: 4 }} />
+        <Skeleton variant="rectangular" height={72} sx={{ mb: 2 }} />
+        <Skeleton variant="rectangular" height={72} />
+      </PageWrapper>
     );
   }
 
@@ -30,46 +28,28 @@ const ReservationsBySourcePage: React.FC = () => {
 
   return (
     <PageWrapper>
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Typography
-          component={RouterLink}
-          to="/network#transactions"
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.8rem',
-            color: 'text.secondary',
-            textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 14 }} /> Transactions
-        </Typography>
-      </Stack>
-
-      <Typography
-        sx={{
-          fontFamily: FONTS.heading,
-          fontWeight: 900,
-          fontSize: '1.5rem',
-          color: 'text.primary',
-          mb: 1,
-        }}
-      >
-        Reservations
-      </Typography>
-      <Box sx={{ mb: 3 }}>
-        <CopyableAddress address={address ?? ''} fontSize="0.8rem" />
-      </Box>
+      <PageIntro
+        back={{ to: '/network#transactions', label: 'Transactions' }}
+        eyebrow="Reservations · by source address"
+        title={shortAddr(address ?? '')}
+        lead={<CopyableAddress address={address ?? ''} fontSize="0.8rem" />}
+        mb={{ xs: 3, md: 4 }}
+      />
 
       {reservations.length === 0 ? (
-        <Typography sx={{ fontFamily: FONTS.mono, color: 'text.secondary' }}>
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.75rem',
+            color: 'text.secondary',
+            textAlign: 'center',
+            py: 6,
+          }}
+        >
           No reservations found for this address.
         </Typography>
       ) : (
-        <Stack spacing={1}>
+        <Stack spacing={{ xs: 2, md: 3 }}>
           {reservations.map((r) => {
             const statusKey =
               r.status === 'ACTIVE'
@@ -84,13 +64,14 @@ const ReservationsBySourcePage: React.FC = () => {
                 component={RouterLink}
                 to={`/reservations/${r.requestHash}`}
                 sx={{
-                  p: 2,
-                  borderRadius: 0,
-                  backgroundColor: 'background.paper',
+                  display: 'block',
+                  p: { xs: 2.5, md: 3 },
                   border: '1px solid',
                   borderColor: 'divider',
+                  borderRadius: 0,
                   textDecoration: 'none',
-                  display: 'block',
+                  color: 'inherit',
+                  transition: 'border-color 120ms',
                   '&:hover': { borderColor: 'primary.main' },
                 }}
               >
@@ -98,39 +79,36 @@ const ReservationsBySourcePage: React.FC = () => {
                   direction="row"
                   alignItems="center"
                   justifyContent="space-between"
+                  spacing={2}
                 >
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.8rem',
-                      color: 'text.primary',
-                    }}
-                  >
-                    {(r.fromChain ?? '').toUpperCase()} →{' '}
-                    {(r.toChain ?? '').toUpperCase()} · miner{' '}
-                    {r.minerHotkey.slice(0, 6)}…
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      color: statusColor,
-                    }}
-                  >
-                    {r.status}
-                  </Typography>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        color: 'text.primary',
+                      }}
+                    >
+                      {assetLabel(r.fromChain ?? '')} →{' '}
+                      {assetLabel(r.toChain ?? '')}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.7rem',
+                        color: 'text.secondary',
+                        mt: 0.5,
+                      }}
+                    >
+                      miner {r.minerHotkey.slice(0, 6)}… ·{' '}
+                      {formatWallClock(
+                        Math.floor(new Date(r.createdAt).getTime() / 1000),
+                      )}
+                    </Typography>
+                  </Box>
+                  <StatusChip label={r.status} color={statusColor} />
                 </Stack>
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.7rem',
-                    color: 'text.secondary',
-                    mt: 0.5,
-                  }}
-                >
-                  {new Date(r.createdAt).toLocaleString()}
-                </Typography>
               </Box>
             );
           })}

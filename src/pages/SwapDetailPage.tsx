@@ -1,14 +1,6 @@
 import React from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import {
-  Box,
-  Chip,
-  Stack,
-  Typography,
-  CircularProgress,
-  useTheme,
-} from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   displayEventType,
   useMinerByHotkey,
@@ -20,11 +12,15 @@ import { FONTS } from '../theme';
 import CopyableAddress from '../components/CopyableAddress';
 import {
   BlockIndicator,
+  AssetMark,
   Card,
   LabelValue,
+  PageIntro,
   PageWrapper,
   SectionTitle,
+  StatusChip,
   TimelineStep,
+  TradeTitle,
   type TimelineStepState,
 } from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -36,13 +32,13 @@ import {
   formatCountdown,
   formatDurationSecs,
   formatRateLine,
-  formatUnixTime,
+  formatWallClock,
   explorerSignatureUrl,
   explorerTxUrl,
   swapDisplayId,
 } from '../utils/format';
 import { type ActiveSwap } from '../api/models';
-import { chainInfo, hubChain } from '../api/models/chains';
+import { assetLabel, chainInfo, hubChain } from '../api/models/chains';
 import ExtensionChip, {
   deriveSwapExtensionStatus,
 } from '../components/ExtensionChip';
@@ -125,9 +121,12 @@ const SwapDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', pt: 10 }}>
-        <CircularProgress size={24} />
-      </Box>
+      <PageWrapper>
+        <Skeleton variant="text" width={120} sx={{ mb: 1 }} />
+        <Skeleton variant="text" width={360} height={48} sx={{ mb: 4 }} />
+        <Skeleton variant="rectangular" height={180} sx={{ mb: 3 }} />
+        <Skeleton variant="rectangular" height={240} />
+      </PageWrapper>
     );
   }
 
@@ -136,9 +135,12 @@ const SwapDetailPage: React.FC = () => {
   if (!swap) {
     return (
       <PageWrapper>
-        <Typography sx={{ fontFamily: FONTS.mono, color: 'text.secondary' }}>
-          Transaction {swapId} not found
-        </Typography>
+        <PageIntro
+          back={{ to: '/network#transactions', label: 'Transactions' }}
+          eyebrow="Transaction"
+          title="Not found."
+          lead={`No transaction matches ${swapId}. It may not have been indexed yet, or the link is wrong.`}
+        />
       </PageWrapper>
     );
   }
@@ -211,116 +213,8 @@ const SwapDetailPage: React.FC = () => {
 
   return (
     <PageWrapper>
-      {/* Header */}
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Typography
-          component={RouterLink}
-          to="/network#transactions"
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.8rem',
-            color: 'text.secondary',
-            textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 14 }} /> Transactions
-        </Typography>
-        <Box sx={{ flex: 1 }} />
-        <Chip
-          label={swap.status.replace('_', ' ')}
-          size="small"
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            borderRadius: 0,
-            borderColor: statusColor,
-            color: statusColor,
-          }}
-          variant="outlined"
-        />
-      </Stack>
-
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        spacing={2}
-        sx={{ mb: 3, flexWrap: 'wrap', rowGap: 0.5 }}
-      >
-        <Typography
-          sx={{
-            fontFamily: FONTS.heading,
-            fontWeight: 900,
-            fontSize: { xs: '1.15rem', sm: '1.5rem' },
-            color: 'text.primary',
-          }}
-        >
-          Transaction {swapDisplayId(swap)}
-        </Typography>
-        <BlockIndicator />
-      </Stack>
-
-      {swap.reservationRequestHash && (
-        <Typography
-          component={RouterLink}
-          to={`/reservations/${swap.reservationRequestHash}`}
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.75rem',
-            color: 'text.secondary',
-            textDecoration: 'none',
-            display: 'inline-block',
-            mb: 2,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          ← View original reservation
-        </Typography>
-      )}
-
-      {/* Miner identity — UID + hotkey, mirrors the reservation page */}
-      {swap.minerHotkey && (
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="baseline"
-          sx={{ mb: 3, flexWrap: 'wrap' }}
-        >
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.7rem',
-              color: 'text.secondary',
-              minWidth: 80,
-            }}
-          >
-            Miner
-          </Typography>
-          {miner?.uid != null && (
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.75rem',
-                color: 'text.primary',
-              }}
-            >
-              UID {miner.uid} ·
-            </Typography>
-          )}
-          <CopyableAddress
-            address={swap.minerHotkey}
-            fontSize="0.75rem"
-            color="text.primary"
-          />
-        </Stack>
-      )}
-
-      {/* Trade summary — the lead, not a card */}
+      {/* The opening, in the landing rhythm: eyebrow names the transaction,
+          the title is the trade itself, the status sits beside it. */}
       {(() => {
         const sourceLine =
           swap.sourceAmount && swap.sourceChain
@@ -335,41 +229,94 @@ const SwapDetailPage: React.FC = () => {
           swap.destAmount,
           swap.destChain,
         );
-        // One-sided headlines look awkward; only render when both legs known.
-        // Single amounts still appear per-leg in the Flow card below.
-        if (!sourceLine || !destLine) return null;
         return (
-          <Stack spacing={0.5} sx={{ mb: 3 }}>
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: { xs: '1.05rem', sm: '1.4rem' },
-                fontWeight: 600,
-                color: 'text.primary',
-                letterSpacing: '-0.5px',
-              }}
-            >
-              {sourceLine}{' '}
-              <Box
-                component="span"
-                sx={{ color: 'text.secondary', mx: 0.5, fontWeight: 400 }}
-              >
-                →
-              </Box>{' '}
-              {destLine}
-            </Typography>
-            {rate && (
-              <Typography
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.8rem',
-                  color: 'text.secondary',
-                }}
-              >
-                {rate}
-              </Typography>
-            )}
-          </Stack>
+          <PageIntro
+            back={{ to: '/network#transactions', label: 'Transactions' }}
+            eyebrow={`Transaction · ${swapDisplayId(swap)}`}
+            title={
+              sourceLine && destLine ? (
+                <TradeTitle
+                  fromChain={swap.sourceChain}
+                  from={sourceLine}
+                  toChain={swap.destChain}
+                  to={destLine}
+                />
+              ) : (
+                `Transaction ${swapDisplayId(swap)}`
+              )
+            }
+            lead={
+              <Stack spacing={0.75} component="span" sx={{ display: 'block' }}>
+                {rate && (
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'block',
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.8rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    {rate}
+                  </Box>
+                )}
+                {swap.minerHotkey && (
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'baseline',
+                      gap: 1,
+                      flexWrap: 'wrap',
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.75rem',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    Miner
+                    {miner?.uid != null && (
+                      <Box component="span" sx={{ color: 'text.primary' }}>
+                        UID {miner.uid}
+                      </Box>
+                    )}
+                    <CopyableAddress
+                      address={swap.minerHotkey}
+                      fontSize="0.75rem"
+                      color="text.primary"
+                    />
+                  </Box>
+                )}
+                {swap.reservationRequestHash && (
+                  <Typography
+                    component={RouterLink}
+                    to={`/reservations/${swap.reservationRequestHash}`}
+                    sx={{
+                      display: 'block',
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      color: 'text.secondary',
+                      textDecoration: 'none',
+                      '&:hover': { color: 'primary.main' },
+                    }}
+                  >
+                    View original reservation →
+                  </Typography>
+                )}
+              </Stack>
+            }
+            aside={
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <StatusChip
+                  label={swap.status.replace('_', ' ')}
+                  color={statusColor}
+                />
+                <BlockIndicator />
+              </Stack>
+            }
+            mb={{ xs: 3, md: 4 }}
+          />
         );
       })()}
 
@@ -401,118 +348,157 @@ const SwapDetailPage: React.FC = () => {
         </Typography>
       )}
 
-      {/* Timeline */}
-      <Card>
-        <SectionTitle>Timeline</SectionTitle>
-        <Stack spacing={1.5}>
-          {/* Hide Completed row on timed-out swaps \u2014 it never completed.
+      {/* Timeline beside the raw identifiers: two short cards share a row. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: 'minmax(0, 1fr) minmax(0, 1fr)',
+          },
+          gap: { xs: 2, md: 3 },
+          mb: { xs: 2, md: 3 },
+        }}
+      >
+        {/* Timeline */}
+        <Card sx={{ mb: 0, height: '100%' }}>
+          <SectionTitle>Timeline</SectionTitle>
+          <Stack spacing={1.5}>
+            {/* Hide Completed row on timed-out swaps \u2014 it never completed.
               Hide Timeout row on completed swaps \u2014 it never fired. */}
-          {/* Hide Completed row on timed-out swaps \u2014 it never completed.
+            {/* Hide Completed row on timed-out swaps \u2014 it never completed.
               Hide Timeout row on completed swaps \u2014 it never fired.
               Only the terminal row that actually fired carries semantic
               color (green \u2713 for success, red \u2717 for timeout); other
               "done" rows stay neutral so the eye lands on finality. */}
-          {steps
-            .filter((s) => !(isTimedOut && s.label === 'Completed'))
-            .filter(
-              (s) =>
-                !(
-                  isExpired &&
-                  (s.label === 'Fulfilled' || s.label === 'Completed')
-                ),
-            )
-            .map((step) => {
-              const stepState: TimelineStepState = step.done
-                ? 'done'
-                : step.failed
-                  ? 'failed'
-                  : 'pending';
-              const isTerminalCompleted =
-                step.label === 'Completed' && step.done;
-              // The row the user is actually waiting on: say what it waits
-              // for and how long it has been, not just a dash.
-              const awaitingInitiate =
-                step.label === 'Initiated' && isPending && !step.at;
+            {steps
+              .filter((s) => !(isTimedOut && s.label === 'Completed'))
+              .filter(
+                (s) =>
+                  !(
+                    isExpired &&
+                    (s.label === 'Fulfilled' || s.label === 'Completed')
+                  ),
+              )
+              .map((step) => {
+                const stepState: TimelineStepState = step.done
+                  ? 'done'
+                  : step.failed
+                    ? 'failed'
+                    : 'pending';
+                const isTerminalCompleted =
+                  step.label === 'Completed' && step.done;
+                // The row the user is actually waiting on: say what it waits
+                // for and how long it has been, not just a dash.
+                const awaitingInitiate =
+                  step.label === 'Initiated' && isPending && !step.at;
+                return (
+                  <TimelineStep
+                    key={step.label}
+                    state={awaitingInitiate ? 'active' : stepState}
+                    glyph={isTerminalCompleted ? '\u2713' : undefined}
+                    color={
+                      isTerminalCompleted ? 'var(--color-success)' : undefined
+                    }
+                    label={step.label}
+                    detail={
+                      step.at ? (
+                        formatWallClock(step.at, { seconds: true })
+                      ) : awaitingInitiate ? (
+                        <>
+                          awaiting{' '}
+                          {sourceWait
+                            ? `${sourceWait.confirmations} ${sourceName} confirmation${sourceWait.confirmations === 1 ? '' : 's'}`
+                            : 'deposit confirmation'}
+                          {pendingElapsed != null && pendingElapsed >= 0 && (
+                            <> · {formatDurationSecs(pendingElapsed)} elapsed</>
+                          )}
+                        </>
+                      ) : (
+                        '\u2014'
+                      )
+                    }
+                  />
+                );
+              })}
+            {swap.timeoutAt && swap.status !== 'COMPLETED' && (
+              <TimelineStep
+                state={isTimedOut ? 'failed' : 'pending'}
+                glyph={isTimedOut ? undefined : '\u23F1'}
+                color={isTimedOut ? 'var(--color-danger)' : undefined}
+                label="Timeout"
+                detail={
+                  <>
+                    {formatWallClock(swap.timeoutAt, { seconds: true })}
+                    {!isTimedOut && (
+                      <> ({formatCountdown(swap.timeoutAt)} remaining)</>
+                    )}
+                  </>
+                }
+              />
+            )}
+            {swap.timeoutAt && !isTimedOut && swap.status !== 'COMPLETED' && (
+              <Typography
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.65rem',
+                  color: 'text.secondary',
+                  pl: 4,
+                  lineHeight: 1.4,
+                }}
+              >
+                Timeout may extend if validators need additional time to safely
+                confirm the destination tx.
+              </Typography>
+            )}
+            {(() => {
+              const ext = deriveSwapExtensionStatus(swap);
+              if (ext.kind === 'none') return null;
               return (
-                <TimelineStep
-                  key={step.label}
-                  state={awaitingInitiate ? 'active' : stepState}
-                  glyph={isTerminalCompleted ? '\u2713' : undefined}
-                  color={
-                    isTerminalCompleted ? 'var(--color-success)' : undefined
-                  }
-                  label={step.label}
-                  detail={
-                    step.at ? (
-                      formatUnixTime(step.at)
-                    ) : awaitingInitiate ? (
-                      <>
-                        awaiting{' '}
-                        {sourceWait
-                          ? `${sourceWait.confirmations} ${sourceName} confirmation${sourceWait.confirmations === 1 ? '' : 's'}`
-                          : 'deposit confirmation'}
-                        {pendingElapsed != null && pendingElapsed >= 0 && (
-                          <> · {formatDurationSecs(pendingElapsed)} elapsed</>
-                        )}
-                      </>
-                    ) : (
-                      '\u2014'
-                    )
-                  }
-                />
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      color: 'text.secondary',
+                      minWidth: 80,
+                    }}
+                  >
+                    Extensions
+                  </Typography>
+                  <ExtensionChip status={ext} />
+                </Stack>
               );
-            })}
-          {swap.timeoutAt && swap.status !== 'COMPLETED' && (
-            <TimelineStep
-              state={isTimedOut ? 'failed' : 'pending'}
-              glyph={isTimedOut ? undefined : '\u23F1'}
-              color={isTimedOut ? 'var(--color-danger)' : undefined}
-              label="Timeout"
-              detail={
-                <>
-                  {formatUnixTime(swap.timeoutAt)}
-                  {!isTimedOut && (
-                    <> ({formatCountdown(swap.timeoutAt)} remaining)</>
-                  )}
-                </>
-              }
-            />
-          )}
-          {swap.timeoutAt && !isTimedOut && swap.status !== 'COMPLETED' && (
-            <Typography
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.65rem',
-                color: 'text.secondary',
-                pl: 4,
-                lineHeight: 1.4,
-              }}
-            >
-              Timeout may extend if validators need additional time to safely
-              confirm the destination tx.
-            </Typography>
-          )}
-          {(() => {
-            const ext = deriveSwapExtensionStatus(swap);
-            if (ext.kind === 'none') return null;
-            return (
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.7rem',
-                    color: 'text.secondary',
-                    minWidth: 80,
-                  }}
-                >
-                  Extensions
-                </Typography>
-                <ExtensionChip status={ext} />
-              </Stack>
-            );
-          })()}
-        </Stack>
-      </Card>
+            })()}
+          </Stack>
+        </Card>
+        {/* Details — the raw identifiers behind the swap */}
+        <Card sx={{ mb: 0, height: '100%' }}>
+          <SectionTitle>Details</SectionTitle>
+          <Stack spacing={1}>
+            {swap.userAddress && (
+              <LabelAddr label="User" address={swap.userAddress} />
+            )}
+            {swap.swapKey && (
+              <LabelValue label="Swap key" value={swap.swapKey} copyable />
+            )}
+            <LabelValue label="Internal ID" value={swap.swapId} copyable />
+            {swap.solAmount && (
+              <LabelValue
+                label="Backing"
+                value={backingAmount(swap.solAmount)}
+              />
+            )}
+            {swap.reservationRequestHash && (
+              <LabelValue
+                label="Reservation"
+                value={swap.reservationRequestHash}
+                copyable
+              />
+            )}
+          </Stack>
+        </Card>
+      </Box>
 
       {/* Refund (timed-out slash) */}
       {refund && (
@@ -652,14 +638,34 @@ const SwapDetailPage: React.FC = () => {
         if (!hasSend && !hasRecv) return null;
         return (
           <Card>
-            <Stack spacing={2.5}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'minmax(0, 1fr) minmax(0, 1fr)',
+                },
+                columnGap: { md: 6 },
+                rowGap: 2.5,
+              }}
+            >
               {hasSend && (
                 <Stack spacing={1}>
                   <SectionTitle>
-                    Sends
-                    {swap.sourceChain
-                      ? ` · ${swap.sourceChain.toUpperCase()}`
-                      : ''}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      component="span"
+                    >
+                      <span>Sends</span>
+                      {swap.sourceChain && (
+                        <>
+                          <AssetMark chain={swap.sourceChain} size={16} />
+                          <span>{assetLabel(swap.sourceChain)}</span>
+                        </>
+                      )}
+                    </Stack>
                   </SectionTitle>
                   {sentAmount && (
                     <LabelValue label="Amount" value={sentAmount} />
@@ -682,8 +688,20 @@ const SwapDetailPage: React.FC = () => {
               {hasRecv && (
                 <Stack spacing={1}>
                   <SectionTitle>
-                    Receives
-                    {swap.destChain ? ` · ${swap.destChain.toUpperCase()}` : ''}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      component="span"
+                    >
+                      <span>Receives</span>
+                      {swap.destChain && (
+                        <>
+                          <AssetMark chain={swap.destChain} size={16} />
+                          <span>{assetLabel(swap.destChain)}</span>
+                        </>
+                      )}
+                    </Stack>
                   </SectionTitle>
                   {recvAmount && (
                     <LabelValue label="Promised" value={recvAmount} />
@@ -709,34 +727,10 @@ const SwapDetailPage: React.FC = () => {
                   )}
                 </Stack>
               )}
-            </Stack>
+            </Box>
           </Card>
         );
       })()}
-
-      {/* Details — the raw identifiers behind the swap */}
-      <Card>
-        <SectionTitle>Details</SectionTitle>
-        <Stack spacing={1}>
-          {swap.userAddress && (
-            <LabelAddr label="User" address={swap.userAddress} />
-          )}
-          {swap.swapKey && (
-            <LabelValue label="Swap key" value={swap.swapKey} copyable />
-          )}
-          <LabelValue label="Internal ID" value={swap.swapId} copyable />
-          {swap.solAmount && (
-            <LabelValue label="Backing" value={backingAmount(swap.solAmount)} />
-          )}
-          {swap.reservationRequestHash && (
-            <LabelValue
-              label="Reservation"
-              value={swap.reservationRequestHash}
-              copyable
-            />
-          )}
-        </Stack>
-      </Card>
 
       {/* Event History */}
       {events.length > 0 && (
@@ -753,23 +747,12 @@ const SwapDetailPage: React.FC = () => {
                 flexWrap={{ xs: 'wrap', sm: 'nowrap' }}
                 useFlexGap
               >
-                <Chip
-                  label={displayEventType(event)}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.6rem',
-                    height: 20,
-                    borderRadius: 0,
-                    width: { xs: 150, sm: 220 },
-                    borderColor: theme.palette.border.light,
-                    '& .MuiChip-label': {
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    },
-                  }}
-                />
+                <Box sx={{ width: { xs: 150, sm: 220 }, flexShrink: 0 }}>
+                  <StatusChip
+                    label={displayEventType(event)}
+                    color={theme.palette.text.secondary}
+                  />
+                </Box>
                 {/* Exact wall-clock time of the event, then the slot. */}
                 <Typography
                   sx={{
@@ -779,7 +762,9 @@ const SwapDetailPage: React.FC = () => {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {event.blockTime ? formatUnixTime(event.blockTime) : '—'}
+                  {event.blockTime
+                    ? formatWallClock(event.blockTime, { seconds: true })
+                    : '—'}
                 </Typography>
                 <Typography
                   sx={{

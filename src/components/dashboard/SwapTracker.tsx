@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
   Box,
@@ -26,6 +26,7 @@ import SearchField, { terminalFieldSx } from '../SearchField';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
 import {
+  formatWallClock,
   applyFee,
   formatAmount,
   formatDurationSecs,
@@ -49,6 +50,7 @@ import {
   type StatusFilter,
   type TxFilters,
 } from './txFilters';
+import StatusChip from '../StatusChip';
 
 // Rows per page, explorer-style (mempool.space / Solscan / TaoStats all put
 // the same picker beside the pager). URL-backed, so a page is shareable.
@@ -131,19 +133,8 @@ const DEFAULT_DIR: Record<SortCol, SortDir> = {
 
 // Compact wall-clock stamp for a table cell: "Jul 24 09:15". Event
 // timestamps carry seconds — lifecycle steps are often seconds apart.
-const exactTime = (unix: string | null, withSecs?: boolean): string => {
-  const t = toNum(unix);
-  if (!t) return '—';
-  const d = new Date(t * 1000);
-  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${d.toLocaleTimeString(
-    [],
-    {
-      hour: '2-digit',
-      minute: '2-digit',
-      ...(withSecs && { second: '2-digit' }),
-    },
-  )}`;
-};
+const exactTime = (unix: string | null, withSecs?: boolean): string =>
+  formatWallClock(toNum(unix) || null, { seconds: withSecs });
 
 // Live elapsed readout for in-flight rows: "0:34", "12:07", "1:02:07".
 const formatClock = (secs: number): string => {
@@ -379,6 +370,23 @@ const SwapTracker: React.FC<{
   const pageParam = parseInt(searchParams.get('page') ?? '', 10);
   const page = Number.isFinite(pageParam) && pageParam > 1 ? pageParam : 1;
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Embedded, the find bar and the column headings stick to the top of the
+  // page as the tape scrolls under them, and the pager sticks to the bottom;
+  // the headings sit just under the find bar, whatever its wrapped height.
+  const [findBarH, setFindBarH] = useState(0);
+  const findBarObserver = useRef<ResizeObserver | null>(null);
+  // A callback ref: the find bar mounts after the loading skeleton, so a
+  // mount-time effect would look before it exists.
+  const findBarRef = useCallback((el: HTMLDivElement | null) => {
+    findBarObserver.current?.disconnect();
+    findBarObserver.current = null;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setFindBarH(el.offsetHeight));
+    ro.observe(el);
+    findBarObserver.current = ro;
+    setFindBarH(el.offsetHeight);
+  }, []);
+  useEffect(() => () => findBarObserver.current?.disconnect(), []);
   const setPageParams = useCallback(
     (next: { page?: number; size?: number }) => {
       const p = new URLSearchParams(searchParams);
@@ -392,10 +400,14 @@ const SwapTracker: React.FC<{
       if (nextPage <= 1) p.delete('page');
       else p.set('page', String(nextPage));
       setSearchParams(p, { replace: true });
-      // A new page starts at the top of the tape, not mid-scroll.
-      scrollRef.current?.scrollTo({ top: 0 });
+      // A new page starts at the top of the tape, not mid-scroll. Embedded,
+      // the tape scrolls with the page, so the page is what moves.
+      const el = scrollRef.current;
+      if (!el) return;
+      if (embedded) el.scrollIntoView({ block: 'start', behavior: 'auto' });
+      else el.scrollTo({ top: 0 });
     },
-    [searchParams, setSearchParams],
+    [searchParams, setSearchParams, embedded],
   );
   const debouncedSearch = useDebounce(search, 300);
 
@@ -598,7 +610,9 @@ const SwapTracker: React.FC<{
   ) : (
     <Box
       sx={{
-        height: '100%',
+        // Embedded in a page the tape is as tall as its rows and scrolls
+        // with the page; on its own it fills its box and scrolls inside.
+        height: embedded ? 'auto' : '100%',
         display: 'flex',
         flexDirection: 'column',
         minHeight: 0,
@@ -631,15 +645,24 @@ const SwapTracker: React.FC<{
         </Box>
       )}
 
-      {/* One find-a-transaction card: search, filters, and the all-time
-          count share a single surface. */}
+      {/* The find bar sits flat on the page, a hairline under it, like
+          every other control row on the site. */}
       <Box
+        ref={findBarRef}
         sx={{
-          border: '1px solid',
+          pb: { xs: 1.25, sm: 1.5 },
+          mb: embedded ? 0 : 1,
+          borderBottom: '1px solid',
           borderColor: 'divider',
-          backgroundColor: 'background.paper',
-          p: { xs: 1.25, sm: 1.5 },
-          mb: 1,
+          ...(embedded
+            ? {
+                position: 'sticky',
+                top: 0,
+                zIndex: 3,
+                backgroundColor: 'background.default',
+                pt: 1,
+              }
+            : {}),
         }}
       >
         {/* Kraken-style find bar — search and filters on one line, always
@@ -814,8 +837,18 @@ const SwapTracker: React.FC<{
               gridTemplateColumns: GRID_COLS,
               gap: 1,
               px: { xs: 1.25, sm: 1.5 },
-              pt: 0.25,
+              pt: embedded ? 1 : 0.25,
               pb: 0.75,
+              ...(embedded
+                ? {
+                    position: 'sticky',
+                    top: findBarH,
+                    zIndex: 2,
+                    backgroundColor: 'background.default',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                  }
+                : {}),
             }}
           >
             {(
@@ -843,9 +876,9 @@ const SwapTracker: React.FC<{
           <Box
             ref={scrollRef}
             sx={{
-              flex: 1,
+              flex: embedded ? 'none' : 1,
               minHeight: 0,
-              overflowY: 'auto',
+              overflowY: embedded ? 'visible' : 'auto',
               // The headings above ARE the tape's header; one rule separates
               // them from the rows, as on the markets rail.
               borderTop: '1px solid',
@@ -1052,18 +1085,10 @@ const SwapTracker: React.FC<{
                     {/* Status; in-flight rows also stream their latest
                         lifecycle event so watchers see progress live. */}
                     <Box sx={{ textAlign: 'right', minWidth: 0 }}>
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.58rem', sm: '0.65rem' },
-                          color,
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {swap.status.replace('_', ' ')}
-                      </Typography>
+                      <StatusChip
+                        label={swap.status.replace('_', ' ')}
+                        color={color}
+                      />
                       {!isTerminal(swap) && (
                         <LatestEventCell swapId={swap.swapId} />
                       )}
@@ -1086,6 +1111,15 @@ const SwapTracker: React.FC<{
               pt: 1,
               borderTop: '1px solid',
               borderColor: 'divider',
+              ...(embedded
+                ? {
+                    position: 'sticky',
+                    bottom: 0,
+                    zIndex: 2,
+                    backgroundColor: 'background.default',
+                    pb: 1,
+                  }
+                : {}),
             }}
           >
             {/* One counts line, next to the pager it belongs to: the rows on

@@ -21,6 +21,12 @@ export interface ChainInfo {
   // + min_confirmations). Together they bound how long a swap sits PENDING.
   blockSecs: number;
   confirmations: number;
+  // Fields newer das releases serve; absent from the committed seed.
+  // Human name of the network the asset lives on ("Base", "Solana").
+  network?: string;
+  coingeckoId?: string | null;
+  // Set for EVM assets; `contract` is null for a network's native coin.
+  evm?: { chainId: number; contract: string | null } | null;
 }
 
 let registry: ChainInfo[] = seed.chains;
@@ -77,4 +83,42 @@ export const allDirections = (chains: ChainInfo[] = registry): string[] => {
           `${spoke.id}-${hub.id}`.toUpperCase(),
         ]),
     );
+};
+
+// A chain is a TOKEN on its network (rather than the network's native coin)
+// when it is an EVM contract, or when the same asset (by CoinGecko id) is
+// listed on more than one network — which is how Solana USDC is told apart
+// from SOL itself. Mirror of allways-matrix rates.isToken.
+export const isToken = (
+  c: ChainInfo,
+  chains: ChainInfo[] = registry,
+): boolean =>
+  !!c.evm?.contract ||
+  (!!c.coingeckoId &&
+    chains.some(
+      (o) =>
+        o.id !== c.id &&
+        o.coingeckoId === c.coingeckoId &&
+        o.network !== c.network,
+    ));
+
+// The native coin of a token's network, if das lists one (ETH for the
+// Ethereum deployments, SOL for Solana USDC). Base and Arbitrum have no
+// native listing, so their marks come from local art.
+export const nativeOf = (
+  c: ChainInfo,
+  chains: ChainInfo[] = registry,
+): ChainInfo | undefined =>
+  chains.find(
+    (o) => o.id !== c.id && o.network === c.network && !isToken(o, chains),
+  );
+
+// The asset's display name, carrying its network whenever the symbol is
+// shared with another listing ("USDC (Arbitrum)", but plain "BTC"). The one
+// label for asset names everywhere: the matrix, the book, detail pages.
+export const assetLabel = (id: string, chains: ChainInfo[] = registry) => {
+  const c = chainInfo(id);
+  if (!c) return id.toUpperCase();
+  const shared = chains.some((o) => o.id !== c.id && o.symbol === c.symbol);
+  return shared && c.network ? `${c.symbol} (${c.network})` : c.symbol;
 };

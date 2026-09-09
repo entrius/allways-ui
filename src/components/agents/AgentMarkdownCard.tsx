@@ -1,24 +1,13 @@
 import React from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 import LinkIcon from '@mui/icons-material/Link';
 import { FONTS } from '../../theme';
 import { useCopy } from '../../hooks';
 import HoverCard from '../HoverCard';
+import { PrimaryButton, TextLinkButton } from '../Buttons';
 import { AGENT_MARKDOWN } from './AgentMarkdown';
-
-const btnSx = {
-  fontFamily: FONTS.mono,
-  fontSize: '0.75rem',
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  borderRadius: 0,
-  py: 1.25,
-  px: 2.5,
-  boxShadow: 'none',
-  '&:hover': { boxShadow: 'none' },
-} as const;
 
 const AgentMarkdownCard: React.FC = () => {
   const md = useCopy();
@@ -57,8 +46,7 @@ const AgentMarkdownCard: React.FC = () => {
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1.25}>
-          <Button
-            variant="contained"
+          <PrimaryButton
             onClick={() => md.copy(AGENT_MARKDOWN)}
             startIcon={
               md.copied ? (
@@ -67,12 +55,11 @@ const AgentMarkdownCard: React.FC = () => {
                 <ContentCopyIcon sx={{ fontSize: 16 }} />
               )
             }
-            sx={btnSx}
+            sx={{ px: 3, py: 1.25 }}
           >
             {md.copied ? 'Copied' : 'Copy markdown'}
-          </Button>
-          <Button
-            variant="outlined"
+          </PrimaryButton>
+          <TextLinkButton
             onClick={() => link.copy(llmsUrl)}
             startIcon={
               link.copied ? (
@@ -81,19 +68,9 @@ const AgentMarkdownCard: React.FC = () => {
                 <LinkIcon sx={{ fontSize: 16 }} />
               )
             }
-            sx={{
-              ...btnSx,
-              borderColor: 'divider',
-              color: 'text.primary',
-              '&:hover': {
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                backgroundColor: 'transparent',
-              },
-            }}
           >
             {link.copied ? 'Copied' : 'Copy URL'}
-          </Button>
+          </TextLinkButton>
         </Stack>
       </Stack>
 

@@ -7,7 +7,7 @@ import type { ActiveSwap } from '../../api/models';
 
 // Rows per page on the explorer's tape. Lives here so the nav prefetch can
 // warm the exact query the tape will ask for.
-export const DEFAULT_PAGE_SIZE = 50;
+export const DEFAULT_PAGE_SIZE = 10;
 
 export type StatusFilter =
   | 'all'

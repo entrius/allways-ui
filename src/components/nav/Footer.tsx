@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Grid, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { FONTS } from '../../theme';
 import BrandMark from '../BrandMark';
 import SocialLinks from './SocialLinks';
@@ -20,12 +20,16 @@ const linkSx = {
   fontSize: '0.8rem',
   color: 'text.primary',
   textDecoration: 'none',
-  py: 0.4,
   display: 'inline-block',
+  lineHeight: 1.4,
   '&:hover': { color: 'primary.main' },
 };
 
 const Footer: React.FC = () => {
+  // The brand block and the link columns belong to the landing page; the
+  // app pages end on the bottom bar alone, so the desk or the tape is the
+  // last thing on the page rather than a second site map.
+  const full = useLocation().pathname === '/';
   const docs = docsUrl();
 
   return (
@@ -38,139 +42,128 @@ const Footer: React.FC = () => {
         borderColor: 'divider',
         backgroundColor: 'background.default',
         px: { xs: 1.5, sm: 2, md: 4 },
-        py: { xs: 4, md: 6 },
+        py: full ? { xs: 5, md: 8 } : 2.5,
       }}
     >
-      {/* Full-bleed: footer content spans the viewport (minus the outer px
-          padding) to match TopNav and the dashboard, which carry no maxWidth. */}
-      <Box>
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
-            <Stack direction="row" alignItems="center" spacing={1.25}>
-              <BrandMark size={28} />
+      {/* On the landing page the footer sits in the landing section frame,
+          so its columns line up with the cards above; app pages keep the
+          bottom bar full-bleed like the nav. */}
+      <Box sx={full ? { maxWidth: 1400, mx: 'auto', px: { md: 2 } } : {}}>
+        {full && (
+          <Grid container spacing={{ xs: 4, md: 6 }}>
+            <Grid item xs={12} md={6}>
+              <Stack direction="row" alignItems="center" spacing={1.25}>
+                <BrandMark size={28} />
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.heading,
+                    fontWeight: 900,
+                    fontSize: '1rem',
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Allways
+                </Typography>
+              </Stack>
               <Typography
                 sx={{
-                  fontFamily: FONTS.heading,
-                  fontWeight: 900,
-                  fontSize: '1rem',
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  fontFamily: FONTS.body,
+                  fontSize: '0.85rem',
+                  color: 'text.secondary',
+                  mt: 1.5,
+                  maxWidth: 360,
+                  lineHeight: 1.5,
                 }}
               >
-                Allways
+                Universal transaction layer. Native peer to peer transactions on
+                Bittensor Subnet 7 — no wrapped tokens, no bridges, no
+                custodian.
               </Typography>
-            </Stack>
-            <Typography
-              sx={{
-                fontFamily: FONTS.body,
-                fontSize: '0.85rem',
-                color: 'text.secondary',
-                mt: 1.5,
-                maxWidth: 360,
-                lineHeight: 1.5,
-              }}
-            >
-              Universal transaction layer. Native peer to peer transactions on
-              Bittensor Subnet 7 — no wrapped tokens, no bridges, no custodian.
-            </Typography>
-            <Typography
-              sx={{
-                fontFamily: FONTS.body,
-                fontSize: '0.7rem',
-                color: 'text.disabled',
-                mt: 1.5,
-                maxWidth: 460,
-                lineHeight: 1.55,
-              }}
-            >
-              Allways is permissionless, open-source, beta software. Swaps
-              settle directly between counterparty wallets; the protocol never
-              takes custody of user funds, and the protocol fee is charged
-              against miner collateral rather than any user transfer. Validator
-              operators, including those run by the project, verify swap
-              outcomes but cannot redirect or receive any transferred amount.
-              All code is open source and should be responsibly reviewed before
-              any use. Use at your own risk. No warranty. Not financial advice.
-            </Typography>
-          </Grid>
+            </Grid>
 
-          <Grid item xs={6} md={3}>
-            <Stack sx={{ height: '100%' }}>
-              <Typography sx={colHeadSx}>Product</Typography>
-              <Stack sx={{ flex: 1, justifyContent: 'space-between' }}>
-                <Box component={RouterLink} to="/market" sx={linkSx}>
-                  Markets
-                </Box>
-                <Box
-                  component={RouterLink}
-                  to="/network#transactions"
-                  sx={linkSx}
-                >
-                  Transactions
-                </Box>
-                <Box component={RouterLink} to="/agents" sx={linkSx}>
-                  Agents
-                </Box>
-                <Box
-                  component="a"
-                  href={docs}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={linkSx}
-                >
-                  Docs
-                </Box>
+            <Grid item xs={6} md={3}>
+              <Stack>
+                <Typography sx={colHeadSx}>Product</Typography>
+                <Stack spacing={1.25} alignItems="flex-start">
+                  <Box component={RouterLink} to="/market" sx={linkSx}>
+                    Markets
+                  </Box>
+                  <Box
+                    component={RouterLink}
+                    to="/network#transactions"
+                    sx={linkSx}
+                  >
+                    Transactions
+                  </Box>
+                  <Box component={RouterLink} to="/agents" sx={linkSx}>
+                    Agents
+                  </Box>
+                  <Box
+                    component="a"
+                    href={docs}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={linkSx}
+                  >
+                    Docs
+                  </Box>
+                </Stack>
               </Stack>
-            </Stack>
-          </Grid>
+            </Grid>
 
-          <Grid item xs={6} md={3}>
-            <Stack sx={{ height: '100%' }}>
-              <Typography sx={colHeadSx}>Network</Typography>
-              <Stack sx={{ flex: 1, justifyContent: 'space-between' }}>
-                <Box
-                  component="a"
-                  href={LINKS.github}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={linkSx}
-                >
-                  GitHub
-                </Box>
-                <Box
-                  component="a"
-                  href={LINKS.twitter}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={linkSx}
-                >
-                  X
-                </Box>
-                <Box
-                  component="a"
-                  href={LINKS.discord}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={linkSx}
-                >
-                  Discord
-                </Box>
+            <Grid item xs={6} md={3}>
+              <Stack>
+                <Typography sx={colHeadSx}>Network</Typography>
+                <Stack spacing={1.25} alignItems="flex-start">
+                  <Box
+                    component="a"
+                    href={LINKS.github}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={linkSx}
+                  >
+                    GitHub
+                  </Box>
+                  <Box
+                    component="a"
+                    href={LINKS.twitter}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={linkSx}
+                  >
+                    X
+                  </Box>
+                  <Box
+                    component="a"
+                    href={LINKS.discord}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={linkSx}
+                  >
+                    Discord
+                  </Box>
+                </Stack>
               </Stack>
-            </Stack>
+            </Grid>
           </Grid>
-        </Grid>
+        )}
 
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           alignItems={{ xs: 'flex-start', sm: 'center' }}
           justifyContent="space-between"
           spacing={2}
-          sx={{
-            mt: { xs: 4, md: 6 },
-            pt: 2.5,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-          }}
+          sx={
+            full
+              ? {
+                  mt: { xs: 5, md: 8 },
+                  pt: 2.5,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                }
+              : {}
+          }
         >
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -208,6 +201,27 @@ const Footer: React.FC = () => {
           </Stack>
           <SocialLinks size={16} spacing={0.75} />
         </Stack>
+        {full && (
+          <Typography
+            sx={{
+              fontFamily: FONTS.body,
+              fontSize: '0.7rem',
+              color: 'text.disabled',
+              mt: 2.5,
+              maxWidth: 880,
+              lineHeight: 1.55,
+            }}
+          >
+            Allways is permissionless, open-source, beta software. Swaps settle
+            directly between counterparty wallets; the protocol never takes
+            custody of user funds, and the protocol fee is charged against miner
+            collateral rather than any user transfer. Validator operators,
+            including those run by the project, verify swap outcomes but cannot
+            redirect or receive any transferred amount. All code is open source
+            and should be responsibly reviewed before any use. Use at your own
+            risk. No warranty. Not financial advice.
+          </Typography>
+        )}
       </Box>
     </Box>
   );

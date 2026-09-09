@@ -14,10 +14,10 @@ const LegacyDashboardRedirect: React.FC = () => {
   return <Navigate to={`/market${search}`} replace />;
 };
 
-// /transactions, /miners and /network-stats merged into one scrolling
-// /network page. Their paths still resolve — each lands on its section, with
-// any filters/sort/paging in the query string carried across, so old links,
-// bookmarks and docs keep working.
+// /transactions and /miners merged into one scrolling /network page. Their
+// paths still resolve — each lands on its section, with any filters/sort/
+// paging in the query string carried across, so old links, bookmarks and
+// docs keep working. The retired /network-stats page lands on /network.
 const toNetwork =
   (hash: string): React.FC =>
   () => {
@@ -27,7 +27,7 @@ const toNetwork =
 
 const TransactionsRedirect = toNetwork('transactions');
 const MinersRedirect = toNetwork('miners');
-const NetworkStatsRedirect = toNetwork('stats');
+const NetworkStatsRedirect: React.FC = () => <Navigate to="/network" replace />;
 
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const MarketPage = React.lazy(() => import('./pages/MarketPage'));

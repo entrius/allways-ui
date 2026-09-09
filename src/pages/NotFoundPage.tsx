@@ -1,55 +1,19 @@
 import React from 'react';
-import { Box, Stack, Typography, Link } from '@mui/material';
-import { FONTS } from '../theme';
+import { Box } from '@mui/material';
+import { PageIntro, TextLinkButton } from '../components';
+import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 
 const NotFoundPage: React.FC = () => (
-  <Box
-    sx={{
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'background.default',
-    }}
-  >
-    <Stack alignItems="center" gap={2}>
-      <Typography
-        sx={{
-          fontFamily: FONTS.heading,
-          fontWeight: 900,
-          fontSize: '4rem',
-          letterSpacing: '-0.04em',
-          color: 'text.primary',
-        }}
-      >
-        404
-      </Typography>
-      <Typography
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.85rem',
-          color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-        }}
-      >
-        Page not found
-      </Typography>
-      <Link
-        href="/"
-        underline="none"
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.8rem',
-          color: 'primary.main',
-          mt: 2,
-          '&:hover': { color: 'primary.light' },
-        }}
-      >
-        Back to home
-      </Link>
-    </Stack>
+  <Box sx={{ ...PAGE_FRAME_SX, py: { xs: 6, md: 10 } }}>
+    <PageIntro
+      eyebrow="404"
+      title="Page not found."
+      lead="Nothing lives at this address. The markets, the network and the agent tools are one click away."
+      mb={{ xs: 3, md: 4 }}
+    />
+    <TextLinkButton href="/" arrow>
+      Back to home
+    </TextLinkButton>
   </Box>
 );
 

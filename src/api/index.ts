@@ -10,3 +10,4 @@ export * from './StatsApi';
 export * from './SwapsApi';
 
 export * from './models';
+export * from './MarketCapsApi';
