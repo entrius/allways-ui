@@ -26,6 +26,7 @@ import SearchField, { terminalFieldSx } from '../SearchField';
 import { FONTS } from '../../theme';
 import { SwapTrackerSkeleton } from './Skeletons';
 import {
+  formatWallClock,
   applyFee,
   formatAmount,
   formatDurationSecs,
@@ -49,6 +50,7 @@ import {
   type StatusFilter,
   type TxFilters,
 } from './txFilters';
+import StatusChip from '../StatusChip';
 
 // Rows per page, explorer-style (mempool.space / Solscan / TaoStats all put
 // the same picker beside the pager). URL-backed, so a page is shareable.
@@ -131,19 +133,8 @@ const DEFAULT_DIR: Record<SortCol, SortDir> = {
 
 // Compact wall-clock stamp for a table cell: "Jul 24 09:15". Event
 // timestamps carry seconds — lifecycle steps are often seconds apart.
-const exactTime = (unix: string | null, withSecs?: boolean): string => {
-  const t = toNum(unix);
-  if (!t) return '—';
-  const d = new Date(t * 1000);
-  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${d.toLocaleTimeString(
-    [],
-    {
-      hour: '2-digit',
-      minute: '2-digit',
-      ...(withSecs && { second: '2-digit' }),
-    },
-  )}`;
-};
+const exactTime = (unix: string | null, withSecs?: boolean): string =>
+  formatWallClock(toNum(unix) || null, { seconds: withSecs });
 
 // Live elapsed readout for in-flight rows: "0:34", "12:07", "1:02:07".
 const formatClock = (secs: number): string => {
@@ -631,15 +622,14 @@ const SwapTracker: React.FC<{
         </Box>
       )}
 
-      {/* One find-a-transaction card: search, filters, and the all-time
-          count share a single surface. */}
+      {/* The find bar sits flat on the page, a hairline under it, like
+          every other control row on the site. */}
       <Box
         sx={{
-          border: '1px solid',
-          borderColor: 'divider',
-          backgroundColor: 'background.paper',
-          p: { xs: 1.25, sm: 1.5 },
+          pb: { xs: 1.25, sm: 1.5 },
           mb: 1,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
         }}
       >
         {/* Kraken-style find bar — search and filters on one line, always
@@ -1052,18 +1042,10 @@ const SwapTracker: React.FC<{
                     {/* Status; in-flight rows also stream their latest
                         lifecycle event so watchers see progress live. */}
                     <Box sx={{ textAlign: 'right', minWidth: 0 }}>
-                      <Typography
-                        sx={{
-                          fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.58rem', sm: '0.65rem' },
-                          color,
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {swap.status.replace('_', ' ')}
-                      </Typography>
+                      <StatusChip
+                        label={swap.status.replace('_', ' ')}
+                        color={color}
+                      />
                       {!isTerminal(swap) && (
                         <LatestEventCell swapId={swap.swapId} />
                       )}

@@ -22,7 +22,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { FONTS } from '../../theme';
 import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
-import { chainInfo, chainList } from '../../api/models/chains';
+import { assetLabel } from '../../api/models/chains';
 import { OrderbookDepthSkeleton } from './Skeletons';
 import MonoSelect from '../MonoSelect';
 import RailTooltip from './railTooltip';
@@ -447,14 +447,6 @@ const OrderbookDepth: React.FC<{
   const priceUnit = `${quoteUnit}/${baseUnit}`;
   // "USDC (Solana) → SOL": tickers, with the network added only where the
   // same ticker is listed on more than one network.
-  const assetLabel = (id: string) => {
-    const c = chainInfo(id);
-    if (!c) return id.toUpperCase();
-    const shared = chainList().some(
-      (o) => o.id !== c.id && o.symbol === c.symbol,
-    );
-    return shared && c.network ? `${c.symbol} (${c.network})` : c.symbol;
-  };
   const sideLabel = (d: Direction) => {
     const l = decomposeDirection(d);
     return `${assetLabel(l.from)} → ${assetLabel(l.to)}`;

@@ -112,3 +112,13 @@ export const nativeOf = (
   chains.find(
     (o) => o.id !== c.id && o.network === c.network && !isToken(o, chains),
   );
+
+// The asset's display name, carrying its network whenever the symbol is
+// shared with another listing ("USDC (Arbitrum)", but plain "BTC"). The one
+// label for asset names everywhere: the matrix, the book, detail pages.
+export const assetLabel = (id: string, chains: ChainInfo[] = registry) => {
+  const c = chainInfo(id);
+  if (!c) return id.toUpperCase();
+  const shared = chains.some((o) => o.id !== c.id && o.symbol === c.symbol);
+  return shared && c.network ? `${c.symbol} (${c.network})` : c.symbol;
+};

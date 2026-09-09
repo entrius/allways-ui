@@ -23,3 +23,6 @@ export * from './miners';
 export * from './swap';
 export * from './stats';
 export { default as MonoSelect } from './MonoSelect';
+export { default as StatusChip } from './StatusChip';
+export { default as PageIntro } from './PageIntro';
+export { PrimaryButton, TextLinkButton } from './Buttons';

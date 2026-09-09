@@ -65,7 +65,7 @@ const busiestDirection = (
 
 // The card, chart and book share one width, so the right side reads as a
 // single column rather than three panels of different sizes.
-const PANEL_W = 560;
+const PANEL_W = 640;
 
 // The market page: every route's live crown rate on one sheet (the rate
 // matrix, which is also the picker), with the selected direction's card and
@@ -143,15 +143,14 @@ const MarketPage: React.FC = () => {
           sx={{
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
-            alignItems: 'stretch',
+            alignItems: 'flex-start',
             width: '100%',
-            borderTop: '1px solid',
-            borderColor: 'divider',
+            gap: { xs: 4, md: 6 },
           }}
         >
-          {/* Two equal halves, so the rule between them sits at the centre
-            of the screen. The sheet scrolls inside its half if it is wider. */}
-          <Box sx={{ flex: '1 1 0', minWidth: 0, minHeight: 0 }}>
+          {/* The sheet takes its natural width against the frame's left
+              edge; the rail takes what is left, no rule between them. */}
+          <Box sx={{ flex: '0 1 auto', minWidth: 0, minHeight: 0 }}>
             <RateMatrix
               direction={direction}
               base={base}
@@ -163,10 +162,6 @@ const MarketPage: React.FC = () => {
               flex: '1 1 0',
               minWidth: 0,
               gap: 3,
-              pl: { xs: 0, md: 3 },
-              pt: { xs: 3, md: 2 },
-              borderLeft: { md: '1px solid' },
-              borderColor: { md: 'divider' },
             }}
           >
             <Box sx={{ maxWidth: PANEL_W, minWidth: 0 }}>

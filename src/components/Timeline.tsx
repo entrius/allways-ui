@@ -79,20 +79,11 @@ export const TimelineStep: React.FC<{
   );
 };
 
+// A card's heading: the landing card's blue eyebrow.
 export const SectionTitle: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
-  <Typography
-    sx={{
-      fontFamily: FONTS.mono,
-      fontSize: '0.7rem',
-      fontWeight: 600,
-      color: 'text.secondary',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px',
-      mb: 1.5,
-    }}
-  >
+  <Typography variant="eyebrow" sx={{ display: 'block', mb: 1.75 }}>
     {children}
   </Typography>
 );

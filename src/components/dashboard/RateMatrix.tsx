@@ -366,8 +366,7 @@ const RateMatrix: React.FC<{
         sx={{
           // Columns size to their content; the sheet leaves the rest of the
           // page blank rather than stretching numbers across it, and sits
-          // flush against the page's centre rule.
-          ml: 'auto',
+          // flush against the frame's left edge like the landing copy.
           borderCollapse: 'separate',
           borderSpacing: 0,
           tableLayout: 'auto',

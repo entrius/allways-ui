@@ -6,23 +6,27 @@ import {
   RateQuoteHelper,
   MoreAffordances,
   Page,
+  PageIntro,
   SEO,
 } from '../components';
-import { FONTS } from '../theme';
+import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 
-const SectionLabel: React.FC<{ children: string }> = ({ children }) => (
-  <Typography
-    variant="monoSmall"
-    sx={{
-      letterSpacing: '0.15em',
-      color: 'text.secondary',
-      mb: 1.25,
-      display: 'block',
-    }}
-  >
-    {children}
-  </Typography>
-);
+// The step caption over each panel: the landing card's blue step number,
+// then the step's name in the same mono.
+const SectionLabel: React.FC<{ children: string }> = ({ children }) => {
+  const [num, ...rest] = children.split(' · ');
+  return (
+    <Typography
+      variant="eyebrow"
+      sx={{ mb: 1.5, display: 'block', letterSpacing: '0.15em' }}
+    >
+      {num.padStart(2, '0')}
+      <Box component="span" sx={{ color: 'text.secondary', ml: 1.5 }}>
+        {rest.join(' · ')}
+      </Box>
+    </Typography>
+  );
+};
 
 const AgentsPage: React.FC = () => {
   return (
@@ -31,54 +35,14 @@ const AgentsPage: React.FC = () => {
         title="Agents"
         description="Drop-in context bundle, live snapshot, and rate quotes for AI agents using Allways."
       />
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: 1100,
-          mx: 'auto',
-          px: { xs: 2, sm: 3, md: 4 },
-          py: { xs: 4, md: 8 },
-        }}
-      >
-        <Stack spacing={1.5} sx={{ mb: { xs: 4, md: 6 } }}>
-          <Typography variant="eyebrow">For AI Agents</Typography>
-          <Typography
-            variant="display"
-            sx={{
-              fontSize: { xs: '2rem', md: '3rem' },
-              lineHeight: 0.95,
-            }}
-          >
-            Allways for agents.
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.body,
-              fontSize: { xs: '0.95rem', md: '1.1rem' },
-              color: 'text.secondary',
-              maxWidth: 640,
-              lineHeight: 1.55,
-            }}
-          >
-            Everything an LLM needs to quote rates, swap, and watch live state
-            on Bittensor SN7. Copy. Paste. Ship.
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.body,
-              fontSize: { xs: '0.9rem', md: '1rem' },
-              color: 'text.secondary',
-              maxWidth: 640,
-              lineHeight: 1.55,
-              mt: 1,
-            }}
-          >
-            Hand it to your agent so it can swap natively between digital assets
-            on its own — no human in the loop, no custodian in the middle.
-          </Typography>
-        </Stack>
+      <Box sx={{ ...PAGE_FRAME_SX, py: { xs: 6, md: 10 } }}>
+        <PageIntro
+          eyebrow="For AI Agents"
+          title="Allways for agents."
+          lead="Everything an LLM needs to quote rates, swap, and watch live state on Bittensor SN7. Hand it to your agent so it can swap natively between digital assets on its own: no human in the loop, no custodian in the middle."
+        />
 
-        <Stack spacing={4}>
+        <Stack spacing={{ xs: 4, md: 6 }} sx={{ maxWidth: 1100 }}>
           <Box>
             <SectionLabel>
               1 · Hand off context — copy once, ingest once
