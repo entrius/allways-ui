@@ -1,6 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { Box, Collapse, Skeleton, Stack, Typography } from '@mui/material';
-import { Panel, TimeSeriesChart, type ChartSeries } from '../stats';
+import {
+  Box,
+  Collapse,
+  Skeleton,
+  Stack,
+  Typography,
+  useTheme,
+} from '@mui/material';
+import { TimeSeriesChart, type ChartSeries } from '../stats';
+import RangeChips from '../RangeChips';
+import SectionHeading from '../SectionHeading';
 import { useDirectionPoolHistory } from '../../api';
 import type { PoolHistoryLane } from '../../api/models';
 import { hubChains } from '../../api/models/chains';
@@ -15,13 +24,19 @@ import { FONTS } from '../../theme';
  * the sum of its pairs and a pair the sum of its lanes at each round — a dead
  * pair (no qualified fill in the pool window) reads as a flat zero, which is
  * the signal a miner needs before standing it up.
+ *
+ * Framed like the other miner panels (Crown Time, the crown rate chart): a
+ * hairline box, `SectionHeading` with `RangeChips` on the right, mono data,
+ * one ink line per chart.
  */
 
-const RANGES = [
-  { label: '24h', seconds: 86_400 },
-  { label: '7d', seconds: 7 * 86_400 },
-  { label: '30d', seconds: 30 * 86_400 },
-] as const;
+const RANGES = ['24h', '7d', '30d'] as const;
+type EmissionRange = (typeof RANGES)[number];
+const RANGE_SECS: Record<EmissionRange, number> = {
+  '24h': 86_400,
+  '7d': 7 * 86_400,
+  '30d': 30 * 86_400,
+};
 
 type Node = {
   key: string;
@@ -31,7 +46,7 @@ type Node = {
   children: Node[];
 };
 
-const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
+const pct = (v: number) => `${v.toFixed(2)}%`;
 
 const addPoints = (into: Map<number, number>, lane: PoolHistoryLane) => {
   for (const p of lane.points) into.set(p.t, (into.get(p.t) ?? 0) + p.pool);
@@ -52,6 +67,12 @@ const laneLabel = (lane: PoolHistoryLane) => {
   // Only a hub↔hub pair has more than one backing; name it where it matters.
   const dual = hubChains().includes(lane.from) && hubChains().includes(lane.to);
   return dual ? `${dir} · ${chainSymbol(lane.backing)} purse` : dir;
+};
+
+// Share at the newest round on record for this node, as a fraction.
+const latestOf = (n: Node) => {
+  const ts = [...n.byRound.keys()];
+  return ts.length ? (n.byRound.get(Math.max(...ts)) ?? 0) : 0;
 };
 
 const buildTree = (lanes: PoolHistoryLane[]): Node[] => {
@@ -91,12 +112,8 @@ const buildTree = (lanes: PoolHistoryLane[]): Node[] => {
   }
   // Hubs in priority order (sol first), pairs and lanes by latest share, largest first.
   const order = hubChains();
-  const latest = (n: Node) => {
-    const ts = [...n.byRound.keys()];
-    return ts.length ? (n.byRound.get(Math.max(...ts)) ?? 0) : 0;
-  };
   const sortRec = (nodes: Node[]) => {
-    nodes.sort((a, b) => latest(b) - latest(a));
+    nodes.sort((a, b) => latestOf(b) - latestOf(a));
     nodes.forEach((n) => sortRec(n.children));
   };
   const out = [...hubs.values()].sort(
@@ -113,7 +130,7 @@ const seriesFor = (node: Node, color: string): ChartSeries[] => [
     points: [...node.byRound.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([t, v]) => ({ t: t * 1000, value: v * 100 })),
-    formatValue: (v: number) => `${v.toFixed(2)}%`,
+    formatValue: pct,
   },
 ];
 
@@ -125,8 +142,7 @@ const NodeRow: React.FC<{
   toggle: (key: string) => void;
 }> = ({ node, depth, color, open, toggle }) => {
   const isOpen = open.has(node.key);
-  const ts = [...node.byRound.keys()];
-  const latest = ts.length ? (node.byRound.get(Math.max(...ts)) ?? 0) : 0;
+  const latest = latestOf(node);
   const expandable = node.children.length > 0;
   return (
     <Box sx={{ pl: depth * 2 }}>
@@ -139,9 +155,11 @@ const NodeRow: React.FC<{
           display: 'flex',
           alignItems: 'baseline',
           justifyContent: 'space-between',
+          gap: 1,
           width: '100%',
           background: 'none',
           border: 0,
+          borderRadius: 0,
           borderBottom: '1px solid',
           borderColor: 'divider',
           px: 0,
@@ -149,14 +167,19 @@ const NodeRow: React.FC<{
           cursor: expandable ? 'pointer' : 'default',
           color: 'inherit',
           textAlign: 'left',
+          '&:hover .lane-label, &:focus-visible .lane-label': expandable
+            ? { color: 'primary.main' }
+            : undefined,
         }}
       >
         <Typography
+          className="lane-label"
           sx={{
             fontFamily: FONTS.mono,
-            fontSize: depth === 0 ? '0.78rem' : '0.72rem',
-            fontWeight: depth === 0 ? 600 : 500,
+            fontSize: '0.72rem',
+            fontWeight: depth === 0 ? 600 : 400,
             color: 'text.primary',
+            transition: 'color 120ms',
           }}
         >
           {expandable ? (isOpen ? '▾ ' : '▸ ') : '  '}
@@ -166,18 +189,19 @@ const NodeRow: React.FC<{
           sx={{
             fontFamily: FONTS.mono,
             fontSize: '0.72rem',
+            fontVariantNumeric: 'tabular-nums',
             color: latest > 0 ? 'text.primary' : 'text.disabled',
+            whiteSpace: 'nowrap',
           }}
-          title="share of miner emission at the newest round"
         >
-          {latest > 0 ? pct(latest) : 'dead'}
+          {latest > 0 ? pct(latest * 100) : 'dead'}
         </Typography>
       </Box>
       <Box sx={{ my: 1 }}>
         <TimeSeriesChart
           series={seriesFor(node, color)}
           height={depth === 0 ? 160 : 120}
-          formatValue={(v: number) => `${v.toFixed(2)}%`}
+          formatValue={pct}
           emptyLabel="no rounds on record"
         />
       </Box>
@@ -201,10 +225,13 @@ const NodeRow: React.FC<{
   );
 };
 
-const EmissionsByLane: React.FC<{ color: string }> = ({ color }) => {
-  const [range, setRange] = useState<(typeof RANGES)[number]>(RANGES[1]);
+const EmissionsByLane: React.FC = () => {
+  const theme = useTheme();
+  // Monochrome, matching the crown rate chart beside it.
+  const cLine = theme.palette.text.primary;
+  const [range, setRange] = useState<EmissionRange>('7d');
   const [open, setOpen] = useState<Set<string>>(new Set());
-  const { data, isLoading } = useDirectionPoolHistory(range.seconds);
+  const { data, isLoading } = useDirectionPoolHistory(RANGE_SECS[range]);
   const tree = useMemo(() => buildTree(data?.lanes ?? []), [data]);
   const toggle = (key: string) =>
     setOpen((prev) => {
@@ -215,40 +242,30 @@ const EmissionsByLane: React.FC<{ color: string }> = ({ color }) => {
     });
 
   return (
-    <Panel
-      title="Emission by hub, pair and lane"
-      subtitle="share of miner emission each scoring round — open a hub for its pairs, a pair for its lanes"
-      info="What each lane's pool paid out of, per scoring round, from the validator's ledger. Pools follow qualified volume: a pair with no qualified fill in the trailing window is dead and pays nothing that round. A hub is the sum of its pairs; a pair the sum of its two directions (and both purses on SOL ↔ TAO)."
-      headerRight={
-        <Stack direction="row" gap={0.5}>
-          {RANGES.map((r) => (
-            <Box
-              key={r.label}
-              component="button"
-              type="button"
-              onClick={() => setRange(r)}
-              sx={{
-                fontFamily: FONTS.mono,
-                fontSize: '0.62rem',
-                px: 0.75,
-                py: 0.25,
-                background: 'none',
-                border: '1px solid',
-                borderColor:
-                  r.label === range.label ? 'text.primary' : 'divider',
-                color:
-                  r.label === range.label ? 'text.primary' : 'text.secondary',
-                cursor: 'pointer',
-              }}
-            >
-              {r.label}
-            </Box>
-          ))}
-        </Stack>
-      }
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
+        p: { xs: 2, md: 2.5 },
+        mb: 3,
+      }}
     >
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1.5 }}
+      >
+        <SectionHeading
+          title="Emission by hub, pair and lane"
+          subtitle="share of miner emission per scoring round · open a hub for its pairs, a pair for its lanes"
+          info="Share of miner emission each lane's pool paid, per round. Dead: no qualified fill in the window, pays nothing."
+        />
+        <RangeChips value={range} options={RANGES} onChange={setRange} />
+      </Stack>
       {isLoading ? (
-        <Stack gap={1.5} sx={{ mt: 1 }}>
+        <Stack gap={1.5}>
           {[0, 1].map((i) => (
             <Skeleton
               key={i}
@@ -259,31 +276,39 @@ const EmissionsByLane: React.FC<{ color: string }> = ({ color }) => {
           ))}
         </Stack>
       ) : tree.length === 0 ? (
-        <Typography
+        <Box
           sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            color: 'text.disabled',
-            py: 2,
+            height: 160,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          no scoring rounds on record yet
-        </Typography>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.7rem',
+              color: 'text.secondary',
+            }}
+          >
+            no scoring rounds on record yet
+          </Typography>
+        </Box>
       ) : (
-        <Stack sx={{ mt: 1 }}>
+        <Stack>
           {tree.map((hub) => (
             <NodeRow
               key={hub.key}
               node={hub}
               depth={0}
-              color={color}
+              color={cLine}
               open={open}
               toggle={toggle}
             />
           ))}
         </Stack>
       )}
-    </Panel>
+    </Box>
   );
 };
 

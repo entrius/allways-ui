@@ -32,7 +32,6 @@ import {
   usdFromBackingMap,
 } from '../../utils/format';
 import { FONTS } from '../../theme';
-import EmissionsByLane from './EmissionsByLane';
 
 // ---------------------------------------------------------------------------
 // Formatting helpers
@@ -858,9 +857,6 @@ const StatsSection: React.FC = () => {
               )}
             </Box>
           </Panel>
-        </Grid>
-        <Grid item xs={12}>
-          <EmissionsByLane color={cPrimary} />
         </Grid>
       </Grid>
     </Stack>

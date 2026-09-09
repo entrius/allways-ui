@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import CrownRateChart from '../miners/CrownRateChart';
 import CrownTimeLeaderboard from '../miners/CrownTimeLeaderboard';
 import MinerLeaderboard from '../miners/MinerLeaderboard';
+import EmissionsByLane from './EmissionsByLane';
 import {
   isDirection,
   isRange,
@@ -13,8 +14,8 @@ import {
 } from '../../api';
 
 /**
- * The miners half of the network page: leaderboard, crown history and the
- * crown rate chart. Its selections stay in the URL (`range`, `rateRange`,
+ * The miners half of the network page: leaderboard, crown history, the
+ * crown rate chart and emission by lane. Its selections stay in the URL (`range`, `rateRange`,
  * `rateDir`) — they share the query string with the tape's filters above,
  * which use their own names, so one link restores the whole page.
  */
@@ -72,6 +73,9 @@ const MinersSection: React.FC = () => {
           />
         </>
       )}
+      {/* Which lanes pay, per scoring round — the figure a miner reads
+          before standing up a pair. One line per row, so it fits a phone. */}
+      <EmissionsByLane />
     </Stack>
   );
 };
