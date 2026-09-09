@@ -231,7 +231,11 @@ const MarketPage: React.FC = () => {
                 minWidth: 0,
               }}
             >
-              <OrderbookDepth direction={direction} base={base} />
+              <OrderbookDepth
+                direction={direction}
+                base={base}
+                onDirectionChange={setDirection}
+              />
             </Box>
           </Stack>
         </Box>

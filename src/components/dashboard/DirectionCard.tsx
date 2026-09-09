@@ -204,10 +204,7 @@ const DirectionCard: React.FC<{
           {quoteSym}
         </Box>
         {chg != null && (
-          <RailTooltip
-            title={`How far this rate moved over ${range}.`}
-            placement="top"
-          >
+          <RailTooltip title={`Move over ${range}.`} placement="top">
             <Box
               component="span"
               sx={{
@@ -327,12 +324,12 @@ const DirectionCard: React.FC<{
         <Stat
           label={`${range} High`}
           value={high != null ? formatRate(high) : '—'}
-          hint={`Highest crown rate for this direction over ${range}, in ${quoteSym} per ${baseSym}.`}
+          hint={`Highest rate over ${range}.`}
         />
         <Stat
           label={`${range} Low`}
           value={low != null ? formatRate(low) : '—'}
-          hint={`Lowest crown rate for this direction over ${range}, in ${quoteSym} per ${baseSym}.`}
+          hint={`Lowest rate over ${range}.`}
         />
         <Stat
           label={crossed ? 'Crossed' : 'Spread'}
@@ -340,8 +337,8 @@ const DirectionCard: React.FC<{
           color={crossed ? move.up : undefined}
           hint={
             crossed
-              ? `The two crowns overlap: ${baseSym} → ${quoteSym} pays more ${quoteSym} than ${quoteSym} → ${baseSym} asks for. Out and back at these rates comes out ahead by this much.`
-              : `Gap between this direction's crown and the reverse direction's (${revPrice != null ? formatRate(revPrice) : '—'} ${quoteSym} per ${baseSym}, the other cell in this row), as a share of the two.`
+              ? `This rate and the reverse direction's (${revPrice != null ? formatRate(revPrice) : '—'}) overlap by this much.`
+              : `Gap to the reverse direction's rate (${revPrice != null ? formatRate(revPrice) : '—'}), as a share of the two.`
           }
         />
       </Box>

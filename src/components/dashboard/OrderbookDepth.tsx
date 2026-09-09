@@ -1,18 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Box,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tooltip,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Box, IconButton, Typography, useTheme } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   minerServesPair,
@@ -26,12 +19,16 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { alpha } from '@mui/material/styles';
 import { FONTS } from '../../theme';
 import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
 import { chainInfo, chainList } from '../../api/models/chains';
-import { MOVE_COLORS } from './AllwaysMarketRate';
 import { OrderbookDepthSkeleton } from './Skeletons';
 import MonoSelect from '../MonoSelect';
+import RailTooltip from './railTooltip';
+import DepthChart from './DepthChart';
+import { MOVE_COLORS } from './AllwaysMarketRate';
+import { FLASH_ANIMATION } from './flash';
 
 // Price grouping, the way an exchange's precision picker works: levels
 // merge into buckets one tick wide, and the picker lists the tick sizes
@@ -150,46 +147,123 @@ const useDepth = (
   }, [miners, from, to, leg, direction, group, sendsBase]);
 };
 
-// One side's direction on the spread line: a small tag in the side's
-// colour. The picked side is filled; the other is an outline.
-const SideTag: React.FC<{
+// A hint as short keyed lines, not a paragraph: label on the left, one
+// clause on the right.
+const HintLines: React.FC<{ lines: [string, string][] }> = ({ lines }) => (
+  <Box
+    sx={{
+      display: 'grid',
+      gridTemplateColumns: 'auto 1fr',
+      columnGap: 1,
+      rowGap: 0.25,
+      fontFamily: FONTS.mono,
+    }}
+  >
+    {lines.map(([k, v]) => (
+      <React.Fragment key={k}>
+        <Box component="span" sx={{ opacity: 0.7, whiteSpace: 'nowrap' }}>
+          {k}
+        </Box>
+        <span>{v}</span>
+      </React.Fragment>
+    ))}
+  </Box>
+);
+
+// The caption over one side of the book: a legend swatch in the side's
+// chart colour, the side's direction as a chip in the site's treatment (see
+// RangeChips), and its best rate beside it.
+// The picked side is inverted paper-on-text. With a setter, the chip is the
+// toggle between the two directions.
+const SideHeading: React.FC<{
   label: string;
+  // The side's colour on the chart, shown as a legend swatch by the chip.
   color: string;
+  // The side's best rate, e.g. "0.041680"; absent when the side is empty.
+  best?: string | null;
+  // Bumps when the best rate moves; a fresh key restarts its flash.
+  bestSeq?: number;
   selected: boolean;
+  onSelect?: () => void;
   align: 'left' | 'right';
-}> = ({ label, color, selected, align }) => (
+}> = ({ label, color, best, bestSeq = 0, selected, onSelect, align }) => (
   <Box
     sx={{
       display: 'flex',
-      justifyContent: align === 'left' ? 'flex-start' : 'flex-end',
+      alignItems: 'center',
+      flexDirection: align === 'left' ? 'row' : 'row-reverse',
+      gap: 1.5,
       minWidth: 0,
+      px: 1,
+      py: 0.75,
     }}
   >
     <Box
       component="span"
+      aria-hidden
       sx={{
-        display: 'inline-block',
-        px: 0.75,
-        py: 0.2,
-        fontFamily: FONTS.mono,
-        fontSize: '0.6rem',
-        fontWeight: selected ? 700 : 500,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        maxWidth: '100%',
-        // Text stays in the reading colour; the side's colour carries the
-        // tint and the border only.
-        color: selected ? 'text.primary' : 'text.secondary',
-        backgroundColor: selected ? alpha(color, 0.14) : 'transparent',
-        border: '1px solid',
-        borderColor: selected ? alpha(color, 0.35) : alpha(color, 0.25),
+        flex: 'none',
+        width: 8,
+        height: 8,
+        backgroundColor: color,
+        mr: align === 'left' ? -0.5 : 0,
+        ml: align === 'right' ? -0.5 : 0,
       }}
+    />
+    <RailTooltip
+      title={onSelect && !selected ? `Show ${label}` : ''}
+      placement="top"
     >
-      {label}
-    </Box>
+      <Box
+        component={onSelect ? 'button' : 'span'}
+        onClick={onSelect}
+        aria-pressed={onSelect ? selected : undefined}
+        sx={{
+          all: 'unset',
+          cursor: onSelect ? 'pointer' : 'default',
+          display: 'inline-block',
+          minWidth: 0,
+          boxSizing: 'border-box',
+          px: 1,
+          py: 0.4,
+          fontFamily: FONTS.mono,
+          fontSize: '0.65rem',
+          fontWeight: 600,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          color: selected ? 'background.paper' : 'text.secondary',
+          backgroundColor: selected ? 'text.primary' : 'transparent',
+          '&:hover': onSelect
+            ? { backgroundColor: selected ? 'text.primary' : 'action.hover' }
+            : undefined,
+        }}
+      >
+        {label}
+      </Box>
+    </RailTooltip>
+    {best && (
+      <Box
+        component="span"
+        key={bestSeq}
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.82rem',
+          fontWeight: 700,
+          fontVariantNumeric: 'tabular-nums',
+          color: selected ? 'text.primary' : 'text.secondary',
+          whiteSpace: 'nowrap',
+          px: 0.5,
+          mx: -0.5,
+          '--flash': alpha(color, 0.28),
+          ...(bestSeq > 0 ? { animation: FLASH_ANIMATION } : {}),
+        }}
+      >
+        {best}
+      </Box>
+    )}
   </Box>
 );
 
@@ -202,13 +276,12 @@ interface Row {
   quote: number;
 }
 
-// The pair's book in the traditional shape: one price column in the
-// selected direction's unit, the OTHER direction's levels stacked above the
-// spread (inverted into this unit, sized in the same asset), this
-// direction's levels below it, best rates meeting in the middle. Above is
-// tinted red and below green, as on every exchange, so the eye lands where
-// it expects; the words stay directional (the side you send from) because
-// each side is its own instrument — nothing is netted across the line.
+// The pair's book as an FX ladder: two columns, one per direction, both
+// priced in the selected direction's unit (the other direction's levels
+// inverted onto it, sized in the same asset), best rates at the top of
+// each column against the centre rule. Neither side is a buy or a sell —
+// each is its own instrument, a conversion the taker sends from — so the
+// depth bars share one neutral tint and nothing is netted across the rule.
 const OrderbookDepth: React.FC<{
   // The selected direction — decides which side of the line is "yours".
   direction: Direction;
@@ -216,7 +289,9 @@ const OrderbookDepth: React.FC<{
   // of this, exactly the matrix's unit, so the cell you clicked is a level
   // on this ladder.
   base: string;
-}> = ({ direction, base }) => {
+  // Given, the side headings become the toggle between the two directions.
+  onDirectionChange?: (direction: Direction, hub: string) => void;
+}> = ({ direction, base, onDirectionChange }) => {
   const theme = useTheme();
   const { data: miners, isLoading } = useMiners();
   const [group, setGroup] = useState<DepthGroup>(null);
@@ -253,17 +328,47 @@ const OrderbookDepth: React.FC<{
   const below = useMemo(() => cumulate(near.levels), [near]);
   const above = useMemo(() => cumulate(far.levels), [far]);
 
-  // Sizes count in the ROW asset — USDC on TAO/USDC, HYPE on TAO/HYPE —
+  // A change counter per level (and per side's best), so a level whose
+  // size or total moved flashes once, the way a moved rate does in the
+  // matrix. The first fill doesn't flash; only a change after it does.
+  const prevLevels = useRef<Record<string, string> | null>(null);
+  const [seq, setSeq] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const now: Record<string, string> = {};
+    for (const [side, rows] of [
+      ['below', below],
+      ['above', above],
+    ] as const) {
+      for (const r of rows) now[`${side}|${r.price}`] = `${r.size}|${r.total}`;
+      if (rows[0]) now[`${side}|best`] = String(rows[0].price);
+    }
+    const before = prevLevels.current;
+    prevLevels.current = now;
+    if (!before) return;
+    const bumped = Object.keys(now).filter(
+      (k) => k in before && before[k] !== now[k],
+    );
+    if (!bumped.length) return;
+    setSeq((s) => {
+      const n = { ...s };
+      for (const k of bumped) n[k] = (n[k] ?? 0) + 1;
+      return n;
+    });
+  }, [below, above]);
+
+  // Depth counts in the ROW asset — USDC on TAO/USDC, HYPE on TAO/HYPE —
   // whichever way the trade goes: the USDC you'd send one way is the USDC
   // you'd receive the other. That is the asset a taker thinks in, and the
   // unit the matrix already quotes the pair in; the hub's collateral is
-  // the plumbing behind it. Levels are held in the base asset; a level's
+  // the plumbing behind it. Levels are held in the base asset; each one's
   // own price converts exactly, and the running total in the quote asset
   // is the same sum the hover shows.
   const sizeOf = (row: Row) => row.size * row.price;
   const totalOf = (row: Row) => row.quote;
-  const maxAbove = above.reduce((m, r) => Math.max(m, totalOf(r)), 1);
-  const maxBelow = below.reduce((m, r) => Math.max(m, totalOf(r)), 1);
+  // Each side's full depth, the width of its longest bar. No floor: a BTC
+  // book's whole depth can be 0.0025, and a floor of 1 would flatten it.
+  const maxAbove = above.reduce((m, r) => Math.max(m, totalOf(r)), 0) || 1;
+  const maxBelow = below.reduce((m, r) => Math.max(m, totalOf(r)), 0) || 1;
 
   // Spread the way a book prints it: ask minus bid, as a number and as a
   // percent of their mid (the mid only normalises; it is never shown). Ask
@@ -278,11 +383,21 @@ const OrderbookDepth: React.FC<{
       ? (spreadAbs / ((ask + bid) / 2)) * 100
       : null;
   const crossed = spreadAbs != null && spreadAbs < 0;
-
   // One decimal count for the whole book, from the finer of the two ticks.
   const tick = Math.min(near.tick || Infinity, far.tick || Infinity);
   const decimals = Number.isFinite(tick) ? tickDecimals(tick) : 5;
-  const fmtPrice = (v: number) => v.toFixed(decimals);
+  const fmtPrice = useCallback((v: number) => v.toFixed(decimals), [decimals]);
+  // Amounts (sizes, totals, the chart's axis): two decimals is right for
+  // USDC or TAO, but a BTC book's whole depth can be 0.0025, so below 1
+  // keep three significant digits instead of rounding a real level to 0.
+  const fmtAmount = useCallback((v: number) => {
+    if (!Number.isFinite(v) || v === 0) return '0.00';
+    if (v >= 100) return v.toFixed(0);
+    if (v >= 1) return v.toFixed(2);
+    const decimals = Math.min(8, Math.max(2, 2 - Math.floor(Math.log10(v))));
+    return v.toFixed(decimals);
+  }, []);
+  const fmtTotal = fmtAmount;
   // The picker's steps come from THIS book: the finest tick the quotes are
   // made in, then tens upward, stopping once every side has folded to a
   // single bucket — a step past that changes nothing. The current step is
@@ -325,9 +440,6 @@ const OrderbookDepth: React.FC<{
   const autoMult =
     tickScale && autoTick ? Math.round(autoTick / tickScale) : null;
 
-  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
-  const tone = { above: move.down, below: move.up } as const;
-
   const baseUnit = chainSymbol(from);
   const quoteUnit = chainSymbol(to);
   // The column unit: the row asset.
@@ -347,6 +459,8 @@ const OrderbookDepth: React.FC<{
     const l = decomposeDirection(d);
     return `${assetLabel(l.from)} → ${assetLabel(l.to)}`;
   };
+  const pick = (d: Direction) =>
+    onDirectionChange ? () => onDirectionChange(d, base) : undefined;
 
   const headerSx = {
     fontFamily: FONTS.mono,
@@ -356,134 +470,274 @@ const OrderbookDepth: React.FC<{
     backgroundColor: theme.palette.background.default,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
-    px: 1,
-    py: 0.5,
+    // Labels never wrap: a wrapped label would push that column's rows
+    // out of line with the other's.
+    '& > span': {
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      minWidth: 0,
+    },
   };
 
-  const cellSx = {
+  // One book row: Price, Size, Total, in that order on both sides, the
+  // way every exchange prints a book. Size hides below sm. Rows are the
+  // same height in both columns so the two books line up row for row.
+  const levelRowSx = {
+    display: 'grid',
+    gridTemplateColumns: {
+      xs: 'minmax(0, 1.2fr) minmax(0, 1fr)',
+      sm: 'minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr)',
+    },
+    alignItems: 'center',
+    columnGap: 1,
+    px: 1,
+    minHeight: 28,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+  } as const;
+  const levelCellSx = {
     fontFamily: FONTS.mono,
     fontSize: '0.72rem',
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    px: 1,
-    py: 0.5,
     fontVariantNumeric: 'tabular-nums' as const,
     whiteSpace: 'nowrap' as const,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    minWidth: 0,
   };
 
+  // What filling down to a level sends and gets, for the chart's tooltip
+  // and the ladder's.
+  const fillLines = (row: Row, side: 'above' | 'below'): [string, string][] => {
+    const sideSendsBase = side === 'below';
+    const avg = row.total > 0 ? row.quote / row.total : null;
+    return [
+      [
+        'You send',
+        sideSendsBase
+          ? `${fmtAmount(row.total)} ${baseUnit}`
+          : `${fmtAmount(row.quote)} ${quoteUnit}`,
+      ],
+      [
+        'You get',
+        sideSendsBase
+          ? `${fmtAmount(row.quote)} ${quoteUnit}`
+          : `${fmtAmount(row.total)} ${baseUnit}`,
+      ],
+      [
+        'Avg rate',
+        `${avg != null ? fmtPrice(avg) : '—'} ${quoteUnit}/${baseUnit}`,
+      ],
+    ];
+  };
+  const depthLevels = (rows: Row[], side: 'above' | 'below') =>
+    rows.map((row) => ({
+      price: row.price,
+      total: totalOf(row),
+      lines: fillLines(row, side),
+    }));
+  const leftDepth = useMemo(
+    () => depthLevels(below, 'below'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [below, baseUnit, quoteUnit, decimals],
+  );
+  const rightDepth = useMemo(
+    () => depthLevels(above, 'above'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [above, baseUnit, quoteUnit, decimals],
+  );
+
+  // One ladder level. Hovering lights every level between the best and it,
+  // the ones a fill down to it would take, and points the chart's tooltip
+  // at it. The chart carries the depth; the rows stay plain.
   const renderRow = (
     row: Row,
     i: number,
     side: 'above' | 'below',
     max: number,
   ) => {
-    const pct = (totalOf(row) / max) * 100;
-    const color = tone[side];
+    const col: 'left' | 'right' = side === 'below' ? 'left' : 'right';
+    const color = colorOf(col);
     const inRange = hover?.side === side && i <= hover.i;
-    const isHovered = hover?.side === side && i === hover.i;
-    const avg = row.total > 0 ? row.quote / row.total : null;
-    // Which direction this side is, and whether its taker sends the base.
-    const sideDir = side === 'above' ? sellDir : buyDir;
-    const sideSendsBase = side === 'below';
-    const cell = (
-      <TableRow
-        key={`${side}-${row.price}`}
+    // The depth bar: this level's running total as a share of the side's
+    // whole, drawn from the centre rule outward like the chart above. It is
+    // the only colour on the row, and faint; the text stays in ink.
+    const pct = (totalOf(row) / max) * 100;
+    const bump = seq[`${side}|${row.price}`] ?? 0;
+    return (
+      <Box
+        key={`${side}-${row.price}-${bump}`}
         onMouseEnter={() => setHover({ side, i })}
         onMouseLeave={() => setHover(null)}
         sx={{
+          ...levelRowSx,
+          '--flash': alpha(color, 0.28),
+          ...(bump > 0 ? { animation: FLASH_ANIMATION } : {}),
           backgroundColor: inRange ? 'action.hover' : 'transparent',
-          backgroundImage: `linear-gradient(to right, ${alpha(color, 0.14)} ${pct}%, transparent ${pct}%)`,
+          backgroundImage: `linear-gradient(to ${col}, ${alpha(color, inRange ? 0.16 : 0.08)} ${pct}%, transparent ${pct}%)`,
           cursor: 'default',
-          // The half you picked reads at full strength; the other half sits
-          // back, the way its label does on the line. Hovering lifts it.
-          opacity: side === selectedSide ? 1 : inRange ? 0.8 : 0.4,
-          transition: 'opacity 0.15s',
         }}
       >
-        <TableCell sx={{ ...cellSx, color }}>{fmtPrice(row.price)}</TableCell>
-        <TableCell
-          sx={{ ...cellSx, display: { xs: 'none', sm: 'table-cell' } }}
-          align="right"
+        <Box component="span" sx={levelCellSx}>
+          {fmtPrice(row.price)}
+        </Box>
+        <Box
+          component="span"
+          sx={{
+            ...levelCellSx,
+            display: { xs: 'none', sm: 'block' },
+            textAlign: 'right',
+          }}
         >
-          {sizeOf(row).toFixed(2)}
-        </TableCell>
-        <TableCell sx={{ ...cellSx, fontWeight: 600 }} align="right">
-          {totalOf(row).toFixed(2)}
-        </TableCell>
-      </TableRow>
-    );
-    return (
-      <Tooltip
-        key={`${side}-${row.price}-tip`}
-        open={isHovered}
-        placement="left"
-        arrow
-        disableHoverListener
-        disableFocusListener
-        disableTouchListener
-        title={
-          <Box sx={{ fontFamily: FONTS.mono, fontSize: '0.66rem' }}>
-            <Box sx={{ fontWeight: 700, mb: 0.5 }}>
-              {sideLabel(sideDir)} · fill down to {fmtPrice(row.price)}
-            </Box>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'auto auto',
-                columnGap: 1.5,
-                rowGap: 0.25,
-              }}
-            >
-              <span>You send</span>
-              <Box component="span" sx={{ textAlign: 'right' }}>
-                {sideSendsBase
-                  ? `${row.total.toFixed(2)} ${baseUnit}`
-                  : `${row.quote.toFixed(2)} ${quoteUnit}`}
-              </Box>
-              <span>You get</span>
-              <Box component="span" sx={{ textAlign: 'right' }}>
-                {sideSendsBase
-                  ? `${row.quote.toFixed(2)} ${quoteUnit}`
-                  : `${row.total.toFixed(2)} ${baseUnit}`}
-              </Box>
-              <span>Avg rate</span>
-              <Box component="span" sx={{ textAlign: 'right' }}>
-                {avg != null ? fmtPrice(avg) : '—'} {quoteUnit}/{baseUnit}
-              </Box>
-            </Box>
-          </Box>
-        }
-      >
-        {cell}
-      </Tooltip>
+          {fmtAmount(sizeOf(row))}
+        </Box>
+        <Box
+          component="span"
+          sx={{ ...levelCellSx, textAlign: 'right', fontWeight: 600 }}
+        >
+          {fmtAmount(totalOf(row))}
+        </Box>
+      </Box>
     );
   };
 
-  const emptyRow = (side: Direction) => (
-    <TableRow key={`${side}-empty`}>
-      <TableCell
-        colSpan={3}
-        sx={{
-          ...cellSx,
-          textAlign: 'center',
-          py: 1.5,
-          color: 'text.secondary',
-        }}
+  const emptyColumn = (side: Direction) => (
+    <Box
+      sx={{
+        fontFamily: FONTS.mono,
+        fontSize: '0.68rem',
+        textAlign: 'center',
+        px: 1.5,
+        py: 2,
+        color: 'text.secondary',
+      }}
+    >
+      {(side === buyDir ? crownBuy : crownSellNatural) != null ? (
+        <>
+          The validator scores a crown at{' '}
+          {formatRate(
+            side === buyDir
+              ? (crownBuy as number)
+              : (crownSellNatural as number),
+          )}
+          , but no takeable quote is indexed for it yet
+        </>
+      ) : (
+        <>No open liquidity for {sideLabel(side)}</>
+      )}
+    </Box>
+  );
+
+  // The book's column labels, the same on both sides.
+  const columnLabels = () => (
+    <Box sx={{ ...levelRowSx, ...headerSx }}>
+      <Box component="span">Price</Box>
+      <Box
+        component="span"
+        sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'right' }}
       >
-        {(side === buyDir ? crownBuy : crownSellNatural) != null ? (
-          <>
-            {sideLabel(side)}: the validator scores a crown at{' '}
-            {formatRate(
-              side === buyDir
-                ? (crownBuy as number)
-                : (crownSellNatural as number),
-            )}
-            , but no takeable quote is indexed for it yet
-          </>
-        ) : (
-          <>No open liquidity for {sideLabel(side)}</>
-        )}
-      </TableCell>
-    </TableRow>
+        Size
+      </Box>
+      <Box component="span" sx={{ textAlign: 'right' }}>
+        Total
+      </Box>
+    </Box>
+  );
+
+  // The exchange colours, on the exchange's sides: green on the left, where
+  // you send the base asset (bids take it), red on the right, where you
+  // send the quote for it (asks). The words stay directional.
+  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
+  const colorOf = (col: 'left' | 'right') =>
+    col === 'left' ? move.up : move.down;
+  const sideOf = (col: 'left' | 'right') =>
+    col === 'left' ? ('below' as const) : ('above' as const);
+  const dirOf = (col: 'left' | 'right') => (col === 'left' ? buyDir : sellDir);
+  const columnSx = (col: 'left' | 'right') =>
+    ({
+      minWidth: 0,
+      borderLeft: col === 'right' ? '1px solid' : 'none',
+      borderColor: 'divider',
+    }) as const;
+
+  // The side's best level, for the heading.
+  const sideBest = (col: 'left' | 'right'): string | null => {
+    const rows = col === 'left' ? below : above;
+    return rows.length ? fmtPrice(rows[0].price) : null;
+  };
+  const heading = (col: 'left' | 'right') => (
+    <Box key={`${col}-heading`} sx={columnSx(col)}>
+      <SideHeading
+        label={sideLabel(dirOf(col))}
+        color={colorOf(col)}
+        best={sideBest(col)}
+        bestSeq={seq[`${sideOf(col)}|best`] ?? 0}
+        selected={selectedSide === sideOf(col)}
+        onSelect={pick(dirOf(col))}
+        align={col}
+      />
+    </Box>
+  );
+  const ladder = (col: 'left' | 'right') => {
+    const side = sideOf(col);
+    const rows = side === 'below' ? below : above;
+    const max = side === 'below' ? maxBelow : maxAbove;
+    return (
+      <Box key={`${col}-ladder`} sx={columnSx(col)}>
+        {columnLabels()}
+        {rows.length
+          ? rows.map((row, i) => renderRow(row, i, side, max))
+          : emptyColumn(dirOf(col))}
+      </Box>
+    );
+  };
+
+  const twoColumns = {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    alignItems: 'start',
+  } as const;
+
+  // The chart's inputs, stable between renders so a hover does not rebuild
+  // the chart (which would drop the tooltip it is meant to show).
+  const leftName = sideLabel(buyDir);
+  const rightName = sideLabel(sellDir);
+  const leftSide = useMemo(
+    () => ({ name: leftName, color: move.up, levels: leftDepth }),
+    [leftName, move.up, leftDepth],
+  );
+  const rightSide = useMemo(
+    () => ({ name: rightName, color: move.down, levels: rightDepth }),
+    [rightName, move.down, rightDepth],
+  );
+  const spreadBand = useMemo(
+    () =>
+      bid != null && ask != null && spreadAbs != null
+        ? {
+            a: bid,
+            b: ask,
+            crossed,
+            color: null,
+          }
+        : null,
+    [bid, ask, spreadAbs, crossed],
+  );
+  const chartHover = useMemo(
+    () =>
+      hover
+        ? {
+            side:
+              hover.side === 'below' ? ('left' as const) : ('right' as const),
+            index: hover.i,
+          }
+        : null,
+    [hover],
+  );
+  const onChartHover = useCallback(
+    (h: { side: 'left' | 'right'; index: number } | null) =>
+      setHover(
+        h ? { side: h.side === 'left' ? 'below' : 'above', i: h.index } : null,
+      ),
+    [],
   );
 
   if (isLoading || !miners) return <OrderbookDepthSkeleton />;
@@ -502,6 +756,7 @@ const OrderbookDepth: React.FC<{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 1,
           mb: 1,
         }}
       >
@@ -517,35 +772,48 @@ const OrderbookDepth: React.FC<{
           >
             Order book
           </Typography>
-          <Tooltip
-            title={
-              <Box sx={{ maxWidth: 260 }}>
-                Every open quote for this pair, priced in {quoteUnit} per{' '}
-                {baseUnit}. Red rows above the line are miners taking{' '}
-                {quoteUnit} and paying {baseUnit}; green rows below take{' '}
-                {baseUnit} and pay {quoteUnit}. The best rate on each side sits
-                against the line. Size is how much {quoteUnit} that level can
-                move; Total adds up the levels from the line down to it. The dot
-                marks the direction you picked in the matrix. Hover a row to see
-                what filling down to it would send and get.
-              </Box>
-            }
-            arrow
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.62rem',
+              color: 'text.secondary',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              minWidth: 0,
+            }}
+          >
+            · prices in {priceUnit}, sizes in {unit}
+          </Typography>
+          <RailTooltip
             placement="right"
+            componentsProps={{ tooltip: { sx: { maxWidth: 320 } } }}
+            title={
+              <HintLines
+                lines={[
+                  ['Left', `send ${baseUnit}, get ${quoteUnit}`],
+                  ['Right', `send ${quoteUnit}, get ${baseUnit}`],
+                  [
+                    'Price',
+                    `${quoteUnit} per ${baseUnit}, best beside each side`,
+                  ],
+                  ['Chart', `${unit} available at or better than each price`],
+                  ['Spread', 'gap between the two best prices'],
+                  ['Crossed', 'the two sides overlap'],
+                  ['Click', 'a direction to switch to it'],
+                  ['Hover', 'a level to see what it sends and gets'],
+                ]}
+              />
+            }
           >
             <IconButton size="small" sx={{ p: 0, color: 'text.secondary' }}>
               <InfoOutlinedIcon sx={{ fontSize: 14 }} />
             </IconButton>
-          </Tooltip>
+          </RailTooltip>
         </Box>
         {/* Precision picker: the tick sizes themselves, like an exchange's. */}
-        <Tooltip
-          title={
-            <Box sx={{ maxWidth: 260 }}>
-              Group nearby levels into price buckets this wide.
-            </Box>
-          }
-          arrow
+        <RailTooltip
+          title="Group levels into price buckets this wide."
           placement="top"
         >
           <Box>
@@ -559,14 +827,116 @@ const OrderbookDepth: React.FC<{
               }))}
             />
           </Box>
-        </Tooltip>
+        </RailTooltip>
       </Box>
 
-      <TableContainer
+      {/* Headings, then the depth chart across both sides, then the ladder. */}
+      <Box
+        sx={{ ...twoColumns, borderTop: '1px solid', borderColor: 'divider' }}
+      >
+        {heading('left')}
+        {heading('right')}
+      </Box>
+      {/* What the chart shows, in words, with the spread beside it. */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
+          alignItems: 'baseline',
+          gap: 1,
+          px: 1,
+          pt: 1.25,
+          pb: 0.25,
+          fontFamily: FONTS.mono,
+        }}
+      >
+        <Box
+          component="span"
+          sx={{
+            fontSize: '0.62rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'text.secondary',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Market depth
+        </Box>
+        {spreadAbs != null && spreadPct != null ? (
+          <RailTooltip
+            placement="top"
+            title={
+              crossed
+                ? 'The two best prices overlap by this much.'
+                : 'Gap between the two best prices, and as a share of their mid.'
+            }
+          >
+            <Box
+              component="span"
+              sx={{
+                justifySelf: 'center',
+                display: 'inline-flex',
+                alignItems: 'baseline',
+                gap: 0.75,
+                cursor: 'help',
+                whiteSpace: 'nowrap',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              <Box
+                component="span"
+                sx={{
+                  fontSize: '0.58rem',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  // Crossed is the one word that changes; it reads in ink.
+                  color: crossed ? 'text.primary' : 'text.secondary',
+                  fontWeight: crossed ? 700 : 400,
+                }}
+              >
+                {crossed ? 'Crossed' : 'Spread'}
+              </Box>
+              <Box
+                component="span"
+                sx={{ fontSize: '0.74rem', fontWeight: 700 }}
+              >
+                {fmtPrice(Math.abs(spreadAbs))}
+              </Box>
+              <Box
+                component="span"
+                sx={{
+                  fontSize: '0.66rem',
+                  color: 'text.secondary',
+                }}
+              >
+                {Math.abs(spreadPct).toFixed(2)}%
+              </Box>
+            </Box>
+          </RailTooltip>
+        ) : (
+          <span />
+        )}
+        <span />
+      </Box>
+      <DepthChart
+        left={leftSide}
+        right={rightSide}
+        selected={selectedSide === 'below' ? 'left' : 'right'}
+        spread={spreadBand}
+        formatPrice={fmtPrice}
+        formatTotal={fmtTotal}
+        hover={chartHover}
+        onHover={onChartHover}
+        height={170}
+      />
+      <Box
         sx={{
           flex: 1,
           minHeight: 0,
+          overflowY: 'auto',
           overflowX: 'hidden',
+          borderTop: '1px solid',
+          borderColor: 'divider',
           '&::-webkit-scrollbar': { width: 4 },
           '&::-webkit-scrollbar-thumb': {
             background: theme.palette.border.light,
@@ -574,138 +944,11 @@ const OrderbookDepth: React.FC<{
           },
         }}
       >
-        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed' }}>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ ...headerSx, width: { xs: '52%', sm: '40%' } }}>
-                Price ({priceUnit})
-              </TableCell>
-              <TableCell
-                sx={{
-                  ...headerSx,
-                  width: '32%',
-                  display: { xs: 'none', sm: 'table-cell' },
-                }}
-                align="right"
-              >
-                Size ({unit})
-              </TableCell>
-              <TableCell
-                sx={{ ...headerSx, width: { xs: '48%', sm: '28%' } }}
-                align="right"
-              >
-                Total ({unit})
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {above.length
-              ? [...above]
-                  .map((row, i) => renderRow(row, i, 'above', maxAbove))
-                  .reverse()
-              : emptyRow(sellDir)}
-
-            {/* The line the two sides meet at. A quiet band: each side's
-                direction as a tag in its colour (the picked one filled), the
-                spread between their best levels in the middle. */}
-            <TableRow>
-              <TableCell
-                colSpan={3}
-                sx={{
-                  ...cellSx,
-                  px: 0.75,
-                  py: 0.5,
-                  borderTop: `1px solid ${theme.palette.border.light}`,
-                  borderBottom: `1px solid ${theme.palette.border.light}`,
-                  backgroundColor: 'surface.light',
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto 1fr',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <SideTag
-                    label={sideLabel(sellDir)}
-                    color={tone.above}
-                    selected={selectedSide === 'above'}
-                    align="left"
-                  />
-                  <Tooltip
-                    arrow
-                    placement="top"
-                    title={
-                      crossed
-                        ? 'Crossed: the best level above pays less than the best level below asks. Out and back at these two comes out ahead.'
-                        : 'Best level above minus best level below, and that as a share of their mid.'
-                    }
-                  >
-                    <Box
-                      component="span"
-                      sx={{
-                        display: 'inline-flex',
-                        alignItems: 'baseline',
-                        gap: 0.75,
-                        cursor: 'help',
-                        fontFamily: FONTS.mono,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <Box
-                        component="span"
-                        sx={{
-                          fontSize: '0.58rem',
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
-                          color: crossed ? move.up : 'text.secondary',
-                        }}
-                      >
-                        {crossed ? 'Crossed' : 'Spread'}
-                      </Box>
-                      <Box
-                        component="span"
-                        sx={{
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          fontVariantNumeric: 'tabular-nums',
-                          color: crossed ? move.up : 'text.primary',
-                        }}
-                      >
-                        {spreadAbs != null ? fmtPrice(spreadAbs) : '—'}
-                      </Box>
-                      {spreadPct != null && (
-                        <Box
-                          component="span"
-                          sx={{
-                            fontSize: '0.66rem',
-                            fontVariantNumeric: 'tabular-nums',
-                            color: crossed ? move.up : 'text.secondary',
-                          }}
-                        >
-                          {spreadPct.toFixed(2)}%
-                        </Box>
-                      )}
-                    </Box>
-                  </Tooltip>
-                  <SideTag
-                    label={sideLabel(buyDir)}
-                    color={tone.below}
-                    selected={selectedSide === 'below'}
-                    align="right"
-                  />
-                </Box>
-              </TableCell>
-            </TableRow>
-
-            {below.length
-              ? below.map((row, i) => renderRow(row, i, 'below', maxBelow))
-              : emptyRow(buyDir)}
-          </TableBody>
-        </Table>
-      </TableContainer>
+        <Box sx={twoColumns}>
+          {ladder('left')}
+          {ladder('right')}
+        </Box>
+      </Box>
     </Box>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Typography, useTheme } from '@mui/material';
-import { alpha, keyframes } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
+import { FLASH_ANIMATION } from './flash';
 import {
   orderByMarketCap,
   useChains,
@@ -42,11 +43,6 @@ const HEAD_H = 52;
 const ROW_H = 30;
 // Floor only: the number columns grow to fit their values.
 const COL_MIN = 84;
-
-const flash = keyframes`
-  from { box-shadow: inset 0 0 0 999px var(--matrix-flash); }
-  to   { box-shadow: inset 0 0 0 999px transparent; }
-`;
 
 interface CellRates {
   // Row asset received per 1 hub sent (hub → asset).
@@ -231,7 +227,7 @@ const Cell: React.FC<{
         zIndex: selected ? 1 : undefined,
         cursor: self ? 'default' : 'pointer',
         '&:hover': self ? undefined : { backgroundColor: 'action.selected' },
-        ...(seq > 0 && !self ? { animation: `${flash} 1.4s ease-out` } : {}),
+        ...(seq > 0 && !self ? { animation: FLASH_ANIMATION } : {}),
       }}
     >
       {self ? '' : empty ? '—' : formatRate(value)}
@@ -362,7 +358,7 @@ const RateMatrix: React.FC<{
         // than its half.
         width: '100%',
         overflowX: 'auto',
-        '--matrix-flash': alpha(theme.palette.primary.main, 0.28),
+        '--flash': alpha(theme.palette.primary.main, 0.28),
       }}
     >
       <Box
@@ -462,7 +458,7 @@ const RateMatrix: React.FC<{
                 component="th"
                 key={hub.id}
                 colSpan={2}
-                title={`${hub.symbol}${hub.network ? ` · ${hub.network}` : ''}\nleft column: you send 1 ${hub.symbol}, you get this much of the row asset\nright column: you get 1 ${hub.symbol}, you send this much of the row asset`}
+                title={`${hub.symbol}${hub.network ? ` · ${hub.network}` : ''}\nLeft: send 1 ${hub.symbol}, get this much\nRight: get 1 ${hub.symbol}, send this much`}
                 sx={{
                   ...pinnedSx,
                   top: 0,
