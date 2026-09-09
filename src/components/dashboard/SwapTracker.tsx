@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
   Box,
@@ -370,6 +370,23 @@ const SwapTracker: React.FC<{
   const pageParam = parseInt(searchParams.get('page') ?? '', 10);
   const page = Number.isFinite(pageParam) && pageParam > 1 ? pageParam : 1;
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Embedded, the find bar and the column headings stick to the top of the
+  // page as the tape scrolls under them, and the pager sticks to the bottom;
+  // the headings sit just under the find bar, whatever its wrapped height.
+  const [findBarH, setFindBarH] = useState(0);
+  const findBarObserver = useRef<ResizeObserver | null>(null);
+  // A callback ref: the find bar mounts after the loading skeleton, so a
+  // mount-time effect would look before it exists.
+  const findBarRef = useCallback((el: HTMLDivElement | null) => {
+    findBarObserver.current?.disconnect();
+    findBarObserver.current = null;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setFindBarH(el.offsetHeight));
+    ro.observe(el);
+    findBarObserver.current = ro;
+    setFindBarH(el.offsetHeight);
+  }, []);
+  useEffect(() => () => findBarObserver.current?.disconnect(), []);
   const setPageParams = useCallback(
     (next: { page?: number; size?: number }) => {
       const p = new URLSearchParams(searchParams);
@@ -631,11 +648,21 @@ const SwapTracker: React.FC<{
       {/* The find bar sits flat on the page, a hairline under it, like
           every other control row on the site. */}
       <Box
+        ref={findBarRef}
         sx={{
           pb: { xs: 1.25, sm: 1.5 },
-          mb: 1,
+          mb: embedded ? 0 : 1,
           borderBottom: '1px solid',
           borderColor: 'divider',
+          ...(embedded
+            ? {
+                position: 'sticky',
+                top: 0,
+                zIndex: 3,
+                backgroundColor: 'background.default',
+                pt: 1,
+              }
+            : {}),
         }}
       >
         {/* Kraken-style find bar — search and filters on one line, always
@@ -810,8 +837,18 @@ const SwapTracker: React.FC<{
               gridTemplateColumns: GRID_COLS,
               gap: 1,
               px: { xs: 1.25, sm: 1.5 },
-              pt: 0.25,
+              pt: embedded ? 1 : 0.25,
               pb: 0.75,
+              ...(embedded
+                ? {
+                    position: 'sticky',
+                    top: findBarH,
+                    zIndex: 2,
+                    backgroundColor: 'background.default',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                  }
+                : {}),
             }}
           >
             {(
@@ -1074,6 +1111,15 @@ const SwapTracker: React.FC<{
               pt: 1,
               borderTop: '1px solid',
               borderColor: 'divider',
+              ...(embedded
+                ? {
+                    position: 'sticky',
+                    bottom: 0,
+                    zIndex: 2,
+                    backgroundColor: 'background.default',
+                    pb: 1,
+                  }
+                : {}),
             }}
           >
             {/* One counts line, next to the pager it belongs to: the rows on
