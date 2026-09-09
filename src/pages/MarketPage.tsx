@@ -7,6 +7,7 @@ import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
 import RateMatrix from '../components/dashboard/RateMatrix';
+import HubSpokeWidget from '../components/dashboard/HubSpokeWidget';
 import Workspace from '../components/workspace/Workspace';
 import type { Layouts } from 'react-grid-layout';
 import {
@@ -77,24 +78,28 @@ const MARKET_LAYOUTS: Layouts = {
     { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
     { i: 'chart', x: 6, y: 27, w: 6, h: 33 },
     { i: 'book', x: 6, y: 60, w: 6, h: 63 },
+    { i: 'network', x: 0, y: 93, w: 6, h: 50 },
   ],
   md: [
     { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
     { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
     { i: 'chart', x: 6, y: 27, w: 6, h: 33 },
     { i: 'book', x: 6, y: 60, w: 6, h: 63 },
+    { i: 'network', x: 0, y: 93, w: 6, h: 50 },
   ],
   sm: [
     { i: 'rate', x: 0, y: 0, w: 6, h: 27 },
     { i: 'matrix', x: 0, y: 27, w: 6, h: 93 },
     { i: 'chart', x: 0, y: 120, w: 6, h: 33 },
     { i: 'book', x: 0, y: 153, w: 6, h: 63 },
+    { i: 'network', x: 0, y: 216, w: 6, h: 50 },
   ],
   xs: [
     { i: 'rate', x: 0, y: 0, w: 2, h: 27 },
     { i: 'matrix', x: 0, y: 27, w: 2, h: 93 },
     { i: 'chart', x: 0, y: 120, w: 2, h: 33 },
     { i: 'book', x: 0, y: 153, w: 2, h: 75 },
+    { i: 'network', x: 0, y: 228, w: 2, h: 50 },
   ],
 };
 
@@ -175,7 +180,7 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v4"
+          storageKey="allways.market.workspace.v5"
           defaultLayouts={MARKET_LAYOUTS}
           panels={[
             {
@@ -235,6 +240,19 @@ const MarketPage: React.FC = () => {
                   base={base}
                   onDirectionChange={setDirection}
                   embedded
+                />
+              ),
+            },
+            {
+              id: 'network',
+              title: 'Network',
+              minW: 3,
+              minH: 40,
+              node: (
+                <HubSpokeWidget
+                  direction={direction}
+                  range={range}
+                  onDirectionChange={setDirection}
                 />
               ),
             },
