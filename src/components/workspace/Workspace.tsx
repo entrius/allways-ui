@@ -8,6 +8,8 @@ import {
 } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
 import { FONTS } from '../../theme';
 import { TextLinkButton } from '../Buttons';
 
@@ -32,21 +34,25 @@ const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
 const ROW_HEIGHT = 24;
 const GUTTER = 24;
 
-const readLayouts = (key: string): Layouts | null => {
+// What a browser remembers: where each widget sits, and which are put away.
+type Saved = { layouts: Layouts; hidden: string[] };
+
+const readSaved = (key: string): Saved | null => {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Layouts;
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    const parsed = JSON.parse(raw) as Partial<Saved>;
+    if (!parsed || typeof parsed !== 'object' || !parsed.layouts) return null;
+    return { layouts: parsed.layouts, hidden: parsed.hidden ?? [] };
   } catch {
     return null;
   }
 };
-const writeLayouts = (key: string, layouts: Layouts) => {
+const writeSaved = (key: string, saved: Saved) => {
   try {
-    localStorage.setItem(key, JSON.stringify(layouts));
+    localStorage.setItem(key, JSON.stringify(saved));
   } catch {
-    // Storage may be unavailable (private mode); the layout is still live
+    // Storage may be unavailable (private mode); the desk is still live
     // for this visit.
   }
 };
@@ -70,10 +76,11 @@ const reconcile = (stored: Layouts, defaults: Layouts): Layouts => {
 };
 
 /**
- * A Bloomberg-style workspace: every piece of the page is a panel a person
- * can drag by its title and resize from its corner, and the arrangement is
- * remembered per browser. Panels wear the landing card: a square hairline,
- * a mono title, blue on hover. Reset returns the page's own arrangement.
+ * A terminal-style workspace: every piece of the page is a widget with a
+ * fixed size that a person can put away, bring back, and drag by its title
+ * to where they want it. The desk is remembered per browser. Widgets wear
+ * the landing card: a square hairline, a mono title, blue on hover. Reset
+ * returns the page's own desk.
  */
 const Workspace: React.FC<{
   panels: WorkspacePanel[];
@@ -83,19 +90,67 @@ const Workspace: React.FC<{
   storageKey: string;
 }> = ({ panels, defaultLayouts, storageKey }) => {
   const [layouts, setLayouts] = useState<Layouts>(() => {
-    const stored = readLayouts(storageKey);
-    return stored ? reconcile(stored, defaultLayouts) : defaultLayouts;
+    const stored = readSaved(storageKey);
+    return stored ? reconcile(stored.layouts, defaultLayouts) : defaultLayouts;
   });
-  const [custom, setCustom] = useState(() => readLayouts(storageKey) != null);
+  const [hidden, setHidden] = useState<Set<string>>(() => {
+    const stored = readSaved(storageKey);
+    const ids = new Set(panels.map((p) => p.id));
+    return new Set((stored?.hidden ?? []).filter((id) => ids.has(id)));
+  });
+  const [custom, setCustom] = useState(() => readSaved(storageKey) != null);
 
   useEffect(() => {
-    if (custom) writeLayouts(storageKey, layouts);
-  }, [custom, layouts, storageKey]);
+    if (custom) writeSaved(storageKey, { layouts, hidden: [...hidden] });
+  }, [custom, layouts, hidden, storageKey]);
 
+  // The grid reports only the widgets it shows; keep the put-away ones'
+  // last positions so they come back where they were.
   const onLayoutChange = useCallback((_: Layout[], all: Layouts) => {
-    setLayouts(all);
+    setLayouts((prev) => {
+      const out: Layouts = {};
+      for (const bp of new Set([...Object.keys(prev), ...Object.keys(all)])) {
+        const shown = all[bp] ?? [];
+        const shownIds = new Set(shown.map((l) => l.i));
+        const rest = (prev[bp] ?? []).filter((l) => !shownIds.has(l.i));
+        out[bp] = [...shown, ...rest];
+      }
+      return out;
+    });
   }, []);
   const onUserChange = useCallback(() => setCustom(true), []);
+  const remove = useCallback((id: string) => {
+    setHidden((h) => new Set([...h, id]));
+    setCustom(true);
+  }, []);
+  // A widget coming back lands at the bottom of the desk, in its own size.
+  const add = useCallback(
+    (id: string) => {
+      setLayouts((prev) => {
+        const out: Layouts = {};
+        for (const bp of Object.keys(defaultLayouts)) {
+          const items = (prev[bp] ?? []).filter((l) => l.i !== id);
+          const def = (defaultLayouts[bp] ?? []).find((l) => l.i === id);
+          if (!def) {
+            out[bp] = items;
+            continue;
+          }
+          const bottom = items
+            .filter((l) => !hidden.has(l.i) || l.i === id)
+            .reduce((m, l) => Math.max(m, l.y + l.h), 0);
+          out[bp] = [...items, { ...def, x: 0, y: bottom }];
+        }
+        return out;
+      });
+      setHidden((h) => {
+        const n = new Set(h);
+        n.delete(id);
+        return n;
+      });
+      setCustom(true);
+    },
+    [defaultLayouts, hidden],
+  );
   const reset = useCallback(() => {
     try {
       localStorage.removeItem(storageKey);
@@ -103,22 +158,29 @@ const Workspace: React.FC<{
       // ignore
     }
     setCustom(false);
+    setHidden(new Set());
     setLayouts(defaultLayouts);
   }, [defaultLayouts, storageKey]);
 
   const byId = useMemo(() => new Map(panels.map((p) => [p.id, p])), [panels]);
-  // Each panel's floor size rides on its layout entries, per breakpoint,
-  // so the grid never lets a panel shrink below what its content needs.
-  const bounded = useMemo<Layouts>(() => {
+  const shownPanels = useMemo(
+    () => panels.filter((p) => !hidden.has(p.id)),
+    [panels, hidden],
+  );
+  const putAway = useMemo(
+    () => panels.filter((p) => hidden.has(p.id)),
+    [panels, hidden],
+  );
+  // Only the shown widgets go to the grid; every one keeps its fixed size.
+  const shownLayouts = useMemo<Layouts>(() => {
     const out: Layouts = {};
     for (const [bp, items] of Object.entries(layouts)) {
-      out[bp] = items.map((l) => {
-        const p = byId.get(l.i);
-        return { ...l, minW: p?.minW ?? 2, minH: p?.minH ?? 4 };
-      });
+      out[bp] = items
+        .filter((l) => !hidden.has(l.i))
+        .map((l) => ({ ...l, static: false, isResizable: false }));
     }
     return out;
-  }, [layouts, byId]);
+  }, [layouts, hidden]);
 
   return (
     <Box
@@ -132,66 +194,60 @@ const Workspace: React.FC<{
           borderRadius: 0,
           transition: 'none',
         },
-        '& .react-grid-item > .react-resizable-handle': {
-          width: 14,
-          height: 14,
-          right: 0,
-          bottom: 0,
-          padding: 0,
-          backgroundImage: 'none',
-          cursor: 'nwse-resize',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            right: 3,
-            bottom: 3,
-            width: 8,
-            height: 8,
-            borderRight: '2px solid',
-            borderBottom: '2px solid',
-            borderColor: 'divider',
-          },
+        '& .react-grid-item.react-draggable-dragging': {
+          zIndex: 3,
+          '& > .workspace-panel': { borderColor: 'primary.main' },
         },
-        '& .react-grid-item:hover > .react-resizable-handle::after': {
-          borderColor: 'primary.main',
-        },
-        '& .react-grid-item.resizing, & .react-grid-item.react-draggable-dragging':
-          {
-            zIndex: 3,
-            '& > .workspace-panel': { borderColor: 'primary.main' },
-          },
       }}
     >
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
           gap: 2,
           mb: 1,
         }}
       >
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.62rem',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'text.disabled',
-            display: { xs: 'none', md: 'block' },
-          }}
+        {/* The widgets that are put away, one click from back on the desk. */}
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 28 }}
         >
-          Drag a panel by its title · resize from its corner
-        </Typography>
-        {custom && (
-          <TextLinkButton onClick={reset} sx={{ fontSize: '0.65rem', px: 0 }}>
-            Reset layout
-          </TextLinkButton>
-        )}
+          {putAway.map((p) => (
+            <TextLinkButton
+              key={p.id}
+              onClick={() => add(p.id)}
+              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+              sx={{ fontSize: '0.65rem', px: 0.75 }}
+            >
+              {p.title}
+            </TextLinkButton>
+          ))}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.62rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'text.disabled',
+              display: { xs: 'none', md: 'block' },
+            }}
+          >
+            Drag a widget by its title
+          </Typography>
+          {custom && (
+            <TextLinkButton onClick={reset} sx={{ fontSize: '0.65rem', px: 0 }}>
+              Reset desk
+            </TextLinkButton>
+          )}
+        </Box>
       </Box>
       <ResponsiveGrid
         className="workspace"
-        layouts={bounded}
+        layouts={shownLayouts}
         breakpoints={BREAKPOINTS}
         cols={WORKSPACE_COLS}
         rowHeight={ROW_HEIGHT}
@@ -201,10 +257,9 @@ const Workspace: React.FC<{
         compactType="vertical"
         onLayoutChange={onLayoutChange}
         onDragStop={onUserChange}
-        onResizeStop={onUserChange}
-        resizeHandles={['se']}
+        isResizable={false}
       >
-        {panels.map((p) => (
+        {shownPanels.map((p) => (
           <Box key={p.id} sx={{ minWidth: 0, minHeight: 0 }}>
             <Box
               className="workspace-panel"
@@ -254,14 +309,34 @@ const Workspace: React.FC<{
                 >
                   {byId.get(p.id)?.title}
                 </Typography>
-                {p.aside && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    flexShrink: 0,
+                    cursor: 'default',
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  {p.aside}
                   <Box
-                    sx={{ flexShrink: 0, cursor: 'default' }}
-                    onMouseDown={(e) => e.stopPropagation()}
+                    component="button"
+                    type="button"
+                    aria-label={`Put away ${typeof p.title === 'string' ? p.title : 'widget'}`}
+                    onClick={() => remove(p.id)}
+                    sx={{
+                      all: 'unset',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      color: 'text.disabled',
+                      '&:hover': { color: 'primary.main' },
+                    }}
                   >
-                    {p.aside}
+                    <CloseIcon sx={{ fontSize: 14 }} />
                   </Box>
-                )}
+                </Box>
               </Box>
               <Box
                 sx={{

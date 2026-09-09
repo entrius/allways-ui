@@ -169,10 +169,11 @@ const MarketPage: React.FC = () => {
           the page. */}
       <Box sx={PAGE_FRAME_SX}>
         {/* The page is a workspace: the sheet, the rate, its history and the
-            book are panels a person drags and resizes into their own desk,
-            the way a terminal lets them. The arrangement is remembered. */}
+            book are fixed-size widgets a person puts away, brings back and
+            drags into their own desk, the way a terminal lets them. The desk
+            is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v1"
+          storageKey="allways.market.workspace.v2"
           defaultLayouts={MARKET_LAYOUTS}
           panels={[
             {

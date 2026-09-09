@@ -108,16 +108,19 @@ Three roles, each one face and one job:
 
 ## Workspaces
 
-A dense page (Markets) is a workspace: every piece is a panel a person can
-drag by its title and resize from its corner, the way a terminal lets them
-build their own desk, and the arrangement is remembered per browser. The
-`Workspace` component (`src/components/workspace`) is the one way to build
-this. Panels wear the landing card (square hairline, blue on hover) with a
-mono uppercase title row as the drag handle, an optional control slot on
-the right of that row, and a body that scrolls on its own. The grid is 12
-columns, 24px rows, the landing 24px gutter. A page ships its own default
-arrangement and a "Reset layout" link brings it back. Add a new piece as a
-panel, never as a fixed block beside the grid.
+A dense page (Markets) is a workspace: every piece is a widget with a fixed
+size that a person can put away, bring back, and drag by its title to where
+they want it, the way a terminal lets them build their own desk. The desk
+is remembered per browser. The `Workspace` component
+(`src/components/workspace`) is the one way to build this. Widgets wear the
+landing card (square hairline, blue on hover) with a mono uppercase title
+row as the drag handle, an optional control slot and a put-away mark on the
+right of that row, and a body that scrolls on its own. Widgets are not
+resizable: each ships its own size, chosen so its content reads. The grid
+is 12 columns, 24px rows, the landing 24px gutter. Put-away widgets are
+offered back as "+ Name" links above the desk; "Reset desk" brings the
+page's own arrangement back. Add a new piece as a widget, never as a fixed
+block beside the grid.
 
 ## Details that must match everywhere
 
