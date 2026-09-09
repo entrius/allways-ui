@@ -22,7 +22,17 @@ const PageIntro: React.FC<{
   aside?: React.ReactNode;
   /** Space under the intro; the landing title uses { xs: 4, md: 6 }. */
   mb?: number | { xs: number; md: number };
-}> = ({ eyebrow, title, lead, back, aside, mb = { xs: 4, md: 6 } }) => (
+  /** Reading width of the lead; 'none' lets it run the frame's width. */
+  leadMaxWidth?: number | 'none';
+}> = ({
+  eyebrow,
+  title,
+  lead,
+  back,
+  aside,
+  mb = { xs: 4, md: 6 },
+  leadMaxWidth = 620,
+}) => (
   <Box sx={{ mb }}>
     {back && (
       <Typography
@@ -73,7 +83,7 @@ const PageIntro: React.FC<{
               fontFamily: FONTS.body,
               fontSize: { xs: '0.95rem', md: '1.1rem' },
               color: 'text.secondary',
-              maxWidth: 620,
+              maxWidth: leadMaxWidth,
               lineHeight: 1.55,
               mt: { xs: 2, md: 2.5 },
             }}

@@ -35,11 +35,14 @@ const AgentsPage: React.FC = () => {
         title="Agents"
         description="Drop-in context bundle, live snapshot, and rate quotes for AI agents using Allways."
       />
-      <Box sx={{ ...PAGE_FRAME_SX, py: { xs: 6, md: 10 } }}>
+      {/* The site frame and headroom, as on Markets and Network; the lead
+          runs the frame's width like the panels under it. */}
+      <Box sx={PAGE_FRAME_SX}>
         <PageIntro
           eyebrow="For AI Agents"
           title="Allways for agents."
           lead="Everything an LLM needs to quote rates, swap, and watch live state on Bittensor SN7. Hand it to your agent so it can swap natively between digital assets on its own: no human in the loop, no custodian in the middle."
+          leadMaxWidth="none"
         />
 
         <Stack spacing={{ xs: 4, md: 6 }}>
@@ -50,14 +53,27 @@ const AgentsPage: React.FC = () => {
             <AgentMarkdownCard />
           </Box>
 
-          <Box>
-            <SectionLabel>2 · Bootstrap with live state</SectionLabel>
-            <SnapshotDownload />
-          </Box>
-
-          <Box>
-            <SectionLabel>3 · Quote against the orderbook</SectionLabel>
-            <RateQuoteHelper />
+          {/* Two compact steps share a row, the landing card grid's gap
+              between them. */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                md: 'minmax(0, 1fr) minmax(0, 1fr)',
+              },
+              gap: { xs: 4, md: 3 },
+              alignItems: 'start',
+            }}
+          >
+            <Box>
+              <SectionLabel>2 · Bootstrap with live state</SectionLabel>
+              <SnapshotDownload />
+            </Box>
+            <Box>
+              <SectionLabel>3 · Quote against the orderbook</SectionLabel>
+              <RateQuoteHelper />
+            </Box>
           </Box>
 
           <Box>
