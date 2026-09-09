@@ -42,7 +42,7 @@ const AgentsPage: React.FC = () => {
           lead="Everything an LLM needs to quote rates, swap, and watch live state on Bittensor SN7. Hand it to your agent so it can swap natively between digital assets on its own: no human in the loop, no custodian in the middle."
         />
 
-        <Stack spacing={{ xs: 4, md: 6 }} sx={{ maxWidth: 1100 }}>
+        <Stack spacing={{ xs: 4, md: 6 }}>
           <Box>
             <SectionLabel>
               1 · Hand off context — copy once, ingest once
