@@ -209,6 +209,7 @@ const MarketPage: React.FC = () => {
             {
               id: 'chart',
               title: 'History',
+              fit: 'fill',
               minW: 3,
               minH: 6,
               node: (

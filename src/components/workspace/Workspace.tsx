@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Box, Typography } from '@mui/material';
 import {
   Responsive,
@@ -24,6 +30,13 @@ export type WorkspacePanel = {
   node: React.ReactNode;
   minW?: number;
   minH?: number;
+  /**
+   * 'content' (default): the widget's height follows what is inside it,
+   * so a sheet with rows hidden or a book with two levels takes only the
+   * rows it needs. 'fill': the content stretches to the widget's height
+   * from the layout (a chart).
+   */
+  fit?: 'content' | 'fill';
 };
 
 // The grid's units. Twelve columns on a wide screen, a row is 24px, and the
@@ -33,9 +46,38 @@ export const WORKSPACE_COLS = { lg: 12, md: 12, sm: 6, xs: 2 } as const;
 const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
 const ROW_HEIGHT = 24;
 const GUTTER = 24;
+// A widget's chrome around its content: the title row and the body padding.
+const HEADER_PX = 30;
+const BODY_PAD_PX = 24;
+// Pixels of a widget that is h rows tall: h rows plus the gutters between.
+const rowsFor = (contentPx: number) =>
+  Math.max(
+    1,
+    Math.ceil(
+      (contentPx + HEADER_PX + BODY_PAD_PX + GUTTER) / (ROW_HEIGHT + GUTTER),
+    ),
+  );
 
 // What a browser remembers: where each widget sits, and which are put away.
 type Saved = { layouts: Layouts; hidden: string[] };
+
+// The grid reports its layout after every change of props; treat a report
+// that changes nothing as nothing, or the two would ping-pong for ever.
+const sameLayouts = (a: Layouts, b: Layouts): boolean => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const bp of keys) {
+    const x = a[bp] ?? [];
+    const y = b[bp] ?? [];
+    if (x.length !== y.length) return false;
+    const byId = new Map(y.map((l) => [l.i, l]));
+    for (const l of x) {
+      const m = byId.get(l.i);
+      if (!m || m.x !== l.x || m.y !== l.y || m.w !== l.w || m.h !== l.h)
+        return false;
+    }
+  }
+  return true;
+};
 
 const readSaved = (key: string): Saved | null => {
   try {
@@ -115,7 +157,7 @@ const Workspace: React.FC<{
         const rest = (prev[bp] ?? []).filter((l) => !shownIds.has(l.i));
         out[bp] = [...shown, ...rest];
       }
-      return out;
+      return sameLayouts(prev, out) ? prev : out;
     });
   }, []);
   const onUserChange = useCallback(() => setCustom(true), []);
@@ -181,6 +223,61 @@ const Workspace: React.FC<{
     () => panels.filter((p) => hidden.has(p.id)),
     [panels, hidden],
   );
+  // Content-fit widgets measure what is inside them and take exactly the
+  // rows that needs. One observer watches every such body; a change in
+  // content height rewrites that widget's h on every breakpoint.
+  const bodies = useRef(new Map<string, HTMLDivElement>());
+  const observer = useRef<ResizeObserver | null>(null);
+  const fitRows = useCallback((id: string, px: number) => {
+    const h = rowsFor(px);
+    setLayouts((prev) => {
+      let changed = false;
+      const out: Layouts = {};
+      for (const [bp, items] of Object.entries(prev)) {
+        out[bp] = items.map((l) => {
+          if (l.i !== id || l.h === h) return l;
+          changed = true;
+          return { ...l, h };
+        });
+      }
+      return changed ? out : prev;
+    });
+  }, []);
+  useEffect(() => {
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const id = (e.target as HTMLElement).dataset.widget;
+        if (id) fitRows(id, (e.target as HTMLElement).offsetHeight);
+      }
+    });
+    observer.current = ro;
+    for (const el of bodies.current.values()) ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitRows]);
+  // One stable ref callback per widget, so React does not re-attach the
+  // ref (and re-measure) on every render.
+  const refs = useRef(new Map<string, (el: HTMLDivElement | null) => void>());
+  const bodyRef = useCallback(
+    (id: string) => {
+      let fn = refs.current.get(id);
+      if (!fn) {
+        fn = (el) => {
+          const prev = bodies.current.get(id);
+          if (prev && prev !== el) observer.current?.unobserve(prev);
+          if (el) {
+            bodies.current.set(id, el);
+            observer.current?.observe(el);
+            // First measure off the commit, not inside it.
+            requestAnimationFrame(() => fitRows(id, el.offsetHeight));
+          } else bodies.current.delete(id);
+        };
+        refs.current.set(id, fn);
+      }
+      return fn;
+    },
+    [fitRows],
+  );
+
   // Only the shown widgets go to the grid; every one keeps its fixed size.
   const shownLayouts = useMemo<Layouts>(() => {
     const out: Layouts = {};
@@ -364,7 +461,19 @@ const Workspace: React.FC<{
                   },
                 }}
               >
-                {p.node}
+                {p.fit === 'fill' ? (
+                  p.node
+                ) : (
+                  // A block the content sets the height of; the observer
+                  // reads it and sizes the widget to match.
+                  <Box
+                    ref={bodyRef(p.id)}
+                    data-widget={p.id}
+                    sx={{ flex: 'none', minWidth: 0 }}
+                  >
+                    {p.node}
+                  </Box>
+                )}
               </Box>
             </Box>
           </Box>
