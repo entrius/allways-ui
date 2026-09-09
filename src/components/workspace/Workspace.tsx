@@ -375,7 +375,13 @@ const Workspace: React.FC<{
             <Box
               className="workspace-panel"
               sx={{
-                height: `calc(100% - ${PANEL_GAP}px)`,
+                // A content-fit box ends exactly at its content (the body
+                // padding under it is the same on every widget); the slot
+                // it sits in is rounded to the grid and may run a few px
+                // longer. A fill box takes the whole slot.
+                height:
+                  p.fit === 'fill' ? `calc(100% - ${PANEL_GAP}px)` : 'auto',
+                maxHeight: `calc(100% - ${PANEL_GAP}px)`,
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,
