@@ -14,11 +14,20 @@ import type {
   MinerScoreRow,
   MinerStats,
   NetworkOverview,
+  PoolHistory,
   Range,
   ScoringState,
 } from './models';
 
 export const CROWN_REFRESH_MS = 12_000;
+
+// Emission per lane per scoring round over the trailing window (seconds back
+// from the newest round; das defaults to 7d and caps at 30d). One point per
+// round (~1h), so the refresh matches the round cadence, not the crown's.
+export const useDirectionPoolHistory = (seconds?: number) =>
+  useApiQuery<PoolHistory>('pool-history', '/crown/pools/history', 60_000, {
+    seconds,
+  });
 
 export const useCurrentCrown = () =>
   useApiQuery<CurrentCrownMap>('crown', '/crown', CROWN_REFRESH_MS);

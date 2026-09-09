@@ -112,6 +112,35 @@ export const crownLaneFor = (
   return lanes[0];
 };
 
+// One lane's pool per scoring round over a window (das /crown/pools/history):
+// the share of miner emission the lane paid out of at each round, 0 when its
+// pair was dead (no qualified fill in the pool window). Hub and pair emission
+// are sums of lanes at each t.
+export type PoolHistoryPoint = {
+  // Unix seconds, the round's flush time.
+  t: number;
+  pool: number;
+  // Qualified hub-leg notional over the pool window, backing's smallest unit.
+  qualifiedVolume: string;
+  live: boolean;
+};
+
+export type PoolHistoryLane = {
+  direction: Direction;
+  from: string;
+  to: string;
+  backing: string;
+  // The pair's hub anchor — the family this lane's emission sits under.
+  hub: string;
+  points: PoolHistoryPoint[];
+};
+
+export type PoolHistory = {
+  from: number | null;
+  to: number | null;
+  lanes: PoolHistoryLane[];
+};
+
 export type CrownHistoryRow = {
   // Interval start (unix seconds) the holder took the crown.
   t: number;
