@@ -13,6 +13,7 @@ import CopyableAddress from '../components/CopyableAddress';
 import {
   BlockIndicator,
   Card,
+  ChainLogo,
   LabelValue,
   PageIntro,
   PageWrapper,
@@ -30,7 +31,7 @@ import {
   formatCountdown,
   formatDurationSecs,
   formatRateLine,
-  formatUnixTime,
+  formatWallClock,
   explorerSignatureUrl,
   explorerTxUrl,
   swapDisplayId,
@@ -393,7 +394,7 @@ const SwapDetailPage: React.FC = () => {
                   label={step.label}
                   detail={
                     step.at ? (
-                      formatUnixTime(step.at)
+                      formatWallClock(step.at, { seconds: true })
                     ) : awaitingInitiate ? (
                       <>
                         awaiting{' '}
@@ -419,7 +420,7 @@ const SwapDetailPage: React.FC = () => {
               label="Timeout"
               detail={
                 <>
-                  {formatUnixTime(swap.timeoutAt)}
+                  {formatWallClock(swap.timeoutAt, { seconds: true })}
                   {!isTimedOut && (
                     <> ({formatCountdown(swap.timeoutAt)} remaining)</>
                   )}
@@ -605,10 +606,20 @@ const SwapDetailPage: React.FC = () => {
               {hasSend && (
                 <Stack spacing={1}>
                   <SectionTitle>
-                    Sends
-                    {swap.sourceChain
-                      ? ` · ${assetLabel(swap.sourceChain)}`
-                      : ''}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      component="span"
+                    >
+                      <span>Sends</span>
+                      {swap.sourceChain && (
+                        <>
+                          <ChainLogo chain={swap.sourceChain} size={16} />
+                          <span>{assetLabel(swap.sourceChain)}</span>
+                        </>
+                      )}
+                    </Stack>
                   </SectionTitle>
                   {sentAmount && (
                     <LabelValue label="Amount" value={sentAmount} />
@@ -631,8 +642,20 @@ const SwapDetailPage: React.FC = () => {
               {hasRecv && (
                 <Stack spacing={1}>
                   <SectionTitle>
-                    Receives
-                    {swap.destChain ? ` · ${assetLabel(swap.destChain)}` : ''}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      component="span"
+                    >
+                      <span>Receives</span>
+                      {swap.destChain && (
+                        <>
+                          <ChainLogo chain={swap.destChain} size={16} />
+                          <span>{assetLabel(swap.destChain)}</span>
+                        </>
+                      )}
+                    </Stack>
                   </SectionTitle>
                   {recvAmount && (
                     <LabelValue label="Promised" value={recvAmount} />
@@ -717,7 +740,9 @@ const SwapDetailPage: React.FC = () => {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {event.blockTime ? formatUnixTime(event.blockTime) : '—'}
+                  {event.blockTime
+                    ? formatWallClock(event.blockTime, { seconds: true })
+                    : '—'}
                 </Typography>
                 <Typography
                   sx={{

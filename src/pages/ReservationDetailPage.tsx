@@ -11,6 +11,7 @@ import {
   formatCountdown,
   formatTimeAgo,
   formatUnixTime,
+  formatWallClock,
   normalizeTxHash,
 } from '../utils/format';
 import {
@@ -207,7 +208,7 @@ const ReservationDetailPage: React.FC = () => {
             labelMinWidth={120}
             state={reservedStage}
             label="Reserved"
-            detail={`${formatUnixTime(r.reservedAt)} · ${formatTimeAgo(Math.floor(new Date(r.createdAt).getTime() / 1000))}`}
+            detail={`${formatWallClock(r.reservedAt, { seconds: true })} · ${formatTimeAgo(Math.floor(new Date(r.createdAt).getTime() / 1000))}`}
           />
           <TimelineStep
             labelMinWidth={120}
