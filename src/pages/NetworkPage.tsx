@@ -10,6 +10,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import { SectionAccordion } from '../components/network';
 import TransactionsSection from '../components/network/TransactionsSection';
+import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 
 // The folded section loads its code the first time it is opened — a
 // visitor who only reads the tape never downloads the leaderboard. Imported
@@ -18,13 +19,9 @@ const MinersSection = React.lazy(
   () => import('../components/network/MinersSection'),
 );
 
+// The tape needs no heading: it is the page. Only the miners fold.
+const TAPE_ID = 'transactions';
 const SECTIONS = [
-  {
-    id: 'transactions',
-    title: 'Transactions',
-    subtitle:
-      'Every cross-chain transaction in order, live. Click a row for its full timeline.',
-  },
   {
     id: 'miners',
     title: 'Miners',
@@ -40,7 +37,7 @@ const isSectionId = (v: string): v is SectionId =>
 
 // The tape is what the page is for; miners start folded away under their
 // heading, one click from open.
-const DEFAULT_OPEN: SectionId[] = ['transactions'];
+const DEFAULT_OPEN: SectionId[] = [];
 
 // Which sections are open is URL state (`?open=miners`), not
 // component state: browser-back from a transaction or a miner returns the
@@ -122,6 +119,12 @@ const NetworkPage: React.FC = () => {
 
   useEffect(() => {
     const id = hash.replace('#', '');
+    if (id === TAPE_ID) {
+      // The tape is always open and sits at the top: just land on it.
+      requestAnimationFrame(() => scrollTo(TAPE_ID));
+      navigate({ search: searchParams.toString() }, { replace: true });
+      return;
+    }
     if (!isSectionId(id)) return;
     const shown = openRef.current;
     const next = new URLSearchParams(searchParams);
@@ -152,22 +155,15 @@ const NetworkPage: React.FC = () => {
         title="Network"
         description="Transactions and miners for Allways — Bittensor SN7"
       />
-      <Box
-        sx={{
-          backgroundColor: 'background.default',
-          px: { xs: 1.5, sm: 2, md: 3 },
-          pb: { xs: 2, md: 3 },
-          width: '100%',
-          maxWidth: 1400,
-          mx: 'auto',
-        }}
-      >
+      <Box sx={{ ...PAGE_FRAME_SX, backgroundColor: 'background.default' }}>
         <Stack>
-          {SECTIONS.map((s, i) => (
+          <Box component="section" id={TAPE_ID} sx={{ pb: { xs: 3, md: 4 } }}>
+            <TransactionsSection />
+          </Box>
+          {SECTIONS.map((s) => (
             <SectionAccordion
               key={s.id}
               {...s}
-              first={i === 0}
               open={open.has(s.id)}
               onToggle={() => toggle(s.id)}
               onEntered={() => {
@@ -176,13 +172,9 @@ const NetworkPage: React.FC = () => {
                 scrollTo(s.id);
               }}
             >
-              {s.id === 'transactions' ? (
-                <TransactionsSection />
-              ) : (
-                <Suspense fallback={<SectionFallback />}>
-                  <MinersSection />
-                </Suspense>
-              )}
+              <Suspense fallback={<SectionFallback />}>
+                <MinersSection />
+              </Suspense>
             </SectionAccordion>
           ))}
         </Stack>

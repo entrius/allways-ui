@@ -30,6 +30,7 @@ import {
 } from '../api';
 import { FONTS } from '../theme';
 import { shortHotkey } from '../utils/format';
+import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 
 const MinerDetailPage: React.FC = () => {
   const { hotkey = '' } = useParams<{ hotkey: string }>();
@@ -97,15 +98,7 @@ const MinerDetailPage: React.FC = () => {
         title={`Miner ${uid ?? shortHotkey(hotkey)}`}
         description={`Allways miner detail · uid ${uid ?? '?'} · ${shortHotkey(hotkey)}`}
       />
-      <Stack
-        sx={{
-          px: { xs: 1.5, sm: 2, md: 4 },
-          py: { xs: 2, sm: 3, md: 4 },
-          maxWidth: 1400,
-          mx: 'auto',
-          width: '100%',
-        }}
-      >
+      <Stack sx={PAGE_FRAME_SX}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
           <Typography
             component={RouterLink}

@@ -13,11 +13,11 @@ const TransactionsSection: React.FC = () => (
   <Box
     sx={{
       // Sized against the viewport, not a fixed number: the tape takes what
-      // the screen has left after the ribbon and the three section headers,
-      // so the two collapsed sections below it are visible on load instead
-      // of hiding under the fold. Clamped so it stays usable on a short
-      // laptop and doesn't sprawl on a tall monitor.
-      height: { xs: 620, md: 'clamp(340px, calc(100dvh - 413px), 720px)' },
+      // the screen has left after the nav, the ribbon and the miners
+      // heading below it, so that heading is visible on load instead of
+      // hiding under the fold. Clamped so it stays usable on a short laptop
+      // and doesn't sprawl on a tall monitor.
+      height: { xs: 620, md: 'clamp(340px, calc(100dvh - 340px), 720px)' },
       display: 'flex',
       flexDirection: 'column',
       minHeight: 0,

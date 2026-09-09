@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
-import { FONTS } from '../theme';
+import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
@@ -136,46 +136,9 @@ const MarketPage: React.FC = () => {
         title="Markets"
         description="Live cross-chain rates for every route on Allways — Bittensor SN7"
       />
-      {/* Same frame as the Network page: centred 1400 block, the page's
-          side padding, a mono heading with a one-line subtitle, and the
-          page scrolling as a page rather than a viewport-locked split. */}
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: 1400,
-          mx: 'auto',
-          px: { xs: 1.5, sm: 2, md: 3 },
-          pb: { xs: 2, md: 3 },
-        }}
-      >
-        <Box sx={{ pt: { xs: 1.5, md: 2 }, pb: { xs: 1.5, md: 2 } }}>
-          <Typography
-            component="h1"
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: { xs: '0.8rem', md: '0.9rem' },
-              fontWeight: 700,
-              lineHeight: 1.4,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'text.primary',
-            }}
-          >
-            Markets
-          </Typography>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.68rem',
-              color: 'text.secondary',
-              mt: 0.5,
-              maxWidth: 720,
-            }}
-          >
-            The best live rate for every route. Click one for its chart and
-            order book.
-          </Typography>
-        </Box>
+      {/* The site's one page frame; the matrix needs no heading, it is
+          the page. */}
+      <Box sx={PAGE_FRAME_SX}>
         <Box
           sx={{
             display: 'flex',
