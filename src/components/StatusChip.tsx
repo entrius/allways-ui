@@ -56,7 +56,13 @@ const StatusChip: React.FC<{
       {note && (
         <Box
           component="span"
-          sx={{ color: 'text.disabled', fontWeight: 400, ml: 0.25 }}
+          sx={{
+            color: 'text.disabled',
+            fontWeight: 400,
+            ml: 0.25,
+            textTransform: 'none',
+            letterSpacing: 0,
+          }}
         >
           {note}
         </Box>
