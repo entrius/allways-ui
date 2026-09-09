@@ -28,6 +28,9 @@ export function useSSE() {
       queryClient.invalidateQueries({ queryKey: ['miners'] });
       queryClient.invalidateQueries({ queryKey: ['miner'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
+      // A quote or crown change is what this event announces; the rate
+      // matrix should move on it rather than wait out its poll.
+      queryClient.invalidateQueries({ queryKey: ['crown'] });
     });
 
     es.addEventListener('swap', () => {

@@ -22,7 +22,7 @@ export const docsUrl = (): string =>
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Markets', to: '/market' },
-  // Transactions, miners and network stats are one scrolling page now.
+  // Transactions and miners are one scrolling page now.
   { label: 'Network', to: '/network' },
   { label: 'Agents', to: '/agents' },
 ];

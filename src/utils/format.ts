@@ -1,4 +1,10 @@
-import { chainInfo, hubChain, hubChains, hubLeg } from '../api/models/chains';
+import {
+  assetLabel,
+  chainInfo,
+  hubChain,
+  hubChains,
+  hubLeg,
+} from '../api/models/chains';
 
 export const shortAddr = (addr: string) =>
   addr.length > 10 ? `${addr.slice(0, 4)}..${addr.slice(-4)}` : addr;
@@ -248,7 +254,7 @@ export const formatRateLine = (
   const fromIsHub = fromChain.toLowerCase() === hub;
   const hubSide = fromIsHub ? fromHuman : toHuman;
   const otherSide = fromIsHub ? toHuman : fromHuman;
-  const otherSym = (fromIsHub ? toChain : fromChain).toUpperCase();
+  const otherSym = assetLabel((fromIsHub ? toChain : fromChain).toLowerCase());
   if (otherSide === 0) return null;
   const ratio = hubSide / otherSide;
   return `1 ${otherSym} = ${formatRate(ratio)} ${chainSymbol(hub)}`;
@@ -350,15 +356,35 @@ export const formatCountdown = (
   return formatDurationSecs(remaining);
 };
 
-// A unix-seconds timestamp as a wall-clock string for detail rows.
-export const formatUnixTime = (
+// The site's one wall-clock format, the tape's: "Sep 9 02:06 PM". No
+// seconds unless asked (lifecycle steps can be seconds apart), no year
+// inside the current year, the year appended outside it.
+export const formatWallClock = (
   unixSecs: number | string | null | undefined,
+  opts: { seconds?: boolean } = {},
 ): string => {
   if (unixSecs == null || unixSecs === '') return '—';
   const ts = typeof unixSecs === 'string' ? parseInt(unixSecs, 10) : unixSecs;
-  if (!Number.isFinite(ts)) return '—';
-  return new Date(ts * 1000).toLocaleString();
+  if (!Number.isFinite(ts) || ts <= 0) return '—';
+  const d = new Date(ts * 1000);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const day = d.toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+  const time = d.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(opts.seconds ? { second: '2-digit' } : {}),
+  });
+  return `${day} ${time}`;
 };
+
+// A unix-seconds timestamp as a wall-clock string for detail rows.
+export const formatUnixTime = (
+  unixSecs: number | string | null | undefined,
+): string => formatWallClock(unixSecs);
 
 // Hash spelling is a family trait, not a chain trait: UTXO explorers want bare
 // hex (a 0x-prefixed Hash-typed event value 404s), EVM hashes are canonically

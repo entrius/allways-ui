@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  Stack,
-  Tooltip,
-  Typography,
-  alpha,
-  useTheme,
-} from '@mui/material';
+import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useUsdPrices, type MinerStats, type Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
@@ -24,10 +17,13 @@ import {
 } from '../../utils/format';
 import {
   allDirections,
+  assetLabel,
   chainList,
   hubChains,
   hubLeg,
 } from '../../api/models/chains';
+import StatusChip from '../StatusChip';
+import SectionHeading from '../SectionHeading';
 import CopyableAddress from '../CopyableAddress';
 import { lanesFor } from '../../api/models/MinersDashboard';
 import CrownIcon from './CrownIcon';
@@ -91,11 +87,11 @@ const PerformanceMetric: React.FC<{
   <Box sx={{ minWidth: 0 }}>
     <Typography
       sx={{
-        fontFamily: FONTS.heading,
-        fontSize: '2rem',
-        fontWeight: 500,
+        fontFamily: FONTS.mono,
+        fontSize: '1.4rem',
+        fontWeight: 700,
         lineHeight: 1,
-        letterSpacing: '-0.02em',
+        fontVariantNumeric: 'tabular-nums',
         color: 'text.primary',
       }}
     >
@@ -189,7 +185,7 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
                 {e.amount}
                 <Box
                   component="span"
-                  sx={{ color: 'text.disabled', ml: 0.5, fontSize: '1.4rem' }}
+                  sx={{ color: 'text.disabled', ml: 0.5, fontSize: '0.82rem' }}
                 >
                   {chainSymbol(e.chain)}
                 </Box>
@@ -258,8 +254,68 @@ const QuoteCell: React.FC<{
     </Box>
   );
 
-// Top card on the per-miner page: identity (uid + crown badge + active dot),
-// meta strip (hotkey, collateral, activation), a dense per-pair quote table
+// The identity row's chips: quoting state, the emission-gate verdict, and
+// the crowns held. Rendered beside the page title.
+const Badges: React.FC<{ hotkey: string; stats: MinerStats | undefined }> = ({
+  hotkey,
+  stats,
+}) => {
+  const theme = useTheme();
+  const eligibility = useMinerEligibility(hotkey);
+  const crownDirections = stats?.currentCrownDirections ?? [];
+  const crownGold = theme.palette.asset.btc;
+  const active = theme.palette.status.active;
+  return (
+    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+      {stats && (
+        <StatusChip
+          label={stats.isActive ? 'active' : 'inactive'}
+          color={stats.isActive ? active : theme.palette.text.disabled}
+          icon={
+            <Box
+              component="span"
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: 'currentColor',
+              }}
+            />
+          }
+          hint={
+            stats.isActive
+              ? 'Quoting: this miner has live rates on the book.'
+              : 'Not quoting right now.'
+          }
+        />
+      )}
+      {eligibility.state !== 'none' && (
+        <EligibilityChip
+          state={eligibility.state}
+          live={eligibility.live}
+          asOf={eligibility.asOf}
+        />
+      )}
+      {crownDirections.length > 0 && (
+        <StatusChip
+          label={
+            crownDirections.length <= 2
+              ? crownDirections.map(compactDirection).join('  ')
+              : `${crownDirections.length} crowns`
+          }
+          color={crownGold}
+          icon={<CrownIcon size={12} color={crownGold} sx={{ mr: 0 }} />}
+          hint={`Current crown holder · ${crownDirections
+            .map(compactDirection)
+            .join(' · ')}`}
+        />
+      )}
+    </Stack>
+  );
+};
+
+// The per-miner page's facts: the meta strip (hotkey, collateral, activation),
+// a dense per-pair quote table
 // with inline crown marks, the chain address list, and the performance grid
 // scoped to the selected range.
 const MinerDetailHeader: React.FC<{
@@ -269,9 +325,7 @@ const MinerDetailHeader: React.FC<{
   pairs: Miner[];
   range: Range;
   onRangeChange: (r: Range) => void;
-}> = ({ hotkey, uid, stats, pairs, range, onRangeChange }) => {
-  const theme = useTheme();
-  const eligibility = useMinerEligibility(hotkey);
+}> = ({ hotkey, stats, pairs, range, onRangeChange }) => {
   const crownDirections = stats?.currentCrownDirections ?? [];
   // Per-lane crown keys ("SOL-TAO:tao"). sol↔tao has two lanes per direction,
   // so the quote table must match on backing too, else a tao-lane crown would
@@ -286,7 +340,6 @@ const MinerDetailHeader: React.FC<{
           lanesFor(d).map((b) => crownLaneKey(d, b)),
         ),
   );
-  const crownGold = theme.palette.asset.btc;
   // Per-miner columns agree across a miner's pair rows; the first is
   // representative for identity fields.
   const liveMiner = pairs[0] ?? null;
@@ -371,118 +424,8 @@ const MinerDetailHeader: React.FC<{
   const tableHeadSx = { ...eyebrowSx, ...tableCellSx, fontSize: '0.6rem' };
 
   return (
-    <Box
-      sx={{
-        backgroundColor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderLeft: '2px solid',
-        borderLeftColor: 'primary.main',
-        p: { xs: 2.5, md: 3 },
-        mb: 3,
-      }}
-    >
-      <Stack spacing={2}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={1.5}
-          useFlexGap
-          flexWrap="wrap"
-        >
-          <Typography
-            sx={{
-              fontFamily: FONTS.heading,
-              fontWeight: 700,
-              fontSize: '1.5rem',
-              lineHeight: 1,
-            }}
-          >
-            Miner uid{' '}
-            <Box component="span" sx={{ color: 'primary.main' }}>
-              {uid ?? '?'}
-            </Box>
-          </Typography>
-          {stats && (
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-                px: 1,
-                py: 0.4,
-                fontFamily: FONTS.mono,
-                fontSize: '0.7rem',
-                letterSpacing: '0.05em',
-                color: stats.isActive ? 'status.active' : 'text.disabled',
-                backgroundColor: stats.isActive
-                  ? alpha(theme.palette.primary.main, 0.08)
-                  : 'action.hover',
-                border: '1px solid',
-                borderColor: stats.isActive
-                  ? alpha(theme.palette.primary.main, 0.35)
-                  : 'divider',
-              }}
-            >
-              <Box
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: stats.isActive
-                    ? 'status.active'
-                    : 'text.disabled',
-                }}
-              />
-              {stats.isActive ? 'active' : 'inactive'}
-            </Box>
-          )}
-          {/* Emission-gate verdict beside the quote-side status: active means
-              "quoting", eligible means "the validator pays it" — independent
-              axes a struck-but-active miner splits. */}
-          {eligibility.state !== 'none' && (
-            <EligibilityChip
-              state={eligibility.state}
-              live={eligibility.live}
-              asOf={eligibility.asOf}
-            />
-          )}
-          {crownDirections.length > 0 && (
-            <Tooltip
-              title={`current crown holder · ${crownDirections
-                .map(compactDirection)
-                .join(' · ')}`}
-              placement="top"
-            >
-              {/* inline-flex + gap, not Stack spacing — Stack margins skip
-                  bare text children, jamming the icon against the label. */}
-              <Box
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  px: 1,
-                  py: 0.4,
-                  border: '1px solid',
-                  borderColor: alpha(crownGold, 0.45),
-                  backgroundColor: alpha(crownGold, 0.08),
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.7rem',
-                  color: crownGold,
-                  letterSpacing: '0.05em',
-                }}
-              >
-                <CrownIcon size={12} color={crownGold} sx={{ mr: 0 }} />
-                {/* A couple of crowns read best as directions; more collapse
-                    to a count (each leg is also crowned in the quote table). */}
-                {crownDirections.length <= 2
-                  ? crownDirections.map(compactDirection).join('  ')
-                  : `${crownDirections.length} crowns`}
-              </Box>
-            </Tooltip>
-          )}
-        </Stack>
-
+    <Box sx={{ mb: { xs: 4, md: 6 } }}>
+      <Stack spacing={2.5}>
         <Box
           sx={{
             display: 'flex',
@@ -573,7 +516,7 @@ const MinerDetailHeader: React.FC<{
                           letterSpacing: '0.04em',
                         }}
                       >
-                        {chainSymbol(r.src)}/{chainSymbol(r.dst)}
+                        {assetLabel(r.src)}/{assetLabel(r.dst)}
                         {/* Tag only a NON-native bond (backing ≠ the pair's
                             hub leg) — the marker for dual-backing twins. */}
                         {r.backing !== hubLeg(r.src, r.dst) && (
@@ -643,7 +586,7 @@ const MinerDetailHeader: React.FC<{
                           letterSpacing: '0.04em',
                         }}
                       >
-                        {chainSymbol(chain)}
+                        {assetLabel(chain)}
                       </Box>
                       <Box sx={tableCellSx}>
                         <CopyableAddress
@@ -674,17 +617,7 @@ const MinerDetailHeader: React.FC<{
             justifyContent="space-between"
             sx={{ mb: 2 }}
           >
-            <Typography
-              variant="monoSmall"
-              sx={{
-                fontSize: '0.6rem',
-                letterSpacing: '0.22em',
-                color: 'text.secondary',
-                textTransform: 'uppercase',
-              }}
-            >
-              Performance · last {range}
-            </Typography>
+            <SectionHeading title={`Performance · last ${range}`} />
             <RangeChips
               value={range}
               options={RANGES}
@@ -698,4 +631,8 @@ const MinerDetailHeader: React.FC<{
   );
 };
 
-export default MinerDetailHeader;
+const MinerDetailHeaderWithBadges = Object.assign(MinerDetailHeader, {
+  Badges,
+});
+
+export default MinerDetailHeaderWithBadges;

@@ -1,16 +1,28 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box, type SxProps, type Theme } from '@mui/material';
 
-const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+// A unit of information a person reads, in the landing page's card
+// treatment: 1px hairline, square, blue border on hover, the landing
+// padding. Stacks of these use the landing grid gap; inside a grid pass
+// `sx={{ mb: 0 }}` and let the grid's gap space them.
+const Card: React.FC<{ children: React.ReactNode; sx?: SxProps<Theme> }> = ({
+  children,
+  sx,
+}) => (
   <Box
-    sx={{
-      p: 2,
-      mb: 2,
-      borderRadius: 0,
-      backgroundColor: 'background.paper',
-      border: '1px solid',
-      borderColor: 'divider',
-    }}
+    sx={[
+      {
+        p: { xs: 2.5, md: 3 },
+        mb: { xs: 2, md: 3 },
+        borderRadius: 0,
+        backgroundColor: 'background.default',
+        border: '1px solid',
+        borderColor: 'divider',
+        transition: 'border-color 120ms',
+        '&:hover': { borderColor: 'primary.main' },
+      },
+      ...(Array.isArray(sx) ? sx : [sx]),
+    ]}
   >
     {children}
   </Box>

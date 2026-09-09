@@ -2,7 +2,6 @@ import React from 'react';
 import { Stack } from '@mui/material';
 import {
   Hero,
-  MetricsStrip,
   HowItWorks,
   ValueProps,
   AgentTeaser,
@@ -19,7 +18,6 @@ const LandingPage: React.FC = () => {
       />
       <Stack sx={{ width: '100%' }}>
         <Hero />
-        <MetricsStrip />
         <HowItWorks />
         <ValueProps />
         <AgentTeaser />

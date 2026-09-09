@@ -79,7 +79,8 @@
       "evm": {
         "chainId": 421614,
         "contract": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d"
-      }
+      },
+      "network": "Arbitrum"
     },
     {
       "id": "hype",
@@ -151,7 +152,8 @@
       "evm": {
         "chainId": 84532,
         "contract": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
-      }
+      },
+      "network": "Base"
     },
     {
       "id": "ethusdc",
@@ -169,7 +171,8 @@
       "evm": {
         "chainId": 11155111,
         "contract": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
-      }
+      },
+      "network": "Ethereum"
     },
     {
       "id": "cro",
@@ -277,7 +280,8 @@
       "evm": {
         "chainId": 80002,
         "contract": null
-      }
+      },
+      "network": "Polygon"
     },
     {
       "id": "paxg",
@@ -310,7 +314,8 @@
       "coingeckoId": "usd-coin",
       "blockSecs": 1,
       "confirmations": 32,
-      "evm": null
+      "evm": null,
+      "network": "Solana"
     }
   ]
 }

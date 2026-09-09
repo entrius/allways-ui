@@ -1,15 +1,6 @@
 import React from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  Stack,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { useMinerByHotkey, useProtocolConstants, useReservation } from '../api';
 import type { Miner } from '../api/models';
 import { FONTS } from '../theme';
@@ -18,7 +9,9 @@ import {
   explorerTxUrl,
   formatAmount,
   formatCountdown,
+  formatTimeAgo,
   formatUnixTime,
+  formatWallClock,
   normalizeTxHash,
 } from '../utils/format';
 import {
@@ -26,14 +19,18 @@ import {
   Card,
   CopyableAddress,
   LabelValue,
+  PageIntro,
   PageWrapper,
   SectionTitle,
+  StatusChip,
   TimelineStep,
+  TradeTitle,
   type TimelineStepState,
 } from '../components';
 import ExtensionChip, {
   deriveReservationExtensionStatus,
 } from '../components/ExtensionChip';
+import { assetLabel } from '../api/models/chains';
 
 const minerSendToAddress = (
   fromChain: string | null,
@@ -45,16 +42,6 @@ const minerSendToAddress = (
   return null;
 };
 
-const relativeTime = (iso: string): string => {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (ms < 60_000) return 'just now';
-  const m = Math.floor(ms / 60_000);
-  if (m < 60) return `${m} min ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} hr ago`;
-  return `${Math.floor(h / 24)} d ago`;
-};
-
 const ReservationDetailPage: React.FC = () => {
   const { requestHash } = useParams<{ requestHash: string }>();
   const theme = useTheme();
@@ -64,18 +51,24 @@ const ReservationDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', pt: 10 }}>
-        <CircularProgress size={24} />
-      </Box>
+      <PageWrapper>
+        <Skeleton variant="text" width={120} sx={{ mb: 1 }} />
+        <Skeleton variant="text" width={360} height={48} sx={{ mb: 4 }} />
+        <Skeleton variant="rectangular" height={180} sx={{ mb: 3 }} />
+        <Skeleton variant="rectangular" height={240} />
+      </PageWrapper>
     );
   }
 
   if (!r) {
     return (
       <PageWrapper>
-        <Typography sx={{ fontFamily: FONTS.mono, color: 'text.secondary' }}>
-          Reservation {requestHash} not found
-        </Typography>
+        <PageIntro
+          back={{ to: '/network#transactions', label: 'Transactions' }}
+          eyebrow="Reservation"
+          title="Not found."
+          lead={`No reservation matches ${requestHash}. Reservations are pruned after they settle, so a finished one lives on as its transaction.`}
+        />
       </PageWrapper>
     );
   }
@@ -127,116 +120,65 @@ const ReservationDetailPage: React.FC = () => {
 
   return (
     <PageWrapper>
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Typography
-          component={RouterLink}
-          to="/network#transactions"
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.8rem',
-            color: 'text.secondary',
-            textDecoration: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          <ArrowBackIcon sx={{ fontSize: 14 }} /> Transactions
-        </Typography>
-        <Box sx={{ flex: 1 }} />
-        <Chip
-          label={r.status}
-          size="small"
-          variant="outlined"
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            borderRadius: 0,
-            borderColor: statusColor,
-            color: statusColor,
-          }}
-        />
-      </Stack>
-
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        spacing={2}
-        sx={{ mb: 1, flexWrap: 'wrap', rowGap: 0.5 }}
-      >
-        <Typography
-          sx={{
-            fontFamily: FONTS.heading,
-            fontWeight: 900,
-            fontSize: { xs: '1.15rem', sm: '1.5rem' },
-            color: 'text.primary',
-          }}
-        >
-          Reservation
-        </Typography>
-        <BlockIndicator />
-      </Stack>
-
-      {/* Trade summary — the lead, not a card */}
-      <Stack spacing={0.5} sx={{ mb: 3 }}>
-        <Typography
-          sx={{
-            fontFamily: FONTS.mono,
-            fontSize: { xs: '1.05rem', sm: '1.4rem' },
-            fontWeight: 600,
-            color: 'text.primary',
-            letterSpacing: '-0.5px',
-          }}
-        >
-          {sourceLine}{' '}
-          <Box
-            component="span"
-            sx={{ color: 'text.secondary', mx: 0.5, fontWeight: 400 }}
-          >
-            →
-          </Box>{' '}
-          {destLine}
-        </Typography>
-        {isInitiated && r.swapId ? (
-          <Typography
-            component={RouterLink}
-            to={`/swap/${r.swapId}`}
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.85rem',
-              color: 'primary.main',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.5,
-              '&:hover': { textDecoration: 'underline' },
-            }}
-          >
-            Funded · View swap <ArrowForwardIcon sx={{ fontSize: 14 }} />
-          </Typography>
-        ) : (
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.85rem',
-              color: 'text.secondary',
-            }}
-          >
-            {r.status === 'ACTIVE' && !fundsSeen
-              ? `Awaiting funds · ${formatCountdown(r.reservedUntil)} remaining`
-              : r.status === 'ACTIVE' && fundsSeen
-                ? 'Funds detected · confirming'
-                : r.status === 'EXPIRED'
-                  ? 'Expired before funds were sent'
-                  : r.status === 'CANCELLED'
-                    ? 'Cancelled before initiating'
-                    : ''}
-          </Typography>
-        )}
-      </Stack>
+      <PageIntro
+        back={{ to: '/network#transactions', label: 'Transactions' }}
+        eyebrow="Reservation"
+        title={
+          <TradeTitle
+            fromChain={r.fromChain}
+            from={sourceLine}
+            toChain={r.toChain}
+            to={destLine}
+          />
+        }
+        lead={
+          isInitiated && r.swapId ? (
+            <Typography
+              component={RouterLink}
+              to={`/swap/${r.swapId}`}
+              sx={{
+                display: 'inline-block',
+                fontFamily: FONTS.mono,
+                fontSize: '0.7rem',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'text.secondary',
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.main' },
+              }}
+            >
+              Funded · view swap →
+            </Typography>
+          ) : (
+            <Box
+              component="span"
+              sx={{
+                display: 'block',
+                fontFamily: FONTS.mono,
+                fontSize: '0.8rem',
+                color: 'text.secondary',
+              }}
+            >
+              {r.status === 'ACTIVE' && !fundsSeen
+                ? `Awaiting funds · ${formatCountdown(r.reservedUntil)} remaining`
+                : r.status === 'ACTIVE' && fundsSeen
+                  ? 'Funds detected · confirming'
+                  : r.status === 'EXPIRED'
+                    ? 'Expired before funds were sent'
+                    : r.status === 'CANCELLED'
+                      ? 'Cancelled before initiating'
+                      : ''}
+            </Box>
+          )
+        }
+        aside={
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <StatusChip label={r.status} color={statusColor} />
+            <BlockIndicator />
+          </Stack>
+        }
+        mb={{ xs: 3, md: 4 }}
+      />
 
       {/* Status helper — mirrors SwapDetailPage so reservation/swap pages read consistently */}
       {r.status === 'ACTIVE' && fundsSeen && (
@@ -263,7 +205,7 @@ const ReservationDetailPage: React.FC = () => {
             labelMinWidth={120}
             state={reservedStage}
             label="Reserved"
-            detail={`${formatUnixTime(r.reservedAt)} · ${relativeTime(r.createdAt)}`}
+            detail={`${formatWallClock(r.reservedAt, { seconds: true })} · ${formatTimeAgo(Math.floor(new Date(r.createdAt).getTime() / 1000))}`}
           />
           <TimelineStep
             labelMinWidth={120}
@@ -384,7 +326,7 @@ const ReservationDetailPage: React.FC = () => {
           {r.fromChain && r.toChain && (
             <LabelValue
               label="Route"
-              value={`${r.fromChain.toUpperCase()} → ${r.toChain.toUpperCase()}`}
+              value={`${assetLabel(r.fromChain)} → ${assetLabel(r.toChain)}`}
             />
           )}
           <LabelValue label="Amount in" value={sourceLine} />

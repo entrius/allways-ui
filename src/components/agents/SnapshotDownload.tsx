@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import CheckIcon from '@mui/icons-material/Check';
 import { FONTS } from '../../theme';
@@ -10,6 +10,7 @@ import {
   useLatestEvents,
 } from '../../api';
 import HoverCard from '../HoverCard';
+import { TextLinkButton } from '../Buttons';
 
 const SnapshotDownload: React.FC = () => {
   const { data: stats } = useStats();
@@ -74,8 +75,7 @@ const SnapshotDownload: React.FC = () => {
           </Typography>
         </Stack>
         <Box>
-          <Button
-            variant="outlined"
+          <TextLinkButton
             onClick={onDownload}
             startIcon={
               downloaded ? (
@@ -84,25 +84,9 @@ const SnapshotDownload: React.FC = () => {
                 <DownloadIcon sx={{ fontSize: 16 }} />
               )
             }
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              borderRadius: 0,
-              py: 1.25,
-              px: 2.5,
-              borderColor: 'divider',
-              color: 'text.primary',
-              '&:hover': {
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                backgroundColor: 'transparent',
-              },
-            }}
           >
             {downloaded ? 'Downloaded' : 'Download snapshot'}
-          </Button>
+          </TextLinkButton>
         </Box>
       </Stack>
     </HoverCard>
