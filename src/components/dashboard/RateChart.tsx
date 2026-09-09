@@ -8,6 +8,7 @@ import {
   type Direction,
 } from '../../api/models/MinersDashboard';
 import { chainSymbol, formatRate } from '../../utils/format';
+import { FONTS } from '../../theme';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
 import { type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
 
@@ -80,19 +81,100 @@ const RateChart: React.FC<{
     [quote, base, cLine, points],
   );
 
+  // The window's quote-bar summary a terminal opens with. These are the
+  // extremes of the crown SERIES, not candles: Allways has no fixed bar
+  // interval, the crown simply moves when a better quote lands, so O and C
+  // are the window's first and last accepted rates and H/L its bounds.
+  const ohlc = useMemo(() => {
+    const vals = points.map((pt) => pt.value);
+    if (!vals.length) return null;
+    const open = vals[0];
+    const close = vals[vals.length - 1];
+    return {
+      open,
+      high: Math.max(...vals),
+      low: Math.min(...vals),
+      close,
+      change: close - open,
+      pct: open !== 0 ? ((close - open) / open) * 100 : null,
+    };
+  }, [points]);
+
   return (
-    <Box sx={{ height, minWidth: 0, minHeight: 160 }}>
-      <TimeSeriesChart
-        series={series}
-        loading={isLoading}
-        height="100%"
-        formatValue={formatRate}
-        autoScale
-        noArea
-        market
-        hideLegend
-        emptyLabel="no rate history in this window"
-      />
+    <Box
+      sx={{
+        height,
+        minWidth: 0,
+        minHeight: 160,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* No move colour on this row: it is a readout, not a signal. The
+          chart underneath carries the direction. */}
+      {ohlc && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'baseline',
+            flexWrap: 'wrap',
+            columnGap: 1,
+            rowGap: 0.25,
+            px: 1,
+            pb: 0.5,
+            flexShrink: 0,
+            fontFamily: FONTS.mono,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {(
+            [
+              ['O', ohlc.open],
+              ['H', ohlc.high],
+              ['L', ohlc.low],
+              ['C', ohlc.close],
+            ] as const
+          ).map(([letter, value]) => (
+            <Box
+              key={letter}
+              component="span"
+              sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 0.4 }}
+            >
+              <Box
+                component="span"
+                sx={{ fontSize: '0.62rem', color: 'text.disabled' }}
+              >
+                {letter}
+              </Box>
+              <Box
+                component="span"
+                sx={{ fontSize: '0.72rem', fontWeight: 600 }}
+              >
+                {formatRate(value)}
+              </Box>
+            </Box>
+          ))}
+          <Box component="span" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
+            {ohlc.change > 0 ? '+' : ''}
+            {formatRate(ohlc.change)}
+            {ohlc.pct != null &&
+              ` (${ohlc.pct > 0 ? '+' : ''}${ohlc.pct.toFixed(2)}%)`}
+          </Box>
+        </Box>
+      )}
+      <Box sx={{ flex: 1, minHeight: 0 }}>
+        <TimeSeriesChart
+          series={series}
+          loading={isLoading}
+          height="100%"
+          formatValue={formatRate}
+          autoScale
+          noArea
+          market
+          hideLegend
+          emptyLabel="no rate history in this window"
+        />
+      </Box>
     </Box>
   );
 };

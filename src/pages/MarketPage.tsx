@@ -77,23 +77,23 @@ const MARKET_LAYOUTS: Layouts = {
   lg: [
     { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
     { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
-    { i: 'chart', x: 6, y: 27, w: 6, h: 33 },
-    { i: 'book', x: 6, y: 60, w: 6, h: 63 },
+    { i: 'chart', x: 6, y: 27, w: 6, h: 36 },
+    { i: 'book', x: 6, y: 63, w: 6, h: 63 },
     { i: 'network', x: 0, y: 93, w: 6, h: 50 },
     { i: 'search', x: 6, y: 123, w: 6, h: 63 },
   ],
   md: [
     { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
     { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
-    { i: 'chart', x: 6, y: 27, w: 6, h: 33 },
-    { i: 'book', x: 6, y: 60, w: 6, h: 63 },
+    { i: 'chart', x: 6, y: 27, w: 6, h: 36 },
+    { i: 'book', x: 6, y: 63, w: 6, h: 63 },
     { i: 'network', x: 0, y: 93, w: 6, h: 50 },
     { i: 'search', x: 6, y: 123, w: 6, h: 63 },
   ],
   sm: [
     { i: 'rate', x: 0, y: 0, w: 6, h: 27 },
     { i: 'matrix', x: 0, y: 27, w: 6, h: 93 },
-    { i: 'chart', x: 0, y: 120, w: 6, h: 33 },
+    { i: 'chart', x: 0, y: 120, w: 6, h: 36 },
     { i: 'book', x: 0, y: 153, w: 6, h: 63 },
     { i: 'network', x: 0, y: 216, w: 6, h: 50 },
     { i: 'search', x: 0, y: 266, w: 6, h: 63 },
@@ -101,7 +101,7 @@ const MARKET_LAYOUTS: Layouts = {
   xs: [
     { i: 'rate', x: 0, y: 0, w: 2, h: 27 },
     { i: 'matrix', x: 0, y: 27, w: 2, h: 93 },
-    { i: 'chart', x: 0, y: 120, w: 2, h: 33 },
+    { i: 'chart', x: 0, y: 120, w: 2, h: 36 },
     { i: 'book', x: 0, y: 153, w: 2, h: 75 },
     { i: 'network', x: 0, y: 228, w: 2, h: 50 },
     { i: 'search', x: 0, y: 278, w: 2, h: 63 },
@@ -185,7 +185,7 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v6"
+          storageKey="allways.market.workspace.v7"
           defaultLayouts={MARKET_LAYOUTS}
           panels={[
             {
