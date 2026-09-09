@@ -20,6 +20,7 @@ import {
   SectionTitle,
   StatusChip,
   TimelineStep,
+  TradeTitle,
   type TimelineStepState,
 } from '../components';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -234,16 +235,12 @@ const SwapDetailPage: React.FC = () => {
             eyebrow={`Transaction · ${swapDisplayId(swap)}`}
             title={
               sourceLine && destLine ? (
-                <>
-                  {sourceLine}
-                  <Box
-                    component="span"
-                    sx={{ color: 'text.disabled', mx: { xs: 1, md: 1.5 } }}
-                  >
-                    →
-                  </Box>
-                  {destLine}
-                </>
+                <TradeTitle
+                  fromChain={swap.sourceChain}
+                  from={sourceLine}
+                  toChain={swap.destChain}
+                  to={destLine}
+                />
               ) : (
                 `Transaction ${swapDisplayId(swap)}`
               )

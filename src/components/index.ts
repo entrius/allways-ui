@@ -26,3 +26,4 @@ export { default as MonoSelect } from './MonoSelect';
 export { default as StatusChip } from './StatusChip';
 export { default as PageIntro } from './PageIntro';
 export { PrimaryButton, TextLinkButton } from './Buttons';
+export { default as TradeTitle } from './TradeTitle';

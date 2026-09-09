@@ -24,6 +24,7 @@ import {
   SectionTitle,
   StatusChip,
   TimelineStep,
+  TradeTitle,
   type TimelineStepState,
 } from '../components';
 import ExtensionChip, {
@@ -123,16 +124,12 @@ const ReservationDetailPage: React.FC = () => {
         back={{ to: '/network#transactions', label: 'Transactions' }}
         eyebrow="Reservation"
         title={
-          <>
-            {sourceLine}
-            <Box
-              component="span"
-              sx={{ color: 'text.disabled', mx: { xs: 1, md: 1.5 } }}
-            >
-              →
-            </Box>
-            {destLine}
-          </>
+          <TradeTitle
+            fromChain={r.fromChain}
+            from={sourceLine}
+            toChain={r.toChain}
+            to={destLine}
+          />
         }
         lead={
           isInitiated && r.swapId ? (
