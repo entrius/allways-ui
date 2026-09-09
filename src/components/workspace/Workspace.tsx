@@ -39,23 +39,27 @@ export type WorkspacePanel = {
   fit?: 'content' | 'fill';
 };
 
-// The grid's units. Twelve columns on a wide screen, a row is 24px, and the
-// gutter is the landing card gap (24px), so panels sit the way landing cards
-// do.
+// The grid's units. Twelve columns on a wide screen with the landing card
+// gap between them. Rows are fine, 8px each (4px row + 4px gap), so a
+// widget's box can end within a few pixels of its content; the visible gap
+// between widgets is made up to the landing 24px by leaving each box 20px
+// short of its slot.
 export const WORKSPACE_COLS = { lg: 12, md: 12, sm: 6, xs: 2 } as const;
 const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
-const ROW_HEIGHT = 24;
-const GUTTER = 24;
+const ROW_HEIGHT = 4;
+const GUTTER_X = 24;
+const GUTTER_Y = 4;
+const ROW_UNIT = ROW_HEIGHT + GUTTER_Y;
+const PANEL_GAP = 24 - GUTTER_Y;
 // A widget's chrome around its content: the title row and the body padding.
 const HEADER_PX = 30;
 const BODY_PAD_PX = 24;
-// Pixels of a widget that is h rows tall: h rows plus the gutters between.
+// Rows for a widget whose content is this tall: chrome, the slot's unused
+// gap, rounded up to the next 8px row.
 const rowsFor = (contentPx: number) =>
   Math.max(
     1,
-    Math.ceil(
-      (contentPx + HEADER_PX + BODY_PAD_PX + GUTTER) / (ROW_HEIGHT + GUTTER),
-    ),
+    Math.ceil((contentPx + HEADER_PX + BODY_PAD_PX + PANEL_GAP) / ROW_UNIT),
   );
 
 // What a browser remembers: where each widget sits, and which are put away.
@@ -358,7 +362,7 @@ const Workspace: React.FC<{
         breakpoints={BREAKPOINTS}
         cols={WORKSPACE_COLS}
         rowHeight={ROW_HEIGHT}
-        margin={[GUTTER, GUTTER]}
+        margin={[GUTTER_X, GUTTER_Y]}
         containerPadding={[0, 0]}
         draggableHandle=".workspace-drag"
         compactType="vertical"
@@ -371,7 +375,7 @@ const Workspace: React.FC<{
             <Box
               className="workspace-panel"
               sx={{
-                height: '100%',
+                height: `calc(100% - ${PANEL_GAP}px)`,
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,

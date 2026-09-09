@@ -70,32 +70,31 @@ const busiestDirection = (
 // The page's own desk: the sheet down the left, the rate over its history
 // over the book down the right. Twelve columns, 24px rows.
 const MARKET_LAYOUTS: Layouts = {
-  // Sizes come from each widget's content measured at the desk's width
-  // (a row is 24px with a 24px gutter): the sheet's 19 assets, the rate
-  // card, a chart tall enough to read, the book with room for its ladder.
+  // Heights are in the desk's 8px rows and only seed the first paint:
+  // content-fit widgets take their own height once they have measured.
   lg: [
-    { i: 'matrix', x: 0, y: 0, w: 6, h: 16 },
-    { i: 'rate', x: 6, y: 0, w: 6, h: 5 },
-    { i: 'chart', x: 6, y: 5, w: 6, h: 6 },
-    { i: 'book', x: 6, y: 11, w: 6, h: 11 },
+    { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
+    { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
+    { i: 'chart', x: 6, y: 27, w: 6, h: 33 },
+    { i: 'book', x: 6, y: 60, w: 6, h: 63 },
   ],
   md: [
-    { i: 'matrix', x: 0, y: 0, w: 6, h: 16 },
-    { i: 'rate', x: 6, y: 0, w: 6, h: 5 },
-    { i: 'chart', x: 6, y: 5, w: 6, h: 6 },
-    { i: 'book', x: 6, y: 11, w: 6, h: 11 },
+    { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
+    { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
+    { i: 'chart', x: 6, y: 27, w: 6, h: 33 },
+    { i: 'book', x: 6, y: 60, w: 6, h: 63 },
   ],
   sm: [
-    { i: 'rate', x: 0, y: 0, w: 6, h: 5 },
-    { i: 'matrix', x: 0, y: 5, w: 6, h: 16 },
-    { i: 'chart', x: 0, y: 21, w: 6, h: 6 },
-    { i: 'book', x: 0, y: 27, w: 6, h: 11 },
+    { i: 'rate', x: 0, y: 0, w: 6, h: 27 },
+    { i: 'matrix', x: 0, y: 27, w: 6, h: 93 },
+    { i: 'chart', x: 0, y: 120, w: 6, h: 33 },
+    { i: 'book', x: 0, y: 153, w: 6, h: 63 },
   ],
   xs: [
-    { i: 'rate', x: 0, y: 0, w: 2, h: 5 },
-    { i: 'matrix', x: 0, y: 5, w: 2, h: 16 },
-    { i: 'chart', x: 0, y: 21, w: 2, h: 6 },
-    { i: 'book', x: 0, y: 27, w: 2, h: 13 },
+    { i: 'rate', x: 0, y: 0, w: 2, h: 27 },
+    { i: 'matrix', x: 0, y: 27, w: 2, h: 93 },
+    { i: 'chart', x: 0, y: 120, w: 2, h: 33 },
+    { i: 'book', x: 0, y: 153, w: 2, h: 75 },
   ],
 };
 
@@ -176,14 +175,14 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v3"
+          storageKey="allways.market.workspace.v4"
           defaultLayouts={MARKET_LAYOUTS}
           panels={[
             {
               id: 'matrix',
               title: 'Markets',
               minW: 4,
-              minH: 8,
+              minH: 48,
               node: (
                 <RateMatrix
                   direction={direction}
@@ -196,7 +195,7 @@ const MarketPage: React.FC = () => {
               id: 'rate',
               title: 'Rate',
               minW: 3,
-              minH: 5,
+              minH: 30,
               node: (
                 <DirectionCard
                   direction={direction}
@@ -211,7 +210,7 @@ const MarketPage: React.FC = () => {
               title: 'History',
               fit: 'fill',
               minW: 3,
-              minH: 6,
+              minH: 33,
               node: (
                 <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -229,7 +228,7 @@ const MarketPage: React.FC = () => {
               id: 'book',
               title: 'Order book',
               minW: 3,
-              minH: 8,
+              minH: 48,
               node: (
                 <OrderbookDepth
                   direction={direction}
