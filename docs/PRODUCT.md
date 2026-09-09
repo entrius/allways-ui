@@ -10,4 +10,15 @@ Bring every page of the Allways UI onto the design rules in DESIGN.md so the sit
 
 ## Product Direction
 
-Describe what should exist, who it is for, why it matters, and what "great" looks like. Keep this document as the source of truth for product decisions the agents should honor.
+Allways is a conversion market, not a brokerage: each direction (SOL → BTC,
+BTC → SOL) is its own instrument, priced in the quote asset per one of the
+base. There is no buy, no sell, no mid price anywhere in the UI. Green and
+red mean the two sides of a market, the way an exchange colours bids and
+asks, never a recommendation.
+
+"Great" is a site where every page could have been drawn by the same hand
+on the same day: two typefaces, one type scale, one accent used only for
+interactive state, flat hairline containers, one date format, one amount
+format, one status chip, one button. Markets and Network already look like
+this. The job is to make the rest match them, page by page, in the order
+DESIGN.md gives, and to prove each page with a screenshot beside Markets.

@@ -4,6 +4,8 @@ This repo uses `partnercode`, a Codex + Claude partner-coding loop.
 
 Read these files before making changes:
 
+- `DESIGN.md` — the design rules every page is being brought to. The rules
+  win over any existing screen. Markets and Network are the reference pages.
 - `docs/PRODUCT.md`
 - `docs/ARCHITECTURE.md`
 - `docs/TASK_BOARD.md`
