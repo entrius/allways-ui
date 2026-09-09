@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Box } from '@mui/material';
 import { useChains, useCompleteSwapHistory, useDirections } from '../../api';
+import type { ActiveSwap } from '../../api/models';
 import { hubChains } from '../../api/models/chains';
 import {
   decomposeDirection,
@@ -25,40 +26,29 @@ const otherLeg = (direction: Direction, hub: string): string => {
   return from === hub ? to : from;
 };
 
-/**
- * The network's shape as a desk widget: one hub at the centre with every
- * chain it settles against radiating off it, edges weighted by the window's
- * corridor volume. A hub chip row picks which hub sits at the centre; with
- * none picked the map follows the selected route's hub. Clicking a spoke
- * selects that corridor hub-first, and again to flip the direction.
- */
-const HubSpokeWidget: React.FC<{
+// One hub's map: its spoke set from the routes themselves (other hubs first
+// so every asset keeps its ring position on both maps), edges weighted by
+// the window's corridor volume in the hub's units.
+const HubMap: React.FC<{
+  hub: string;
+  hubs: string[];
+  directions: Direction[];
+  swaps: ActiveSwap[] | undefined;
+  secs: number;
   direction: Direction;
-  range: HeroRange;
   onDirectionChange: (direction: Direction, hub: string) => void;
-}> = ({ direction, range, onDirectionChange }) => {
-  const { data: chains } = useChains();
-  const hubs = useMemo(() => hubChains(chains), [chains]);
-  const all = useDirections();
-  const directions = useMemo<Direction[]>(
-    () => (all.includes(direction) ? all : [direction, ...all]),
-    [all, direction],
-  );
-
-  // null = follow the selected route's hub.
-  const [pinned, setPinned] = useState<string | null>(null);
-  const hub = useMemo(
-    () =>
-      pinned && hubs.includes(pinned)
-        ? pinned
-        : (hubs.find((h) => touchesHub(direction, h)) ?? hubs[0]),
-    [pinned, hubs, direction],
-  );
-
-  // The hub's spoke set from the routes themselves; other hubs first so
-  // every asset keeps its ring position whichever hub is at the centre.
+  size: number;
+}> = ({
+  hub,
+  hubs,
+  directions,
+  swaps,
+  secs,
+  direction,
+  onDirectionChange,
+  size,
+}) => {
   const spokes = useMemo(() => {
-    if (!hub) return [];
     const seen: string[] = [];
     for (const d of directions) {
       if (!touchesHub(d, hub)) continue;
@@ -71,12 +61,8 @@ const HubSpokeWidget: React.FC<{
     ];
   }, [directions, hub, hubs]);
 
-  // Corridor volume per spoke over the page's window, in the hub's units.
-  const { data: swaps } = useCompleteSwapHistory();
-  const secs = RANGE_SECS[range];
   const volumes = useMemo(() => {
     const out: Record<string, number> = {};
-    if (!hub) return out;
     const cutoff = Date.now() / 1000 - secs;
     for (const s of swaps ?? []) {
       if (
@@ -96,17 +82,18 @@ const HubSpokeWidget: React.FC<{
     return out;
   }, [swaps, hub, secs]);
 
-  const selectedSpoke =
-    hub && touchesHub(direction, hub) ? otherLeg(direction, hub) : null;
+  const selectedSpoke = touchesHub(direction, hub)
+    ? otherLeg(direction, hub)
+    : null;
+  const count = directions.filter((d) => touchesHub(d, hub)).length;
 
+  // Clicking a spoke opens its corridor hub-first; again flips the
+  // instrument. Both directions stay first-class.
   const selectSpoke = (spoke: string) => {
-    if (!hub) return;
     const forward = `${hub.toUpperCase()}-${spoke.toUpperCase()}` as Direction;
     const reverse = `${spoke.toUpperCase()}-${hub.toUpperCase()}` as Direction;
     onDirectionChange(direction === forward ? reverse : forward, hub);
   };
-
-  if (!hub) return null;
 
   return (
     <Box
@@ -114,76 +101,94 @@ const HubSpokeWidget: React.FC<{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 1,
+        gap: 0.5,
+        minWidth: 0,
       }}
     >
-      {/* Which hub sits at the centre: the site's segmented control. */}
-      <Box sx={{ display: 'flex', gap: 0.5, alignSelf: 'flex-start' }}>
-        {[null, ...hubs].map((h) => {
-          const on = h === pinned;
-          const count =
-            h == null
-              ? directions.length
-              : directions.filter((d) => touchesHub(d, h)).length;
-          return (
-            <RailTooltip
-              key={h ?? 'follow'}
-              placement="bottom"
-              title={
-                h == null
-                  ? 'Follow the selected route: the map shows whichever hub it settles on.'
-                  : `${chainName(h)} settles ${count} of the ${directions.length} routes. Keep it at the centre.`
-              }
-            >
-              <Box
-                component="button"
-                type="button"
-                onClick={() => setPinned(h)}
-                aria-pressed={on}
-                sx={{
-                  all: 'unset',
-                  boxSizing: 'border-box',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.6,
-                  px: 1,
-                  py: 0.4,
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  color: on ? 'background.paper' : 'text.secondary',
-                  backgroundColor: on ? 'text.primary' : 'transparent',
-                  '&:hover': {
-                    backgroundColor: on ? 'text.primary' : 'action.hover',
-                  },
-                }}
-              >
-                {h == null ? (
-                  `All ${count}`
-                ) : (
-                  <>
-                    <ChainLogo chain={h} size={14} />
-                    {chainSymbol(h)} hub
-                  </>
-                )}
-              </Box>
-            </RailTooltip>
-          );
-        })}
-      </Box>
+      <RailTooltip
+        placement="top"
+        title={`${chainName(hub)} settles ${count} of the ${directions.length} routes. Click a coin to open that corridor; again to flip it.`}
+      >
+        <Box
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.75,
+            fontFamily: FONTS.mono,
+            fontSize: '0.65rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            color: 'text.secondary',
+            cursor: 'help',
+          }}
+        >
+          <ChainLogo chain={hub} size={14} />
+          {chainSymbol(hub)} hub
+          <Box component="span" sx={{ color: 'text.disabled' }}>
+            {count}
+          </Box>
+        </Box>
+      </RailTooltip>
       <HubSpokeMap
         hub={hub}
         spokes={spokes}
         selected={selectedSpoke}
         volumes={volumes}
         onSelect={selectSpoke}
-        hubSelected={pinned === hub}
-        onSelectHub={(h) => setPinned(pinned === h ? null : h)}
-        size={300}
+        hubSelected={false}
+        onSelectHub={() => undefined}
+        size={size}
       />
+    </Box>
+  );
+};
+
+/**
+ * The network's shape as a desk widget: every hub side by side, each at the
+ * centre of the chains it settles against, edges weighted by the window's
+ * corridor volume. Clicking a spoke selects that corridor hub-first, and
+ * again to flip the direction.
+ */
+const HubSpokeWidget: React.FC<{
+  direction: Direction;
+  range: HeroRange;
+  onDirectionChange: (direction: Direction, hub: string) => void;
+}> = ({ direction, range, onDirectionChange }) => {
+  const { data: chains } = useChains();
+  const hubs = useMemo(() => hubChains(chains), [chains]);
+  const all = useDirections();
+  const directions = useMemo<Direction[]>(
+    () => (all.includes(direction) ? all : [direction, ...all]),
+    [all, direction],
+  );
+  const { data: swaps } = useCompleteSwapHistory();
+  const secs = RANGE_SECS[range];
+
+  if (!hubs.length) return null;
+
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${hubs.length}, minmax(0, 1fr))`,
+        gap: 2,
+        alignItems: 'start',
+      }}
+    >
+      {hubs.map((hub) => (
+        <HubMap
+          key={hub}
+          hub={hub}
+          hubs={hubs}
+          directions={directions}
+          swaps={swaps}
+          secs={secs}
+          direction={direction}
+          onDirectionChange={onDirectionChange}
+          size={272}
+        />
+      ))}
     </Box>
   );
 };
