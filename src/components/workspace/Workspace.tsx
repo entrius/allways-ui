@@ -391,7 +391,6 @@ const Workspace: React.FC<{
         onLayoutChange={onLayoutChange}
         onDragStop={onUserChange}
         isResizable={false}
-        measureBeforeMount
       >
         {shownPanels.map((p) => (
           <Box key={p.id} sx={{ minWidth: 0, minHeight: 0 }}>
