@@ -145,6 +145,20 @@ const Workspace: React.FC<{
     return new Set((stored?.hidden ?? []).filter((id) => ids.has(id)));
   });
   const [custom, setCustom] = useState(() => readSaved(storageKey) != null);
+  // False until the first content measurements have landed.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    // Two frames: one for the grid to measure its width and lay out, one
+    // for the content-fit widgets to report and take their heights.
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setSettled(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, []);
 
   useEffect(() => {
     if (custom) writeSaved(storageKey, { layouts, hidden: [...hidden] });
@@ -298,7 +312,15 @@ const Workspace: React.FC<{
       sx={{
         // The library's handles, drawn in the site's language: a square
         // corner tab, hairline, blue when it is live.
-        '& .react-grid-item': { transition: 'none' },
+        // No sliding into place: the library animates item positions and
+        // its own height, which reads as a wobble on every arrival.
+        '& .react-grid-layout': { transition: 'none' },
+        '& .react-grid-item, & .react-grid-item.cssTransforms': {
+          transition: 'none',
+        },
+        // Nothing shows until the widgets have measured their content and
+        // taken their heights; one frame later they appear settled.
+        visibility: settled ? 'visible' : 'hidden',
         '& .react-grid-item.react-grid-placeholder': {
           backgroundColor: 'primary.main',
           opacity: 0.08,
@@ -369,6 +391,7 @@ const Workspace: React.FC<{
         onLayoutChange={onLayoutChange}
         onDragStop={onUserChange}
         isResizable={false}
+        measureBeforeMount
       >
         {shownPanels.map((p) => (
           <Box key={p.id} sx={{ minWidth: 0, minHeight: 0 }}>
