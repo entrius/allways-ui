@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box, Portal, Typography } from '@mui/material';
 import { alpha, keyframes } from '@mui/material/styles';
 import type { ChainInfo } from '../../api/models/chains';
 import { FONTS } from '../../theme';
@@ -151,8 +151,8 @@ const RateMatrixSettings: React.FC<{
   toggleFavorite: (id: string) => void;
   reset: () => void;
   onClose: () => void;
-  /** Height of the pinned header row the panel hangs under. */
-  top: number;
+  /** Where the settings link sits on screen; the panel hangs from it. */
+  anchor: { top: number; bottom: number; left: number } | null;
 }> = ({
   assets,
   settings,
@@ -161,16 +161,21 @@ const RateMatrixSettings: React.FC<{
   toggleFavorite,
   reset,
   onClose,
-  top,
+  anchor,
 }) => {
+  // The sheet lives inside a widget that is transformed and scrolls, which
+  // would trap a fixed scrim and blur the panel itself; both are portalled
+  // to the page and pinned to where the settings link is on screen.
+  const top = anchor ? anchor.bottom + 4 : 96;
+  const left = anchor ? anchor.left : 48;
   return (
-    <>
+    <Portal>
       <Box
         onClick={onClose}
         sx={{
           position: 'fixed',
           inset: 0,
-          zIndex: 4,
+          zIndex: 1300,
           backgroundColor: (t) => alpha(t.palette.background.default, 0.6),
           backdropFilter: 'blur(3px) saturate(0.7)',
           WebkitBackdropFilter: 'blur(3px) saturate(0.7)',
@@ -182,12 +187,12 @@ const RateMatrixSettings: React.FC<{
         role="dialog"
         aria-label="settings"
         sx={{
-          position: 'absolute',
+          position: 'fixed',
           top,
-          left: 0,
-          zIndex: 5,
+          left,
+          zIndex: 1301,
           width: 232,
-          maxHeight: `calc(100dvh - ${top}px - 72px)`,
+          maxHeight: `calc(100dvh - ${top}px - 24px)`,
           overflow: 'auto',
           backgroundColor: 'background.default',
           border: '1px solid',
@@ -356,7 +361,7 @@ const RateMatrixSettings: React.FC<{
           </Box>
         </Box>
       </Box>
-    </>
+    </Portal>
   );
 };
 

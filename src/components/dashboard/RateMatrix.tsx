@@ -200,6 +200,13 @@ const RateMatrix: React.FC<{
   const selHub = base ?? hubLeg(selLegs.from, selLegs.to) ?? selLegs.from;
   const selAsset = selLegs.from === selHub ? selLegs.to : selLegs.from;
   const [panelOpen, setPanelOpen] = useState(false);
+  // Where the settings link was when it was clicked, so the panel (which
+  // renders on the page, not in the sheet) hangs from it.
+  const [panelAnchor, setPanelAnchor] = useState<{
+    top: number;
+    bottom: number;
+    left: number;
+  } | null>(null);
 
   // Hubs first, in das priority order (the same order the rest of the site
   // files pairs under), then every other asset by market cap, largest
@@ -307,9 +314,10 @@ const RateMatrix: React.FC<{
       <Box
         component="table"
         sx={{
-          // Columns size to their content; the sheet leaves the rest of the
-          // page blank rather than stretching numbers across it, and sits
-          // flush against the frame's left edge like the landing copy.
+          // The sheet fills its widget: the asset column keeps its content
+          // width and the number columns share the rest, so a wider widget
+          // means roomier cells, never dead space beside the table.
+          width: '100%',
           borderCollapse: 'separate',
           borderSpacing: 0,
           tableLayout: 'auto',
@@ -355,7 +363,15 @@ const RateMatrix: React.FC<{
               <Box
                 component="button"
                 type="button"
-                onClick={() => setPanelOpen((o) => !o)}
+                onClick={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect();
+                  setPanelAnchor({
+                    top: r.top,
+                    bottom: r.bottom,
+                    left: r.left,
+                  });
+                  setPanelOpen((o) => !o);
+                }}
                 title={
                   collapsed
                     ? `settings · ${collapsed} row${collapsed === 1 ? '' : 's'} hidden`
@@ -391,7 +407,7 @@ const RateMatrix: React.FC<{
                   toggleFavorite={toggleFavorite}
                   reset={reset}
                   onClose={() => setPanelOpen(false)}
-                  top={HEAD_H}
+                  anchor={panelAnchor}
                 />
               )}
             </Box>
