@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import CrownRateChart from '../miners/CrownRateChart';
 import CrownTimeLeaderboard from '../miners/CrownTimeLeaderboard';
 import MinerLeaderboard from '../miners/MinerLeaderboard';
-import EmissionsByLane from './EmissionsByLane';
+import EmissionsByPair from './EmissionsByPair';
 import {
   isDirection,
   isRange,
@@ -73,9 +73,9 @@ const MinersSection: React.FC = () => {
           />
         </>
       )}
-      {/* Which lanes pay, per scoring round — the figure a miner reads
-          before standing up a pair. One line per row, so it fits a phone. */}
-      <EmissionsByLane />
+      {/* Which pairs pay right now — the figure a miner reads before
+          standing up a pair. One bar per pair, so it fits a phone. */}
+      <EmissionsByPair />
     </Stack>
   );
 };
