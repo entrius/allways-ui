@@ -23,7 +23,9 @@ import { FONTS } from '../../theme';
  * (direction + backing). Every level is a share of miner emission, so a hub is
  * the sum of its pairs and a pair the sum of its lanes at each round — a dead
  * pair (no qualified fill in the pool window) reads as a flat zero, which is
- * the signal a miner needs before standing it up.
+ * the signal a miner needs before standing it up. The one exception: with no
+ * pair live anywhere, the validator splits emission equally over the whole
+ * registry, so every lane pays while none is live — labelled "fallback".
  *
  * Framed like the other miner panels (Crown Time, the crown rate chart): a
  * hairline box, `SectionHeading` with `RangeChips` on the right, mono data,
@@ -43,13 +45,31 @@ type Node = {
   label: string;
   // Sum of this node's lanes at each round, keyed by round ts (unix s).
   byRound: Map<number, number>;
+  // Whether any of this node's pairs was live at each round. Not pool > 0:
+  // with no pair live anywhere the validator falls back to an equal split
+  // over the whole registry, so every lane pays while none is live.
+  liveByRound: Map<number, boolean>;
   children: Node[];
 };
 
+const newNode = (key: string, label: string): Node => ({
+  key,
+  label,
+  byRound: new Map(),
+  liveByRound: new Map(),
+  children: [],
+});
+
 const pct = (v: number) => `${v.toFixed(2)}%`;
 
-const addPoints = (into: Map<number, number>, lane: PoolHistoryLane) => {
-  for (const p of lane.points) into.set(p.t, (into.get(p.t) ?? 0) + p.pool);
+// Coerce first: ApiUtils hands long floats through as strings (json-bigint
+// precision guard) and 1/66-style pool shares are long, so a bare `+` would
+// concatenate them into NaN once a pair or hub sums two lanes.
+const addPoints = (into: Node, lane: PoolHistoryLane) => {
+  for (const p of lane.points) {
+    into.byRound.set(p.t, (into.byRound.get(p.t) ?? 0) + Number(p.pool));
+    into.liveByRound.set(p.t, (into.liveByRound.get(p.t) ?? false) || p.live);
+  }
 };
 
 // Pair key: hub leg first so both directions and both backings collapse onto
@@ -69,10 +89,20 @@ const laneLabel = (lane: PoolHistoryLane) => {
   return dual ? `${dir} · ${chainSymbol(lane.backing)} purse` : dir;
 };
 
+const newestRound = (n: Node) => {
+  const ts = [...n.byRound.keys()];
+  return ts.length ? Math.max(...ts) : null;
+};
+
 // Share at the newest round on record for this node, as a fraction.
 const latestOf = (n: Node) => {
-  const ts = [...n.byRound.keys()];
-  return ts.length ? (n.byRound.get(Math.max(...ts)) ?? 0) : 0;
+  const t = newestRound(n);
+  return t == null ? 0 : (n.byRound.get(t) ?? 0);
+};
+
+const latestLive = (n: Node) => {
+  const t = newestRound(n);
+  return t != null && (n.liveByRound.get(t) ?? false);
 };
 
 const buildTree = (lanes: PoolHistoryLane[]): Node[] => {
@@ -80,34 +110,22 @@ const buildTree = (lanes: PoolHistoryLane[]): Node[] => {
   for (const lane of lanes) {
     let hub = hubs.get(lane.hub);
     if (!hub) {
-      hub = {
-        key: lane.hub,
-        label: `${chainSymbol(lane.hub)} hub`,
-        byRound: new Map(),
-        children: [],
-      };
+      hub = newNode(lane.hub, `${chainSymbol(lane.hub)} hub`);
       hubs.set(lane.hub, hub);
     }
-    addPoints(hub.byRound, lane);
+    addPoints(hub, lane);
     const pair = pairOf(lane);
     let pairNode = hub.children.find((c) => c.key === pair.key);
     if (!pairNode) {
-      pairNode = {
-        key: pair.key,
-        label: pair.label,
-        byRound: new Map(),
-        children: [],
-      };
+      pairNode = newNode(pair.key, pair.label);
       hub.children.push(pairNode);
     }
-    addPoints(pairNode.byRound, lane);
-    const laneNode: Node = {
-      key: `${lane.direction}:${lane.backing}`,
-      label: laneLabel(lane),
-      byRound: new Map(),
-      children: [],
-    };
-    addPoints(laneNode.byRound, lane);
+    addPoints(pairNode, lane);
+    const laneNode = newNode(
+      `${lane.direction}:${lane.backing}`,
+      laneLabel(lane),
+    );
+    addPoints(laneNode, lane);
     pairNode.children.push(laneNode);
   }
   // Hubs in priority order (sol first), pairs and lanes by latest share, largest first.
@@ -143,7 +161,15 @@ const NodeRow: React.FC<{
 }> = ({ node, depth, color, open, toggle }) => {
   const isOpen = open.has(node.key);
   const latest = latestOf(node);
+  const live = latestLive(node);
   const expandable = node.children.length > 0;
+  // Paying but not live = the silent-network fallback's equal split.
+  const status =
+    latest <= 0
+      ? { text: 'dead', color: 'text.disabled' }
+      : live
+        ? { text: pct(latest * 100), color: 'text.primary' }
+        : { text: `${pct(latest * 100)} · fallback`, color: 'text.secondary' };
   return (
     <Box sx={{ pl: depth * 2 }}>
       <Box
@@ -190,11 +216,11 @@ const NodeRow: React.FC<{
             fontFamily: FONTS.mono,
             fontSize: '0.72rem',
             fontVariantNumeric: 'tabular-nums',
-            color: latest > 0 ? 'text.primary' : 'text.disabled',
+            color: status.color,
             whiteSpace: 'nowrap',
           }}
         >
-          {latest > 0 ? pct(latest * 100) : 'dead'}
+          {status.text}
         </Typography>
       </Box>
       <Box sx={{ my: 1 }}>
@@ -260,7 +286,7 @@ const EmissionsByLane: React.FC = () => {
         <SectionHeading
           title="Emission by hub, pair and lane"
           subtitle="share of miner emission per scoring round · open a hub for its pairs, a pair for its lanes"
-          info="Share of miner emission each lane's pool paid, per round. Dead: no qualified fill in the window, pays nothing."
+          info="Share of miner emission each lane's pool paid, per round. Dead: no qualified fill in the window, pays nothing. Fallback: no pair anywhere is live, so the validator splits emission equally across every pair."
         />
         <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Stack>
