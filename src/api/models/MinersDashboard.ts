@@ -114,11 +114,14 @@ export const crownLaneFor = (
 
 // One lane's pool per scoring round over a window (das /crown/pools/history):
 // the share of miner emission the lane paid out of at each round, 0 when its
-// pair was dead (no qualified fill in the pool window). Hub and pair emission
-// are sums of lanes at each t.
+// pair was dead (no qualified fill in the pool window) — unless NO pair was
+// live, when the validator splits evenly over every lane (pool > 0, live
+// false). Hub and pair emission are sums of lanes at each t.
 export type PoolHistoryPoint = {
   // Unix seconds, the round's flush time.
   t: number;
+  // Long floats (e.g. 1/66) arrive as strings via ApiUtils' json-bigint
+  // parse — coerce with Number() before arithmetic.
   pool: number;
   // Qualified hub-leg notional over the pool window, backing's smallest unit.
   qualifiedVolume: string;
