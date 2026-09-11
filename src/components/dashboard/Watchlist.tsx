@@ -532,6 +532,9 @@ const Row: React.FC<{
             top: '50%',
             transform: 'translateY(-50%)',
             cursor: 'pointer',
+            // The sheet's star: the site font, not the row's mono, whose
+            // ★ is narrower.
+            fontFamily: FONTS.body,
             fontSize: 12,
             lineHeight: 1,
             opacity: starred ? 1 : 0,
