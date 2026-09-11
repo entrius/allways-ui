@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Box, Portal, Typography } from '@mui/material';
 import { alpha, keyframes } from '@mui/material/styles';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
@@ -44,10 +44,15 @@ export const settingsLinkSx = {
   '&:hover': { color: 'text.primary' },
 } as const;
 
-// Where the gear sits on screen; the panel hangs from its bottom-right
+// Where the gear sits on screen. The panel hangs from its bottom-right
 // corner, so a widget on the right edge of the desk never pushes its
-// panel off the page.
-type Anchor = { bottom: number; right: number };
+// panel off the page; when the gear is low in the window and there is
+// more room above it than below, the panel stands on its top-right
+// corner instead, so a widget at the foot of the desk is not left with a
+// three-row panel and a scrollbar.
+type Anchor = { top: number; bottom: number; right: number };
+const EDGE = 24;
+const GAP = 6;
 
 /**
  * A widget's settings: the gear for its title row's aside slot and the
@@ -65,8 +70,32 @@ const WidgetSettings: React.FC<{
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const open = anchor != null;
   const close = () => setAnchor(null);
-  const top = anchor ? anchor.bottom + 6 : 96;
   const right = anchor ? Math.max(8, window.innerWidth - anchor.right) : 48;
+  const below = anchor ? window.innerHeight - anchor.bottom - GAP - EDGE : 0;
+  const above = anchor ? anchor.top - GAP - EDGE : 0;
+  // Measured, not guessed: the panel mounts hanging down (through a
+  // portal, so only its ref knows when it is on the page), and its full
+  // content height decides, before paint, whether it stands up instead.
+  const [upward, setUpward] = useState(false);
+  const panel = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (!el) return;
+      setUpward(el.scrollHeight > below && above > below);
+    },
+    [above, below],
+  );
+  const place =
+    upward && anchor
+      ? {
+          bottom: window.innerHeight - anchor.top + GAP,
+          maxHeight: above,
+          transformOrigin: 'bottom right',
+        }
+      : {
+          top: anchor ? anchor.bottom + GAP : 96,
+          maxHeight: below || undefined,
+          transformOrigin: 'top right',
+        };
 
   return (
     <>
@@ -79,7 +108,7 @@ const WidgetSettings: React.FC<{
         onClick={(e) => {
           if (open) return close();
           const r = e.currentTarget.getBoundingClientRect();
-          setAnchor({ bottom: r.bottom, right: r.right });
+          setAnchor({ top: r.top, bottom: r.bottom, right: r.right });
         }}
         sx={{
           all: 'unset',
@@ -133,16 +162,16 @@ const WidgetSettings: React.FC<{
             }}
           />
           <Box
+            ref={panel}
             role="dialog"
             aria-label={label}
             sx={{
               position: 'fixed',
-              top,
+              ...place,
               right,
               zIndex: 1301,
               width,
               maxWidth: 'calc(100vw - 16px)',
-              maxHeight: `calc(100dvh - ${top}px - 24px)`,
               overflow: 'auto',
               backgroundColor: 'background.default',
               border: '1px solid',
@@ -154,7 +183,6 @@ const WidgetSettings: React.FC<{
                 t.palette.mode === 'dark'
                   ? '0 24px 48px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.4)'
                   : '0 24px 48px rgba(9, 11, 13, 0.18), 0 2px 8px rgba(9, 11, 13, 0.1)',
-              transformOrigin: 'top right',
               animation: `${panelIn} 180ms cubic-bezier(0.2, 0.8, 0.2, 1)`,
               '@media (prefers-reduced-motion: reduce)': {
                 animation: 'none',
