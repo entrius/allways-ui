@@ -401,8 +401,9 @@ const Watchlist: React.FC<{
   const stats = useRowStats(directions, secs);
 
   // A heading click sorts its column, high to low; again, low to high;
-  // again, back to the registry's order. Sorting is within each hub
-  // section, so the sections stay.
+  // again, back to the registry's order. One list, one order: the routes
+  // are not sectioned by hub, so a sort by volume ranks every route on
+  // the desk against every other.
   const [sort, setSort] = useState<Sort | null>(null);
   const sortBy = (key: SortKey) =>
     setSort((cur) =>
@@ -427,36 +428,30 @@ const Watchlist: React.FC<{
     });
   };
 
-  // "All" files every route once, under its anchor, in registry hub order;
-  // a hub scope is that hub's whole network, including the routes it
-  // merely touches (sol↔tao files under sol but rides on both). Within a
-  // section, 'from' keeps the routes its hub sends on and 'to' the routes
-  // that arrive at it, so each pair appears once.
-  const sections = useMemo(() => {
-    const oneWay = (rows: Direction[], hub: string) =>
+  // "All" lists every route once, under its anchor hub in registry hub
+  // order; a hub scope is that hub's whole network, including the routes
+  // it merely touches (sol↔tao files under sol but rides on both). 'from'
+  // keeps the routes a hub sends on and 'to' the routes that arrive at it,
+  // so each pair appears once.
+  const rows = useMemo(() => {
+    const oneWay = (list: Direction[], hub: string) =>
       which === 'both'
-        ? rows
-        : rows.filter(
+        ? list
+        : list.filter(
             (d) =>
               decomposeDirection(d)[which === 'from' ? 'from' : 'to'] === hub,
           );
     return scope === ALL
-      ? hubs.map((h) => ({
-          hub: h,
-          rows: oneWay(
+      ? hubs.flatMap((h) =>
+          oneWay(
             directions.filter((d) => anchorHub(d) === h),
             h,
           ),
-        }))
-      : [
-          {
-            hub: scope,
-            rows: oneWay(
-              directions.filter((d) => touchesHub(d, scope)),
-              scope,
-            ),
-          },
-        ];
+        )
+      : oneWay(
+          directions.filter((d) => touchesHub(d, scope)),
+          scope,
+        );
   }, [scope, which, hubs, directions]);
 
   // Vol column wording follows whether rows can render USD.
@@ -558,46 +553,18 @@ const Watchlist: React.FC<{
           },
         }}
       >
-        {sections.map(({ hub, rows }) => (
-          <Box key={hub}>
-            {/* Which hub anchors the routes below; only earns its height
-                when more than one section is on screen. */}
-            {sections.length > 1 && (
-              <Box
-                sx={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  px: 1.5,
-                  py: 0.5,
-                  backgroundColor: 'background.default',
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <ChainLogo chain={hub} size={12} />
-                <Typography sx={labelSx}>
-                  {chainSymbol(hub)} hub · {rows.length}
-                </Typography>
-              </Box>
-            )}
-            {order(rows).map((d) => {
-              const st = stats.get(d);
-              return st ? (
-                <Row
-                  key={d}
-                  direction={d}
-                  selected={d === direction}
-                  stats={st}
-                  onSelect={select}
-                />
-              ) : null;
-            })}
-          </Box>
-        ))}
+        {order(rows).map((d) => {
+          const st = stats.get(d);
+          return st ? (
+            <Row
+              key={d}
+              direction={d}
+              selected={d === direction}
+              stats={st}
+              onSelect={select}
+            />
+          ) : null;
+        })}
       </Box>
     </Stack>
   );
