@@ -28,8 +28,6 @@ export type WorkspacePanel = {
   /** Optional right-hand slot in the panel's header (a picker, a chip). */
   aside?: React.ReactNode;
   node: React.ReactNode;
-  minW?: number;
-  minH?: number;
   /**
    * 'content' (default): the widget's height follows what is inside it,
    * so a sheet with rows hidden or a book with two levels takes only the
@@ -39,12 +37,14 @@ export type WorkspacePanel = {
   fit?: 'content' | 'fill';
 };
 
-// The grid's units. Twelve columns on a wide screen with the landing card
-// gap between them. Rows are fine, 8px each (4px row + 4px gap), so a
+// The grid's units. Two columns on a wide screen, one on a narrow one,
+// with the landing card gap between them: every widget is exactly one
+// column wide, so a drag can only land it left or right and the desk is
+// always two tidy stacks. Rows are fine, 8px each (4px row + 4px gap), so a
 // widget's box can end within a few pixels of its content; the visible gap
 // between widgets is made up to the landing 24px by leaving each box 20px
 // short of its slot.
-export const WORKSPACE_COLS = { lg: 12, md: 12, sm: 6, xs: 2 } as const;
+export const WORKSPACE_COLS = { lg: 2, md: 2, sm: 1, xs: 1 } as const;
 const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
 const ROW_HEIGHT = 4;
 const GUTTER_X = 24;
@@ -326,7 +326,7 @@ const Workspace: React.FC<{
     for (const [bp, items] of Object.entries(layouts)) {
       out[bp] = items
         .filter((l) => !hidden.has(l.i))
-        .map((l) => ({ ...l, static: false, isResizable: false }));
+        .map((l) => ({ ...l, w: 1, static: false, isResizable: false }));
     }
     return out;
   }, [layouts, hidden]);

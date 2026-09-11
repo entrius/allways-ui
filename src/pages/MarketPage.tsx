@@ -91,40 +91,41 @@ const busiestDirection = (
   return null;
 };
 
-// The card, chart and book share one width, so the right side reads as a
-// single column rather than three panels of different sizes.
-// The page's own desk: the sheet down the left, the rate over its history
-// over the book down the right. Twelve columns, 24px rows.
+// The page's own desk.
 const MARKET_LAYOUTS: Layouts = {
-  // Heights are in the desk's 8px rows and only seed the first paint:
-  // content-fit widgets take their own height once they have measured.
+  // Two columns: the sheet and the watchlist down the left, the rate over
+  // its history over the book down the right. Heights are in the desk's
+  // 8px rows and only seed the first paint: content-fit widgets take their
+  // own height once they have measured.
   lg: [
-    { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
-    { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
-    { i: 'chart', x: 6, y: 27, w: 6, h: 36 },
-    { i: 'book', x: 6, y: 63, w: 6, h: 63 },
-    { i: 'watchlist', x: 0, y: 93, w: 6, h: 63 },
+    { i: 'matrix', x: 0, y: 0, w: 1, h: 93 },
+    { i: 'watchlist', x: 0, y: 93, w: 1, h: 63 },
+    { i: 'rate', x: 1, y: 0, w: 1, h: 27 },
+    { i: 'chart', x: 1, y: 27, w: 1, h: 36 },
+    { i: 'book', x: 1, y: 63, w: 1, h: 63 },
   ],
   md: [
-    { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
-    { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
-    { i: 'chart', x: 6, y: 27, w: 6, h: 36 },
-    { i: 'book', x: 6, y: 63, w: 6, h: 63 },
-    { i: 'watchlist', x: 0, y: 93, w: 6, h: 63 },
+    { i: 'matrix', x: 0, y: 0, w: 1, h: 93 },
+    { i: 'watchlist', x: 0, y: 93, w: 1, h: 63 },
+    { i: 'rate', x: 1, y: 0, w: 1, h: 27 },
+    { i: 'chart', x: 1, y: 27, w: 1, h: 36 },
+    { i: 'book', x: 1, y: 63, w: 1, h: 63 },
   ],
+  // One column: the rate first, then the sheet, the history, the book and
+  // the watchlist.
   sm: [
-    { i: 'rate', x: 0, y: 0, w: 6, h: 27 },
-    { i: 'matrix', x: 0, y: 27, w: 6, h: 93 },
-    { i: 'chart', x: 0, y: 120, w: 6, h: 36 },
-    { i: 'book', x: 0, y: 153, w: 6, h: 63 },
-    { i: 'watchlist', x: 0, y: 216, w: 6, h: 63 },
+    { i: 'rate', x: 0, y: 0, w: 1, h: 27 },
+    { i: 'matrix', x: 0, y: 27, w: 1, h: 93 },
+    { i: 'chart', x: 0, y: 120, w: 1, h: 36 },
+    { i: 'book', x: 0, y: 156, w: 1, h: 63 },
+    { i: 'watchlist', x: 0, y: 219, w: 1, h: 63 },
   ],
   xs: [
-    { i: 'rate', x: 0, y: 0, w: 2, h: 27 },
-    { i: 'matrix', x: 0, y: 27, w: 2, h: 93 },
-    { i: 'chart', x: 0, y: 120, w: 2, h: 36 },
-    { i: 'book', x: 0, y: 153, w: 2, h: 75 },
-    { i: 'watchlist', x: 0, y: 228, w: 2, h: 63 },
+    { i: 'rate', x: 0, y: 0, w: 1, h: 27 },
+    { i: 'matrix', x: 0, y: 27, w: 1, h: 93 },
+    { i: 'chart', x: 0, y: 120, w: 1, h: 36 },
+    { i: 'book', x: 0, y: 156, w: 1, h: 75 },
+    { i: 'watchlist', x: 0, y: 231, w: 1, h: 63 },
   ],
 };
 
@@ -215,7 +216,7 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v9"
+          storageKey="allways.market.workspace.v10"
           defaultLayouts={MARKET_LAYOUTS}
           controls={
             <MonoSelect<HeroRange>
@@ -229,8 +230,6 @@ const MarketPage: React.FC = () => {
             {
               id: 'matrix',
               title: 'Matrix',
-              minW: 4,
-              minH: 48,
               aside: (
                 <WidgetSettings
                   label="Matrix settings"
@@ -259,8 +258,6 @@ const MarketPage: React.FC = () => {
             {
               id: 'rate',
               title: 'Rate',
-              minW: 3,
-              minH: 30,
               aside: (
                 <WidgetSettings
                   label="Rate settings"
@@ -286,8 +283,6 @@ const MarketPage: React.FC = () => {
               id: 'chart',
               title: 'History',
               fit: 'fill',
-              minW: 3,
-              minH: 33,
               aside: (
                 <WidgetSettings
                   label="History settings"
@@ -317,8 +312,6 @@ const MarketPage: React.FC = () => {
             {
               id: 'book',
               title: 'Order book',
-              minW: 3,
-              minH: 48,
               node: (
                 <OrderbookDepth
                   direction={direction}
@@ -331,8 +324,6 @@ const MarketPage: React.FC = () => {
             {
               id: 'watchlist',
               title: 'Watchlist',
-              minW: 3,
-              minH: 40,
               aside: (
                 <WidgetSettings
                   label="Watchlist settings"
