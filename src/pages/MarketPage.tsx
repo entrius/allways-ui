@@ -19,8 +19,6 @@ import RateMatrixSettings from '../components/dashboard/RateMatrixSettings';
 import { useMatrixSettings } from '../components/dashboard/matrixSettings';
 import WidgetSettings from '../components/workspace/WidgetSettings';
 import MonoSelect from '../components/MonoSelect';
-import HubSpokeWidget from '../components/dashboard/HubSpokeWidget';
-import { SymbolSearchPanel } from '../components/dashboard/SymbolSearch';
 import Watchlist from '../components/dashboard/Watchlist';
 import WatchlistSettingsRows from '../components/dashboard/WatchlistSettingsRows';
 import {
@@ -100,36 +98,28 @@ const MARKET_LAYOUTS: Layouts = {
     { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
     { i: 'chart', x: 6, y: 27, w: 6, h: 36 },
     { i: 'book', x: 6, y: 63, w: 6, h: 63 },
-    { i: 'network', x: 0, y: 93, w: 6, h: 50 },
-    { i: 'search', x: 6, y: 123, w: 6, h: 63 },
-    { i: 'watchlist', x: 0, y: 143, w: 6, h: 63 },
+    { i: 'watchlist', x: 0, y: 93, w: 6, h: 63 },
   ],
   md: [
     { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
     { i: 'rate', x: 6, y: 0, w: 6, h: 27 },
     { i: 'chart', x: 6, y: 27, w: 6, h: 36 },
     { i: 'book', x: 6, y: 63, w: 6, h: 63 },
-    { i: 'network', x: 0, y: 93, w: 6, h: 50 },
-    { i: 'search', x: 6, y: 123, w: 6, h: 63 },
-    { i: 'watchlist', x: 0, y: 143, w: 6, h: 63 },
+    { i: 'watchlist', x: 0, y: 93, w: 6, h: 63 },
   ],
   sm: [
     { i: 'rate', x: 0, y: 0, w: 6, h: 27 },
     { i: 'matrix', x: 0, y: 27, w: 6, h: 93 },
     { i: 'chart', x: 0, y: 120, w: 6, h: 36 },
     { i: 'book', x: 0, y: 153, w: 6, h: 63 },
-    { i: 'network', x: 0, y: 216, w: 6, h: 50 },
-    { i: 'search', x: 0, y: 266, w: 6, h: 63 },
-    { i: 'watchlist', x: 0, y: 329, w: 6, h: 63 },
+    { i: 'watchlist', x: 0, y: 216, w: 6, h: 63 },
   ],
   xs: [
     { i: 'rate', x: 0, y: 0, w: 2, h: 27 },
     { i: 'matrix', x: 0, y: 27, w: 2, h: 93 },
     { i: 'chart', x: 0, y: 120, w: 2, h: 36 },
     { i: 'book', x: 0, y: 153, w: 2, h: 75 },
-    { i: 'network', x: 0, y: 228, w: 2, h: 50 },
-    { i: 'search', x: 0, y: 278, w: 2, h: 63 },
-    { i: 'watchlist', x: 0, y: 341, w: 2, h: 63 },
+    { i: 'watchlist', x: 0, y: 228, w: 2, h: 63 },
   ],
 };
 
@@ -219,7 +209,7 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v8"
+          storageKey="allways.market.workspace.v9"
           defaultLayouts={MARKET_LAYOUTS}
           controls={
             <MonoSelect<HeroRange>
@@ -320,22 +310,6 @@ const MarketPage: React.FC = () => {
               ),
             },
             {
-              id: 'search',
-              title: 'Symbol search',
-              minW: 3,
-              minH: 40,
-              node: (
-                <SymbolSearchPanel
-                  direction={direction}
-                  onSelect={(d) => {
-                    const legs = decomposeDirection(d);
-                    setDirection(d, hubLeg(legs.from, legs.to) ?? legs.from);
-                  }}
-                  embedded
-                />
-              ),
-            },
-            {
               id: 'watchlist',
               title: 'Watchlist',
               minW: 3,
@@ -362,19 +336,6 @@ const MarketPage: React.FC = () => {
                   favorites={watchlist.settings.favorites}
                   favoritesOnly={watchlist.settings.favoritesOnly}
                   onToggleFavorite={watchlist.toggleFavorite}
-                  onDirectionChange={setDirection}
-                />
-              ),
-            },
-            {
-              id: 'network',
-              title: 'Network',
-              minW: 3,
-              minH: 40,
-              node: (
-                <HubSpokeWidget
-                  direction={direction}
-                  range={range}
                   onDirectionChange={setDirection}
                 />
               ),
