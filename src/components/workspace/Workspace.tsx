@@ -130,7 +130,10 @@ const Workspace: React.FC<{
   defaultLayouts: Layouts;
   /** localStorage key; bump its version suffix when the defaults change. */
   storageKey: string;
-}> = ({ panels, defaultLayouts, storageKey }) => {
+  /** Desk-wide controls (a window picker) for the bar above the widgets:
+   * state every widget reads belongs to the desk, not to one of them. */
+  controls?: React.ReactNode;
+}> = ({ panels, defaultLayouts, storageKey, controls }) => {
   const [layouts, setLayouts] = useState<Layouts>(() => {
     const stored = readSaved(storageKey);
     return stored ? reconcile(stored.layouts, defaultLayouts) : defaultLayouts;
@@ -373,6 +376,7 @@ const Workspace: React.FC<{
               Reset desk
             </TextLinkButton>
           )}
+          {controls}
         </Box>
       </Box>
       <ResponsiveGrid

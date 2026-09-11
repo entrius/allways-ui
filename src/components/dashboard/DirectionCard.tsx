@@ -10,11 +10,8 @@ import {
 import { chainName, chainSymbol, formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
-import MonoSelect from '../MonoSelect';
 import RailTooltip from './railTooltip';
 import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
-
-const RANGES: readonly HeroRange[] = ['1H', '1D', '1W', '1M'];
 
 // Registry names run long ("USDC (Arbitrum)"); they truncate rather than
 // wrap so the card's height never moves on a selection change.
@@ -82,9 +79,9 @@ const DirectionCard: React.FC<{
   direction: Direction;
   // The hub column the cell sits in; prices read as quote per 1 of this.
   base: string;
+  /** The desk's window (picked in the desk bar, not here). */
   range: HeroRange;
-  onRangeChange: (range: HeroRange) => void;
-}> = ({ direction, base, range, onRangeChange }) => {
+}> = ({ direction, base, range }) => {
   const theme = useTheme();
   const secs = RANGE_SECS[range];
   const legs = decomposeDirection(direction);
@@ -223,14 +220,6 @@ const DirectionCard: React.FC<{
             </Box>
           </RailTooltip>
         )}
-        <Box sx={{ ml: 'auto', flexShrink: 0 }}>
-          <MonoSelect<HeroRange>
-            label="Time range"
-            value={range}
-            onChange={onRangeChange}
-            options={RANGES.map((r) => ({ value: r, label: r }))}
-          />
-        </Box>
       </Box>
 
       {/* Which chains those letters actually mean, hub first. */}

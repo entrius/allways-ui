@@ -6,7 +6,14 @@ import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
-import RateMatrix from '../components/dashboard/RateMatrix';
+import RateMatrix, {
+  useMatrixAssets,
+  visibleAssets,
+} from '../components/dashboard/RateMatrix';
+import RateMatrixSettings from '../components/dashboard/RateMatrixSettings';
+import { useMatrixSettings } from '../components/dashboard/matrixSettings';
+import WidgetSettings from '../components/workspace/WidgetSettings';
+import MonoSelect from '../components/MonoSelect';
 import HubSpokeWidget from '../components/dashboard/HubSpokeWidget';
 import { SymbolSearchPanel } from '../components/dashboard/SymbolSearch';
 import Watchlist from '../components/dashboard/Watchlist';
@@ -25,7 +32,10 @@ import {
   decomposeDirection,
   type Direction,
 } from '../api/models/MinersDashboard';
-import type { HeroRange } from '../components/dashboard/AllwaysMarketRate';
+import {
+  RANGES,
+  type HeroRange,
+} from '../components/dashboard/AllwaysMarketRate';
 
 // Opening instrument when the URL says nothing and no swap has settled yet.
 // Otherwise the page opens on the busiest direction (see busiestDirection).
@@ -119,8 +129,15 @@ const MARKET_LAYOUTS: Layouts = {
 // reservations, events) lives on /network.
 const MarketPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
-  // One window for the card's stats.
+  // The desk's window: the rate card's stats, the history, the watchlist
+  // and the network map all read it, so it is picked once in the desk bar.
   const [range, setRange] = useState<HeroRange>('1H');
+  // The Markets widget's settings live with the page: the sheet reads them
+  // and the widget's gear (in its title row) edits them.
+  const matrix = useMatrixSettings();
+  const matrixAssets = useMatrixAssets();
+  const matrixHidden =
+    matrixAssets.length - visibleAssets(matrixAssets, matrix.settings).length;
 
   // Where the page opens with nothing on the URL: the recent busiest cell.
   const { data: swaps } = useCompleteSwapHistory();
@@ -192,17 +209,42 @@ const MarketPage: React.FC = () => {
         <Workspace
           storageKey="allways.market.workspace.v8"
           defaultLayouts={MARKET_LAYOUTS}
+          controls={
+            <MonoSelect<HeroRange>
+              label="Time range"
+              value={range}
+              onChange={setRange}
+              options={RANGES.map((r) => ({ value: r, label: r }))}
+            />
+          }
           panels={[
             {
               id: 'matrix',
               title: 'Markets',
               minW: 4,
               minH: 48,
+              aside: (
+                <WidgetSettings
+                  label="Markets settings"
+                  count={matrixHidden}
+                  onReset={matrix.reset}
+                >
+                  <RateMatrixSettings
+                    assets={matrixAssets.filter((a) => !a.hub)}
+                    settings={matrix.settings}
+                    update={matrix.update}
+                    toggleHidden={matrix.toggleHidden}
+                    toggleFavorite={matrix.toggleFavorite}
+                  />
+                </WidgetSettings>
+              ),
               node: (
                 <RateMatrix
                   direction={direction}
                   base={base}
                   onDirectionChange={setDirection}
+                  settings={matrix.settings}
+                  toggleFavorite={matrix.toggleFavorite}
                 />
               ),
             },
@@ -216,7 +258,6 @@ const MarketPage: React.FC = () => {
                   direction={direction}
                   base={base}
                   range={range}
-                  onRangeChange={setRange}
                 />
               ),
             },
