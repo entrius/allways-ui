@@ -28,6 +28,11 @@ import WidgetSettings, {
   settingsNoteSx,
   settingsRowSx,
 } from '../components/workspace/WidgetSettings';
+import {
+  deskChanges,
+  useDeskSettings,
+  type Spacing,
+} from '../components/workspace/deskSettings';
 import Watchlist from '../components/dashboard/Watchlist';
 import WatchlistSettingsRows from '../components/dashboard/WatchlistSettingsRows';
 import {
@@ -145,7 +150,11 @@ const MarketPage: React.FC = () => {
   // The desk's window: the rate card's stats, the history, the watchlist
   // and the network map all read it, so it is picked once in the desk bar.
   const [range, setRange] = useState<HeroRange>(DEFAULT_RANGE);
-  const resetRange = useCallback(() => setRange(DEFAULT_RANGE), []);
+  const desk = useDeskSettings();
+  const resetDesk = useCallback(() => {
+    setRange(DEFAULT_RANGE);
+    desk.reset();
+  }, [desk]);
   // The Matrix widget's settings live with the page: the sheet reads them
   // and the widget's gear (in its title row) edits them.
   const matrix = useMatrixSettings();
@@ -245,10 +254,43 @@ const MarketPage: React.FC = () => {
               <Typography component="div" sx={settingsNoteSx}>
                 The window the rate card, history and watchlist read.
               </Typography>
+
+              <Typography
+                component="div"
+                sx={{
+                  ...settingsLabelSx,
+                  pt: 1,
+                  pb: 0.25,
+                  mt: 0.5,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                spacing
+              </Typography>
+              <Box sx={settingsRowSx}>
+                <SettingsSeg
+                  left
+                  options={[
+                    { value: 'comfortable', label: 'comfortable' },
+                    { value: 'compact', label: 'compact' },
+                  ]}
+                  value={desk.settings.spacing}
+                  onChange={(v) => desk.update({ spacing: v as Spacing })}
+                />
+              </Box>
+              <Typography component="div" sx={settingsNoteSx}>
+                {desk.settings.spacing === 'compact'
+                  ? 'Widgets sit tight, a hairline apart.'
+                  : 'Widgets keep the site\u2019s card gap between them.'}
+              </Typography>
             </>
           }
-          settingsCount={range === DEFAULT_RANGE ? 0 : 1}
-          onReset={resetRange}
+          settingsCount={
+            (range === DEFAULT_RANGE ? 0 : 1) + deskChanges(desk.settings)
+          }
+          onReset={resetDesk}
+          spacing={desk.settings.spacing}
           panels={[
             {
               id: 'matrix',

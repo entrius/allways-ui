@@ -48,16 +48,17 @@ export type WorkspacePanel = {
 export const WORKSPACE_COLS = { lg: 2, md: 2, sm: 1, xs: 1 } as const;
 const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
 const ROW_HEIGHT = 4;
-const GUTTER_X = 24;
 const GUTTER_Y = 4;
 const ROW_UNIT = ROW_HEIGHT + GUTTER_Y;
-const PANEL_GAP = 24 - GUTTER_Y;
+// The visible gap between widgets, comfortable or compact (the desk's
+// setting); the same gap sideways and down.
+const GAP_PX = { comfortable: 24, compact: 8 } as const;
 // Rows for a widget whose card (title row, border, body and its padding)
 // is this tall. The grid gives a slot of h rows minus one row gap; the card
-// leaves PANEL_GAP of it empty; round up to the next 8px row so the slot is
+// leaves panelGap of it empty; round up to the next 8px row so the slot is
 // never shorter than the card and nothing inside has to scroll.
-const rowsFor = (cardPx: number) =>
-  Math.max(1, Math.ceil((cardPx + PANEL_GAP + GUTTER_Y) / ROW_UNIT));
+const rowsFor = (cardPx: number, panelGap: number) =>
+  Math.max(1, Math.ceil((cardPx + panelGap + GUTTER_Y) / ROW_UNIT));
 
 // What a browser remembers: where each widget sits, and which are put away.
 type Saved = { layouts: Layouts; hidden: string[] };
@@ -138,6 +139,8 @@ const Workspace: React.FC<{
   settingsCount?: number;
   /** Called with the desk's own reset, to put those settings back. */
   onReset?: () => void;
+  /** Gap between widgets. */
+  spacing?: keyof typeof GAP_PX;
 }> = ({
   panels,
   defaultLayouts,
@@ -145,7 +148,12 @@ const Workspace: React.FC<{
   settings,
   settingsCount = 0,
   onReset,
+  spacing = 'comfortable',
 }) => {
+  const gap = GAP_PX[spacing];
+  // What a card leaves empty at the foot of its slot so the visible gap
+  // comes out to `gap`.
+  const panelGap = gap - GUTTER_Y;
   const [layouts, setLayouts] = useState<Layouts>(() => {
     const stored = readSaved(storageKey);
     return stored ? reconcile(stored.layouts, defaultLayouts) : defaultLayouts;
@@ -249,21 +257,24 @@ const Workspace: React.FC<{
   // every breakpoint.
   const bodies = useRef(new Map<string, HTMLDivElement>());
   const observer = useRef<ResizeObserver | null>(null);
-  const fitRows = useCallback((id: string, px: number) => {
-    const h = rowsFor(px);
-    setLayouts((prev) => {
-      let changed = false;
-      const out: Layouts = {};
-      for (const [bp, items] of Object.entries(prev)) {
-        out[bp] = items.map((l) => {
-          if (l.i !== id || l.h === h) return l;
-          changed = true;
-          return { ...l, h };
-        });
-      }
-      return changed ? out : prev;
-    });
-  }, []);
+  const fitRows = useCallback(
+    (id: string, px: number) => {
+      const h = rowsFor(px, panelGap);
+      setLayouts((prev) => {
+        let changed = false;
+        const out: Layouts = {};
+        for (const [bp, items] of Object.entries(prev)) {
+          out[bp] = items.map((l) => {
+            if (l.i !== id || l.h === h) return l;
+            changed = true;
+            return { ...l, h };
+          });
+        }
+        return changed ? out : prev;
+      });
+    },
+    [panelGap],
+  );
   // Size every content-fit widget's slot from its card as it is now.
   const remeasure = useCallback(() => {
     for (const [id, el] of bodies.current)
@@ -284,7 +295,7 @@ const Workspace: React.FC<{
     return () => cancelAnimationFrame(id);
     // remeasure is stable; the pass is keyed to the desk changing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layouts, hidden]);
+  }, [layouts, hidden, panelGap]);
   useEffect(() => {
     const onChange = () => {
       if (document.visibilityState === 'visible') remeasure();
@@ -432,7 +443,7 @@ const Workspace: React.FC<{
         breakpoints={BREAKPOINTS}
         cols={WORKSPACE_COLS}
         rowHeight={ROW_HEIGHT}
-        margin={[GUTTER_X, GUTTER_Y]}
+        margin={[gap, GUTTER_Y]}
         containerPadding={[0, 0]}
         draggableHandle=".workspace-drag"
         compactType="vertical"
@@ -452,7 +463,7 @@ const Workspace: React.FC<{
                 // grid, so the slot may run a few px longer but never
                 // shorter. A fill box takes the whole slot.
                 height:
-                  p.fit === 'fill' ? `calc(100% - ${PANEL_GAP}px)` : 'auto',
+                  p.fit === 'fill' ? `calc(100% - ${panelGap}px)` : 'auto',
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,
