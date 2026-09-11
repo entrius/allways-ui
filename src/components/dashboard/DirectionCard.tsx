@@ -1,20 +1,29 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCrownRateHistory, useCurrentCrown } from '../../api';
 import {
-  crownLaneFor,
+  useCompleteSwapHistory,
+  useCrownRateHistory,
+  useUsdPrices,
+} from '../../api';
+import {
   decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { chainName, chainSymbol, formatRate } from '../../utils/format';
+import { takeableFor, takeableKey, useBestTakeable } from './takeable';
+import {
+  canonicalSource,
+  chainName,
+  chainSymbol,
+  formatRate,
+  usdFromHuman,
+} from '../../utils/format';
+import { hubLegVolume } from './marketRate';
+import { RATE_STATS, type RateStats } from './rateSettings';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
-import MonoSelect from '../MonoSelect';
 import RailTooltip from './railTooltip';
 import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
-
-const RANGES: readonly HeroRange[] = ['1H', '1D', '1W', '1M'];
 
 // Registry names run long ("USDC (Arbitrum)"); they truncate rather than
 // wrap so the card's height never moves on a selection change.
@@ -82,9 +91,11 @@ const DirectionCard: React.FC<{
   direction: Direction;
   // The hub column the cell sits in; prices read as quote per 1 of this.
   base: string;
+  /** The desk's window (picked in the desk bar, not here). */
   range: HeroRange;
-  onRangeChange: (range: HeroRange) => void;
-}> = ({ direction, base, range, onRangeChange }) => {
+  /** Which facts the ribbon under the headline shows (the gear). */
+  stats: RateStats;
+}> = ({ direction, base, range, stats }) => {
   const theme = useTheme();
   const secs = RANGE_SECS[range];
   const legs = decomposeDirection(direction);
@@ -103,17 +114,12 @@ const DirectionCard: React.FC<{
   const reverseDir =
     `${legs.to.toUpperCase()}-${legs.from.toUpperCase()}` as Direction;
 
-  const { data: crown } = useCurrentCrown();
-  // Lane scored on the base hub, the same lane the matrix column shows.
-  const natural = directionalRateFor(
-    direction,
-    crownLaneFor(crown, direction, base)?.rate,
-  );
+  // The best takeable rate on the base hub's purse: the same number the
+  // matrix cell shows and the top of the book.
+  const { map: takeable } = useBestTakeable();
+  const natural = takeableFor(takeable, direction, base);
   const price = toPrice(natural);
-  const revNatural = directionalRateFor(
-    reverseDir,
-    crownLaneFor(crown, reverseDir, base)?.rate,
-  );
+  const revNatural = takeableFor(takeable, reverseDir, base);
   // The reverse route on the same ruler: it is the inverse whenever this
   // one is not, and vice versa.
   const revPrice =
@@ -161,9 +167,56 @@ const DirectionCard: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selRows, price, direction, inverted]);
 
+  // The book behind the headline: quotes and takeable size on the base
+  // hub's purse, size in USD when the purse is priced.
+  const prices = useUsdPrices();
+  const quoteInfo = takeable.get(takeableKey(direction, base));
+  const depthUnits = quoteInfo
+    ? Object.values(quoteInfo.depth).reduce((a, b) => a + b, 0)
+    : 0;
+  const depthUsd = quoteInfo
+    ? Object.entries(quoteInfo.depth).reduce<number | null>(
+        (acc, [backing, units]) => {
+          const usd = usdFromHuman(units, backing, prices);
+          return acc != null && usd != null ? acc + usd : null;
+        },
+        0,
+      )
+    : null;
+  // The window's settled volume and swap count on this direction, the
+  // hub-leg side in the pair's hub, USD when priced.
+  const { data: swaps } = useCompleteSwapHistory();
+  const { vol, swapCount } = useMemo(() => {
+    const cutoff = Date.now() / 1000 - secs;
+    const hub = canonicalSource(legs.from, legs.to);
+    let vol = 0;
+    let swapCount = 0;
+    for (const sw of swaps ?? []) {
+      if (
+        sw.status !== 'COMPLETED' ||
+        sw.initiatedAt == null ||
+        Number(sw.initiatedAt) < cutoff ||
+        sw.sourceChain?.toLowerCase() !== legs.from ||
+        sw.destChain?.toLowerCase() !== legs.to
+      )
+        continue;
+      swapCount += 1;
+      const v = hubLegVolume(sw, hub);
+      if (Number.isFinite(v)) vol += v;
+    }
+    return { vol, swapCount };
+  }, [swaps, secs, legs.from, legs.to]);
+  const volHub = canonicalSource(legs.from, legs.to);
+  const volUsd = usdFromHuman(vol, volHub, prices);
+  const fmtSize = (n: number) =>
+    n >= 1000
+      ? `${(n / 1000).toFixed(1)}k`
+      : n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const baseSym = chainSymbol(base);
   const quoteSym = chainSymbol(quote);
+  const shown = RATE_STATS.filter((k) => stats[k]);
 
   return (
     <Stack sx={{ minWidth: 0 }}>
@@ -223,14 +276,6 @@ const DirectionCard: React.FC<{
             </Box>
           </RailTooltip>
         )}
-        <Box sx={{ ml: 'auto', flexShrink: 0 }}>
-          <MonoSelect<HeroRange>
-            label="Time range"
-            value={range}
-            onChange={onRangeChange}
-            options={RANGES.map((r) => ({ value: r, label: r }))}
-          />
-        </Box>
       </Box>
 
       {/* Which chains those letters actually mean, hub first. */}
@@ -311,37 +356,109 @@ const DirectionCard: React.FC<{
             : `Send 1 ${baseSym} → get ${formatRate(price)} ${quoteSym}`}
       </Typography>
 
-      {/* The header ribbon every exchange puts under the price: the
-          window's high and low beside the spread, label over value. */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          columnGap: 2,
-          pt: 1.5,
-        }}
-      >
-        <Stat
-          label={`${range} High`}
-          value={high != null ? formatRate(high) : '—'}
-          hint={`Highest rate over ${range}.`}
-        />
-        <Stat
-          label={`${range} Low`}
-          value={low != null ? formatRate(low) : '—'}
-          hint={`Lowest rate over ${range}.`}
-        />
-        <Stat
-          label={crossed ? 'Crossed' : 'Spread'}
-          value={spreadPct != null ? `${spreadPct.toFixed(2)}%` : '—'}
-          color={crossed ? move.up : undefined}
-          hint={
-            crossed
-              ? `This rate and the reverse direction's (${revPrice != null ? formatRate(revPrice) : '—'}) overlap by this much.`
-              : `Gap to the reverse direction's rate (${revPrice != null ? formatRate(revPrice) : '—'}), as a share of the two.`
-          }
-        />
-      </Box>
+      {/* The header ribbon every exchange puts under the price: the facts
+          the gear has switched on, label over value, up to four to a row. */}
+      {shown.length > 0 && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.min(shown.length, 4)}, 1fr)`,
+            columnGap: 2,
+            rowGap: 1.25,
+            pt: 1.5,
+          }}
+        >
+          {shown.map((k) => {
+            switch (k) {
+              case 'high':
+                return (
+                  <Stat
+                    key={k}
+                    label={`${range} High`}
+                    value={high != null ? formatRate(high) : '—'}
+                    hint={`Highest rate over ${range}.`}
+                  />
+                );
+              case 'low':
+                return (
+                  <Stat
+                    key={k}
+                    label={`${range} Low`}
+                    value={low != null ? formatRate(low) : '—'}
+                    hint={`Lowest rate over ${range}.`}
+                  />
+                );
+              case 'spread':
+                return (
+                  <Stat
+                    key={k}
+                    label={crossed ? 'Crossed' : 'Spread'}
+                    value={spreadPct != null ? `${spreadPct.toFixed(2)}%` : '—'}
+                    color={crossed ? move.up : undefined}
+                    hint={
+                      crossed
+                        ? `This rate and the reverse direction's (${revPrice != null ? formatRate(revPrice) : '—'}) overlap by this much.`
+                        : `Gap to the reverse direction's rate (${revPrice != null ? formatRate(revPrice) : '—'}), as a share of the two.`
+                    }
+                  />
+                );
+              case 'reverse':
+                return (
+                  <Stat
+                    key={k}
+                    label="Reverse"
+                    value={revPrice != null ? formatRate(revPrice) : '—'}
+                    hint={`The way back (${quoteSym} → ${baseSym}) on this ruler: ${quoteSym} per 1 ${baseSym}.`}
+                  />
+                );
+              case 'depth':
+                return (
+                  <Stat
+                    key={k}
+                    label="Depth"
+                    value={
+                      depthUsd != null
+                        ? `$${fmtSize(depthUsd)}`
+                        : `${fmtSize(depthUnits)} ${baseSym}`
+                    }
+                    hint={`Takeable size behind this direction's quotes right now${depthUsd != null ? `, ${fmtSize(depthUnits)} ${baseSym}` : ''}.`}
+                  />
+                );
+              case 'quotes':
+                return (
+                  <Stat
+                    key={k}
+                    label="Quotes"
+                    value={String(quoteInfo?.quotes ?? 0)}
+                    hint="Miners quoting this direction right now."
+                  />
+                );
+              case 'vol':
+                return (
+                  <Stat
+                    key={k}
+                    label={`${range} Vol`}
+                    value={
+                      volUsd != null
+                        ? `$${fmtSize(volUsd)}`
+                        : `${fmtSize(vol)} ${chainSymbol(volHub)}`
+                    }
+                    hint={`Value settled on this direction over ${range}${volUsd != null ? `, ${fmtSize(vol)} ${chainSymbol(volHub)}` : ''}.`}
+                  />
+                );
+              case 'swaps':
+                return (
+                  <Stat
+                    key={k}
+                    label={`${range} Swaps`}
+                    value={String(swapCount)}
+                    hint={`Swaps settled on this direction over ${range}.`}
+                  />
+                );
+            }
+          })}
+        </Box>
+      )}
     </Stack>
   );
 };

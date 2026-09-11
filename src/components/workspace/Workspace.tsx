@@ -18,6 +18,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import { FONTS } from '../../theme';
 import { TextLinkButton } from '../Buttons';
+import WidgetSettings from './WidgetSettings';
 
 const ResponsiveGrid = WidthProvider(Responsive);
 
@@ -28,8 +29,6 @@ export type WorkspacePanel = {
   /** Optional right-hand slot in the panel's header (a picker, a chip). */
   aside?: React.ReactNode;
   node: React.ReactNode;
-  minW?: number;
-  minH?: number;
   /**
    * 'content' (default): the widget's height follows what is inside it,
    * so a sheet with rows hidden or a book with two levels takes only the
@@ -39,27 +38,34 @@ export type WorkspacePanel = {
   fit?: 'content' | 'fill';
 };
 
-// The grid's units. Twelve columns on a wide screen with the landing card
-// gap between them. Rows are fine, 8px each (4px row + 4px gap), so a
+// The grid's units. Two columns on a wide screen, one on a narrow one,
+// with the landing card gap between them: every widget is exactly one
+// column wide, so a drag can only land it left or right and the desk is
+// always two tidy stacks. Rows are fine, 8px each (4px row + 4px gap), so a
 // widget's box can end within a few pixels of its content; the visible gap
 // between widgets is made up to the landing 24px by leaving each box 20px
 // short of its slot.
-export const WORKSPACE_COLS = { lg: 12, md: 12, sm: 6, xs: 2 } as const;
+export const WORKSPACE_COLS = { lg: 2, md: 2, sm: 1, xs: 1 } as const;
 const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
 const ROW_HEIGHT = 4;
-const GUTTER_X = 24;
 const GUTTER_Y = 4;
 const ROW_UNIT = ROW_HEIGHT + GUTTER_Y;
-const PANEL_GAP = 24 - GUTTER_Y;
-// A widget's chrome around its content: the title row and the body padding.
-const HEADER_PX = 30;
-const BODY_PAD_PX = 24;
-// Rows for a widget whose content is this tall: chrome, the slot's unused
-// gap, rounded up to the next 8px row.
-const rowsFor = (contentPx: number) =>
+// The gap between the two columns is the landing card gap always; the
+// gap DOWN a stack is the desk's setting: the card gap, or none, so
+// widgets stack touching like a terminal's panes.
+const GUTTER_X = 24;
+const GAP_Y = { comfortable: 24, compact: 0 } as const;
+// A card's border, around the contents the observer measures.
+const BORDER_PX = 2;
+// Rows for a widget whose contents (title row, body and its padding) are
+// this tall. The grid gives a slot of h rows minus one row gap; the card
+// leaves panelGap of it empty (negative when it must reach into the gap);
+// round up to the next 8px row so the slot is never shorter than the card
+// and nothing inside has to scroll.
+const rowsFor = (contentPx: number, panelGap: number) =>
   Math.max(
     1,
-    Math.ceil((contentPx + HEADER_PX + BODY_PAD_PX + PANEL_GAP) / ROW_UNIT),
+    Math.ceil((contentPx + BORDER_PX + panelGap + GUTTER_Y) / ROW_UNIT),
   );
 
 // What a browser remembers: where each widget sits, and which are put away.
@@ -134,7 +140,40 @@ const Workspace: React.FC<{
   defaultLayouts: Layouts;
   /** localStorage key; bump its version suffix when the defaults change. */
   storageKey: string;
-}> = ({ panels, defaultLayouts, storageKey }) => {
+  /** Rows for the desk's own gear (a window picker): state every widget
+   * reads belongs to the desk, not to one of them. */
+  settings?: React.ReactNode;
+  /** How many desk settings are away from their defaults (the badge). */
+  settingsCount?: number;
+  /** Called with the desk's own reset, to put those settings back. */
+  onReset?: () => void;
+  /** Desk-wide one-tap controls (the lookback) for the bar, beside the
+   * gear. */
+  controls?: React.ReactNode;
+  /** Gap down a stack: the card gap, or none. */
+  spacing?: keyof typeof GAP_Y;
+}> = ({
+  panels,
+  defaultLayouts,
+  storageKey,
+  settings,
+  settingsCount = 0,
+  onReset,
+  controls,
+  spacing = 'comfortable',
+}) => {
+  const compact = spacing === 'compact';
+  // What a card leaves empty at the foot of its slot so the visible gap
+  // down the stack comes out to the setting: 20px under a comfortable
+  // card; a compact card reaches through the 4px row gap and 1px over the
+  // next card's top border, so the two draw one hairline between them.
+  const panelGap = GAP_Y[spacing] - GUTTER_Y;
+  const cardHeight = (fit: WorkspacePanel['fit']) =>
+    compact
+      ? `calc(100% + ${GUTTER_Y + 1}px)`
+      : fit === 'fill'
+        ? `calc(100% - ${panelGap}px)`
+        : 'auto';
   const [layouts, setLayouts] = useState<Layouts>(() => {
     const stored = readSaved(storageKey);
     return stored ? reconcile(stored.layouts, defaultLayouts) : defaultLayouts;
@@ -220,17 +259,8 @@ const Workspace: React.FC<{
     setCustom(false);
     setHidden(new Set());
     setLayouts(defaultLayouts);
-  }, [defaultLayouts, storageKey]);
-
-  // The grid measures its width a frame after mount and after any change
-  // of desk; nudge a window resize so a chart that drew at the first width
-  // redraws at the settled one.
-  useEffect(() => {
-    const id = requestAnimationFrame(() =>
-      window.dispatchEvent(new Event('resize')),
-    );
-    return () => cancelAnimationFrame(id);
-  }, [layouts, hidden]);
+    onReset?.();
+  }, [defaultLayouts, storageKey, onReset]);
 
   const byId = useMemo(() => new Map(panels.map((p) => [p.id, p])), [panels]);
   const shownPanels = useMemo(
@@ -241,26 +271,64 @@ const Workspace: React.FC<{
     () => panels.filter((p) => hidden.has(p.id)),
     [panels, hidden],
   );
-  // Content-fit widgets measure what is inside them and take exactly the
-  // rows that needs. One observer watches every such body; a change in
-  // content height rewrites that widget's h on every breakpoint.
+  // Content-fit widgets measure their whole card, which is never clamped
+  // to its slot, and take exactly the rows that needs. One observer watches
+  // every such card; a change in its height rewrites that widget's h on
+  // every breakpoint.
   const bodies = useRef(new Map<string, HTMLDivElement>());
   const observer = useRef<ResizeObserver | null>(null);
-  const fitRows = useCallback((id: string, px: number) => {
-    const h = rowsFor(px);
-    setLayouts((prev) => {
-      let changed = false;
-      const out: Layouts = {};
-      for (const [bp, items] of Object.entries(prev)) {
-        out[bp] = items.map((l) => {
-          if (l.i !== id || l.h === h) return l;
-          changed = true;
-          return { ...l, h };
-        });
-      }
-      return changed ? out : prev;
+  const fitRows = useCallback(
+    (id: string, px: number) => {
+      const h = rowsFor(px, panelGap);
+      setLayouts((prev) => {
+        let changed = false;
+        const out: Layouts = {};
+        for (const [bp, items] of Object.entries(prev)) {
+          out[bp] = items.map((l) => {
+            if (l.i !== id || l.h === h) return l;
+            changed = true;
+            return { ...l, h };
+          });
+        }
+        return changed ? out : prev;
+      });
+    },
+    [panelGap],
+  );
+  // Size every content-fit widget's slot from its card as it is now.
+  const remeasure = useCallback(() => {
+    for (const [id, el] of bodies.current)
+      if (el.isConnected) fitRows(id, el.offsetHeight);
+  }, [fitRows]);
+
+  // The grid measures its width a frame after mount and after any change
+  // of desk; nudge a window resize so a chart that drew at the first width
+  // redraws at the settled one, then re-measure every content-fit card so
+  // no slot is left taller than its card. The observer below catches
+  // content changes as they happen; this pass is the backstop for any it
+  // missed (a hot reload, a tab that was hidden while the data moved).
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('resize'));
+      remeasure();
     });
-  }, []);
+    return () => cancelAnimationFrame(id);
+    // remeasure is stable; the pass is keyed to the desk changing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layouts, hidden, panelGap]);
+  useEffect(() => {
+    const onChange = () => {
+      if (document.visibilityState === 'visible') remeasure();
+    };
+    window.addEventListener('resize', onChange);
+    document.addEventListener('visibilitychange', onChange);
+    window.addEventListener('focus', onChange);
+    return () => {
+      window.removeEventListener('resize', onChange);
+      document.removeEventListener('visibilitychange', onChange);
+      window.removeEventListener('focus', onChange);
+    };
+  }, [remeasure]);
   useEffect(() => {
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
@@ -302,7 +370,7 @@ const Workspace: React.FC<{
     for (const [bp, items] of Object.entries(layouts)) {
       out[bp] = items
         .filter((l) => !hidden.has(l.i))
-        .map((l) => ({ ...l, static: false, isResizable: false }));
+        .map((l) => ({ ...l, w: 1, static: false, isResizable: false }));
     }
     return out;
   }, [layouts, hidden]);
@@ -327,6 +395,7 @@ const Workspace: React.FC<{
           borderRadius: 0,
           transition: 'none',
         },
+        '& .react-grid-item:hover': { zIndex: 2 },
         '& .react-grid-item.react-draggable-dragging': {
           zIndex: 3,
           '& > .workspace-panel': { borderColor: 'primary.main' },
@@ -376,6 +445,18 @@ const Workspace: React.FC<{
               Reset desk
             </TextLinkButton>
           )}
+          {controls}
+          {/* The desk's own gear, the same control every widget wears:
+              the desk's settings, and reset. */}
+          {settings && (
+            <WidgetSettings
+              label="Desk settings"
+              count={settingsCount}
+              onReset={reset}
+            >
+              {settings}
+            </WidgetSettings>
+          )}
         </Box>
       </Box>
       <ResponsiveGrid
@@ -397,13 +478,12 @@ const Workspace: React.FC<{
             <Box
               className="workspace-panel"
               sx={{
-                // A content-fit box ends exactly at its content (the body
-                // padding under it is the same on every widget); the slot
-                // it sits in is rounded to the grid and may run a few px
-                // longer. A fill box takes the whole slot.
-                height:
-                  p.fit === 'fill' ? `calc(100% - ${PANEL_GAP}px)` : 'auto',
-                maxHeight: `calc(100% - ${PANEL_GAP}px)`,
+                // A content-fit card ends at its contents and is never
+                // clamped: its slot is sized from them, rounded to the
+                // grid, so the slot may run a few px longer but never
+                // shorter. A fill card takes the whole slot. Compact cards
+                // take the slot and the gap after it, so they touch.
+                height: cardHeight(p.fit),
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,
@@ -416,96 +496,107 @@ const Workspace: React.FC<{
               }}
             >
               <Box
-                className="workspace-drag"
+                className="workspace-card"
+                ref={p.fit === 'fill' ? undefined : bodyRef(p.id)}
+                data-widget={p.fit === 'fill' ? undefined : p.id}
                 sx={{
+                  // The contents: what the observer measures. A fill
+                  // widget's contents stretch to the card.
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 1,
-                  px: 1.5,
-                  py: 0.75,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  cursor: 'grab',
-                  userSelect: 'none',
-                  flexShrink: 0,
-                  '&:active': { cursor: 'grabbing' },
+                  flexDirection: 'column',
+                  flex: p.fit === 'fill' ? 1 : 'none',
+                  minHeight: 0,
                 }}
               >
-                <Typography
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: 'text.primary',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    minWidth: 0,
-                  }}
-                >
-                  {byId.get(p.id)?.title}
-                </Typography>
                 <Box
+                  className="workspace-drag"
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
                     gap: 1,
+                    px: 1.5,
+                    py: 0.75,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    cursor: 'grab',
+                    userSelect: 'none',
                     flexShrink: 0,
-                    cursor: 'default',
+                    '&:active': { cursor: 'grabbing' },
                   }}
-                  onMouseDown={(e) => e.stopPropagation()}
                 >
-                  {p.aside}
-                  <Box
-                    component="button"
-                    type="button"
-                    aria-label={`Put away ${typeof p.title === 'string' ? p.title : 'widget'}`}
-                    onClick={() => remove(p.id)}
+                  <Typography
                     sx={{
-                      all: 'unset',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      cursor: 'pointer',
-                      color: 'text.disabled',
-                      '&:hover': { color: 'primary.main' },
+                      fontFamily: FONTS.mono,
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      color: 'text.primary',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      minWidth: 0,
                     }}
                   >
-                    <CloseIcon sx={{ fontSize: 14 }} />
+                    {byId.get(p.id)?.title}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      flexShrink: 0,
+                      cursor: 'default',
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    {p.aside}
+                    <Box
+                      component="button"
+                      type="button"
+                      aria-label={`Put away ${typeof p.title === 'string' ? p.title : 'widget'}`}
+                      onClick={() => remove(p.id)}
+                      sx={{
+                        all: 'unset',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        color: 'text.disabled',
+                        '&:hover': { color: 'primary.main' },
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 14 }} />
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
-              <Box
-                sx={{
-                  flex: 1,
-                  minHeight: 0,
-                  minWidth: 0,
-                  overflow: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  p: 1.5,
-                  '&::-webkit-scrollbar': { width: 4, height: 4 },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: (t) => t.palette.border.light,
-                    borderRadius: 0,
-                  },
-                }}
-              >
-                {p.fit === 'fill' ? (
-                  p.node
-                ) : (
-                  // A block the content sets the height of; the observer
-                  // reads it and sizes the widget to match.
-                  <Box
-                    ref={bodyRef(p.id)}
-                    data-widget={p.id}
-                    sx={{ flex: 'none', minWidth: 0 }}
-                  >
-                    {p.node}
-                  </Box>
-                )}
+                <Box
+                  sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    minWidth: 0,
+                    // A fill body scrolls if its content is taller than the
+                    // slot; a content-fit body is never shorter than its
+                    // content, so only a wide sheet gets a scrollbar.
+                    overflow: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    p: 1.5,
+                    '&::-webkit-scrollbar': { width: 4, height: 4 },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: (t) => t.palette.border.light,
+                      borderRadius: 0,
+                    },
+                  }}
+                >
+                  {p.fit === 'fill' ? (
+                    p.node
+                  ) : (
+                    // A block the content sets the height of; the card
+                    // around it is what the observer reads.
+                    <Box sx={{ flex: 'none', minWidth: 0 }}>{p.node}</Box>
+                  )}
+                </Box>
               </Box>
             </Box>
           </Box>

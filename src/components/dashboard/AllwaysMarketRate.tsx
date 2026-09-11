@@ -47,7 +47,7 @@ export const MOVE_COLORS = {
 // alw-utils prune cron keeps ~35d of crown_holders, and a young network shows
 // however much has accumulated. ALL can follow once retention grows past 1M.
 export type HeroRange = '1H' | '1D' | '1W' | '1M';
-const RANGES: HeroRange[] = ['1H', '1D', '1W', '1M'];
+export const RANGES: HeroRange[] = ['1H', '1D', '1W', '1M'];
 export const RANGE_SECS: Record<HeroRange, number> = {
   '1H': 3_600,
   '1D': 86_400,

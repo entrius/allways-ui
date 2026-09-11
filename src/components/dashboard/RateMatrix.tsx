@@ -6,21 +6,18 @@ import {
   orderByMarketCap,
   useChains,
   useChainSupply,
-  useCurrentCrown,
   useMarketCaps,
 } from '../../api';
 import { hubLeg, type ChainInfo } from '../../api/models/chains';
 import {
-  crownLaneFor,
   decomposeDirection,
-  type CurrentCrownMap,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { directionalRate, formatRate } from '../../utils/format';
+import { formatRate } from '../../utils/format';
+import { takeableFor, useBestTakeable, type TakeableMap } from './takeable';
 import { FONTS } from '../../theme';
 import { ChainLogo, NetworkBadge } from '../ChainLogo';
-import RateMatrixSettings from './RateMatrixSettings';
-import { useMatrixSettings } from './matrixSettings';
+import type { MatrixSettings } from './matrixSettings';
 
 // A spreadsheet of bare numbers, port of allways-matrix into the site's own
 // theme. Turned on its side: the hubs are COLUMNS (two each) and every asset
@@ -49,30 +46,20 @@ interface CellRates {
 
 const invert = (n: number | null): number | null => (n && n > 0 ? 1 / n : n);
 
-const directionKey = (from: string, to: string): string =>
-  `${from}-${to}`.toUpperCase();
+const directionKey = (from: string, to: string): Direction =>
+  `${from}-${to}`.toUpperCase() as Direction;
 
-// The lane shown for a cell is the one scored on the COLUMN's hub. Spoke
-// pairs have exactly one lane (their hub leg); the hub↔hub pair has one per
-// hub, so the SOL columns show the sol-backed crown and the TAO columns the
-// tao-backed one.
+// A cell is the best TAKEABLE rate on the COLUMN's hub purse: the top of
+// the book for that direction. Spoke pairs have one purse (their hub); the
+// hub↔hub pair has one per hub, so the SOL columns show the sol-backed
+// quotes and the TAO columns the tao-backed ones.
 const cellRates = (
   hub: string,
   asset: string,
-  crown: CurrentCrownMap | undefined,
+  takeable: TakeableMap,
 ): CellRates => ({
-  out: directionalRate(
-    hub,
-    asset,
-    crownLaneFor(crown, directionKey(hub, asset), hub)?.rate,
-  ),
-  back: invert(
-    directionalRate(
-      asset,
-      hub,
-      crownLaneFor(crown, directionKey(asset, hub), hub)?.rate,
-    ),
-  ),
+  out: takeableFor(takeable, directionKey(hub, asset), hub),
+  back: invert(takeableFor(takeable, directionKey(asset, hub), hub)),
 });
 
 // One asset mention, drawn from whichever label parts are switched on.
@@ -179,6 +166,34 @@ const Cell: React.FC<{
   return cell;
 };
 
+// The sheet's rows: hubs first, in das priority order (the same order the
+// rest of the site files pairs under), then every other asset by market
+// cap, largest first, with same-asset deployments ordered by their chain's
+// supply. Shared with the widget's settings panel so it lists rows in the
+// order the sheet shows them.
+export const useMatrixAssets = (): ChainInfo[] => {
+  const { data: chains } = useChains();
+  const { data: caps } = useMarketCaps(chains);
+  const { data: supply } = useChainSupply(chains);
+  return useMemo(
+    () => orderByMarketCap(chains, caps, supply),
+    [chains, caps, supply],
+  );
+};
+
+// Favorites-only shows exactly the starred rows, hubs included (a hub row
+// is the hub↔hub corridor, and is starred like any other). Otherwise hubs
+// always show and the rest honour hidden.
+export const visibleAssets = (
+  all: ChainInfo[],
+  settings: MatrixSettings,
+): ChainInfo[] =>
+  all.filter((a) =>
+    settings.favoritesOnly
+      ? settings.favorites.includes(a.id)
+      : a.hub || !settings.hidden.includes(a.id),
+  );
+
 // The sheet is also the picker: clicking a number selects that DIRECTION
 // (hub → asset for a plain column, asset → hub for a banded one) for the
 // panels beside it.
@@ -188,48 +203,27 @@ const RateMatrix: React.FC<{
   // pair, which appears under both hub columns.
   base?: string;
   onDirectionChange: (direction: Direction, hub: string) => void;
-}> = ({ direction, base, onDirectionChange }) => {
+  /** The widget's settings, owned by the page (its gear lives in the
+   * widget's title row, outside the sheet). */
+  settings: MatrixSettings;
+  /** The row stars star and unstar assets in place. */
+  toggleFavorite: (id: string) => void;
+}> = ({ direction, base, onDirectionChange, settings, toggleFavorite }) => {
   const theme = useTheme();
   const { data: chains } = useChains();
-  const { data: crown, dataUpdatedAt, isError } = useCurrentCrown();
-  const { settings, update, toggleHidden, toggleFavorite, reset } =
-    useMatrixSettings();
+  const { map: takeable, miners, dataUpdatedAt, isError } = useBestTakeable();
   // The picked cell's row asset and hub column, so their headers can light
   // up the way a spreadsheet marks the active cell's row and column.
   const selLegs = decomposeDirection(direction);
   const selHub = base ?? hubLeg(selLegs.from, selLegs.to) ?? selLegs.from;
   const selAsset = selLegs.from === selHub ? selLegs.to : selLegs.from;
-  const [panelOpen, setPanelOpen] = useState(false);
-  // Where the settings link was when it was clicked, so the panel (which
-  // renders on the page, not in the sheet) hangs from it.
-  const [panelAnchor, setPanelAnchor] = useState<{
-    top: number;
-    bottom: number;
-    left: number;
-  } | null>(null);
 
-  // Hubs first, in das priority order (the same order the rest of the site
-  // files pairs under), then every other asset by market cap, largest
-  // first, with same-asset deployments ordered by their chain's supply.
   const hubs = useMemo(() => chains.filter((c) => c.hub), [chains]);
-  const { data: caps } = useMarketCaps(chains);
-  const { data: supply } = useChainSupply(chains);
-  const allAssets = useMemo(
-    () => orderByMarketCap(chains, caps, supply),
-    [chains, caps, supply],
-  );
-  // Hubs always show as rows; the rest honour hidden and favorites-only.
+  const allAssets = useMatrixAssets();
   const assets = useMemo(
-    () =>
-      allAssets.filter(
-        (a) =>
-          a.hub ||
-          (!settings.hidden.includes(a.id) &&
-            (!settings.favoritesOnly || settings.favorites.includes(a.id))),
-      ),
+    () => visibleAssets(allAssets, settings),
     [allAssets, settings],
   );
-  const collapsed = allAssets.length - assets.length;
   // Logos grow as text leaves the label: 16px beside two lines, 20px beside
   // one, 28px on their own.
   const { logo, ticker, network } = settings.header;
@@ -249,15 +243,15 @@ const RateMatrix: React.FC<{
     for (const hub of hubs)
       for (const a of allAssets)
         if (a.id !== hub.id)
-          m[`${hub.id}|${a.id}`] = cellRates(hub.id, a.id, crown);
+          m[`${hub.id}|${a.id}`] = cellRates(hub.id, a.id, takeable);
     return m;
-  }, [hubs, allAssets, crown]);
+  }, [hubs, allAssets, takeable]);
   // Only a fill that FOLLOWS a live one counts as a move: the seed-to-live
   // step would otherwise light every cell at once.
   const prev = useRef<Record<string, CellRates> | null>(null);
   const [seq, setSeq] = useState<Record<string, number>>({});
   useEffect(() => {
-    if (!crown) return;
+    if (!miners) return;
     const before = prev.current;
     prev.current = rates;
     if (!before) return;
@@ -273,7 +267,7 @@ const RateMatrix: React.FC<{
       for (const k of bumped) n[k] = (n[k] ?? 0) + 1;
       return n;
     });
-  }, [rates, crown]);
+  }, [rates, miners]);
 
   const status = isError
     ? 'offline'
@@ -288,16 +282,6 @@ const RateMatrix: React.FC<{
   const pinnedSx = {
     position: 'sticky',
     backgroundColor: 'background.default',
-  } as const;
-
-  const linkSx = {
-    all: 'unset',
-    display: 'block',
-    cursor: 'pointer',
-    fontFamily: FONTS.mono,
-    fontSize: '0.6rem',
-    color: 'text.secondary',
-    '&:hover': { color: 'text.primary' },
   } as const;
 
   return (
@@ -334,7 +318,7 @@ const RateMatrix: React.FC<{
       >
         <thead>
           <tr>
-            {/* Corner: live status and the way into settings. */}
+            {/* Corner: live status. Settings are the widget's gear. */}
             <Box
               component="th"
               sx={{
@@ -360,56 +344,6 @@ const RateMatrix: React.FC<{
               >
                 {status}
               </Typography>
-              <Box
-                component="button"
-                type="button"
-                onClick={(e) => {
-                  const r = e.currentTarget.getBoundingClientRect();
-                  setPanelAnchor({
-                    top: r.top,
-                    bottom: r.bottom,
-                    left: r.left,
-                  });
-                  setPanelOpen((o) => !o);
-                }}
-                title={
-                  collapsed
-                    ? `settings · ${collapsed} row${collapsed === 1 ? '' : 's'} hidden`
-                    : 'settings'
-                }
-                sx={{ ...linkSx, mt: 0.125 }}
-              >
-                settings
-                {collapsed > 0 && (
-                  <Box
-                    component="span"
-                    sx={{
-                      display: 'inline-block',
-                      ml: 0.625,
-                      px: 0.5,
-                      borderRadius: '7px',
-                      backgroundColor: 'border.light',
-                      color: 'text.primary',
-                      fontSize: '0.56rem',
-                      lineHeight: '13px',
-                    }}
-                  >
-                    {collapsed}
-                  </Box>
-                )}
-              </Box>
-              {panelOpen && (
-                <RateMatrixSettings
-                  assets={allAssets.filter((a) => !a.hub)}
-                  settings={settings}
-                  update={update}
-                  toggleHidden={toggleHidden}
-                  toggleFavorite={toggleFavorite}
-                  reset={reset}
-                  onClose={() => setPanelOpen(false)}
-                  anchor={panelAnchor}
-                />
-              )}
             </Box>
             {hubs.map((hub) => (
               <Box
@@ -482,32 +416,30 @@ const RateMatrix: React.FC<{
                     network={network}
                     logoSize={logoSize}
                   />
-                  {!asset.hub && (
-                    <Box
-                      component="button"
-                      type="button"
-                      className="matrix-star"
-                      title={fav ? 'unstar' : 'star'}
-                      onClick={() => toggleFavorite(asset.id)}
-                      sx={{
-                        all: 'unset',
-                        position: 'absolute',
-                        right: 4,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        cursor: 'pointer',
-                        fontSize: 12,
-                        lineHeight: 1,
-                        opacity: fav ? 1 : 0,
-                        color: fav ? '#e8b923' : 'border.light',
-                        '&:hover': {
-                          color: fav ? '#e8b923' : 'text.secondary',
-                        },
-                      }}
-                    >
-                      ★
-                    </Box>
-                  )}
+                  <Box
+                    component="button"
+                    type="button"
+                    className="matrix-star"
+                    title={fav ? 'unstar' : 'star'}
+                    onClick={() => toggleFavorite(asset.id)}
+                    sx={{
+                      all: 'unset',
+                      position: 'absolute',
+                      right: 4,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      lineHeight: 1,
+                      opacity: fav ? 1 : 0,
+                      color: fav ? '#e8b923' : 'border.light',
+                      '&:hover': {
+                        color: fav ? '#e8b923' : 'text.secondary',
+                      },
+                    }}
+                  >
+                    ★
+                  </Box>
                 </Box>
                 {hubs.map((hub) => {
                   const self = asset.id === hub.id;
