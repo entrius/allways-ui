@@ -14,7 +14,7 @@ import {
 } from '../../api/models/MinersDashboard';
 import { takeableSpread, useBestTakeable } from './takeable';
 import { COLUMN_LABELS } from './WatchlistSettingsRows';
-import { hubChains, hubLeg } from '../../api/models/chains';
+import { chainInfo, hubChains, hubLeg } from '../../api/models/chains';
 import {
   canonicalSource,
   chainName,
@@ -124,11 +124,14 @@ const LIST_MAX_PX = 408;
 
 // FX-style instrument label, "SOL/BTC" with the two chain marks slightly
 // overlapped like a forex flag pair.
-// Four deployments ticker as "USDC"; the registry name carries the network
-// in parentheses ("USDC (Arbitrum)"), which the label shows muted after
-// the ticker so one row reads unambiguously.
-const networkOf = (chain: string): string | null =>
-  /\((.+)\)/.exec(chainName(chain))?.[1] ?? null;
+// The network an asset lives on, when that is not the asset's own chain:
+// "Ethereum" after UNI and PAXG, "Arbitrum" after one of the four USDCs,
+// nothing after BTC or SOL. The same line the sheet prints under a row's
+// ticker, shown muted after the ticker so one row reads unambiguously.
+const networkOf = (chain: string): string | null => {
+  const network = chainInfo(chain)?.network;
+  return network && network !== chainName(chain) ? network : null;
+};
 
 const ellipsisSx = {
   minWidth: 0,
