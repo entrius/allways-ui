@@ -4,15 +4,27 @@ import { useChains } from '../../api';
 import { hubChains } from '../../api/models/chains';
 import { chainSymbol } from '../../utils/format';
 import {
+  SettingsCheck as Check,
   SettingsSeg as Seg,
   settingsLabelSx as labelSx,
   settingsRowSx as rowSx,
 } from '../workspace/WidgetSettings';
 import {
   ALL_HUBS,
+  COLUMNS,
+  type Column,
   type Directions,
   type WatchlistSettings,
 } from './watchlistSettings';
+
+export const COLUMN_LABELS: Record<Column, { label: string; note: string }> = {
+  spread: { label: 'Spread', note: 'gap to the way back' },
+  depth: { label: 'Depth', note: 'takeable size' },
+  vol: { label: 'Vol', note: 'settled in the window' },
+  swaps: { label: 'Swaps', note: 'settled count' },
+  quotes: { label: 'Quotes', note: 'miners quoting' },
+  chg: { label: 'Chg%', note: 'move over the window' },
+};
 
 const DIRECTIONS: { value: Directions; label: string; note: string }[] = [
   {
@@ -93,6 +105,40 @@ const WatchlistSettingsRows: React.FC<{
       >
         {DIRECTIONS.find((d) => d.value === settings.directions)?.note}
       </Typography>
+
+      <Typography
+        component="div"
+        sx={{
+          ...labelSx,
+          pt: 1,
+          pb: 0.25,
+          mt: 0.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        columns
+      </Typography>
+      {COLUMNS.map((c) => (
+        <Box key={c} sx={rowSx}>
+          <Check
+            checked={settings.columns[c]}
+            onChange={() =>
+              update({
+                columns: { ...settings.columns, [c]: !settings.columns[c] },
+              })
+            }
+          >
+            <span>{COLUMN_LABELS[c].label}</span>
+          </Check>
+          <Typography
+            component="span"
+            sx={{ ml: 'auto', fontSize: '0.62rem', color: 'text.disabled' }}
+          >
+            {COLUMN_LABELS[c].note}
+          </Typography>
+        </Box>
+      ))}
     </>
   );
 };

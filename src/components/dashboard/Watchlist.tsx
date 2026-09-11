@@ -12,7 +12,8 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { takeableFor, useBestTakeable } from './takeable';
+import { takeableSpread, useBestTakeable } from './takeable';
+import { COLUMN_LABELS } from './WatchlistSettingsRows';
 import { hubChains, hubLeg } from '../../api/models/chains';
 import {
   canonicalSource,
@@ -26,7 +27,30 @@ import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
 import RailTooltip from './railTooltip';
 import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
-import { ALL_HUBS as ALL, type Directions } from './watchlistSettings';
+import {
+  ALL_HUBS as ALL,
+  COLUMNS,
+  type Column,
+  type Columns,
+  type Directions,
+} from './watchlistSettings';
+
+// Heading hovers, worded for the window and for whether rows print USD.
+const HINTS: Record<Column, (range: string, usd: boolean) => string> = {
+  spread: () =>
+    'Gap between this route and the way back, as a percent. Negative means they cross.',
+  depth: (_, usd) =>
+    usd
+      ? 'Takeable size behind the quotes right now, estimated in USD.'
+      : "Takeable size behind the quotes right now, in the pair's hub asset.",
+  vol: (range, usd) =>
+    usd
+      ? `Value settled on this route over ${range}, estimated in USD.`
+      : `Value settled on this route over ${range}, in the pair's hub asset.`,
+  swaps: (range) => `Swaps settled on this route over ${range}.`,
+  quotes: () => 'Miners quoting this route right now.',
+  chg: (range) => `How far this route's rate moved over ${range}.`,
+};
 
 // The watchlist, in the shape a TradingView user knows: one row per
 // DIRECTION with its symbol, last rate, windowed volume and windowed move.
@@ -77,7 +101,23 @@ const labelSx = {
 // ONE column definition for the header and every row: separate grids, so
 // `auto` tracks would each size to their own content and the headings would
 // never sit over their numbers. Symbol takes the slack.
-const COLS = 'minmax(0, 1fr) 84px 64px 68px';
+// Symbol takes the slack; each numeric column is sized to its widest
+// realistic value. The grid is built from the columns switched on.
+const COL_WIDTH: Record<'last' | Column, number> = {
+  last: 84,
+  spread: 60,
+  depth: 64,
+  vol: 64,
+  swaps: 48,
+  quotes: 52,
+  chg: 68,
+};
+const gridFor = (cols: Column[]) =>
+  [
+    'minmax(0, 1fr)',
+    `${COL_WIDTH.last}px`,
+    ...cols.map((c) => `${COL_WIDTH[c]}px`),
+  ].join(' ');
 const GAP = 1;
 
 // FX-style instrument label, "SOL/BTC" with the two chain marks slightly
@@ -151,20 +191,29 @@ const RouteLabel: React.FC<{ direction: Direction }> = ({ direction }) => {
 type Stats = {
   hub: string;
   last: number | null;
+  // Spread to the way back on one ruler, percent of mid; negative crosses.
+  spread: number | null;
+  // Takeable size behind the direction's quotes: USD when every purse is
+  // priced, else in hub units.
+  depth: number;
+  depthUsd: number | null;
+  quotes: number;
   vol: number;
   volUsd: number | null;
+  swaps: number;
   chg: number | null;
   chgArtifact: boolean;
   seriesLoaded: boolean;
   swapsLoaded: boolean;
 };
 
-type SortKey = 'last' | 'vol' | 'chg';
+type SortKey = 'last' | Column;
 type Sort = { key: SortKey; dir: 'asc' | 'desc' };
 
-// The rows' numbers: the best takeable rate per route, the window's first and last
-// rates from one batched series query, and the window's settled volume from
-// one swap-history query, summed per route in a single pass.
+// The rows' numbers: the best takeable rate, spread, depth and quote count
+// per route from the miner list, the window's first and last rates from
+// one batched series query, and the window's settled volume and swap count
+// from one swap-history query, summed per route in a single pass.
 const useRowStats = (
   directions: Direction[],
   secs: number,
@@ -176,6 +225,7 @@ const useRowStats = (
   return useMemo(() => {
     const cutoff = Date.now() / 1000 - secs;
     const vols = new Map<string, number>();
+    const counts = new Map<string, number>();
     for (const s of swaps ?? []) {
       if (
         s.status !== 'COMPLETED' ||
@@ -186,9 +236,10 @@ const useRowStats = (
       const from = s.sourceChain?.toLowerCase();
       const to = s.destChain?.toLowerCase();
       if (!from || !to) continue;
+      const k = `${from}-${to}`;
+      counts.set(k, (counts.get(k) ?? 0) + 1);
       const v = hubLegVolume(s, canonicalSource(from, to));
       if (!Number.isFinite(v)) continue;
-      const k = `${from}-${to}`;
       vols.set(k, (vols.get(k) ?? 0) + v);
     }
     const out = new Map<Direction, Stats>();
@@ -197,7 +248,8 @@ const useRowStats = (
       const hub = canonicalSource(from, to);
       // Last is the best takeable rate right now (the top of the book);
       // the window's first and last crown rates give the move.
-      const live = takeableFor(takeable, direction);
+      const quote = takeable.get(direction);
+      const live = quote?.rate ?? null;
       const rows = allSeries ? (allSeries[direction] ?? []) : undefined;
       const first = rows?.length
         ? directionalRateFor(direction, rows[0].rate)
@@ -215,12 +267,26 @@ const useRowStats = (
       // the whole column.
       const chgArtifact = ratio != null && (ratio > 10 || ratio < 0.1);
       const chg = ratio != null && !chgArtifact ? (ratio - 1) * 100 : null;
+      // Depth: every purse's takeable collateral, in USD when each purse
+      // is priced (they are summed only then), else in hub units.
+      let depth = 0;
+      let depthUsd: number | null = 0;
+      for (const [backing, units] of Object.entries(quote?.depth ?? {})) {
+        depth += units;
+        const usd = usdFromHuman(units, backing, prices);
+        depthUsd = depthUsd != null && usd != null ? depthUsd + usd : null;
+      }
       const vol = vols.get(`${from}-${to}`) ?? 0;
       out.set(direction, {
         hub,
         last,
+        spread: takeableSpread(takeable, direction),
+        depth,
+        depthUsd,
+        quotes: quote?.quotes ?? 0,
         vol,
         volUsd: usdFromHuman(vol, hub, prices),
+        swaps: counts.get(`${from}-${to}`) ?? 0,
         chg,
         chgArtifact,
         seriesLoaded: rows !== undefined,
@@ -232,21 +298,43 @@ const useRowStats = (
 };
 
 // The number a column sorts on; null sorts last either way.
-const sortValue = (s: Stats, key: SortKey): number | null =>
-  key === 'last' ? s.last : key === 'vol' ? (s.volUsd ?? s.vol) : s.chg;
+const sortValue = (s: Stats, key: SortKey): number | null => {
+  switch (key) {
+    case 'last':
+      return s.last;
+    case 'spread':
+      return s.spread;
+    case 'depth':
+      return s.depthUsd ?? s.depth;
+    case 'vol':
+      return s.volUsd ?? s.vol;
+    case 'swaps':
+      return s.swaps;
+    case 'quotes':
+      return s.quotes;
+    case 'chg':
+      return s.chg;
+  }
+};
 
 const Row: React.FC<{
   direction: Direction;
   selected: boolean;
   stats: Stats;
+  cols: Column[];
   onSelect: (direction: Direction) => void;
-}> = ({ direction, selected, stats, onSelect }) => {
+}> = ({ direction, selected, stats, cols, onSelect }) => {
   const theme = useTheme();
   const {
     hub,
     last,
+    spread,
+    depth,
+    depthUsd,
+    quotes,
     vol,
     volUsd,
+    swaps,
     chg,
     chgArtifact,
     seriesLoaded,
@@ -271,6 +359,99 @@ const Row: React.FC<{
       sx={{ borderRadius: 0, display: 'inline-block' }}
     />
   );
+  const numSx = {
+    fontFamily: FONTS.mono,
+    fontSize: '0.66rem',
+    fontWeight: 500,
+    color: 'text.secondary',
+    fontVariantNumeric: 'tabular-nums',
+    textAlign: 'right',
+    whiteSpace: 'nowrap',
+  } as const;
+  // One cell per switched-on column.
+  const cell = (c: Column): React.ReactNode => {
+    switch (c) {
+      case 'spread':
+        return (
+          <Typography
+            key={c}
+            title={
+              spread == null
+                ? 'Only one side is quoted'
+                : spread < 0
+                  ? 'Crossed: the two sides overlap'
+                  : undefined
+            }
+            sx={{
+              ...numSx,
+              color: spread != null && spread < 0 ? move.up : 'text.secondary',
+            }}
+          >
+            {spread != null ? fmtChg(spread).replace(/^\+/, '') : '—'}
+          </Typography>
+        );
+      case 'depth':
+        return (
+          <Typography
+            key={c}
+            title={
+              depthUsd != null
+                ? `${fmtVol(depth)} ${chainSymbol(hub)}`
+                : undefined
+            }
+            sx={numSx}
+          >
+            {depthUsd != null ? `$${fmtVol(depthUsd)}` : fmtVol(depth)}
+          </Typography>
+        );
+      case 'vol':
+        return (
+          <Typography
+            key={c}
+            title={
+              volUsd != null ? `${fmtVol(vol)} ${chainSymbol(hub)}` : undefined
+            }
+            sx={numSx}
+          >
+            {!swapsLoaded
+              ? skeleton(28)
+              : volUsd != null
+                ? `$${fmtVol(volUsd)}`
+                : fmtVol(vol)}
+          </Typography>
+        );
+      case 'swaps':
+        return (
+          <Typography key={c} sx={numSx}>
+            {!swapsLoaded ? skeleton(20) : swaps}
+          </Typography>
+        );
+      case 'quotes':
+        return (
+          <Typography key={c} sx={numSx}>
+            {quotes}
+          </Typography>
+        );
+      case 'chg':
+        return (
+          <Typography
+            key={c}
+            title={
+              chgArtifact
+                ? 'rate scale changed inside this window; % change not meaningful'
+                : undefined
+            }
+            sx={{
+              ...numSx,
+              fontWeight: 600,
+              color: chgArtifact ? 'text.disabled' : chgColor,
+            }}
+          >
+            {chg != null ? fmtChg(chg) : chgArtifact ? '—' : ''}
+          </Typography>
+        );
+    }
+  };
 
   return (
     <Box
@@ -285,7 +466,7 @@ const Row: React.FC<{
         boxSizing: 'border-box',
         cursor: 'pointer',
         display: 'grid',
-        gridTemplateColumns: COLS,
+        gridTemplateColumns: gridFor(cols),
         alignItems: 'center',
         columnGap: GAP,
         px: 1.5,
@@ -328,44 +509,7 @@ const Row: React.FC<{
             ? formatRate(last)
             : '—'}
       </Typography>
-      <Typography
-        title={
-          volUsd != null ? `${fmtVol(vol)} ${chainSymbol(hub)}` : undefined
-        }
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.66rem',
-          fontWeight: 500,
-          color: 'text.secondary',
-          fontVariantNumeric: 'tabular-nums',
-          textAlign: 'right',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {!swapsLoaded
-          ? skeleton(28)
-          : volUsd != null
-            ? `$${fmtVol(volUsd)}`
-            : fmtVol(vol)}
-      </Typography>
-      <Typography
-        title={
-          chgArtifact
-            ? 'rate scale changed inside this window; % change not meaningful'
-            : undefined
-        }
-        sx={{
-          fontFamily: FONTS.mono,
-          fontSize: '0.66rem',
-          fontWeight: 600,
-          color: chgArtifact ? 'text.disabled' : chgColor,
-          fontVariantNumeric: 'tabular-nums',
-          textAlign: 'right',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {chg != null ? fmtChg(chg) : chgArtifact ? '—' : ''}
-      </Typography>
+      {cols.map(cell)}
     </Box>
   );
 };
@@ -383,8 +527,18 @@ const Watchlist: React.FC<{
   scope: string;
   /** Both directions of a pair, or only the one from / to its hub. */
   directions: Directions;
+  /** Which optional columns show (the widget's settings). */
+  columns: Columns;
   onDirectionChange: (direction: Direction, hub: string) => void;
-}> = ({ direction, range, scope, directions: which, onDirectionChange }) => {
+}> = ({
+  direction,
+  range,
+  scope,
+  directions: which,
+  columns,
+  onDirectionChange,
+}) => {
+  const cols = useMemo(() => COLUMNS.filter((c) => columns[c]), [columns]);
   const secs = RANGE_SECS[range];
   // Every registry pair with a hub leg. A deep link must never lose its
   // market, so the selected route stays listed even if the registry has
@@ -469,7 +623,7 @@ const Watchlist: React.FC<{
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: COLS,
+          gridTemplateColumns: gridFor(cols),
           columnGap: GAP,
           mx: -1.5,
           px: 1.5,
@@ -489,14 +643,11 @@ const Watchlist: React.FC<{
         {(
           [
             ['last', 'Last', 'Best rate right now: what 1 unit sent delivers.'],
-            [
-              'vol',
-              'Vol',
-              usdMode
-                ? `Value settled on this route over ${range}, estimated in USD.`
-                : `Value settled on this route over ${range}, in the pair's hub asset.`,
-            ],
-            ['chg', 'Chg%', `How far this route's rate moved over ${range}.`],
+            ...cols.map((c): [SortKey, string, string] => [
+              c,
+              COLUMN_LABELS[c].label,
+              HINTS[c](range, usdMode),
+            ]),
           ] as [SortKey, string, string][]
         ).map(([key, label, hint]) => {
           const on = sort?.key === key;
@@ -559,6 +710,7 @@ const Watchlist: React.FC<{
               direction={d}
               selected={d === direction}
               stats={st}
+              cols={cols}
               onSelect={select}
             />
           ) : null;

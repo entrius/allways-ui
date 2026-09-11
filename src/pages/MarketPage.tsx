@@ -360,6 +360,7 @@ const MarketPage: React.FC = () => {
                   range={range}
                   scope={watchlist.settings.scope}
                   directions={watchlist.settings.directions}
+                  columns={watchlist.settings.columns}
                   onDirectionChange={setDirection}
                 />
               ),
