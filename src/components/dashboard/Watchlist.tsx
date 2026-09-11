@@ -119,6 +119,8 @@ const gridFor = (cols: Column[]) =>
     ...cols.map((c) => `${COL_WIDTH[c]}px`),
   ].join(' ');
 const GAP = 1;
+// The list's cap before it scrolls: about fourteen rows.
+const LIST_MAX_PX = 408;
 
 // FX-style instrument label, "SOL/BTC" with the two chain marks slightly
 // overlapped like a forex flag pair.
@@ -678,7 +680,7 @@ const Watchlist: React.FC<{
   };
 
   return (
-    <Stack sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+    <Stack sx={{ minHeight: 0, minWidth: 0 }}>
       {/* Column headings, each with a plain-language hover. Same grid as
           the rows (including the 2px selection border) so the labels sit
           flush over their columns. */}
@@ -748,11 +750,13 @@ const Watchlist: React.FC<{
         })}
       </Box>
 
-      {/* The list takes the rest of the widget and scrolls inside it; rows
-          bleed to the widget's edges like the search results do. */}
+      {/* The list is as tall as its rows, up to a cap, then scrolls; the
+          widget follows it, so two starred routes make a short widget and
+          the full registry a tall one with a scrollbar, never dead space.
+          Rows bleed to the widget's edges like the search results do. */}
       <Box
         sx={{
-          flex: 1,
+          maxHeight: LIST_MAX_PX,
           minHeight: 0,
           overflowY: 'auto',
           mx: -1.5,

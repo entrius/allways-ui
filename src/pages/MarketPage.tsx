@@ -322,7 +322,6 @@ const MarketPage: React.FC = () => {
             {
               id: 'search',
               title: 'Symbol search',
-              fit: 'fill',
               minW: 3,
               minH: 40,
               node: (
@@ -339,7 +338,6 @@ const MarketPage: React.FC = () => {
             {
               id: 'watchlist',
               title: 'Watchlist',
-              fit: 'fill',
               minW: 3,
               minH: 40,
               aside: (

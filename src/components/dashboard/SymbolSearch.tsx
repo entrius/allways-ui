@@ -21,6 +21,9 @@ import { hubChains } from '../../api/models/chains';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
 
+// The embedded widget's results cap before they scroll: about nine rows.
+const RESULTS_MAX_PX = 330;
+
 // Symbol search, in the shape a terminal user already knows: type, filter,
 // pick. The rail lists every route too, but the rail is for browsing a hub's
 // network — this is for going straight to a route you can already name.
@@ -220,7 +223,7 @@ export const SymbolSearchPanel: React.FC<{
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        flex: 1,
+        flex: embedded ? 'none' : 1,
         minHeight: 0,
       }}
     >
@@ -378,11 +381,14 @@ export const SymbolSearchPanel: React.FC<{
         </Stack>
       </Stack>
 
-      {/* Takes all remaining height and scrolls internally, so a 1-result
-          query leaves empty space rather than collapsing the frame. */}
+      {/* In the dialog: takes all remaining height and scrolls, so a
+          1-result query leaves empty space rather than collapsing the
+          frame. As a desk widget: as tall as its results up to a cap, so
+          the widget ends at its content. */}
       <Box
         sx={{
-          flex: 1,
+          flex: embedded ? 'none' : 1,
+          maxHeight: embedded ? RESULTS_MAX_PX : undefined,
           minHeight: 0,
           overflowY: 'auto',
           pb: 1,
