@@ -26,7 +26,7 @@ const RateChart: React.FC<{
   height?: number | string;
   /** The O / H / L / C readout above the line (the widget's setting). */
   readout?: boolean;
-}> = ({ direction, base, range, height = 220, readout = true }) => {
+}> = ({ direction, base, range, height = 220, readout = false }) => {
   const theme = useTheme();
   const secs = RANGE_SECS[range];
   const legs = decomposeDirection(direction);

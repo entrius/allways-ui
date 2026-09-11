@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 export interface ChartSettings {
   // The O / H / L / C readout and the window's change above the line.
+  // Off by default: the line is the history, the readout is for a look.
   readout: boolean;
 }
 
 const KEY = 'allways-ui.chart.settings';
-const DEFAULTS: ChartSettings = { readout: true };
+const DEFAULTS: ChartSettings = { readout: false };
 
 const read = (): ChartSettings => {
   try {
