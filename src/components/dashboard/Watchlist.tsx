@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   useChains,
@@ -470,7 +470,11 @@ const Row: React.FC<{
       component="button"
       type="button"
       data-dir={direction}
-      onClick={() => onSelect(direction)}
+      onClick={(e) => {
+        // Safari does not focus a clicked button; the arrow keys need it.
+        e.currentTarget.focus({ preventScroll: true });
+        onSelect(direction);
+      }}
       aria-pressed={selected}
       sx={{
         all: 'unset',
@@ -684,6 +688,39 @@ const Watchlist: React.FC<{
     onDirectionChange(d, hubLeg(legs.from, legs.to) ?? legs.from);
   };
 
+  // The rows as they are on screen (scoped, one-way, starred, sorted).
+  const ordered = useMemo(() => order(rows), [rows, sort, stats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arrow keys walk the list: with the list focused (clicking a row
+  // focuses it), ↓ and ↑ pick the next and previous row in the order on
+  // screen, and keep the picked row in view.
+  const listRef = useRef<HTMLDivElement>(null);
+  const focusRow = (d: Direction) => {
+    const el = listRef.current?.querySelector<HTMLElement>(
+      `button[data-dir="${d}"]`,
+    );
+    el?.focus({ preventScroll: true });
+    el?.scrollIntoView({ block: 'nearest' });
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    if (!ordered.length) return;
+    const at = ordered.indexOf(direction);
+    const next =
+      at < 0
+        ? 0
+        : Math.min(
+            ordered.length - 1,
+            Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)),
+          );
+    e.preventDefault();
+    const d = ordered[next];
+    if (d !== direction) select(d);
+    // The row is already in the DOM; focus it now rather than after the
+    // page's URL round-trip.
+    focusRow(d);
+  };
+
   return (
     <Stack sx={{ minHeight: 0, minWidth: 0 }}>
       {/* Column headings, each with a plain-language hover. Same grid as
@@ -760,6 +797,8 @@ const Watchlist: React.FC<{
           the full registry a tall one with a scrollbar, never dead space.
           Rows bleed to the widget's edges like the search results do. */}
       <Box
+        ref={listRef}
+        onKeyDown={onKeyDown}
         sx={{
           maxHeight: LIST_MAX_PX,
           minHeight: 0,
@@ -773,7 +812,7 @@ const Watchlist: React.FC<{
           },
         }}
       >
-        {order(rows).map((d) => {
+        {ordered.map((d) => {
           const st = stats.get(d);
           return st ? (
             <Row
