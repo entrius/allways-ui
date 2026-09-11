@@ -27,7 +27,7 @@ import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
 import RailTooltip from './railTooltip';
 import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
-import { ALL_HUBS as ALL } from './watchlistSettings';
+import { ALL_HUBS as ALL, type Directions } from './watchlistSettings';
 
 // The watchlist, in the shape a TradingView user knows: one row per
 // DIRECTION with its symbol, last rate, windowed volume and windowed move.
@@ -336,8 +336,10 @@ const Watchlist: React.FC<{
   range: HeroRange;
   /** Hub scope from the widget's settings: ALL_HUBS or a hub id. */
   scope: string;
+  /** Both directions of a pair, or only the one from / to its hub. */
+  directions: Directions;
   onDirectionChange: (direction: Direction, hub: string) => void;
-}> = ({ direction, range, scope, onDirectionChange }) => {
+}> = ({ direction, range, scope, directions: which, onDirectionChange }) => {
   const secs = RANGE_SECS[range];
   // Every registry pair with a hub leg. A deep link must never lose its
   // market, so the selected route stays listed even if the registry has
@@ -352,22 +354,35 @@ const Watchlist: React.FC<{
 
   // "All" files every route once, under its anchor, in registry hub order;
   // a hub scope is that hub's whole network, including the routes it
-  // merely touches (sol↔tao files under sol but rides on both).
-  const sections = useMemo(
-    () =>
-      scope === ALL
-        ? hubs.map((h) => ({
-            hub: h,
-            rows: directions.filter((d) => anchorHub(d) === h),
-          }))
-        : [
-            {
-              hub: scope,
-              rows: directions.filter((d) => touchesHub(d, scope)),
-            },
-          ],
-    [scope, hubs, directions],
-  );
+  // merely touches (sol↔tao files under sol but rides on both). Within a
+  // section, 'from' keeps the routes its hub sends on and 'to' the routes
+  // that arrive at it, so each pair appears once.
+  const sections = useMemo(() => {
+    const oneWay = (rows: Direction[], hub: string) =>
+      which === 'both'
+        ? rows
+        : rows.filter(
+            (d) =>
+              decomposeDirection(d)[which === 'from' ? 'from' : 'to'] === hub,
+          );
+    return scope === ALL
+      ? hubs.map((h) => ({
+          hub: h,
+          rows: oneWay(
+            directions.filter((d) => anchorHub(d) === h),
+            h,
+          ),
+        }))
+      : [
+          {
+            hub: scope,
+            rows: oneWay(
+              directions.filter((d) => touchesHub(d, scope)),
+              scope,
+            ),
+          },
+        ];
+  }, [scope, which, hubs, directions]);
 
   // Vol column wording follows whether rows can render USD.
   const prices = useUsdPrices();

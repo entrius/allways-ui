@@ -4,14 +4,27 @@ import { useCallback, useEffect, useState } from 'react';
 
 export const ALL_HUBS = 'all';
 
+// Which of a pair's two directions the list shows. Every pair is two
+// instruments (SOL/BTC and BTC/SOL), so 'both' lists each pair twice;
+// 'from' keeps the route the hub sends on (SOL/BTC), 'to' the route that
+// arrives at the hub (BTC/SOL).
+export type Directions = 'both' | 'from' | 'to';
+
 export interface WatchlistSettings {
   // Hub scope: ALL_HUBS files every route once under the hub that settles
   // it; a hub id shows that hub's whole network.
   scope: string;
+  directions: Directions;
 }
 
 const KEY = 'allways-ui.watchlist.settings';
-const DEFAULTS: WatchlistSettings = { scope: ALL_HUBS };
+export const WATCHLIST_DEFAULTS: WatchlistSettings = {
+  scope: ALL_HUBS,
+  directions: 'both',
+};
+const DEFAULTS = WATCHLIST_DEFAULTS;
+const isDirections = (v: unknown): v is Directions =>
+  v === 'both' || v === 'from' || v === 'to';
 
 const read = (): WatchlistSettings => {
   try {
@@ -20,6 +33,9 @@ const read = (): WatchlistSettings => {
     const parsed = JSON.parse(raw) as Partial<WatchlistSettings>;
     return {
       scope: typeof parsed.scope === 'string' ? parsed.scope : DEFAULTS.scope,
+      directions: isDirections(parsed.directions)
+        ? parsed.directions
+        : DEFAULTS.directions,
     };
   } catch {
     return DEFAULTS;
@@ -41,3 +57,8 @@ export const useWatchlistSettings = () => {
   const reset = useCallback(() => setSettings(DEFAULTS), []);
   return { settings, update, reset };
 };
+
+// How many settings are away from their defaults, for the gear's badge.
+export const watchlistChanges = (s: WatchlistSettings): number =>
+  (s.scope === DEFAULTS.scope ? 0 : 1) +
+  (s.directions === DEFAULTS.directions ? 0 : 1);

@@ -19,8 +19,8 @@ import { SymbolSearchPanel } from '../components/dashboard/SymbolSearch';
 import Watchlist from '../components/dashboard/Watchlist';
 import WatchlistSettingsRows from '../components/dashboard/WatchlistSettingsRows';
 import {
-  ALL_HUBS,
   useWatchlistSettings,
+  watchlistChanges,
 } from '../components/dashboard/watchlistSettings';
 import Workspace from '../components/workspace/Workspace';
 import type { Layouts } from 'react-grid-layout';
@@ -326,7 +326,7 @@ const MarketPage: React.FC = () => {
               aside: (
                 <WidgetSettings
                   label="Watchlist settings"
-                  count={watchlist.settings.scope === ALL_HUBS ? 0 : 1}
+                  count={watchlistChanges(watchlist.settings)}
                   onReset={watchlist.reset}
                 >
                   <WatchlistSettingsRows
@@ -340,6 +340,7 @@ const MarketPage: React.FC = () => {
                   direction={direction}
                   range={range}
                   scope={watchlist.settings.scope}
+                  directions={watchlist.settings.directions}
                   onDirectionChange={setDirection}
                 />
               ),
