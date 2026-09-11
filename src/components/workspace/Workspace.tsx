@@ -221,16 +221,6 @@ const Workspace: React.FC<{
     setLayouts(defaultLayouts);
   }, [defaultLayouts, storageKey]);
 
-  // The grid measures its width a frame after mount and after any change
-  // of desk; nudge a window resize so a chart that drew at the first width
-  // redraws at the settled one.
-  useEffect(() => {
-    const id = requestAnimationFrame(() =>
-      window.dispatchEvent(new Event('resize')),
-    );
-    return () => cancelAnimationFrame(id);
-  }, [layouts, hidden]);
-
   const byId = useMemo(() => new Map(panels.map((p) => [p.id, p])), [panels]);
   const shownPanels = useMemo(
     () => panels.filter((p) => !hidden.has(p.id)),
@@ -261,6 +251,40 @@ const Workspace: React.FC<{
       return changed ? out : prev;
     });
   }, []);
+  // Size every content-fit widget's slot from its card as it is now.
+  const remeasure = useCallback(() => {
+    for (const [id, el] of bodies.current)
+      if (el.isConnected) fitRows(id, el.offsetHeight);
+  }, [fitRows]);
+
+  // The grid measures its width a frame after mount and after any change
+  // of desk; nudge a window resize so a chart that drew at the first width
+  // redraws at the settled one, then re-measure every content-fit card so
+  // no slot is left taller than its card. The observer below catches
+  // content changes as they happen; this pass is the backstop for any it
+  // missed (a hot reload, a tab that was hidden while the data moved).
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      window.dispatchEvent(new Event('resize'));
+      remeasure();
+    });
+    return () => cancelAnimationFrame(id);
+    // remeasure is stable; the pass is keyed to the desk changing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layouts, hidden]);
+  useEffect(() => {
+    const onChange = () => {
+      if (document.visibilityState === 'visible') remeasure();
+    };
+    window.addEventListener('resize', onChange);
+    document.addEventListener('visibilitychange', onChange);
+    window.addEventListener('focus', onChange);
+    return () => {
+      window.removeEventListener('resize', onChange);
+      document.removeEventListener('visibilitychange', onChange);
+      window.removeEventListener('focus', onChange);
+    };
+  }, [remeasure]);
   useEffect(() => {
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
