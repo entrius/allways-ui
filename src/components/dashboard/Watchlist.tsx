@@ -483,8 +483,13 @@ const Row: React.FC<{
         columnGap: GAP,
         px: 1.5,
         py: 0.75,
-        borderLeft: '2px solid',
-        borderLeftColor: selected ? 'text.primary' : 'transparent',
+        borderLeft: '2px solid transparent',
+        // The picked row reads like the sheet's active cell: a full ring
+        // in the text colour, drawn with outline so it never moves the
+        // row, inset so the scroller does not clip it.
+        outline: selected ? '2px solid' : undefined,
+        outlineColor: selected ? 'text.primary' : undefined,
+        outlineOffset: -2,
         backgroundColor: selected ? 'action.hover' : 'transparent',
         opacity: dormant ? 0.55 : 1,
         transition: 'opacity 0.15s',
