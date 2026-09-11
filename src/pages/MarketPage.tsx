@@ -17,6 +17,11 @@ import MonoSelect from '../components/MonoSelect';
 import HubSpokeWidget from '../components/dashboard/HubSpokeWidget';
 import { SymbolSearchPanel } from '../components/dashboard/SymbolSearch';
 import Watchlist from '../components/dashboard/Watchlist';
+import WatchlistSettingsRows from '../components/dashboard/WatchlistSettingsRows';
+import {
+  ALL_HUBS,
+  useWatchlistSettings,
+} from '../components/dashboard/watchlistSettings';
 import Workspace from '../components/workspace/Workspace';
 import type { Layouts } from 'react-grid-layout';
 import {
@@ -138,6 +143,7 @@ const MarketPage: React.FC = () => {
   const matrixAssets = useMatrixAssets();
   const matrixHidden =
     matrixAssets.length - visibleAssets(matrixAssets, matrix.settings).length;
+  const watchlist = useWatchlistSettings();
 
   // Where the page opens with nothing on the URL: the recent busiest cell.
   const { data: swaps } = useCompleteSwapHistory();
@@ -317,10 +323,23 @@ const MarketPage: React.FC = () => {
               fit: 'fill',
               minW: 3,
               minH: 40,
+              aside: (
+                <WidgetSettings
+                  label="Watchlist settings"
+                  count={watchlist.settings.scope === ALL_HUBS ? 0 : 1}
+                  onReset={watchlist.reset}
+                >
+                  <WatchlistSettingsRows
+                    settings={watchlist.settings}
+                    update={watchlist.update}
+                  />
+                </WidgetSettings>
+              ),
               node: (
                 <Watchlist
                   direction={direction}
                   range={range}
+                  scope={watchlist.settings.scope}
                   onDirectionChange={setDirection}
                 />
               ),

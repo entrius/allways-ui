@@ -44,6 +44,74 @@ export const settingsLinkSx = {
   '&:hover': { color: 'text.primary' },
 } as const;
 
+// Controls a widget's panel rows are built from, so every panel is set the
+// same way.
+// Segmented control: one bordered strip of text buttons, the active one
+// filled in the text colour.
+export const SettingsSeg: React.FC<{
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  left?: boolean;
+}> = ({ options, value, onChange, left }) => (
+  <Box
+    sx={{
+      ml: left ? 0 : 'auto',
+      display: 'inline-flex',
+      border: '1px solid',
+      borderColor: 'border.light',
+    }}
+  >
+    {options.map((o) => {
+      const on = o.value === value;
+      return (
+        <Box
+          key={o.value}
+          component="button"
+          type="button"
+          onClick={() => onChange(o.value)}
+          sx={{
+            all: 'unset',
+            cursor: 'pointer',
+            px: 1,
+            py: 0.25,
+            fontFamily: FONTS.mono,
+            fontSize: '0.62rem',
+            color: on ? 'background.default' : 'text.secondary',
+            backgroundColor: on ? 'text.primary' : 'transparent',
+            '& + &': {
+              borderLeft: '1px solid',
+              borderLeftColor: 'border.light',
+            },
+          }}
+        >
+          {o.label}
+        </Box>
+      );
+    })}
+  </Box>
+);
+
+export const SettingsCheck: React.FC<{
+  checked: boolean;
+  onChange: () => void;
+  children: React.ReactNode;
+}> = ({ checked, onChange, children }) => (
+  <Box
+    component="label"
+    sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}
+  >
+    <Box
+      component="input"
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      sx={{ m: 0, accentColor: (t) => t.palette.primary.main }}
+    />
+    {children}
+  </Box>
+);
+
 // Where the gear sits on screen. The panel hangs from its bottom-right
 // corner, so a widget on the right edge of the desk never pushes its
 // panel off the page; when the gear is low in the window and there is

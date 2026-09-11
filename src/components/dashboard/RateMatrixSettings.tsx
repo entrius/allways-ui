@@ -3,6 +3,8 @@ import { Box, Typography } from '@mui/material';
 import type { ChainInfo } from '../../api/models/chains';
 import { FONTS } from '../../theme';
 import {
+  SettingsCheck as Check,
+  SettingsSeg as Seg,
   settingsLabelSx as labelSx,
   settingsRowSx as rowSx,
 } from '../workspace/WidgetSettings';
@@ -23,72 +25,6 @@ const PARTS: { key: keyof HeaderParts; label: string; example: string }[] = [
   { key: 'ticker', label: 'ticker', example: 'USDC' },
   { key: 'network', label: 'network', example: 'Base' },
 ];
-
-// Segmented control: one bordered strip of text buttons, the active one
-// filled in the text colour.
-const Seg: React.FC<{
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
-  left?: boolean;
-}> = ({ options, value, onChange, left }) => (
-  <Box
-    sx={{
-      ml: left ? 0 : 'auto',
-      display: 'inline-flex',
-      border: '1px solid',
-      borderColor: 'border.light',
-    }}
-  >
-    {options.map((o) => {
-      const on = o.value === value;
-      return (
-        <Box
-          key={o.value}
-          component="button"
-          type="button"
-          onClick={() => onChange(o.value)}
-          sx={{
-            all: 'unset',
-            cursor: 'pointer',
-            px: 1,
-            py: 0.25,
-            fontFamily: FONTS.mono,
-            fontSize: '0.62rem',
-            color: on ? 'background.default' : 'text.secondary',
-            backgroundColor: on ? 'text.primary' : 'transparent',
-            '& + &': {
-              borderLeft: '1px solid',
-              borderLeftColor: 'border.light',
-            },
-          }}
-        >
-          {o.label}
-        </Box>
-      );
-    })}
-  </Box>
-);
-
-const Check: React.FC<{
-  checked: boolean;
-  onChange: () => void;
-  children: React.ReactNode;
-}> = ({ checked, onChange, children }) => (
-  <Box
-    component="label"
-    sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}
-  >
-    <Box
-      component="input"
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      sx={{ m: 0, accentColor: (t) => t.palette.primary.main }}
-    />
-    {children}
-  </Box>
-);
 
 const Star: React.FC<{ on: boolean; onClick: () => void }> = ({
   on,

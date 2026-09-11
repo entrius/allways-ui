@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   useChains,
@@ -27,6 +27,7 @@ import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
 import RailTooltip from './railTooltip';
 import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
+import { ALL_HUBS as ALL } from './watchlistSettings';
 
 // The watchlist, in the shape a TradingView user knows: one row per
 // DIRECTION with its symbol, last rate, windowed volume and windowed move.
@@ -34,8 +35,6 @@ import { MOVE_COLORS, type HeroRange, RANGE_SECS } from './AllwaysMarketRate';
 // sends 0.00097 BTC"), so a row is that route's crown and how it moved.
 // This is the old market page's right rail, now a desk widget; the window
 // follows the page's range toggle, so 1W on the chart is 1W here.
-
-const ALL = 'all';
 
 // Does either leg of this route settle on `hub`?
 const touchesHub = (direction: Direction, hub: string): boolean => {
@@ -327,15 +326,18 @@ const Row: React.FC<{
 };
 
 /**
- * The Watchlist desk widget: hub scope chips, column headings, and every
- * route as a row filed under the hub that settles it. Clicking a row
- * switches the page's instrument. Fills its widget and scrolls inside.
+ * The Watchlist desk widget: column headings and every route as a row
+ * filed under the hub that settles it (or one hub's network, from the
+ * widget's settings). Clicking a row switches the page's instrument. Fills
+ * its widget and scrolls inside.
  */
 const Watchlist: React.FC<{
   direction: Direction;
   range: HeroRange;
+  /** Hub scope from the widget's settings: ALL_HUBS or a hub id. */
+  scope: string;
   onDirectionChange: (direction: Direction, hub: string) => void;
-}> = ({ direction, range, onDirectionChange }) => {
+}> = ({ direction, range, scope, onDirectionChange }) => {
   const secs = RANGE_SECS[range];
   // Every registry pair with a hub leg. A deep link must never lose its
   // market, so the selected route stays listed even if the registry has
@@ -347,7 +349,6 @@ const Watchlist: React.FC<{
   );
   const { data: chains } = useChains();
   const hubs = useMemo(() => hubChains(chains), [chains]);
-  const [scope, setScope] = useState<string>(ALL);
 
   // "All" files every route once, under its anchor, in registry hub order;
   // a hub scope is that hub's whole network, including the routes it
@@ -379,46 +380,6 @@ const Watchlist: React.FC<{
 
   return (
     <Stack sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
-      {/* Hub scope, in the site's segmented style: the meaningful split of
-          a route list is which hub settles it. */}
-      <Stack direction="row" spacing={0.5} sx={{ pb: 1, flexShrink: 0 }}>
-        {[ALL, ...hubs].map((h) => {
-          const on = h === scope;
-          return (
-            <Box
-              key={h}
-              component="button"
-              type="button"
-              onClick={() => setScope(h)}
-              aria-pressed={on}
-              sx={{
-                all: 'unset',
-                boxSizing: 'border-box',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.6,
-                px: 1,
-                py: 0.4,
-                fontFamily: FONTS.mono,
-                fontSize: '0.65rem',
-                fontWeight: 600,
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                color: on ? 'background.paper' : 'text.secondary',
-                backgroundColor: on ? 'text.primary' : 'transparent',
-                '&:hover': {
-                  backgroundColor: on ? 'text.primary' : 'action.hover',
-                },
-              }}
-            >
-              {h !== ALL && <ChainLogo chain={h} size={13} />}
-              {h === ALL ? 'All' : `${chainSymbol(h)} hub`}
-            </Box>
-          );
-        })}
-      </Stack>
-
       {/* Column headings, each with a plain-language hover. Same grid as
           the rows (including the 2px selection border) so the labels sit
           flush over their columns. */}
