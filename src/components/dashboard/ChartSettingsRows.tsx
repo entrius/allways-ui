@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material';
 import {
   SettingsCheck as Check,
   settingsLabelSx as labelSx,
+  settingsNoteSx,
   settingsRowSx as rowSx,
 } from '../workspace/WidgetSettings';
 import type { ChartSettings } from './chartSettings';
@@ -31,10 +32,7 @@ const ChartSettingsRows: React.FC<{
         {settings.readout ? 'shown' : 'hidden'}
       </Typography>
     </Box>
-    <Typography
-      component="div"
-      sx={{ fontSize: '0.62rem', color: 'text.disabled', pb: 0.25 }}
-    >
+    <Typography component="div" sx={settingsNoteSx}>
       The window's open, high, low and close, and its change.
     </Typography>
   </>

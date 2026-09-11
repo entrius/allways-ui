@@ -25,6 +25,7 @@ import { useMatrixSettings } from '../components/dashboard/matrixSettings';
 import WidgetSettings, {
   SettingsSeg,
   settingsLabelSx,
+  settingsNoteSx,
   settingsRowSx,
 } from '../components/workspace/WidgetSettings';
 import Watchlist from '../components/dashboard/Watchlist';
@@ -241,10 +242,7 @@ const MarketPage: React.FC = () => {
                   onChange={(r) => setRange(r as HeroRange)}
                 />
               </Box>
-              <Typography
-                component="div"
-                sx={{ fontSize: '0.62rem', color: 'text.disabled', pb: 0.25 }}
-              >
+              <Typography component="div" sx={settingsNoteSx}>
                 The window the rate card, history and watchlist read.
               </Typography>
             </>

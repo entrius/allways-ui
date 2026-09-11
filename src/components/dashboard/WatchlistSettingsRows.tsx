@@ -7,6 +7,7 @@ import {
   SettingsCheck as Check,
   SettingsSeg as Seg,
   settingsLabelSx as labelSx,
+  settingsNoteSx,
   settingsRowSx as rowSx,
 } from '../workspace/WidgetSettings';
 import {
@@ -69,10 +70,7 @@ const WatchlistSettingsRows: React.FC<{
           onChange={(scope) => update({ scope })}
         />
       </Box>
-      <Typography
-        component="div"
-        sx={{ fontSize: '0.62rem', color: 'text.disabled', pb: 0.25 }}
-      >
+      <Typography component="div" sx={settingsNoteSx}>
         {settings.scope === ALL_HUBS
           ? 'Every route, filed under the hub that settles it.'
           : `Only routes on the ${chainSymbol(settings.scope)} network.`}
@@ -99,10 +97,7 @@ const WatchlistSettingsRows: React.FC<{
           onChange={(v) => update({ directions: v as Directions })}
         />
       </Box>
-      <Typography
-        component="div"
-        sx={{ fontSize: '0.62rem', color: 'text.disabled', pb: 0.25 }}
-      >
+      <Typography component="div" sx={settingsNoteSx}>
         {DIRECTIONS.find((d) => d.value === settings.directions)?.note}
       </Typography>
 

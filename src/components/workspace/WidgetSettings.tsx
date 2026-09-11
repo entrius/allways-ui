@@ -35,6 +35,15 @@ export const settingsRowSx = {
   py: 0.5,
 } as const;
 
+// A line of plain-language help under a control; wraps inside the panel.
+export const settingsNoteSx = {
+  fontSize: '0.62rem',
+  color: 'text.disabled',
+  whiteSpace: 'normal',
+  lineHeight: 1.4,
+  pb: 0.25,
+} as const;
+
 export const settingsLinkSx = {
   all: 'unset',
   cursor: 'pointer',
@@ -240,7 +249,10 @@ const WidgetSettings: React.FC<{
               zIndex: 1301,
               width,
               maxWidth: 'calc(100vw - 16px)',
-              overflow: 'auto',
+              // Tall panels scroll; none scrolls sideways. Rows keep to one
+              // line, and a note wraps (settingsNoteSx).
+              overflowY: 'auto',
+              overflowX: 'hidden',
               backgroundColor: 'background.default',
               border: '1px solid',
               borderColor: 'border.light',
