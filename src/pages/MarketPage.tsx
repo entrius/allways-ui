@@ -132,7 +132,7 @@ const MarketPage: React.FC = () => {
   // The desk's window: the rate card's stats, the history, the watchlist
   // and the network map all read it, so it is picked once in the desk bar.
   const [range, setRange] = useState<HeroRange>('1H');
-  // The Markets widget's settings live with the page: the sheet reads them
+  // The Matrix widget's settings live with the page: the sheet reads them
   // and the widget's gear (in its title row) edits them.
   const matrix = useMatrixSettings();
   const matrixAssets = useMatrixAssets();
@@ -222,12 +222,12 @@ const MarketPage: React.FC = () => {
           panels={[
             {
               id: 'matrix',
-              title: 'Markets',
+              title: 'Matrix',
               minW: 4,
               minH: 48,
               aside: (
                 <WidgetSettings
-                  label="Markets settings"
+                  label="Matrix settings"
                   count={matrixHidden}
                   onReset={matrix.reset}
                 >

@@ -128,7 +128,7 @@ const GAP = 6;
  * sheet with rows hidden); `onReset` adds a reset link to the footer.
  */
 const WidgetSettings: React.FC<{
-  /** Accessible name, "Markets settings". */
+  /** Accessible name, "Matrix settings". */
   label: string;
   count?: number;
   onReset?: () => void;

@@ -15,7 +15,7 @@ import {
   type MatrixSettings,
 } from './matrixSettings';
 
-// Port of allways-matrix SettingsPanel: the rows of the Markets widget's
+// Port of allways-matrix SettingsPanel: the rows of the Matrix widget's
 // settings panel (the gear in its title row). Label parts, favorites-only,
 // and a row per asset with a show/hide box and a star. The panel chrome is
 // the desk's shared WidgetSettings.
