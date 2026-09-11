@@ -51,16 +51,12 @@ const GUTTER_X = 24;
 const GUTTER_Y = 4;
 const ROW_UNIT = ROW_HEIGHT + GUTTER_Y;
 const PANEL_GAP = 24 - GUTTER_Y;
-// A widget's chrome around its content: the title row and the body padding.
-const HEADER_PX = 30;
-const BODY_PAD_PX = 24;
-// Rows for a widget whose content is this tall: chrome, the slot's unused
-// gap, rounded up to the next 8px row.
-const rowsFor = (contentPx: number) =>
-  Math.max(
-    1,
-    Math.ceil((contentPx + HEADER_PX + BODY_PAD_PX + PANEL_GAP) / ROW_UNIT),
-  );
+// Rows for a widget whose card (title row, border, body and its padding)
+// is this tall. The grid gives a slot of h rows minus one row gap; the card
+// leaves PANEL_GAP of it empty; round up to the next 8px row so the slot is
+// never shorter than the card and nothing inside has to scroll.
+const rowsFor = (cardPx: number) =>
+  Math.max(1, Math.ceil((cardPx + PANEL_GAP + GUTTER_Y) / ROW_UNIT));
 
 // What a browser remembers: where each widget sits, and which are put away.
 type Saved = { layouts: Layouts; hidden: string[] };
@@ -241,9 +237,10 @@ const Workspace: React.FC<{
     () => panels.filter((p) => hidden.has(p.id)),
     [panels, hidden],
   );
-  // Content-fit widgets measure what is inside them and take exactly the
-  // rows that needs. One observer watches every such body; a change in
-  // content height rewrites that widget's h on every breakpoint.
+  // Content-fit widgets measure their whole card, which is never clamped
+  // to its slot, and take exactly the rows that needs. One observer watches
+  // every such card; a change in its height rewrites that widget's h on
+  // every breakpoint.
   const bodies = useRef(new Map<string, HTMLDivElement>());
   const observer = useRef<ResizeObserver | null>(null);
   const fitRows = useCallback((id: string, px: number) => {
@@ -396,14 +393,15 @@ const Workspace: React.FC<{
           <Box key={p.id} sx={{ minWidth: 0, minHeight: 0 }}>
             <Box
               className="workspace-panel"
+              ref={p.fit === 'fill' ? undefined : bodyRef(p.id)}
+              data-widget={p.fit === 'fill' ? undefined : p.id}
               sx={{
-                // A content-fit box ends exactly at its content (the body
-                // padding under it is the same on every widget); the slot
-                // it sits in is rounded to the grid and may run a few px
-                // longer. A fill box takes the whole slot.
+                // A content-fit box ends exactly at its content and is
+                // never clamped: its slot is sized from it, rounded to the
+                // grid, so the slot may run a few px longer but never
+                // shorter. A fill box takes the whole slot.
                 height:
                   p.fit === 'fill' ? `calc(100% - ${PANEL_GAP}px)` : 'auto',
-                maxHeight: `calc(100% - ${PANEL_GAP}px)`,
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,
@@ -482,6 +480,9 @@ const Workspace: React.FC<{
                   flex: 1,
                   minHeight: 0,
                   minWidth: 0,
+                  // A fill body scrolls if its content is taller than the
+                  // slot; a content-fit body is never shorter than its
+                  // content, so only a wide sheet gets a scrollbar.
                   overflow: 'auto',
                   display: 'flex',
                   flexDirection: 'column',
@@ -496,15 +497,9 @@ const Workspace: React.FC<{
                 {p.fit === 'fill' ? (
                   p.node
                 ) : (
-                  // A block the content sets the height of; the observer
-                  // reads it and sizes the widget to match.
-                  <Box
-                    ref={bodyRef(p.id)}
-                    data-widget={p.id}
-                    sx={{ flex: 'none', minWidth: 0 }}
-                  >
-                    {p.node}
-                  </Box>
+                  // A block the content sets the height of; the card
+                  // around it is what the observer reads.
+                  <Box sx={{ flex: 'none', minWidth: 0 }}>{p.node}</Box>
                 )}
               </Box>
             </Box>
