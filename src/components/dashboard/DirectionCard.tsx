@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { useCrownRateHistory, useCurrentCrown } from '../../api';
+import { useCrownRateHistory } from '../../api';
 import {
-  crownLaneFor,
   decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { takeableFor, useBestTakeable } from './takeable';
 import { chainName, chainSymbol, formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
@@ -100,17 +100,12 @@ const DirectionCard: React.FC<{
   const reverseDir =
     `${legs.to.toUpperCase()}-${legs.from.toUpperCase()}` as Direction;
 
-  const { data: crown } = useCurrentCrown();
-  // Lane scored on the base hub, the same lane the matrix column shows.
-  const natural = directionalRateFor(
-    direction,
-    crownLaneFor(crown, direction, base)?.rate,
-  );
+  // The best takeable rate on the base hub's purse: the same number the
+  // matrix cell shows and the top of the book.
+  const { map: takeable } = useBestTakeable();
+  const natural = takeableFor(takeable, direction, base);
   const price = toPrice(natural);
-  const revNatural = directionalRateFor(
-    reverseDir,
-    crownLaneFor(crown, reverseDir, base)?.rate,
-  );
+  const revNatural = takeableFor(takeable, reverseDir, base);
   // The reverse route on the same ruler: it is the inverse whenever this
   // one is not, and vice versa.
   const revPrice =

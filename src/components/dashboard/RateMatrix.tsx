@@ -6,17 +6,15 @@ import {
   orderByMarketCap,
   useChains,
   useChainSupply,
-  useCurrentCrown,
   useMarketCaps,
 } from '../../api';
 import { hubLeg, type ChainInfo } from '../../api/models/chains';
 import {
-  crownLaneFor,
   decomposeDirection,
-  type CurrentCrownMap,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { directionalRate, formatRate } from '../../utils/format';
+import { formatRate } from '../../utils/format';
+import { takeableFor, useBestTakeable, type TakeableMap } from './takeable';
 import { FONTS } from '../../theme';
 import { ChainLogo, NetworkBadge } from '../ChainLogo';
 import type { MatrixSettings } from './matrixSettings';
@@ -48,30 +46,20 @@ interface CellRates {
 
 const invert = (n: number | null): number | null => (n && n > 0 ? 1 / n : n);
 
-const directionKey = (from: string, to: string): string =>
-  `${from}-${to}`.toUpperCase();
+const directionKey = (from: string, to: string): Direction =>
+  `${from}-${to}`.toUpperCase() as Direction;
 
-// The lane shown for a cell is the one scored on the COLUMN's hub. Spoke
-// pairs have exactly one lane (their hub leg); the hub↔hub pair has one per
-// hub, so the SOL columns show the sol-backed crown and the TAO columns the
-// tao-backed one.
+// A cell is the best TAKEABLE rate on the COLUMN's hub purse: the top of
+// the book for that direction. Spoke pairs have one purse (their hub); the
+// hub↔hub pair has one per hub, so the SOL columns show the sol-backed
+// quotes and the TAO columns the tao-backed ones.
 const cellRates = (
   hub: string,
   asset: string,
-  crown: CurrentCrownMap | undefined,
+  takeable: TakeableMap,
 ): CellRates => ({
-  out: directionalRate(
-    hub,
-    asset,
-    crownLaneFor(crown, directionKey(hub, asset), hub)?.rate,
-  ),
-  back: invert(
-    directionalRate(
-      asset,
-      hub,
-      crownLaneFor(crown, directionKey(asset, hub), hub)?.rate,
-    ),
-  ),
+  out: takeableFor(takeable, directionKey(hub, asset), hub),
+  back: invert(takeableFor(takeable, directionKey(asset, hub), hub)),
 });
 
 // One asset mention, drawn from whichever label parts are switched on.
@@ -223,7 +211,7 @@ const RateMatrix: React.FC<{
 }> = ({ direction, base, onDirectionChange, settings, toggleFavorite }) => {
   const theme = useTheme();
   const { data: chains } = useChains();
-  const { data: crown, dataUpdatedAt, isError } = useCurrentCrown();
+  const { map: takeable, miners, dataUpdatedAt, isError } = useBestTakeable();
   // The picked cell's row asset and hub column, so their headers can light
   // up the way a spreadsheet marks the active cell's row and column.
   const selLegs = decomposeDirection(direction);
@@ -255,15 +243,15 @@ const RateMatrix: React.FC<{
     for (const hub of hubs)
       for (const a of allAssets)
         if (a.id !== hub.id)
-          m[`${hub.id}|${a.id}`] = cellRates(hub.id, a.id, crown);
+          m[`${hub.id}|${a.id}`] = cellRates(hub.id, a.id, takeable);
     return m;
-  }, [hubs, allAssets, crown]);
+  }, [hubs, allAssets, takeable]);
   // Only a fill that FOLLOWS a live one counts as a move: the seed-to-live
   // step would otherwise light every cell at once.
   const prev = useRef<Record<string, CellRates> | null>(null);
   const [seq, setSeq] = useState<Record<string, number>>({});
   useEffect(() => {
-    if (!crown) return;
+    if (!miners) return;
     const before = prev.current;
     prev.current = rates;
     if (!before) return;
@@ -279,7 +267,7 @@ const RateMatrix: React.FC<{
       for (const k of bumped) n[k] = (n[k] ?? 0) + 1;
       return n;
     });
-  }, [rates, crown]);
+  }, [rates, miners]);
 
   const status = isError
     ? 'offline'

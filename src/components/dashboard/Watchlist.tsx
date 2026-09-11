@@ -4,16 +4,15 @@ import {
   useChains,
   useCompleteSwapHistory,
   useCrownRateHistoryAll,
-  useCurrentCrown,
   useDirections,
   useUsdPrices,
 } from '../../api';
 import {
-  crownLaneFor,
   decomposeDirection,
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { takeableFor, useBestTakeable } from './takeable';
 import { hubChains, hubLeg } from '../../api/models/chains';
 import {
   canonicalSource,
@@ -163,14 +162,14 @@ type Stats = {
 type SortKey = 'last' | 'vol' | 'chg';
 type Sort = { key: SortKey; dir: 'asc' | 'desc' };
 
-// The rows' numbers: the live crown per route, the window's first and last
+// The rows' numbers: the best takeable rate per route, the window's first and last
 // rates from one batched series query, and the window's settled volume from
 // one swap-history query, summed per route in a single pass.
 const useRowStats = (
   directions: Direction[],
   secs: number,
 ): Map<Direction, Stats> => {
-  const { data: crown } = useCurrentCrown();
+  const { map: takeable } = useBestTakeable();
   const { data: allSeries } = useCrownRateHistoryAll(secs);
   const { data: swaps } = useCompleteSwapHistory();
   const prices = useUsdPrices();
@@ -196,10 +195,9 @@ const useRowStats = (
     for (const direction of directions) {
       const { from, to } = decomposeDirection(direction);
       const hub = canonicalSource(from, to);
-      const live = directionalRateFor(
-        direction,
-        crownLaneFor(crown, direction)?.rate,
-      );
+      // Last is the best takeable rate right now (the top of the book);
+      // the window's first and last crown rates give the move.
+      const live = takeableFor(takeable, direction);
       const rows = allSeries ? (allSeries[direction] ?? []) : undefined;
       const first = rows?.length
         ? directionalRateFor(direction, rows[0].rate)
@@ -230,7 +228,7 @@ const useRowStats = (
       });
     }
     return out;
-  }, [directions, secs, crown, allSeries, swaps, prices]);
+  }, [directions, secs, takeable, allSeries, swaps, prices]);
 };
 
 // The number a column sorts on; null sorts last either way.
