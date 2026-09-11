@@ -15,13 +15,10 @@ import {
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
 import { FONTS } from '../../theme';
 import { TextLinkButton } from '../Buttons';
-import WidgetSettings, {
-  SettingsCheck,
-  settingsLabelSx,
-  settingsRowSx,
-} from './WidgetSettings';
+import WidgetSettings from './WidgetSettings';
 
 const ResponsiveGrid = WidthProvider(Responsive);
 
@@ -134,10 +131,21 @@ const Workspace: React.FC<{
   defaultLayouts: Layouts;
   /** localStorage key; bump its version suffix when the defaults change. */
   storageKey: string;
-  /** Desk-wide controls (a window picker) for the bar above the widgets:
-   * state every widget reads belongs to the desk, not to one of them. */
-  controls?: React.ReactNode;
-}> = ({ panels, defaultLayouts, storageKey, controls }) => {
+  /** Rows for the desk's own gear (a window picker): state every widget
+   * reads belongs to the desk, not to one of them. */
+  settings?: React.ReactNode;
+  /** How many desk settings are away from their defaults (the badge). */
+  settingsCount?: number;
+  /** Called with the desk's own reset, to put those settings back. */
+  onReset?: () => void;
+}> = ({
+  panels,
+  defaultLayouts,
+  storageKey,
+  settings,
+  settingsCount = 0,
+  onReset,
+}) => {
   const [layouts, setLayouts] = useState<Layouts>(() => {
     const stored = readSaved(storageKey);
     return stored ? reconcile(stored.layouts, defaultLayouts) : defaultLayouts;
@@ -223,11 +231,16 @@ const Workspace: React.FC<{
     setCustom(false);
     setHidden(new Set());
     setLayouts(defaultLayouts);
-  }, [defaultLayouts, storageKey]);
+    onReset?.();
+  }, [defaultLayouts, storageKey, onReset]);
 
   const byId = useMemo(() => new Map(panels.map((p) => [p.id, p])), [panels]);
   const shownPanels = useMemo(
     () => panels.filter((p) => !hidden.has(p.id)),
+    [panels, hidden],
+  );
+  const putAway = useMemo(
+    () => panels.filter((p) => hidden.has(p.id)),
     [panels, hidden],
   );
   // Content-fit widgets measure their whole card, which is never clamped
@@ -361,13 +374,27 @@ const Workspace: React.FC<{
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 2,
           mb: 1,
-          minHeight: 28,
         }}
       >
+        {/* The widgets that are put away, one click from back on the desk. */}
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 28 }}
+        >
+          {putAway.map((p) => (
+            <TextLinkButton
+              key={p.id}
+              onClick={() => add(p.id)}
+              startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+              sx={{ fontSize: '0.65rem', px: 0.75 }}
+            >
+              {p.title}
+            </TextLinkButton>
+          ))}
+        </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography
             sx={{
@@ -386,44 +413,17 @@ const Workspace: React.FC<{
               Reset desk
             </TextLinkButton>
           )}
-          {controls}
           {/* The desk's own gear, the same control every widget wears:
-              which widgets are on the desk, and reset. */}
-          <WidgetSettings
-            label="Desk settings"
-            count={hidden.size}
-            onReset={reset}
-          >
-            <Typography
-              component="div"
-              sx={{ ...settingsLabelSx, pt: 0.25, pb: 0.25 }}
+              the desk's settings (its window), and reset. */}
+          {settings && (
+            <WidgetSettings
+              label="Desk settings"
+              count={settingsCount}
+              onReset={reset}
             >
-              widgets
-            </Typography>
-            {panels.map((p) => {
-              const on = !hidden.has(p.id);
-              return (
-                <Box key={p.id} sx={settingsRowSx}>
-                  <SettingsCheck
-                    checked={on}
-                    onChange={() => (on ? remove(p.id) : add(p.id))}
-                  >
-                    <span>{p.title}</span>
-                  </SettingsCheck>
-                  <Typography
-                    component="span"
-                    sx={{
-                      ml: 'auto',
-                      fontSize: '0.62rem',
-                      color: 'text.disabled',
-                    }}
-                  >
-                    {on ? 'on the desk' : 'put away'}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </WidgetSettings>
+              {settings}
+            </WidgetSettings>
+          )}
         </Box>
       </Box>
       <ResponsiveGrid

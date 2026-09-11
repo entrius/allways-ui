@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
@@ -22,8 +22,11 @@ import RateMatrix, {
 } from '../components/dashboard/RateMatrix';
 import RateMatrixSettings from '../components/dashboard/RateMatrixSettings';
 import { useMatrixSettings } from '../components/dashboard/matrixSettings';
-import WidgetSettings from '../components/workspace/WidgetSettings';
-import MonoSelect from '../components/MonoSelect';
+import WidgetSettings, {
+  SettingsSeg,
+  settingsLabelSx,
+  settingsRowSx,
+} from '../components/workspace/WidgetSettings';
 import Watchlist from '../components/dashboard/Watchlist';
 import WatchlistSettingsRows from '../components/dashboard/WatchlistSettingsRows';
 import {
@@ -49,6 +52,9 @@ import {
   RANGES,
   type HeroRange,
 } from '../components/dashboard/AllwaysMarketRate';
+
+// The desk's window until the desk gear says otherwise.
+const DEFAULT_RANGE: HeroRange = '1D';
 
 // Opening instrument when the URL says nothing and no swap has settled yet.
 // Otherwise the page opens on the busiest direction (see busiestDirection).
@@ -137,7 +143,8 @@ const MarketPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   // The desk's window: the rate card's stats, the history, the watchlist
   // and the network map all read it, so it is picked once in the desk bar.
-  const [range, setRange] = useState<HeroRange>('1H');
+  const [range, setRange] = useState<HeroRange>(DEFAULT_RANGE);
+  const resetRange = useCallback(() => setRange(DEFAULT_RANGE), []);
   // The Matrix widget's settings live with the page: the sheet reads them
   // and the widget's gear (in its title row) edits them.
   const matrix = useMatrixSettings();
@@ -218,14 +225,32 @@ const MarketPage: React.FC = () => {
         <Workspace
           storageKey="allways.market.workspace.v10"
           defaultLayouts={MARKET_LAYOUTS}
-          controls={
-            <MonoSelect<HeroRange>
-              label="Time range"
-              value={range}
-              onChange={setRange}
-              options={RANGES.map((r) => ({ value: r, label: r }))}
-            />
+          settings={
+            <>
+              <Typography
+                component="div"
+                sx={{ ...settingsLabelSx, pt: 0.25, pb: 0.25 }}
+              >
+                window
+              </Typography>
+              <Box sx={settingsRowSx}>
+                <SettingsSeg
+                  left
+                  options={RANGES.map((r) => ({ value: r, label: r }))}
+                  value={range}
+                  onChange={(r) => setRange(r as HeroRange)}
+                />
+              </Box>
+              <Typography
+                component="div"
+                sx={{ fontSize: '0.62rem', color: 'text.disabled', pb: 0.25 }}
+              >
+                The window the rate card, history and watchlist read.
+              </Typography>
+            </>
           }
+          settingsCount={range === DEFAULT_RANGE ? 0 : 1}
+          onReset={resetRange}
           panels={[
             {
               id: 'matrix',
