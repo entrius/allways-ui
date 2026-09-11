@@ -9,6 +9,7 @@ import RateChart from '../components/dashboard/RateChart';
 import RateMatrix from '../components/dashboard/RateMatrix';
 import HubSpokeWidget from '../components/dashboard/HubSpokeWidget';
 import { SymbolSearchPanel } from '../components/dashboard/SymbolSearch';
+import Watchlist from '../components/dashboard/Watchlist';
 import Workspace from '../components/workspace/Workspace';
 import type { Layouts } from 'react-grid-layout';
 import {
@@ -81,6 +82,7 @@ const MARKET_LAYOUTS: Layouts = {
     { i: 'book', x: 6, y: 63, w: 6, h: 63 },
     { i: 'network', x: 0, y: 93, w: 6, h: 50 },
     { i: 'search', x: 6, y: 123, w: 6, h: 63 },
+    { i: 'watchlist', x: 0, y: 143, w: 6, h: 63 },
   ],
   md: [
     { i: 'matrix', x: 0, y: 0, w: 6, h: 93 },
@@ -89,6 +91,7 @@ const MARKET_LAYOUTS: Layouts = {
     { i: 'book', x: 6, y: 63, w: 6, h: 63 },
     { i: 'network', x: 0, y: 93, w: 6, h: 50 },
     { i: 'search', x: 6, y: 123, w: 6, h: 63 },
+    { i: 'watchlist', x: 0, y: 143, w: 6, h: 63 },
   ],
   sm: [
     { i: 'rate', x: 0, y: 0, w: 6, h: 27 },
@@ -97,6 +100,7 @@ const MARKET_LAYOUTS: Layouts = {
     { i: 'book', x: 0, y: 153, w: 6, h: 63 },
     { i: 'network', x: 0, y: 216, w: 6, h: 50 },
     { i: 'search', x: 0, y: 266, w: 6, h: 63 },
+    { i: 'watchlist', x: 0, y: 329, w: 6, h: 63 },
   ],
   xs: [
     { i: 'rate', x: 0, y: 0, w: 2, h: 27 },
@@ -105,6 +109,7 @@ const MARKET_LAYOUTS: Layouts = {
     { i: 'book', x: 0, y: 153, w: 2, h: 75 },
     { i: 'network', x: 0, y: 228, w: 2, h: 50 },
     { i: 'search', x: 0, y: 278, w: 2, h: 63 },
+    { i: 'watchlist', x: 0, y: 341, w: 2, h: 63 },
   ],
 };
 
@@ -185,7 +190,7 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v7"
+          storageKey="allways.market.workspace.v8"
           defaultLayouts={MARKET_LAYOUTS}
           panels={[
             {
@@ -262,6 +267,20 @@ const MarketPage: React.FC = () => {
                     setDirection(d, hubLeg(legs.from, legs.to) ?? legs.from);
                   }}
                   embedded
+                />
+              ),
+            },
+            {
+              id: 'watchlist',
+              title: 'Watchlist',
+              fit: 'fill',
+              minW: 3,
+              minH: 40,
+              node: (
+                <Watchlist
+                  direction={direction}
+                  range={range}
+                  onDirectionChange={setDirection}
                 />
               ),
             },
