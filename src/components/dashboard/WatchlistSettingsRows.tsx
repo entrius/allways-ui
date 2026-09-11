@@ -117,6 +117,36 @@ const WatchlistSettingsRows: React.FC<{
           borderColor: 'divider',
         }}
       >
+        view
+      </Typography>
+      <Box sx={rowSx}>
+        <Check
+          checked={settings.favoritesOnly}
+          onChange={() => update({ favoritesOnly: !settings.favoritesOnly })}
+        >
+          <span>favorites only</span>
+        </Check>
+        <Typography
+          component="span"
+          sx={{ ml: 'auto', fontSize: '0.62rem', color: 'text.disabled' }}
+        >
+          {settings.favorites.length
+            ? `${settings.favorites.length} starred`
+            : 'none starred'}
+        </Typography>
+      </Box>
+
+      <Typography
+        component="div"
+        sx={{
+          ...labelSx,
+          pt: 1,
+          pb: 0.25,
+          mt: 0.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
         columns
       </Typography>
       {COLUMNS.map((c) => (

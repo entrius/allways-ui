@@ -361,6 +361,9 @@ const MarketPage: React.FC = () => {
                   scope={watchlist.settings.scope}
                   directions={watchlist.settings.directions}
                   columns={watchlist.settings.columns}
+                  favorites={watchlist.settings.favorites}
+                  favoritesOnly={watchlist.settings.favoritesOnly}
+                  onToggleFavorite={watchlist.toggleFavorite}
                   onDirectionChange={setDirection}
                 />
               ),

@@ -320,10 +320,20 @@ const sortValue = (s: Stats, key: SortKey): number | null => {
 const Row: React.FC<{
   direction: Direction;
   selected: boolean;
+  starred: boolean;
   stats: Stats;
   cols: Column[];
   onSelect: (direction: Direction) => void;
-}> = ({ direction, selected, stats, cols, onSelect }) => {
+  onToggleFavorite: (direction: Direction) => void;
+}> = ({
+  direction,
+  selected,
+  starred,
+  stats,
+  cols,
+  onSelect,
+  onToggleFavorite,
+}) => {
   const theme = useTheme();
   const {
     hub,
@@ -477,10 +487,12 @@ const Row: React.FC<{
         opacity: dormant ? 0.55 : 1,
         transition: 'opacity 0.15s',
         '&:hover': { backgroundColor: 'action.hover', opacity: 1 },
+        '&:hover .watch-star': { opacity: 1 },
       }}
     >
       <Box
         sx={{
+          position: 'relative',
           display: 'inline-flex',
           alignItems: 'center',
           fontFamily: FONTS.mono,
@@ -489,9 +501,46 @@ const Row: React.FC<{
           color: 'text.primary',
           minWidth: 0,
           overflow: 'hidden',
+          pr: 2.5,
         }}
       >
         <RouteLabel direction={direction} />
+        {/* The star, as on the sheet's rows: shown on hover, kept when
+            on. A span with a button role, since the row is a button. */}
+        <Box
+          component="span"
+          role="button"
+          tabIndex={0}
+          className="watch-star"
+          aria-label={starred ? 'Unstar' : 'Star'}
+          aria-pressed={starred}
+          title={starred ? 'unstar' : 'star'}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite(direction);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleFavorite(direction);
+            }
+          }}
+          sx={{
+            position: 'absolute',
+            right: 4,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            cursor: 'pointer',
+            fontSize: 12,
+            lineHeight: 1,
+            opacity: starred ? 1 : 0,
+            color: starred ? '#e8b923' : 'border.light',
+            '&:hover': { color: starred ? '#e8b923' : 'text.secondary' },
+          }}
+        >
+          ★
+        </Box>
       </Box>
       <Typography
         sx={{
@@ -529,6 +578,10 @@ const Watchlist: React.FC<{
   directions: Directions;
   /** Which optional columns show (the widget's settings). */
   columns: Columns;
+  /** Starred routes, and whether only they show. */
+  favorites: string[];
+  favoritesOnly: boolean;
+  onToggleFavorite: (direction: Direction) => void;
   onDirectionChange: (direction: Direction, hub: string) => void;
 }> = ({
   direction,
@@ -536,6 +589,9 @@ const Watchlist: React.FC<{
   scope,
   directions: which,
   columns,
+  favorites,
+  favoritesOnly,
+  onToggleFavorite,
   onDirectionChange,
 }) => {
   const cols = useMemo(() => COLUMNS.filter((c) => columns[c]), [columns]);
@@ -593,18 +649,21 @@ const Watchlist: React.FC<{
             (d) =>
               decomposeDirection(d)[which === 'from' ? 'from' : 'to'] === hub,
           );
-    return scope === ALL
-      ? hubs.flatMap((h) =>
-          oneWay(
-            directions.filter((d) => anchorHub(d) === h),
-            h,
-          ),
-        )
-      : oneWay(
-          directions.filter((d) => touchesHub(d, scope)),
-          scope,
-        );
-  }, [scope, which, hubs, directions]);
+    const listed =
+      scope === ALL
+        ? hubs.flatMap((h) =>
+            oneWay(
+              directions.filter((d) => anchorHub(d) === h),
+              h,
+            ),
+          )
+        : oneWay(
+            directions.filter((d) => touchesHub(d, scope)),
+            scope,
+          );
+    // Favorites only: the starred routes and nothing else.
+    return favoritesOnly ? listed.filter((d) => favorites.includes(d)) : listed;
+  }, [scope, which, hubs, directions, favorites, favoritesOnly]);
 
   // Vol column wording follows whether rows can render USD.
   const prices = useUsdPrices();
@@ -709,9 +768,11 @@ const Watchlist: React.FC<{
               key={d}
               direction={d}
               selected={d === direction}
+              starred={favorites.includes(d)}
               stats={st}
               cols={cols}
               onSelect={select}
+              onToggleFavorite={onToggleFavorite}
             />
           ) : null;
         })}

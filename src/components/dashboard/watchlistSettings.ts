@@ -29,6 +29,9 @@ export interface WatchlistSettings {
   scope: string;
   directions: Directions;
   columns: Columns;
+  // Starred routes (direction ids), and whether the list shows only them.
+  favorites: string[];
+  favoritesOnly: boolean;
 }
 
 const KEY = 'allways-ui.watchlist.settings';
@@ -45,6 +48,8 @@ export const WATCHLIST_DEFAULTS: WatchlistSettings = {
     quotes: false,
     chg: true,
   },
+  favorites: [],
+  favoritesOnly: false,
 };
 const DEFAULTS = WATCHLIST_DEFAULTS;
 const isDirections = (v: unknown): v is Directions =>
@@ -61,6 +66,10 @@ const read = (): WatchlistSettings => {
         ? parsed.directions
         : DEFAULTS.directions,
       columns: { ...DEFAULTS.columns, ...(parsed.columns ?? {}) },
+      favorites: Array.isArray(parsed.favorites)
+        ? parsed.favorites.filter((f): f is string => typeof f === 'string')
+        : [],
+      favoritesOnly: parsed.favoritesOnly === true,
     };
   } catch {
     return DEFAULTS;
@@ -79,12 +88,26 @@ export const useWatchlistSettings = () => {
   const update = useCallback((patch: Partial<WatchlistSettings>) => {
     setSettings((s) => ({ ...s, ...patch }));
   }, []);
-  const reset = useCallback(() => setSettings(DEFAULTS), []);
-  return { settings, update, reset };
+  const toggleFavorite = useCallback((direction: string) => {
+    setSettings((s) => ({
+      ...s,
+      favorites: s.favorites.includes(direction)
+        ? s.favorites.filter((f) => f !== direction)
+        : [...s.favorites, direction],
+    }));
+  }, []);
+  // Reset returns the view to its defaults but keeps the stars: they are
+  // a person's picks, not a setting.
+  const reset = useCallback(
+    () => setSettings((s) => ({ ...DEFAULTS, favorites: s.favorites })),
+    [],
+  );
+  return { settings, update, toggleFavorite, reset };
 };
 
 // How many settings are away from their defaults, for the gear's badge.
 export const watchlistChanges = (s: WatchlistSettings): number =>
   (s.scope === DEFAULTS.scope ? 0 : 1) +
   (s.directions === DEFAULTS.directions ? 0 : 1) +
+  (s.favoritesOnly ? 1 : 0) +
   COLUMNS.filter((c) => s.columns[c] !== DEFAULTS.columns[c]).length;
