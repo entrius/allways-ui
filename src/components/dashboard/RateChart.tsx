@@ -24,7 +24,9 @@ const RateChart: React.FC<{
   range: HeroRange;
   /** Fixed px height, or '100%' to fill a sized parent. */
   height?: number | string;
-}> = ({ direction, base, range, height = 220 }) => {
+  /** The O / H / L / C readout above the line (the widget's setting). */
+  readout?: boolean;
+}> = ({ direction, base, range, height = 220, readout = true }) => {
   const theme = useTheme();
   const secs = RANGE_SECS[range];
   const legs = decomposeDirection(direction);
@@ -112,7 +114,7 @@ const RateChart: React.FC<{
     >
       {/* No move colour on this row: it is a readout, not a signal. The
           chart underneath carries the direction. */}
-      {ohlc && (
+      {readout && ohlc && (
         <Box
           sx={{
             display: 'flex',

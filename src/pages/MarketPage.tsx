@@ -6,6 +6,11 @@ import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 import DirectionCard from '../components/dashboard/DirectionCard';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
+import ChartSettingsRows from '../components/dashboard/ChartSettingsRows';
+import {
+  chartChanges,
+  useChartSettings,
+} from '../components/dashboard/chartSettings';
 import RateMatrix, {
   useMatrixAssets,
   visibleAssets,
@@ -144,6 +149,7 @@ const MarketPage: React.FC = () => {
   const matrixHidden =
     matrixAssets.length - visibleAssets(matrixAssets, matrix.settings).length;
   const watchlist = useWatchlistSettings();
+  const chart = useChartSettings();
 
   // Where the page opens with nothing on the URL: the recent busiest cell.
   const { data: swaps } = useCompleteSwapHistory();
@@ -273,6 +279,18 @@ const MarketPage: React.FC = () => {
               fit: 'fill',
               minW: 3,
               minH: 33,
+              aside: (
+                <WidgetSettings
+                  label="History settings"
+                  count={chartChanges(chart.settings)}
+                  onReset={chart.reset}
+                >
+                  <ChartSettingsRows
+                    settings={chart.settings}
+                    update={chart.update}
+                  />
+                </WidgetSettings>
+              ),
               node: (
                 <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -281,6 +299,7 @@ const MarketPage: React.FC = () => {
                       base={base}
                       range={range}
                       height="100%"
+                      readout={chart.settings.readout}
                     />
                   </Box>
                 </Box>
