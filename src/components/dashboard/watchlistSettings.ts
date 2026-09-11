@@ -35,11 +35,12 @@ const KEY = 'allways-ui.watchlist.settings';
 export const WATCHLIST_DEFAULTS: WatchlistSettings = {
   scope: ALL_HUBS,
   directions: 'both',
-  // Compact by default: the columns a TradingView watchlist carries.
+  // Lean by default: symbol, last and the move. The rest are a click away
+  // in the gear.
   columns: {
-    spread: true,
-    depth: true,
-    vol: true,
+    spread: false,
+    depth: false,
+    vol: false,
     swaps: false,
     quotes: false,
     chg: true,
