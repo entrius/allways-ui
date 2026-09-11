@@ -33,6 +33,7 @@ import {
   useDeskSettings,
   type Spacing,
 } from '../components/workspace/deskSettings';
+import RangeChips from '../components/RangeChips';
 import Watchlist from '../components/dashboard/Watchlist';
 import WatchlistSettingsRows from '../components/dashboard/WatchlistSettingsRows';
 import {
@@ -235,36 +236,14 @@ const MarketPage: React.FC = () => {
         <Workspace
           storageKey="allways.market.workspace.v10"
           defaultLayouts={MARKET_LAYOUTS}
+          controls={
+            <RangeChips value={range} options={RANGES} onChange={setRange} />
+          }
           settings={
             <>
               <Typography
                 component="div"
                 sx={{ ...settingsLabelSx, pt: 0.25, pb: 0.25 }}
-              >
-                window
-              </Typography>
-              <Box sx={settingsRowSx}>
-                <SettingsSeg
-                  left
-                  options={RANGES.map((r) => ({ value: r, label: r }))}
-                  value={range}
-                  onChange={(r) => setRange(r as HeroRange)}
-                />
-              </Box>
-              <Typography component="div" sx={settingsNoteSx}>
-                The window the rate card, history and watchlist read.
-              </Typography>
-
-              <Typography
-                component="div"
-                sx={{
-                  ...settingsLabelSx,
-                  pt: 1,
-                  pb: 0.25,
-                  mt: 0.5,
-                  borderTop: '1px solid',
-                  borderColor: 'divider',
-                }}
               >
                 spacing
               </Typography>
@@ -281,14 +260,12 @@ const MarketPage: React.FC = () => {
               </Box>
               <Typography component="div" sx={settingsNoteSx}>
                 {desk.settings.spacing === 'compact'
-                  ? 'Widgets sit tight, a hairline apart.'
-                  : 'Widgets keep the site\u2019s card gap between them.'}
+                  ? 'Widgets stack touching, a hairline between them.'
+                  : 'Widgets keep the site\u2019s card gap down each stack.'}
               </Typography>
             </>
           }
-          settingsCount={
-            (range === DEFAULT_RANGE ? 0 : 1) + deskChanges(desk.settings)
-          }
+          settingsCount={deskChanges(desk.settings)}
           onReset={resetDesk}
           spacing={desk.settings.spacing}
           panels={[
