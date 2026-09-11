@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   useChains,
@@ -147,66 +147,113 @@ const RouteLabel: React.FC<{ direction: Direction }> = ({ direction }) => {
   );
 };
 
-const Row: React.FC<{
-  direction: Direction;
-  selected: boolean;
-  /** Window length in seconds (the page's range toggle). */
-  secs: number;
-  onSelect: (direction: Direction) => void;
-}> = ({ direction, selected, secs, onSelect }) => {
-  const theme = useTheme();
+// One row's numbers, computed once for the whole list (so the headings can
+// sort on them) and handed to the row.
+type Stats = {
+  hub: string;
+  last: number | null;
+  vol: number;
+  volUsd: number | null;
+  chg: number | null;
+  chgArtifact: boolean;
+  seriesLoaded: boolean;
+  swapsLoaded: boolean;
+};
 
+type SortKey = 'last' | 'vol' | 'chg';
+type Sort = { key: SortKey; dir: 'asc' | 'desc' };
+
+// The rows' numbers: the live crown per route, the window's first and last
+// rates from one batched series query, and the window's settled volume from
+// one swap-history query, summed per route in a single pass.
+const useRowStats = (
+  directions: Direction[],
+  secs: number,
+): Map<Direction, Stats> => {
   const { data: crown } = useCurrentCrown();
-  const live = directionalRateFor(
-    direction,
-    crownLaneFor(crown, direction)?.rate,
-  );
-  // One batched series query shared by every row: react-query issues it
-  // once per tick however many routes the registry holds.
   const { data: allSeries } = useCrownRateHistoryAll(secs);
-  const rows = allSeries ? (allSeries[direction] ?? []) : undefined;
-
-  // Windowed volume of this route's settled swaps, on the pair's hub-leg
-  // side; one shared swap-history query, filtered per direction.
-  const { from, to } = decomposeDirection(direction);
-  const hub = canonicalSource(from, to);
   const { data: swaps } = useCompleteSwapHistory();
-  const vol = useMemo(() => {
+  const prices = useUsdPrices();
+  return useMemo(() => {
     const cutoff = Date.now() / 1000 - secs;
-    let sum = 0;
+    const vols = new Map<string, number>();
     for (const s of swaps ?? []) {
       if (
         s.status !== 'COMPLETED' ||
         s.initiatedAt == null ||
-        Number(s.initiatedAt) < cutoff ||
-        s.sourceChain?.toLowerCase() !== from ||
-        s.destChain?.toLowerCase() !== to
+        Number(s.initiatedAt) < cutoff
       )
         continue;
-      const v = hubLegVolume(s, hub);
-      if (Number.isFinite(v)) sum += v;
+      const from = s.sourceChain?.toLowerCase();
+      const to = s.destChain?.toLowerCase();
+      if (!from || !to) continue;
+      const v = hubLegVolume(s, canonicalSource(from, to));
+      if (!Number.isFinite(v)) continue;
+      const k = `${from}-${to}`;
+      vols.set(k, (vols.get(k) ?? 0) + v);
     }
-    return sum;
-  }, [swaps, from, to, hub, secs]);
-  // USD when the hub is priced; native hub units otherwise.
-  const prices = useUsdPrices();
-  const volUsd = usdFromHuman(vol, hub, prices);
+    const out = new Map<Direction, Stats>();
+    for (const direction of directions) {
+      const { from, to } = decomposeDirection(direction);
+      const hub = canonicalSource(from, to);
+      const live = directionalRateFor(
+        direction,
+        crownLaneFor(crown, direction)?.rate,
+      );
+      const rows = allSeries ? (allSeries[direction] ?? []) : undefined;
+      const first = rows?.length
+        ? directionalRateFor(direction, rows[0].rate)
+        : null;
+      const last =
+        live ??
+        (rows?.length
+          ? directionalRateFor(direction, rows[rows.length - 1].rate)
+          : null);
+      const ratio =
+        first != null && first !== 0 && last != null ? last / first : null;
+      // A scale-off quote seeding the window produces figures like
+      // +1.6e8%: a re-denomination artifact, not a move. Beyond a 10×
+      // in-window swing the number is suppressed rather than discredit
+      // the whole column.
+      const chgArtifact = ratio != null && (ratio > 10 || ratio < 0.1);
+      const chg = ratio != null && !chgArtifact ? (ratio - 1) * 100 : null;
+      const vol = vols.get(`${from}-${to}`) ?? 0;
+      out.set(direction, {
+        hub,
+        last,
+        vol,
+        volUsd: usdFromHuman(vol, hub, prices),
+        chg,
+        chgArtifact,
+        seriesLoaded: rows !== undefined,
+        swapsLoaded: swaps !== undefined,
+      });
+    }
+    return out;
+  }, [directions, secs, crown, allSeries, swaps, prices]);
+};
 
-  const first = rows?.length
-    ? directionalRateFor(direction, rows[0].rate)
-    : null;
-  const last =
-    live ??
-    (rows?.length
-      ? directionalRateFor(direction, rows[rows.length - 1].rate)
-      : null);
-  const ratio =
-    first != null && first !== 0 && last != null ? last / first : null;
-  // A scale-off quote seeding the window produces figures like +1.6e8%: a
-  // re-denomination artifact, not a move. Beyond a 10× in-window swing the
-  // number is suppressed rather than discredit the whole column.
-  const chgArtifact = ratio != null && (ratio > 10 || ratio < 0.1);
-  const chg = ratio != null && !chgArtifact ? (ratio - 1) * 100 : null;
+// The number a column sorts on; null sorts last either way.
+const sortValue = (s: Stats, key: SortKey): number | null =>
+  key === 'last' ? s.last : key === 'vol' ? (s.volUsd ?? s.vol) : s.chg;
+
+const Row: React.FC<{
+  direction: Direction;
+  selected: boolean;
+  stats: Stats;
+  onSelect: (direction: Direction) => void;
+}> = ({ direction, selected, stats, onSelect }) => {
+  const theme = useTheme();
+  const {
+    hub,
+    last,
+    vol,
+    volUsd,
+    chg,
+    chgArtifact,
+    seriesLoaded,
+    swapsLoaded,
+  } = stats;
   // Nothing traded and nothing moved in the window: keep the row, let the
   // live markets pop. The selected row is never dimmed.
   const dormant = !selected && vol === 0 && (chg == null || chg === 0);
@@ -277,7 +324,7 @@ const Row: React.FC<{
           whiteSpace: 'nowrap',
         }}
       >
-        {rows === undefined && last == null
+        {!seriesLoaded && last == null
           ? skeleton(48)
           : last != null
             ? formatRate(last)
@@ -297,7 +344,7 @@ const Row: React.FC<{
           whiteSpace: 'nowrap',
         }}
       >
-        {swaps === undefined
+        {!swapsLoaded
           ? skeleton(28)
           : volUsd != null
             ? `$${fmtVol(volUsd)}`
@@ -351,6 +398,34 @@ const Watchlist: React.FC<{
   );
   const { data: chains } = useChains();
   const hubs = useMemo(() => hubChains(chains), [chains]);
+  const stats = useRowStats(directions, secs);
+
+  // A heading click sorts its column, high to low; again, low to high;
+  // again, back to the registry's order. Sorting is within each hub
+  // section, so the sections stay.
+  const [sort, setSort] = useState<Sort | null>(null);
+  const sortBy = (key: SortKey) =>
+    setSort((cur) =>
+      cur?.key !== key
+        ? { key, dir: 'desc' }
+        : cur.dir === 'desc'
+          ? { key, dir: 'asc' }
+          : null,
+    );
+  const order = (rows: Direction[]): Direction[] => {
+    if (!sort) return rows;
+    const sign = sort.dir === 'desc' ? -1 : 1;
+    return [...rows].sort((a, b) => {
+      const sa = stats.get(a);
+      const sb = stats.get(b);
+      const x = sa ? sortValue(sa, sort.key) : null;
+      const y = sb ? sortValue(sb, sort.key) : null;
+      if (x == null && y == null) return 0;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return sign * (x - y);
+    });
+  };
 
   // "All" files every route once, under its anchor, in registry hub order;
   // a hub scope is that hub's whole network, including the routes it
@@ -418,28 +493,53 @@ const Watchlist: React.FC<{
         >
           <Typography sx={labelSx}>Symbol</Typography>
         </RailTooltip>
-        <RailTooltip
-          placement="bottom"
-          title="Best rate right now: what 1 unit sent delivers."
-        >
-          <Typography sx={{ ...labelSx, textAlign: 'right' }}>Last</Typography>
-        </RailTooltip>
-        <RailTooltip
-          placement="bottom"
-          title={
-            usdMode
-              ? `Value settled on this route over ${range}, estimated in USD.`
-              : `Value settled on this route over ${range}, in the pair's hub asset.`
-          }
-        >
-          <Typography sx={{ ...labelSx, textAlign: 'right' }}>Vol</Typography>
-        </RailTooltip>
-        <RailTooltip
-          placement="bottom"
-          title={`How far this route's rate moved over ${range}.`}
-        >
-          <Typography sx={{ ...labelSx, textAlign: 'right' }}>Chg%</Typography>
-        </RailTooltip>
+        {(
+          [
+            ['last', 'Last', 'Best rate right now: what 1 unit sent delivers.'],
+            [
+              'vol',
+              'Vol',
+              usdMode
+                ? `Value settled on this route over ${range}, estimated in USD.`
+                : `Value settled on this route over ${range}, in the pair's hub asset.`,
+            ],
+            ['chg', 'Chg%', `How far this route's rate moved over ${range}.`],
+          ] as [SortKey, string, string][]
+        ).map(([key, label, hint]) => {
+          const on = sort?.key === key;
+          return (
+            <RailTooltip
+              key={key}
+              placement="bottom"
+              title={`${hint} Click to sort.`}
+            >
+              <Box
+                component="button"
+                type="button"
+                onClick={() => sortBy(key)}
+                aria-sort={
+                  on
+                    ? sort.dir === 'desc'
+                      ? 'descending'
+                      : 'ascending'
+                    : 'none'
+                }
+                sx={{
+                  all: 'unset',
+                  ...labelSx,
+                  cursor: 'pointer',
+                  textAlign: 'right',
+                  whiteSpace: 'nowrap',
+                  color: on ? 'text.primary' : 'text.secondary',
+                  '&:hover': { color: 'text.primary' },
+                }}
+              >
+                {label}
+                {on && (sort.dir === 'desc' ? ' ▼' : ' ▲')}
+              </Box>
+            </RailTooltip>
+          );
+        })}
       </Box>
 
       {/* The list takes the rest of the widget and scrolls inside it; rows
@@ -484,15 +584,18 @@ const Watchlist: React.FC<{
                 </Typography>
               </Box>
             )}
-            {rows.map((d) => (
-              <Row
-                key={d}
-                direction={d}
-                selected={d === direction}
-                secs={secs}
-                onSelect={select}
-              />
-            ))}
+            {order(rows).map((d) => {
+              const st = stats.get(d);
+              return st ? (
+                <Row
+                  key={d}
+                  direction={d}
+                  selected={d === direction}
+                  stats={st}
+                  onSelect={select}
+                />
+              ) : null;
+            })}
           </Box>
         ))}
       </Box>
