@@ -4,6 +4,11 @@ import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
 import DirectionCard from '../components/dashboard/DirectionCard';
+import RateSettingsRows from '../components/dashboard/RateSettingsRows';
+import {
+  rateChanges,
+  useRateSettings,
+} from '../components/dashboard/rateSettings';
 import OrderbookDepth from '../components/dashboard/OrderbookDepth';
 import RateChart from '../components/dashboard/RateChart';
 import ChartSettingsRows from '../components/dashboard/ChartSettingsRows';
@@ -139,6 +144,7 @@ const MarketPage: React.FC = () => {
   const matrixHidden =
     matrixAssets.length - visibleAssets(matrixAssets, matrix.settings).length;
   const watchlist = useWatchlistSettings();
+  const rateCard = useRateSettings();
   const chart = useChartSettings();
 
   // Where the page opens with nothing on the URL: the recent busiest cell.
@@ -255,11 +261,24 @@ const MarketPage: React.FC = () => {
               title: 'Rate',
               minW: 3,
               minH: 30,
+              aside: (
+                <WidgetSettings
+                  label="Rate settings"
+                  count={rateChanges(rateCard.settings)}
+                  onReset={rateCard.reset}
+                >
+                  <RateSettingsRows
+                    settings={rateCard.settings}
+                    update={rateCard.update}
+                  />
+                </WidgetSettings>
+              ),
               node: (
                 <DirectionCard
                   direction={direction}
                   base={base}
                   range={range}
+                  stats={rateCard.settings.stats}
                 />
               ),
             },
