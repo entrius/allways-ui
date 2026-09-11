@@ -148,37 +148,54 @@ const RateMatrixSettings: React.FC<{
       {assets.map((a) => {
         const shown = !settings.hidden.includes(a.id);
         const fav = settings.favorites.includes(a.id);
+        const name = (
+          <>
+            <Typography
+              component="span"
+              sx={{
+                fontFamily: FONTS.mono,
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                color: shown ? 'text.primary' : 'text.disabled',
+              }}
+            >
+              {a.symbol}
+            </Typography>
+            {a.network && (
+              <Typography
+                component="span"
+                sx={{
+                  fontFamily: FONTS.mono,
+                  fontSize: '0.6rem',
+                  color: shown ? 'text.secondary' : 'text.disabled',
+                }}
+              >
+                {a.network}
+              </Typography>
+            )}
+          </>
+        );
         return (
           <Box
             component="li"
             key={a.id}
             sx={{ display: 'flex', alignItems: 'center', py: 0.375 }}
           >
-            <Check checked={shown} onChange={() => toggleHidden(a.id)}>
-              <Typography
-                component="span"
-                sx={{
-                  fontFamily: FONTS.mono,
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  color: shown ? 'text.primary' : 'text.disabled',
-                }}
+            {a.hub ? (
+              // A hub row is always on the sheet (it is the sheet's other
+              // corridor), so it has no show/hide box; it can be starred
+              // so favorites-only keeps it.
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 2.5 }}
+                title="Hub rows always show; star one to keep it under favorites only."
               >
-                {a.symbol}
-              </Typography>
-              {a.network && (
-                <Typography
-                  component="span"
-                  sx={{
-                    fontFamily: FONTS.mono,
-                    fontSize: '0.6rem',
-                    color: shown ? 'text.secondary' : 'text.disabled',
-                  }}
-                >
-                  {a.network}
-                </Typography>
-              )}
-            </Check>
+                {name}
+              </Box>
+            ) : (
+              <Check checked={shown} onChange={() => toggleHidden(a.id)}>
+                {name}
+              </Check>
+            )}
             <Star on={fav} onClick={() => toggleFavorite(a.id)} />
           </Box>
         );

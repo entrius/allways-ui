@@ -242,7 +242,7 @@ const MarketPage: React.FC = () => {
                   onReset={matrix.reset}
                 >
                   <RateMatrixSettings
-                    assets={matrixAssets.filter((a) => !a.hub)}
+                    assets={matrixAssets}
                     settings={matrix.settings}
                     update={matrix.update}
                     toggleHidden={matrix.toggleHidden}

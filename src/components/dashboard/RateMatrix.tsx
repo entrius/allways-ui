@@ -193,16 +193,17 @@ export const useMatrixAssets = (): ChainInfo[] => {
   );
 };
 
-// Hubs always show as rows; the rest honour hidden and favorites-only.
+// Favorites-only shows exactly the starred rows, hubs included (a hub row
+// is the hub↔hub corridor, and is starred like any other). Otherwise hubs
+// always show and the rest honour hidden.
 export const visibleAssets = (
   all: ChainInfo[],
   settings: MatrixSettings,
 ): ChainInfo[] =>
-  all.filter(
-    (a) =>
-      a.hub ||
-      (!settings.hidden.includes(a.id) &&
-        (!settings.favoritesOnly || settings.favorites.includes(a.id))),
+  all.filter((a) =>
+    settings.favoritesOnly
+      ? settings.favorites.includes(a.id)
+      : a.hub || !settings.hidden.includes(a.id),
   );
 
 // The sheet is also the picker: clicking a number selects that DIRECTION
@@ -427,32 +428,30 @@ const RateMatrix: React.FC<{
                     network={network}
                     logoSize={logoSize}
                   />
-                  {!asset.hub && (
-                    <Box
-                      component="button"
-                      type="button"
-                      className="matrix-star"
-                      title={fav ? 'unstar' : 'star'}
-                      onClick={() => toggleFavorite(asset.id)}
-                      sx={{
-                        all: 'unset',
-                        position: 'absolute',
-                        right: 4,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        cursor: 'pointer',
-                        fontSize: 12,
-                        lineHeight: 1,
-                        opacity: fav ? 1 : 0,
-                        color: fav ? '#e8b923' : 'border.light',
-                        '&:hover': {
-                          color: fav ? '#e8b923' : 'text.secondary',
-                        },
-                      }}
-                    >
-                      ★
-                    </Box>
-                  )}
+                  <Box
+                    component="button"
+                    type="button"
+                    className="matrix-star"
+                    title={fav ? 'unstar' : 'star'}
+                    onClick={() => toggleFavorite(asset.id)}
+                    sx={{
+                      all: 'unset',
+                      position: 'absolute',
+                      right: 4,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      lineHeight: 1,
+                      opacity: fav ? 1 : 0,
+                      color: fav ? '#e8b923' : 'border.light',
+                      '&:hover': {
+                        color: fav ? '#e8b923' : 'text.secondary',
+                      },
+                    }}
+                  >
+                    ★
+                  </Box>
                 </Box>
                 {hubs.map((hub) => {
                   const self = asset.id === hub.id;
