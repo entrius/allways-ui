@@ -3,10 +3,10 @@ import { Box, Skeleton, Typography } from '@mui/material';
 import { FONTS } from '../../theme';
 
 /**
- * Bordered KPI cell — small uppercase mono label on top, big bold mono value
- * at the bottom. The one stat-tile treatment shared by the Network Stats
- * snapshot row and the miners overview row. Pass `children` instead of
- * `value` for a custom body (e.g. the swap-direction bars).
+ * Bordered KPI cell — small uppercase mono label on top, the value beneath
+ * at the scale's one headline size (mono 1.4rem, weight 700). The one
+ * stat-tile treatment, used by the Network Stats totals row. Pass `children`
+ * instead of `value` for a custom body.
  */
 const StatCell: React.FC<{
   label: string;
@@ -52,8 +52,9 @@ const StatCell: React.FC<{
       <Box
         sx={{
           fontFamily: FONTS.mono,
-          fontSize: { xs: '1.6rem', md: '2rem' },
+          fontSize: '1.4rem',
           fontWeight: 700,
+          fontVariantNumeric: 'tabular-nums',
           lineHeight: 1,
           color: 'text.primary',
           display: 'flex',
@@ -66,7 +67,7 @@ const StatCell: React.FC<{
           <Skeleton
             variant="rectangular"
             width={100}
-            height={28}
+            height={22}
             sx={{ bgcolor: 'action.hover' }}
           />
         ) : (
@@ -77,7 +78,7 @@ const StatCell: React.FC<{
                   <Box
                     component="span"
                     sx={{
-                      fontSize: { xs: '1rem', md: '1.25rem' },
+                      fontSize: '0.85rem',
                       color: 'text.disabled',
                       fontWeight: 500,
                     }}
@@ -90,7 +91,7 @@ const StatCell: React.FC<{
                   <Box
                     component="span"
                     sx={{
-                      fontSize: { xs: '1rem', md: '1.25rem' },
+                      fontSize: '0.85rem',
                       color: 'text.secondary',
                       fontWeight: 500,
                     }}

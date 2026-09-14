@@ -37,7 +37,7 @@ const SECTIONS = [
     id: 'stats',
     title: 'Network Stats',
     subtitle:
-      'The network by day: volume, transactions, reliability, settlement speed and protocol fees.',
+      'All-time totals, then the network by day: volume, transactions, fees, reliability, settlement speed, throughput, nodes and direction mix.',
   },
 ] as const;
 
