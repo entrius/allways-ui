@@ -33,6 +33,7 @@ import {
   usdFromBackingMap,
 } from '../../utils/format';
 import { FONTS } from '../../theme';
+import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 /**
  * Every figure about the network as a whole, most important first: the
@@ -94,14 +95,17 @@ const secs = (v: number) =>
       ? `${(v / 60).toFixed(v >= 6000 ? 0 : 1)}m`
       : `${v.toFixed(v >= 10 ? 0 : 1)}s`;
 
-const pctValue = (v: number) => `${v.toFixed(1)}%`;
-
 const ms = (iso: string) => new Date(iso).getTime();
 
 const points = (
   rows: HistoryRow[] | undefined,
   pick: (r: HistoryRow) => number | null,
 ) => (rows ?? []).map((r) => ({ t: ms(r.t), value: pick(r) }));
+
+// Axis ticks in one unit for the whole axis: minutes once any bar reaches
+// ten minutes, seconds otherwise. Whole numbers, so 0 is "0s" not "0.0s".
+const tickSecs = (max: number) => (v: number) =>
+  max >= 600 ? `${Math.round(v / 60)}m` : `${Math.round(v)}s`;
 
 const median = (xs: number[]) => {
   if (!xs.length) return null;
@@ -123,6 +127,9 @@ const directionLabel = (s: ActiveSwap) =>
 const StatsSection: React.FC = () => {
   const theme = useTheme();
   const ink = theme.palette.text.primary;
+  // The one meaning red has on the site: a failed status.
+  const red =
+    MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'].down;
   const [params, setParams] = useSearchParams();
   const rangeParam = params.get(STATS_RANGE_PARAM);
   const range: StatsRange = isStatsRange(rangeParam)
@@ -251,20 +258,6 @@ const StatsSection: React.FC = () => {
         { formatValue: moneyValue },
       ),
       fees: bars('Fees', fees, { formatValue: moneyValue }),
-      successRate: line(
-        'Success rate',
-        (r) => (r.successRate == null ? null : r.successRate * 100),
-        { formatValue: pctValue },
-      ),
-      settlement: [
-        ...line('Median', (r) => r.medianSettlementSecs ?? null, {
-          formatValue: secs,
-        }),
-        ...line('Average', (r) => r.avgSettlementSecs, {
-          formatValue: secs,
-          dashed: true,
-        }),
-      ],
       throughput: line('Transactions / hour', (r) => r.tps * 3600, {
         formatValue: (v) => v.toFixed(2),
       }),
@@ -284,6 +277,14 @@ const StatsSection: React.FC = () => {
     const sinceMs = days == null ? 0 : dayOf(nowMs) - (days - 1) * DAY_MS;
 
     const servingByDay = new Map<number, Set<string>>();
+    // Outcomes and settlement are keyed by the day the swap resolved: that
+    // is when the network knew, and when a timeout became a timeout.
+    const completedByDay = new Map<number, number>();
+    const timedOutByDay = new Map<number, number>();
+    const settleByDay = new Map<number, number[]>();
+    let rangeCompleted = 0;
+    let rangeTimedOut = 0;
+    const rangeSettle: number[] = [];
     // +1 at initiation, -1 at resolution (open swaps run to now); a sweep in
     // time order tracks exact concurrency. Day boundaries get zero-delta
     // checkpoints so a swap spanning a quiet day still registers there.
@@ -295,6 +296,29 @@ const StatsSection: React.FC = () => {
       const end = s.resolvedAt == null ? nowMs : Number(s.resolvedAt) * 1000;
       firstMs = Math.min(firstMs, start);
       sweep.push([start, 1], [end, -1]);
+      const resolvedDay = dayOf(end);
+      if (resolvedDay >= sinceMs) {
+        if (s.status === 'COMPLETED') {
+          completedByDay.set(
+            resolvedDay,
+            (completedByDay.get(resolvedDay) ?? 0) + 1,
+          );
+          rangeCompleted += 1;
+          if (s.resolvedAt != null) {
+            const took = (end - start) / 1000;
+            let list = settleByDay.get(resolvedDay);
+            if (!list) settleByDay.set(resolvedDay, (list = []));
+            list.push(took);
+            rangeSettle.push(took);
+          }
+        } else if (s.status === 'TIMED_OUT') {
+          timedOutByDay.set(
+            resolvedDay,
+            (timedOutByDay.get(resolvedDay) ?? 0) + 1,
+          );
+          rangeTimedOut += 1;
+        }
+      }
       if (start < sinceMs) continue;
       if (s.status === 'COMPLETED' && s.minerHotkey) {
         const day = dayOf(start);
@@ -313,6 +337,11 @@ const StatsSection: React.FC = () => {
       }
     }
     const empty = {
+      outcomes: [] as ChartSeries[],
+      settlement: [] as ChartSeries[],
+      rangeSuccessRate: null as number | null,
+      rangeMedianSettle: null as number | null,
+      settleMax: 0,
       servingNodes: [] as ChartSeries[],
       peakInFlight: [] as ChartSeries[],
       mix: [] as { label: string; usd: number; pct: number }[],
@@ -346,9 +375,48 @@ const StatsSection: React.FC = () => {
       }))
       .sort((a, b) => b.usd - a.usd);
 
-    const daily = (pick: (t: number) => number): SeriesPoint[] =>
+    const daily = (pick: (t: number) => number | null): SeriesPoint[] =>
       dayList.map((t) => ({ t, value: pick(t) }));
+    const rangeResolved = rangeCompleted + rangeTimedOut;
     return {
+      // Two bars a day, side by side: how many completed, how many timed
+      // out. A quiet day is simply empty; a lone timeout is one short red
+      // bar, not a cliff to 0%.
+      outcomes: [
+        {
+          name: 'Completed',
+          color: ink,
+          type: 'bar',
+          formatValue: count,
+          points: daily((t) => completedByDay.get(t) ?? null),
+        },
+        {
+          name: 'Timed out',
+          color: red,
+          type: 'bar',
+          formatValue: count,
+          points: daily((t) => timedOutByDay.get(t) ?? null),
+        },
+      ] as ChartSeries[],
+      // One bar a day: the median wait of that day's completed swaps, in
+      // plain seconds. No bar on a day nothing completed.
+      settlement: [
+        {
+          name: 'Median settlement',
+          color: ink,
+          type: 'bar',
+          formatValue: secs,
+          points: daily((t) => median(settleByDay.get(t) ?? [])),
+        },
+      ] as ChartSeries[],
+      rangeSuccessRate: rangeResolved
+        ? (rangeCompleted / rangeResolved) * 100
+        : null,
+      rangeMedianSettle: median(rangeSettle),
+      settleMax: Math.max(
+        0,
+        ...[...settleByDay.values()].map((xs) => median(xs) ?? 0),
+      ),
       servingNodes: [
         {
           name: 'Serving nodes',
@@ -368,7 +436,7 @@ const StatsSection: React.FC = () => {
       ] as ChartSeries[],
       mix,
     };
-  }, [allSwaps, range, ink, usdMode, prices]);
+  }, [allSwaps, range, ink, red, usdMode, prices]);
 
   const chart = (
     data: ChartSeries[],
@@ -450,11 +518,28 @@ const StatsSection: React.FC = () => {
     },
   ];
 
+  // A panel's one summary figure for the range, top right in the header.
+  const readout = (text: string | null) =>
+    text == null ? undefined : (
+      <Typography
+        sx={{
+          ...mono,
+          fontSize: '0.82rem',
+          fontWeight: 700,
+          color: 'text.primary',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {text}
+      </Typography>
+    );
+
   const panels: {
     title: string;
     subtitle: string;
     info: string;
     body: React.ReactNode;
+    headerRight?: React.ReactNode;
   }[] = [
     {
       title: 'Cumulative volume',
@@ -498,20 +583,31 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Success rate',
-      subtitle: '% of resolved swaps completed · days with none are gapped',
-      info: 'Completed / (completed + timed out) among the swaps resolved each day.',
-      body: chart(series.successRate, historyLoading, (v) => v.toFixed(0), {
-        noArea: true,
-      }),
+      subtitle:
+        'completed and timed out, per day · rate for the range at right',
+      info: 'How many swaps completed (ink) and how many timed out (red) each day, by the day they resolved. The figure at right is completed / (completed + timed out) over the whole range.',
+      body: chart(derived.outcomes, swapsLoading, compact, { integerY: true }),
+      headerRight: readout(
+        derived.rangeSuccessRate == null
+          ? null
+          : `${derived.rangeSuccessRate.toFixed(1)}% completed`,
+      ),
     },
     {
       title: 'Settlement time',
-      subtitle: 'median, average dashed · seconds, log scale',
-      info: 'Time from initiation to completion. The median is what a typical swap waited; the average moves with one slow swap.',
-      body: chart(series.settlement, historyLoading, secs, {
-        logScale: true,
-        noArea: true,
-      }),
+      subtitle: 'median wait per day · median for the range at right',
+      info: 'The middle wait from initiation to completion among that day’s completed swaps: half settled faster, half slower. The figure at right is the same median over the whole range.',
+      body: chart(
+        derived.settlement,
+        swapsLoading,
+        tickSecs(derived.settleMax),
+        { integerY: true },
+      ),
+      headerRight: readout(
+        derived.rangeMedianSettle == null
+          ? null
+          : `${secs(derived.rangeMedianSettle)} median`,
+      ),
     },
     {
       title: 'Throughput',
@@ -591,7 +687,12 @@ const StatsSection: React.FC = () => {
       <Grid container spacing={{ xs: 2, md: 3 }}>
         {panels.map((p) => (
           <Grid item xs={12} md={6} key={p.title}>
-            <Panel title={p.title} subtitle={p.subtitle} info={p.info}>
+            <Panel
+              title={p.title}
+              subtitle={p.subtitle}
+              info={p.info}
+              headerRight={p.headerRight}
+            >
               {p.body}
             </Panel>
           </Grid>
