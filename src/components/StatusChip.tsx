@@ -48,7 +48,7 @@ const StatusChip: React.FC<{
         backgroundColor: isVar
           ? `color-mix(in srgb, ${color} 8%, transparent)`
           : alpha(color, 0.08),
-        cursor: hint ? 'help' : 'default',
+        cursor: 'default',
       }}
     >
       {icon}
