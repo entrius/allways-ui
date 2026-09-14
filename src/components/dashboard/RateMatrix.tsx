@@ -357,7 +357,7 @@ const RateMatrix: React.FC<{
                   zIndex: 1,
                   height: HEAD_H,
                   minWidth: COL_MIN * 2,
-                  cursor: 'help',
+                  cursor: 'default',
                   textAlign: logoOnly ? 'center' : 'left',
                   borderBottomColor: 'border.light',
                   ...(hub.id === selHub

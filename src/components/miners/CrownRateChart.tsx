@@ -243,7 +243,7 @@ const CrownRateChart: React.FC<{
               sx={{
                 fontSize: '0.85rem',
                 color: 'text.disabled',
-                cursor: 'help',
+                cursor: 'default',
                 '&:hover': { color: 'text.secondary' },
               }}
             />
