@@ -112,18 +112,40 @@ const DirectionColumn: React.FC<{
   holders: CrownTimeRow[];
 }> = ({ direction, holders }) => (
   <Box sx={{ flex: 1, minWidth: 0 }}>
-    <Typography
+    {/* The Emission by pair panel's column header: label left, count
+        right, a hairline beneath. */}
+    <Box
       sx={{
-        fontFamily: FONTS.mono,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        letterSpacing: '0.06em',
-        color: 'text.primary',
-        mb: 1,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        pb: 0.75,
+        mb: 0.75,
       }}
     >
-      {directionLabel(direction)}
-    </Typography>
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          color: 'text.primary',
+        }}
+      >
+        {directionLabel(direction)}
+      </Typography>
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.62rem',
+          fontVariantNumeric: 'tabular-nums',
+          color: 'text.secondary',
+        }}
+      >
+        {holders.length} {holders.length === 1 ? 'holder' : 'holders'}
+      </Typography>
+    </Box>
     <Stack>
       {holders.map((h) => (
         <HolderRow key={h.hotkey} row={h} />
@@ -185,8 +207,6 @@ const CrownTimeLeaderboard: React.FC<{
         borderColor: 'divider',
         backgroundColor: 'background.paper',
         p: { xs: 2, md: 2.5 },
-        mt: 2,
-        mb: 3,
       }}
     >
       <Stack
@@ -228,11 +248,12 @@ const CrownTimeLeaderboard: React.FC<{
       </Box>
       {!loading && active.length === 0 && (
         <Typography
+          align="center"
           sx={{
             fontFamily: FONTS.mono,
             fontSize: '0.7rem',
-            color: 'text.disabled',
-            py: 1,
+            color: 'text.secondary',
+            py: 4,
           }}
         >
           no crown activity in this window

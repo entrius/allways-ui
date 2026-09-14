@@ -23,6 +23,7 @@ import RangeChips from '../RangeChips';
 import SearchField from '../SearchField';
 import SectionHeading from '../SectionHeading';
 import SortHeader, { type SortDir } from './SortHeader';
+import StatusChip from '../StatusChip';
 import { tierPalette } from './crownGridCells';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 import { FONTS } from '../../theme';
@@ -176,8 +177,7 @@ const MinerLeaderboard: React.FC<{
         backgroundColor: 'background.paper',
         border: '1px solid',
         borderColor: 'divider',
-        p: { xs: 1.5, md: 2.5 },
-        mb: 4,
+        p: { xs: 2, md: 2.5 },
       }}
     >
       <Stack
@@ -219,7 +219,7 @@ const MinerLeaderboard: React.FC<{
           <RangeChips value={range} options={RANGES} onChange={onRangeChange} />
         </Stack>
       </Stack>
-      <Box sx={{ overflowX: 'auto', mx: { xs: -1.5, md: 0 } }}>
+      <Box sx={{ overflowX: 'auto', mx: { xs: -2, md: 0 } }}>
         <Table
           size="small"
           sx={{
@@ -227,10 +227,21 @@ const MinerLeaderboard: React.FC<{
             minWidth: 0,
             '& th, & td': {
               borderColor: 'divider',
-              fontSize: { xs: '0.7rem', sm: '0.76rem', md: '0.8rem' },
+              fontFamily: FONTS.mono,
+              fontVariantNumeric: 'tabular-nums',
               px: { xs: 1, md: 2 },
               whiteSpace: 'nowrap',
             },
+            // The site's column header: mono 0.62 secondary label.
+            '& th': {
+              fontSize: '0.62rem',
+              fontWeight: 400,
+              letterSpacing: '0.04em',
+              color: 'text.secondary',
+              py: 1,
+            },
+            // The site's table cell: mono 0.72.
+            '& td': { fontSize: '0.72rem', py: 1 },
           }}
         >
           <TableHead>
@@ -351,9 +362,17 @@ const MinerLeaderboard: React.FC<{
               <TableRow>
                 <TableCell
                   colSpan={8}
-                  sx={{ textAlign: 'center', color: 'text.disabled' }}
+                  sx={{
+                    textAlign: 'center',
+                    color: 'text.secondary',
+                    fontSize: '0.7rem',
+                    py: 4,
+                    borderBottom: 0,
+                  }}
                 >
-                  No miners registered yet
+                  {queryNorm
+                    ? `no miner matches "${queryRaw}"`
+                    : 'no miners registered yet'}
                 </TableCell>
               </TableRow>
             )}
@@ -368,6 +387,12 @@ const MinerLeaderboard: React.FC<{
                   ? MOVE_COLORS[theme.palette.mode].down
                   : 'text.primary';
               const wearsCrown = row.currentCrownDirections.length > 0;
+              const usd = usdFromBackingMap(
+                row.volumeByBacking,
+                prices,
+                row.volumeSol,
+              );
+              const noVolume = usd != null ? usd === 0 : false;
               return (
                 <TableRow
                   key={row.hotkey}
@@ -394,14 +419,13 @@ const MinerLeaderboard: React.FC<{
                   >
                     {wearsCrown && <CrownIcon />}
                   </TableCell>
-                  <TableCell sx={{ fontFamily: FONTS.mono }}>
-                    {row.uid ?? '—'}
-                  </TableCell>
+                  <TableCell>{row.uid ?? '—'}</TableCell>
                   <TableCell
                     sx={{
-                      fontFamily: FONTS.mono,
                       display: { xs: 'none', md: 'table-cell' },
+                      color: 'text.secondary',
                     }}
+                    title={row.hotkey}
                   >
                     {shortHotkey(row.hotkey)}
                   </TableCell>
@@ -426,65 +450,75 @@ const MinerLeaderboard: React.FC<{
                       <Typography
                         sx={{
                           fontFamily: FONTS.mono,
-                          fontSize: { xs: '0.72rem', md: '0.85rem' },
+                          fontSize: '0.72rem',
+                          fontVariantNumeric: 'tabular-nums',
+                          color:
+                            row.crownShare > 0
+                              ? 'text.primary'
+                              : 'text.disabled',
                         }}
                       >
                         {(row.crownShare * 100).toFixed(0)}%
                       </Typography>
                     </Stack>
                   </TableCell>
-                  <TableCell
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      display: { xs: 'none', sm: 'table-cell' },
-                    }}
-                  >
-                    {formatSol(row.collateral)} SOL
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                    {formatSol(row.collateral)}{' '}
+                    <Box component="span" sx={{ color: 'text.secondary' }}>
+                      SOL
+                    </Box>
                   </TableCell>
                   <TableCell
-                    sx={{ fontFamily: FONTS.mono, color: successColor }}
+                    sx={{
+                      color:
+                        row.completedSwaps + row.timedOutSwaps === 0
+                          ? 'text.disabled'
+                          : successColor,
+                    }}
                   >
                     {formatSuccess(row)}
                   </TableCell>
                   <TableCell
                     sx={{
-                      fontFamily: FONTS.mono,
                       display: { xs: 'none', sm: 'table-cell' },
+                      color: noVolume ? 'text.disabled' : 'text.primary',
                     }}
                   >
-                    {(() => {
-                      const usd = usdFromBackingMap(
-                        row.volumeByBacking,
-                        prices,
-                        row.volumeSol,
-                      );
-                      return usd != null ? (
-                        <span
-                          title={backingTooltip(
-                            row.volumeByBacking,
-                            row.volumeSol,
-                          )}
-                        >
-                          {formatUsd(usd)}
-                        </span>
-                      ) : (
-                        backingEntries(row.volumeByBacking, row.volumeSol)
-                          .map((e) => `${e.amount} ${chainSymbol(e.chain)}`)
-                          .join(' + ')
-                      );
-                    })()}
+                    {usd != null ? (
+                      <span
+                        title={backingTooltip(
+                          row.volumeByBacking,
+                          row.volumeSol,
+                        )}
+                      >
+                        {formatUsd(usd)}
+                      </span>
+                    ) : (
+                      backingEntries(row.volumeByBacking, row.volumeSol)
+                        .map((e) => `${e.amount} ${chainSymbol(e.chain)}`)
+                        .join(' + ')
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        backgroundColor: row.isActive
-                          ? 'status.active'
-                          : 'text.disabled',
-                        display: 'inline-block',
-                      }}
+                    {/* The same chip the miner's own page wears. */}
+                    <StatusChip
+                      label={row.isActive ? 'active' : 'inactive'}
+                      color={
+                        row.isActive
+                          ? theme.palette.status.active
+                          : theme.palette.text.disabled
+                      }
+                      icon={
+                        <Box
+                          component="span"
+                          sx={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            backgroundColor: 'currentColor',
+                          }}
+                        />
+                      }
                     />
                   </TableCell>
                 </TableRow>
