@@ -28,6 +28,7 @@ import { tierPalette } from './crownGridCells';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 import { FONTS } from '../../theme';
 import {
+  asNumber,
   backingEntries,
   backingTooltip,
   chainSymbol,
@@ -89,10 +90,15 @@ const compare = (
     case 'success':
       return successRatio(a) - successRatio(b);
     case 'volume': {
-      // Estimated USD ranks across backings; the SOL scalar alone
-      // under-ranks TAO-heavy miners. Falls back when prices are down.
-      const aUsd = usdFromBackingMap(a.volumeByBacking, prices, a.volumeSol);
-      const bUsd = usdFromBackingMap(b.volumeByBacking, prices, b.volumeSol);
+      // USD ranks across backings; the SOL scalar alone under-ranks
+      // TAO-heavy miners. Point-in-time from das when present, today's
+      // prices otherwise, native when prices are down.
+      const aUsd =
+        asNumber(a.volumeUsd) ??
+        usdFromBackingMap(a.volumeByBacking, prices, a.volumeSol);
+      const bUsd =
+        asNumber(b.volumeUsd) ??
+        usdFromBackingMap(b.volumeByBacking, prices, b.volumeSol);
       if (aUsd != null && bUsd != null) return aUsd - bUsd;
       return parseFloat(a.volumeSol) - parseFloat(b.volumeSol);
     }
@@ -387,11 +393,10 @@ const MinerLeaderboard: React.FC<{
                   ? MOVE_COLORS[theme.palette.mode].down
                   : 'text.primary';
               const wearsCrown = row.currentCrownDirections.length > 0;
-              const usd = usdFromBackingMap(
-                row.volumeByBacking,
-                prices,
-                row.volumeSol,
-              );
+              // Point-in-time when das priced the swaps; today's price otherwise.
+              const usd =
+                asNumber(row.volumeUsd) ??
+                usdFromBackingMap(row.volumeByBacking, prices, row.volumeSol);
               const noVolume = usd != null ? usd === 0 : false;
               return (
                 <TableRow

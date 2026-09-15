@@ -4,6 +4,14 @@ export type DashboardStats = {
   // Completed volume per backing, each in its own smallest unit. Absent on a
   // das that predates the per-backing aggregates; never sum across keys.
   totalVolumeByBacking?: Record<string, string>;
+  // Point-in-time USD (absent on a das that predates usd_price_history):
+  // every completed swap at its backing's price in the hour it resolved.
+  // unpricedSwaps counts completed swaps with no price on record, which the
+  // totals leave out.
+  totalVolumeUsd?: number;
+  totalFeesUsd?: number;
+  largestSwapUsd?: number | null;
+  unpricedSwaps?: number;
   activeMiners: number;
   activeSwaps: number;
 };
@@ -30,6 +38,14 @@ export type HistoryRow = {
   cumulativeVolumeByBacking?: Record<string, string>;
   feesByBacking?: Record<string, string>;
   cumulativeFeesByBacking?: Record<string, string>;
+  // Point-in-time USD per bucket (absent on an older das): each swap at
+  // the price of the hour it resolved, so history keeps the price of its
+  // day. unpricedSwaps are left out of the sums.
+  volumeUsd?: number;
+  cumulativeVolumeUsd?: number;
+  feesUsd?: number;
+  cumulativeFeesUsd?: number;
+  unpricedSwaps?: number;
   tps: number;
   successRate: number | null;
   avgSettlementSecs: number | null;

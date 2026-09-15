@@ -156,6 +156,14 @@ export const backingTooltip = (
     .map((e) => `${e.amount} ${chainSymbol(e.chain)}`)
     .join(' + ');
 
+// A number the API sent, whatever the precision-preserving JSON parser made
+// of it: json-bigint stores long floats as strings, so a USD figure can
+// arrive either way. undefined for anything else (absent, null, junk).
+export const asNumber = (v: unknown): number | undefined => {
+  const n = typeof v === 'string' && v !== '' ? Number(v) : v;
+  return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
+};
+
 export const formatNumber = (n: number, decimals = 2) =>
   n.toLocaleString(undefined, {
     minimumFractionDigits: decimals,

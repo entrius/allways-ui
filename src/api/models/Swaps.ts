@@ -48,6 +48,10 @@ export type ActiveSwap = {
   // ISO-8601 row insert time — when the indexer first saw the swap (the
   // claim), which is the only timestamp a PENDING row has.
   createdAt: string | null;
+  // Backing-leg notional in USD at the price of the hour the swap resolved
+  // (das usd_price_history). Absent on an older das; null when no price is
+  // on record for that hour.
+  usdValue?: number | null;
 };
 
 export type SwapDetail = {

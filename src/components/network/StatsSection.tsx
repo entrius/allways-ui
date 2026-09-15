@@ -26,6 +26,7 @@ import {
 import type { ActiveSwap, HistoryRow } from '../../api/models';
 import { assetLabel, hubChains } from '../../api/models/chains';
 import {
+  asNumber,
   backingTooltip,
   chainSymbol,
   formatUsd,
@@ -194,13 +195,27 @@ const StatsSection: React.FC = () => {
   // Volume and fees render as estimated USD (the one legitimate sum across
   // backings) whenever every hub has a price; otherwise the SOL-only figure,
   // which leaves TAO-backed flow out and says so in the subtitle.
-  const usdMode = hubChains().every((h) => typeof prices[h] === 'number');
-  const money = usdMode ? 'estimated USD' : 'SOL only';
+  // Point-in-time pricing: a das with usd_price_history values every swap
+  // at its backing's price in the hour it resolved and says so in the
+  // fields below. Against an older das, fall back to today's prices and
+  // label the figures as estimates.
+  const pointInTime =
+    asNumber(totals?.totalVolumeUsd) !== undefined &&
+    (history ?? []).every((r) => asNumber(r.volumeUsd) !== undefined);
+  const usdMode =
+    pointInTime || hubChains().every((h) => typeof prices[h] === 'number');
+  const money = pointInTime
+    ? 'USD at time of swap'
+    : usdMode
+      ? 'estimated USD at today’s prices'
+      : 'SOL only';
   const moneyTick = usdMode ? usdCompact : compact;
   const moneyValue = usdMode ? formatUsd : solAmount;
-  // A completed swap's backing-leg notional, priced. Pre-v3 rows carry no
-  // backing and were all SOL.
+  // A completed swap's backing-leg notional in USD: at the hour it resolved
+  // when das priced it, else at today's price. Pre-v3 rows carry no backing
+  // and were all SOL.
   const swapUsd = (s: ActiveSwap): number | null => {
+    if (s.usdValue !== undefined) return asNumber(s.usdValue) ?? null;
     if (s.solAmount == null) return null;
     const backing = s.backing ?? 'sol';
     const price = prices[backing];
@@ -211,12 +226,17 @@ const StatsSection: React.FC = () => {
 
   // --- All-time totals ----------------------------------------------------
   const totalVolumeUsd = totals
-    ? usdFromBackingMap(
+    ? (asNumber(totals.totalVolumeUsd) ??
+      usdFromBackingMap(
         totals.totalVolumeByBacking,
         prices,
         totals.totalVolumeSol,
-      )
+      ))
     : null;
+  const totalFeesUsd =
+    asNumber(totals?.totalFeesUsd) ??
+    (totalVolumeUsd == null ? null : totalVolumeUsd * 0.01);
+  const largestSwapUsd = asNumber(totals?.largestSwapUsd);
   const totalVolumeSol = totals ? lamportsToSol(totals.totalVolumeSol) : 0;
   const volumeTooltip = totals
     ? backingTooltip(totals.totalVolumeByBacking, totals.totalVolumeSol)
@@ -265,23 +285,35 @@ const StatsSection: React.FC = () => {
         ? Math.floor((Date.now() - firstMs) / DAY_MS) + 1
         : null,
     };
-    // swapUsd closes over prices, the real input.
+    // swapUsd closes over prices and the point-in-time flag, the real inputs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allSwaps, prices]);
+  }, [allSwaps, prices, pointInTime]);
 
   // --- History charts (money by day) ----------------------------------------
   const volume = (r: HistoryRow) =>
-    usdMode
-      ? usdFromBackingMap(r.volumeByBacking, prices, r.volumeSol)
-      : lamportsToSol(r.volumeSol);
+    pointInTime
+      ? (asNumber(r.volumeUsd) ?? null)
+      : usdMode
+        ? usdFromBackingMap(r.volumeByBacking, prices, r.volumeSol)
+        : lamportsToSol(r.volumeSol);
   const cumulativeVolume = (r: HistoryRow) =>
-    usdMode
-      ? usdFromBackingMap(
-          r.cumulativeVolumeByBacking,
-          prices,
-          r.cumulativeVolumeSol,
-        )
-      : lamportsToSol(r.cumulativeVolumeSol);
+    pointInTime
+      ? (asNumber(r.cumulativeVolumeUsd) ?? null)
+      : usdMode
+        ? usdFromBackingMap(
+            r.cumulativeVolumeByBacking,
+            prices,
+            r.cumulativeVolumeSol,
+          )
+        : lamportsToSol(r.cumulativeVolumeSol);
+  // Fees are 1% of volume by contract; das reports them priced when it can,
+  // and the cumulative fee column is derived otherwise because the API's
+  // native one carries a seed offset on prod (see Stats.ts).
+  const cumulativeFees = (r: HistoryRow) => {
+    if (pointInTime) return asNumber(r.cumulativeFeesUsd) ?? null;
+    const v = cumulativeVolume(r);
+    return v == null ? null : v * 0.01;
+  };
 
   const series = useMemo(() => {
     const line = (
@@ -304,16 +336,9 @@ const StatsSection: React.FC = () => {
         { formatValue: count },
       ),
       volume: line('Volume', volume, { type: 'bar', formatValue: moneyValue }),
-      cumulativeFees: line(
-        'Cumulative fees',
-        // The API's cumulative fee column carries a seed offset on prod
-        // (see Stats.ts); fees are a flat 1% of volume, so derive them.
-        (r) => {
-          const v = cumulativeVolume(r);
-          return v == null ? null : v * 0.01;
-        },
-        { formatValue: moneyValue },
-      ),
+      cumulativeFees: line('Cumulative fees', cumulativeFees, {
+        formatValue: moneyValue,
+      }),
       // Mean size of that day's completed swaps; no bar on an empty day.
       avgSize: line(
         'Average transaction',
@@ -327,9 +352,10 @@ const StatsSection: React.FC = () => {
       rangeSwaps,
       rangeAvgSize: rangeSwaps ? rangeVolume / rangeSwaps : null,
     };
-    // The pickers close over usdMode and prices, which are the real inputs.
+    // The pickers close over pointInTime, usdMode and prices, the real
+    // inputs; the flag flips once /stats lands, so it must be listed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history, ink, usdMode, prices]);
+  }, [history, ink, pointInTime, usdMode, prices]);
 
   // --- Tape charts (everything no aggregate carries) ------------------------
   const derived = useMemo(() => {
@@ -608,9 +634,10 @@ const StatsSection: React.FC = () => {
       rangeServingNodes: distinct(servingByDay.values()),
       settleMax: Math.max(0, ...dayMedians, ...fillMedians),
     };
-    // swapUsd and moneyValue close over prices and usdMode, both listed.
+    // swapUsd and moneyValue close over prices, usdMode and pointInTime,
+    // all listed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allSwaps, range, ink, inkSoft, red, usdMode, prices]);
+  }, [allSwaps, range, ink, inkSoft, red, usdMode, prices, pointInTime]);
 
   const chart = (
     data: ChartSeries[],
@@ -665,10 +692,7 @@ const StatsSection: React.FC = () => {
     },
     {
       label: 'Protocol fees',
-      ...moneyTile(
-        totalVolumeUsd == null ? null : totalVolumeUsd * 0.01,
-        totalVolumeSol * 0.01,
-      ),
+      ...moneyTile(totalFeesUsd, totalVolumeSol * 0.01),
       loading: totalsLoading,
       tooltip: '1% of total volume',
     },
@@ -705,10 +729,16 @@ const StatsSection: React.FC = () => {
     },
     {
       label: 'Largest transaction',
-      value: tape.largest == null ? '—' : formatUsd(tape.largest),
-      loading: swapsLoading,
-      tooltip:
-        'biggest completed swap by backing-leg notional, at current prices',
+      value:
+        largestSwapUsd !== undefined
+          ? formatUsd(largestSwapUsd)
+          : tape.largest == null
+            ? '—'
+            : formatUsd(tape.largest),
+      loading: totalsLoading || swapsLoading,
+      tooltip: pointInTime
+        ? 'biggest completed swap by backing-leg notional, at the price of its hour'
+        : 'biggest completed swap by backing-leg notional, at today’s prices',
     },
     {
       label: 'Active miners',
@@ -942,7 +972,10 @@ const StatsSection: React.FC = () => {
           }}
         >
           tiles are all-time · charts follow the range · one column per UTC day,
-          today still filling
+          today still filling ·{' '}
+          {pointInTime
+            ? 'dollars at the price of each swap’s hour'
+            : 'dollars estimated at today’s prices'}
         </Typography>
         <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Box>

@@ -190,6 +190,9 @@ export type LeaderboardRow = {
   // Completed volume per backing, each in its own smallest unit (absent on
   // older das); never sum across keys.
   volumeByBacking?: Record<string, string>;
+  // Point-in-time USD (absent on an older das): each completed swap at its
+  // backing's price in the hour it resolved.
+  volumeUsd?: number;
   collateral: string;
   isActive: boolean;
   currentCrownDirections: Direction[];
@@ -235,6 +238,9 @@ export type MinerStats = {
   // Completed volume per backing, each in its own smallest unit (absent on
   // older das); never sum across keys.
   volumeByBacking?: Record<string, string>;
+  // Point-in-time USD (absent on an older das): each completed swap at its
+  // backing's price in the hour it resolved.
+  volumeUsd?: number;
   avgFulfillSec: number | null;
   avgCompleteSec: number | null;
   crownShare: number;
