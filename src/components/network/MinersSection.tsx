@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import CrownRateChart from '../miners/CrownRateChart';
 import CrownTimeLeaderboard from '../miners/CrownTimeLeaderboard';
 import MinerLeaderboard from '../miners/MinerLeaderboard';
+import MinerTiles from '../miners/MinerTiles';
 import EmissionsByPair from './EmissionsByPair';
 import {
   isDirection,
@@ -14,10 +15,12 @@ import {
 } from '../../api';
 
 /**
- * The miners half of the network page: leaderboard, crown history, the
- * crown rate chart and emission by lane. Its selections stay in the URL (`range`, `rateRange`,
- * `rateDir`) — they share the query string with the tape's filters above,
- * which use their own names, so one link restores the whole page.
+ * The miners half of the network page: a row of tiles, then the
+ * leaderboard, crown time, the crown rate chart and emission by pair, in
+ * the Network Stats fold's rhythm (tiles, then bordered panels 24px apart).
+ * Its selections stay in the URL (`range`, `rateRange`, `rateDir`) — they
+ * share the query string with the tape's filters above, which use their own
+ * names, so one link restores the whole page.
  */
 const MinersSection: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -52,7 +55,8 @@ const MinersSection: React.FC = () => {
   );
 
   return (
-    <Stack sx={{ width: '100%' }}>
+    <Stack gap={3} sx={{ width: '100%' }}>
+      <MinerTiles />
       <MinerLeaderboard
         range={range}
         onRangeChange={(r) => setParam('range', r)}

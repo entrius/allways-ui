@@ -4,6 +4,7 @@ import { useUsdPrices, type MinerStats, type Range } from '../../api';
 import type { Miner } from '../../api/models/Miners';
 import { FONTS } from '../../theme';
 import {
+  asNumber,
   backingEntries,
   backingTooltip,
   chainSymbol,
@@ -131,8 +132,10 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
   const prices = useUsdPrices();
   // Volume as estimated USD (canonical per-backing figures in the tooltip);
   // per-backing "X SOL + Y TAO" — never summed — without prices.
+  const pointInTime = asNumber(stats?.volumeUsd) !== undefined;
   const volumeUsd = stats
-    ? usdFromBackingMap(stats.volumeByBacking, prices, stats.volumeSol)
+    ? (asNumber(stats.volumeUsd) ??
+      usdFromBackingMap(stats.volumeByBacking, prices, stats.volumeSol))
     : null;
   const volumeEntries = stats
     ? backingEntries(stats.volumeByBacking, stats.volumeSol)
@@ -162,7 +165,13 @@ const PerformanceGrid: React.FC<{ stats: MinerStats | undefined }> = ({
       <PerformanceMetric label="Swaps" value={swaps} sub={completedSub} />
       <PerformanceMetric label="Success" value={successPct} />
       <PerformanceMetric
-        label={volumeUsd != null ? 'Volume (est. USD)' : 'Volume'}
+        label={
+          volumeUsd == null
+            ? 'Volume'
+            : pointInTime
+              ? 'Volume (USD)'
+              : 'Volume (est. USD)'
+        }
         value={
           volumeUsd != null ? (
             <span

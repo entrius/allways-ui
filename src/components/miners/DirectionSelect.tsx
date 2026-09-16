@@ -1,70 +1,45 @@
 import React from 'react';
-import { MenuItem, Select, useTheme } from '@mui/material';
 import {
   useDirections,
   directionLabel,
   isDirection,
   type Direction,
 } from '../../api';
-import { FONTS } from '../../theme';
+import MonoSelect from '../MonoSelect';
 
 const ALL_PAIRS = 'all';
 
-// The page's one direction picker — a compact mono Select. Replaced the
-// ToggleButtonGroup wall, which grew a button per direction and wrapped
-// across the panel once the chain registry passed a handful of pairs.
+/**
+ * The page's one direction picker, rendered through MonoSelect so it reads
+ * as the same control as every other dropdown on the site: a mono chip with
+ * a caret, opening a menu of the directions. It replaced a toggle-button
+ * wall that grew a button per direction, and later an outlined MUI Select
+ * that matched nothing else.
+ */
 const DirectionSelect: React.FC<{
   value: Direction | null;
   onChange: (d: Direction | null) => void;
   // With allowAll, null renders as an "All pairs" option; without it, null is
   // not selectable and onChange always yields a Direction.
   allowAll?: boolean;
+  /** Kept for callers; the chip sizes to its label. */
   width?: number;
-}> = ({ value, onChange, allowAll = false, width = 150 }) => {
-  const theme = useTheme();
+}> = ({ value, onChange, allowAll = false }) => {
   const directions = useDirections();
+  const options = [
+    ...(allowAll ? [{ value: ALL_PAIRS, label: 'All pairs' }] : []),
+    ...directions.map((d) => ({
+      value: d as string,
+      label: directionLabel(d),
+    })),
+  ];
   return (
-    <Select
-      size="small"
+    <MonoSelect
+      label="Direction"
       value={value ?? (allowAll ? ALL_PAIRS : '')}
-      onChange={(e) => {
-        const v = e.target.value as string;
-        onChange(isDirection(v) ? v : null);
-      }}
-      sx={{
-        width,
-        height: 30,
-        fontFamily: FONTS.mono,
-        fontSize: '0.7rem',
-        color: 'text.primary',
-        borderRadius: 0,
-        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
-        '&:hover .MuiOutlinedInput-notchedOutline': {
-          borderColor: theme.palette.border.light,
-        },
-        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-          borderColor: 'primary.main',
-        },
-      }}
-    >
-      {allowAll && (
-        <MenuItem
-          value={ALL_PAIRS}
-          sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-        >
-          All pairs
-        </MenuItem>
-      )}
-      {directions.map((d) => (
-        <MenuItem
-          key={d}
-          value={d}
-          sx={{ fontFamily: FONTS.mono, fontSize: '0.7rem' }}
-        >
-          {directionLabel(d)}
-        </MenuItem>
-      ))}
-    </Select>
+      options={options}
+      onChange={(v) => onChange(isDirection(v) ? v : null)}
+    />
   );
 };
 

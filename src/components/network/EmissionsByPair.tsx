@@ -225,7 +225,6 @@ const EmissionsByPair: React.FC = () => {
         borderColor: 'divider',
         backgroundColor: 'background.paper',
         p: { xs: 2, md: 2.5 },
-        mb: 3,
       }}
     >
       <Box sx={{ mb: 2 }}>

@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
-import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import {
   useApiQuery,
   CROWN_REFRESH_MS,
@@ -66,18 +65,26 @@ const LatestRate: React.FC<{ direction: Direction; rate: number }> = ({
       spacing={0.6}
       sx={{ fontFamily: FONTS.mono, whiteSpace: 'nowrap' }}
     >
-      <Box component="span" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+      <Box
+        component="span"
+        sx={{ color: 'text.secondary', fontSize: '0.62rem' }}
+      >
         1 {meta.from} =
       </Box>
       <Box
         component="span"
-        sx={{ color: 'text.primary', fontWeight: 600, fontSize: '0.85rem' }}
+        sx={{
+          color: 'text.primary',
+          fontWeight: 700,
+          fontSize: '0.82rem',
+          fontVariantNumeric: 'tabular-nums',
+        }}
       >
         {fmt(rate)}
       </Box>
       <Box
         component="span"
-        sx={{ color: 'text.secondary', fontSize: '0.7rem' }}
+        sx={{ color: 'text.secondary', fontSize: '0.62rem' }}
       >
         {meta.to}
       </Box>
@@ -190,7 +197,6 @@ const CrownRateChart: React.FC<{
         borderColor: 'divider',
         backgroundColor: 'background.paper',
         p: { xs: 2, md: 2.5 },
-        mb: 3,
       }}
     >
       <Stack
@@ -199,7 +205,7 @@ const CrownRateChart: React.FC<{
         alignItems="center"
         sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1.5 }}
       >
-        <SectionHeading title={title} subtitle={tagline} />
+        <SectionHeading title={title} subtitle={tagline} info={info} />
         <Stack
           direction="row"
           alignItems="center"
@@ -228,27 +234,15 @@ const CrownRateChart: React.FC<{
         alignItems="baseline"
         sx={{ mb: 1 }}
       >
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.62rem',
-              color: 'text.secondary',
-            }}
-          >
-            {meta.caption}
-          </Typography>
-          <Tooltip title={info} arrow enterTouchDelay={0}>
-            <InfoOutlinedIcon
-              sx={{
-                fontSize: '0.85rem',
-                color: 'text.disabled',
-                cursor: 'default',
-                '&:hover': { color: 'text.secondary' },
-              }}
-            />
-          </Tooltip>
-        </Stack>
+        <Typography
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.62rem',
+            color: 'text.secondary',
+          }}
+        >
+          {meta.caption}
+        </Typography>
         {latest != null && <LatestRate direction={direction} rate={latest} />}
       </Stack>
       <TimeSeriesChart

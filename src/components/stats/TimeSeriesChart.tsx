@@ -51,6 +51,9 @@ export type ChartSeries = {
   /** Supporting overlay (trade prints etc.): excluded from the legend and
    * from the single-series area-fill decision. */
   overlay?: boolean;
+  /** Bar series sharing a stack name pile up in one column per bucket
+   * (outcomes: completed beneath, timed out on top). */
+  stack?: string;
 };
 
 type TimeSeriesChartProps = {
@@ -294,6 +297,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           data,
           itemStyle: { color: s.color, opacity: 0.75 },
           barMaxWidth: 24,
+          ...(s.stack && { stack: s.stack }),
         };
       }
       if (s.type === 'scatter') {
