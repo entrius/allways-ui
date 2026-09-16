@@ -875,7 +875,7 @@ const OrderbookDepth: React.FC<{
                 display: 'inline-flex',
                 alignItems: 'baseline',
                 gap: 0.75,
-                cursor: 'help',
+                cursor: 'default',
                 whiteSpace: 'nowrap',
                 fontVariantNumeric: 'tabular-nums',
               }}

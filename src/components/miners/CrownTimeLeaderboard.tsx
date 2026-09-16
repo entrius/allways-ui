@@ -273,7 +273,7 @@ const CrownTimeLeaderboard: React.FC<{
               letterSpacing: '0.04em',
               color: 'text.disabled',
               width: 'fit-content',
-              cursor: 'help',
+              cursor: 'default',
             }}
           >
             no crown activity · {quiet.length} other direction
