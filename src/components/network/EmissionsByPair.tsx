@@ -3,16 +3,22 @@ import { Box, Grid, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
 import SectionHeading from '../SectionHeading';
 import { useDirectionPoolHistory } from '../../api';
 import type { PoolHistoryLane } from '../../api/models';
-import { assetLabel, hubChains } from '../../api/models/chains';
+import {
+  assetLabel,
+  hubChains,
+  hubLeg,
+  scoringFamily,
+} from '../../api/models/chains';
 import { chainSymbol, formatTimeAgo } from '../../utils/format';
 import { FONTS } from '../../theme';
 
 /**
  * Current share of miner emission per hub ↔ spoke pair, from the validator's
  * last flushed scoring round (the direction_pools ledger, narrowed to its
- * newest round). One ink bar per pair, grouped by hub family; hover a bar for
- * its per-direction split. A pair pays only while it cleared a qualified fill
- * in the pool window, so each hub's dead pairs fold into one line beneath it.
+ * newest round). One ink bar per pair, grouped by scoring family (SOL, TAO,
+ * Alpha); hover a bar for its per-direction split. A pair pays only while it
+ * cleared a qualified fill in the pool window, so each family's dead pairs fold
+ * into one line beneath it.
  * With no pair live anywhere the validator splits emission equally over the
  * whole registry (the silent-network fallback) — the panel says so rather
  * than painting every pair as live.
@@ -51,25 +57,28 @@ const buildHubs = (lanes: PoolHistoryLane[]): Hub[] => {
     if (!point) continue;
     // Coerce: ApiUtils hands long floats (a 1/66 share) through as strings.
     const share = Number(point.pool);
-    let hub = hubs.get(lane.hub);
+    // Derived client-side so the panel works on das builds without lane.family.
+    const anchor = hubLeg(lane.from, lane.to) ?? lane.hub;
+    const family = scoringFamily(lane.from, lane.to) ?? anchor;
+    let hub = hubs.get(family);
     if (!hub) {
       hub = {
-        key: lane.hub,
-        label: `${chainSymbol(lane.hub)} hub`,
+        key: family,
+        label: family === 'alpha' ? 'Alpha' : `${chainSymbol(family)} hub`,
         share: 0,
         pairs: [],
       };
-      hubs.set(lane.hub, hub);
+      hubs.set(family, hub);
     }
-    // Hub leg first so both directions and both backings land on one pair,
+    // Anchor leg first so both directions and both backings land on one pair,
     // matching how the validator weights volume (at pair level).
-    const spoke = lane.hub === lane.from ? lane.to : lane.from;
-    const key = `${lane.hub}~${spoke}`;
+    const spoke = anchor === lane.from ? lane.to : lane.from;
+    const key = `${anchor}~${spoke}`;
     let pair = hub.pairs.find((p) => p.key === key);
     if (!pair) {
       pair = {
         key,
-        label: `${assetLabel(lane.hub)} ↔ ${assetLabel(spoke)}`,
+        label: `${assetLabel(anchor)} ↔ ${assetLabel(spoke)}`,
         spoke,
         share: 0,
         live: false,
@@ -87,7 +96,7 @@ const buildHubs = (lanes: PoolHistoryLane[]): Hub[] => {
       share,
     });
   }
-  const order = hubChains();
+  const order = [...hubChains(), 'alpha'];
   const out = [...hubs.values()].sort(
     (a, b) => order.indexOf(a.key) - order.indexOf(b.key),
   );
@@ -235,7 +244,7 @@ const EmissionsByPair: React.FC = () => {
               ? `share of miner emission per pair · last scoring round, ${formatTimeAgo(data.to)} · hover a bar for its directions`
               : 'share of miner emission per pair · last scoring round'
           }
-          info="Share of miner emission each pair's pool paid in the last scoring round. Dead: no qualified fill in the pool window, pays nothing. Fallback: no pair anywhere is live, so the validator splits emission equally across every pair."
+          info="Share of miner emission each pair's pool paid in the last scoring round. Each family (SOL, TAO, Alpha) gets an equal share. Dead: no qualified fill in the pool window, pays nothing. Fallback: no pair anywhere is live, so the validator splits emission equally across every pair."
         />
       </Box>
       {isLoading ? (
@@ -277,7 +286,7 @@ const EmissionsByPair: React.FC = () => {
           )}
           <Grid container spacing={3}>
             {hubs.map((hub) => (
-              <Grid item xs={12} md={6} key={hub.key}>
+              <Grid item xs={12} md={hubs.length > 2 ? 4 : 6} key={hub.key}>
                 <HubColumn hub={hub} fallback={fallback} />
               </Grid>
             ))}
