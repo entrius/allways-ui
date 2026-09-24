@@ -51,20 +51,19 @@ export const hubChains = (chains: ChainInfo[] = registry): string[] =>
 // tx links, reservation fees). Pair-scoped logic wants hubLeg, not this.
 export const hubChain = (): string => hubChains()[0];
 
-// A subnet alpha (sn7, sn74) — pairs with anything, always TAO-backed.
+// A subnet alpha (sn7, sn74) — pairs with a hub or a spoke, always TAO-backed.
 export const isAlpha = (id: string): boolean => /^sn[0-9]+$/.test(id);
 
 // The pair's anchor — its canonical rate source and pricing leg: the first
-// hub (priority order) on either leg, else the alphabetically first alpha
-// leg; null for spoke↔spoke (invalid). Mirror of allways.constants.hub_leg.
+// hub (priority order) on either leg, else the alpha leg of an alpha↔spoke
+// pair; null for spoke↔spoke or alpha↔alpha (invalid). Mirror of allways.constants.hub_leg.
 export const hubLeg = (
   a: string,
   b: string,
   chains: ChainInfo[] = registry,
 ): string | null =>
   hubChains(chains).find((h) => h === a || h === b) ??
-  [a, b].filter(isAlpha).sort()[0] ??
-  null;
+  (isAlpha(a) !== isAlpha(b) ? (isAlpha(a) ? a : b) : null);
 
 // The emission family a pair scores in: 'alpha' when either leg is an alpha,
 // else its hub leg. Each family gets an equal share of the miner pool.
