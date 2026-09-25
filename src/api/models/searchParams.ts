@@ -1,5 +1,5 @@
 import { type Direction, type Range } from './MinersDashboard';
-import { allDirections } from './chains';
+import { allDirections, chainList, type ChainInfo } from './chains';
 
 // Crown-grid window mode lives only on the URL — not on any API contract —
 // so the type lives here next to the search-param guards that read it.
@@ -19,8 +19,21 @@ const RATE_RANGES: readonly RateRange[] = ['1h', '24h', '7d', '30d'];
 export const isRange = (v: string | null): v is Range =>
   RANGES.includes((v ?? '') as Range);
 
+// ~2k directions, checked per swap row: one Set per registry snapshot.
+const directionSets = new WeakMap<ChainInfo[], Set<string>>();
+const knownDirections = (): Set<string> => {
+  const chains = chainList();
+  let set = directionSets.get(chains);
+  if (!set) {
+    set = new Set(allDirections(chains));
+    directionSets.set(chains, set);
+  }
+  return set;
+};
+
+// Every valid pair, live or not — validation, never a menu (useLiveDirections).
 export const isDirection = (v: string | null): v is Direction =>
-  allDirections().includes(v ?? '');
+  knownDirections().has(v ?? '');
 
 export const isCrownRange = (v: string | null): v is CrownRange =>
   CROWN_RANGES.includes((v ?? '') as CrownRange);
