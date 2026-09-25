@@ -45,6 +45,7 @@ import type { Layouts } from 'react-grid-layout';
 import {
   isDirection,
   useCompleteSwapHistory,
+  useDirections,
   useUsdPrices,
   type ActiveSwap,
 } from '../api';
@@ -77,6 +78,7 @@ const RECENT_WINDOWS_SECS = [86_400, 604_800, 2_592_000];
 const busiestDirection = (
   swaps: ActiveSwap[] | undefined,
   prices: UsdPrices,
+  known: Set<Direction>,
 ): Direction | null => {
   if (!swaps?.length) return null;
   const now = Date.now() / 1000;
@@ -90,7 +92,7 @@ const busiestDirection = (
       const dst = s.destChain?.toLowerCase();
       if (!src || !dst) continue;
       const dir = `${src}-${dst}`.toUpperCase();
-      if (!isDirection(dir)) continue;
+      if (!known.has(dir)) continue;
       const hub = hubLeg(src, dst) ?? src;
       const v = hubLegVolume(s, hub);
       if (!Number.isFinite(v) || v <= 0) continue;
@@ -169,9 +171,13 @@ const MarketPage: React.FC = () => {
   // Where the page opens with nothing on the URL: the recent busiest cell.
   const { data: swaps } = useCompleteSwapHistory();
   const prices = useUsdPrices();
+  // Subscribed to the registry, so the URL and the default re-resolve once
+  // /chains lands (the seed lacks the newest pairs).
+  const directions = useDirections();
+  const known = useMemo(() => new Set(directions), [directions]);
   const defaultDirection = useMemo(
-    () => busiestDirection(swaps, prices) ?? FALLBACK_DIRECTION,
-    [swaps, prices],
+    () => busiestDirection(swaps, prices, known) ?? FALLBACK_DIRECTION,
+    [swaps, prices, known],
   );
 
   // Selected DIRECTION, on the URL. Legacy links resolve too: ?direction=
