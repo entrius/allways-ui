@@ -19,11 +19,12 @@ import {
   type MinerScoreRow,
   type MinerStats,
 } from '../../api';
+import { scoringFamily } from '../../api/models/chains';
 import { FONTS } from '../../theme';
 import { formatTimeAgo } from '../../utils/format';
 import ScoreBreakdown, { fmtReward } from './ScoreBreakdown';
 import ScoreFactorsTable, { type FactorTableRow } from './ScoreFactorsTable';
-import AlphaPairsFold, { hasAlphaLeg, pairMatches } from './AlphaPairsFold';
+import AlphaPairsFold, { pairMatches } from './AlphaPairsFold';
 import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
 import SectionHeading from '../SectionHeading';
@@ -487,8 +488,7 @@ const ScoringPanel: React.FC<{
   } | null>(null);
 
   // Earners first (reward desc), canonical direction order breaking ties.
-  // Alpha lanes fold behind one row so a full-quote miner's crowns don't
-  // flood the panel.
+  // Alpha lanes fold behind one row so a full-quote miner's crowns don't flood the panel.
   const { hubTipRows, alphaTipRows } = useMemo(() => {
     const dirOrder = new Map(directions.map((d, i) => [d, i]));
     const order = (r: CurrentMinerScoreRow) => {
@@ -498,9 +498,11 @@ const ScoringPanel: React.FC<{
     const sorted = [...tipRows].sort(
       (a, b) => Number(b.reward) - Number(a.reward) || order(a) - order(b),
     );
+    const isAlphaLane = (r: CurrentMinerScoreRow) =>
+      scoringFamily(r.fromChain, r.toChain) === 'alpha';
     return {
-      hubTipRows: sorted.filter((r) => !hasAlphaLeg(r.fromChain, r.toChain)),
-      alphaTipRows: sorted.filter((r) => hasAlphaLeg(r.fromChain, r.toChain)),
+      hubTipRows: sorted.filter((r) => !isAlphaLane(r)),
+      alphaTipRows: sorted.filter(isAlphaLane),
     };
   }, [tipRows, directions]);
   const tipHalves = useMemo<FactorTableRow[][]>(() => {
@@ -631,6 +633,7 @@ const ScoringPanel: React.FC<{
           <AlphaPairsFold
             rows={alphaTipRows}
             matches={(r, q) => pairMatches(r.fromChain, r.toChain, q)}
+            label="Alpha lanes"
           >
             {(visible) => <ScoreFactorsTable rows={visible.map(toFactorRow)} />}
           </AlphaPairsFold>

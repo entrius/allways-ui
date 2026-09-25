@@ -22,12 +22,13 @@ import {
   chainList,
   hubChains,
   hubLeg,
+  scoringFamily,
 } from '../../api/models/chains';
 import StatusChip from '../StatusChip';
 import SectionHeading from '../SectionHeading';
 import CopyableAddress from '../CopyableAddress';
 import { lanesFor } from '../../api/models/MinersDashboard';
-import AlphaPairsFold, { hasAlphaLeg, pairMatches } from './AlphaPairsFold';
+import AlphaPairsFold, { pairMatches } from './AlphaPairsFold';
 import CrownIcon from './CrownIcon';
 import EligibilityChip from './EligibilityChip';
 import { useMinerEligibility } from './eligibility';
@@ -383,8 +384,9 @@ const MinerDetailHeader: React.FC<{
       // Same pair twice = dual-backing twins; sol bond first.
       return a.backing === b.backing ? 0 : a.backing === 'sol' ? -1 : 1;
     });
-  const hubRows = quoteRows.filter((r) => !hasAlphaLeg(r.src, r.dst));
-  const alphaRows = quoteRows.filter((r) => hasAlphaLeg(r.src, r.dst));
+  const isAlphaRow = (r: QuoteRow) => scoringFamily(r.src, r.dst) === 'alpha';
+  const hubRows = quoteRows.filter((r) => !isAlphaRow(r));
+  const alphaRows = quoteRows.filter(isAlphaRow);
 
   // One bond purse per backing, each in ITS OWN asset — a tao purse is rao,
   // never piped through the SOL formatter. Same-backing rows share a purse,
@@ -432,6 +434,18 @@ const MinerDetailHeader: React.FC<{
     whiteSpace: 'nowrap',
   } as const;
   const tableHeadSx = { ...eyebrowSx, ...tableCellSx, fontSize: '0.6rem' };
+  const quoteGridSx = {
+    display: 'grid',
+    // max-content floors: tracks never shrink below the nowrap rate text
+    // (the wrapper scrolls on xs instead of cells overlapping).
+    gridTemplateColumns:
+      'max-content minmax(max-content, 1fr) minmax(max-content, 1fr)',
+    columnGap: { xs: 2, md: 3 },
+    alignItems: 'center',
+    // Last row of cells drops its rule so the table doesn't double-border
+    // against the divider below.
+    '& > *:nth-last-of-type(-n+3)': { borderBottom: 0 },
+  } as const;
 
   const renderQuoteRow = (r: QuoteRow) => (
     <React.Fragment key={r.key}>
@@ -544,21 +558,7 @@ const MinerDetailHeader: React.FC<{
           >
             {quoteRows.length > 0 && (
               <Box sx={{ minWidth: 0, overflowX: 'auto' }}>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    // max-content floors: tracks never shrink below the
-                    // nowrap rate text (the wrapper scrolls on xs instead
-                    // of cells overlapping).
-                    gridTemplateColumns:
-                      'max-content minmax(max-content, 1fr) minmax(max-content, 1fr)',
-                    columnGap: { xs: 2, md: 3 },
-                    alignItems: 'center',
-                    // Last row of cells drops its rule so the table doesn't
-                    // double-border against the section divider below.
-                    '& > *:nth-last-of-type(-n+3)': { borderBottom: 0 },
-                  }}
-                >
+                <Box sx={quoteGridSx}>
                   <Box sx={tableHeadSx}>quotes</Box>
                   <Box sx={tableHeadSx} title="left → right leg">
                     rate →
@@ -567,18 +567,18 @@ const MinerDetailHeader: React.FC<{
                     rate ←
                   </Box>
                   {hubRows.map(renderQuoteRow)}
-                  <AlphaPairsFold
-                    rows={alphaRows}
-                    matches={(r, q) => pairMatches(r.src, r.dst, q)}
-                    sx={{
-                      gridColumn: '1 / -1',
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    {(visible) => visible.map(renderQuoteRow)}
-                  </AlphaPairsFold>
                 </Box>
+                {/* Its own grid below the hub rows: the hub grid's last-row
+                    border rule stays exact whether the fold is open or not. */}
+                <AlphaPairsFold
+                  rows={alphaRows}
+                  matches={(r, q) => pairMatches(r.src, r.dst, q)}
+                  sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+                >
+                  {(visible) => (
+                    <Box sx={quoteGridSx}>{visible.map(renderQuoteRow)}</Box>
+                  )}
+                </AlphaPairsFold>
               </Box>
             )}
             {addressRows.length > 0 && (
