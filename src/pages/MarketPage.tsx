@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Box } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
@@ -17,9 +17,14 @@ import {
   useChartSettings,
 } from '../components/dashboard/chartSettings';
 import RateMatrix, {
+  matrixUniverse,
   useMatrixAssets,
   visibleAssets,
 } from '../components/dashboard/RateMatrix';
+import MatrixFullView, {
+  ExpandButton,
+} from '../components/dashboard/MatrixFullView';
+import { FONTS } from '../theme';
 import RateMatrixSettings from '../components/dashboard/RateMatrixSettings';
 import { useMatrixSettings } from '../components/dashboard/matrixSettings';
 import WidgetSettings, {
@@ -38,7 +43,6 @@ import {
 } from '../components/dashboard/watchlistSettings';
 import Workspace, { type Arrange } from '../components/workspace/Workspace';
 import type { Layout, Layouts } from 'react-grid-layout';
-import { CONTENT_STRETCH, searchArrangement } from './marketArrange';
 import {
   isDirection,
   useCompleteSwapHistory,
@@ -108,62 +112,86 @@ const busiestDirection = (
   return null;
 };
 
-// The page's own desk.
+// The page's own desk: the rate and its history across the top, the sheet
+// under them filling the rest of the window, then the book and the
+// watchlist (when a person adds them) side by side below.
 const MARKET_LAYOUTS: Layouts = {
-  // Three columns: the sheet across the top, as wide as its columns need
-  // and as tall as its rows. Under it the history over the book across two
-  // columns, and the rate over the watchlist down the third. The desk
-  // squares its own bottom (the last widget in each column runs to the
-  // lowest one), so the watchlist, which fills, meets the book.
-  // Heights are in the desk's 8px rows; content widgets take their own.
   lg: [
-    { i: 'matrix', x: 0, y: 0, w: 3, h: 28 },
-    { i: 'chart', x: 0, y: 28, w: 2, h: 36 },
+    { i: 'rate', x: 0, y: 0, w: 1, h: 36 },
+    { i: 'chart', x: 1, y: 0, w: 2, h: 36 },
+    { i: 'matrix', x: 0, y: 36, w: 3, h: 28 },
     { i: 'book', x: 0, y: 64, w: 2, h: 53 },
-    { i: 'rate', x: 2, y: 28, w: 1, h: 25 },
-    { i: 'watchlist', x: 2, y: 53, w: 1, h: 40 },
+    { i: 'watchlist', x: 2, y: 64, w: 1, h: 53 },
   ],
-  // Two columns: the sheet across both, the rate over its history on the
-  // left, the book over the watchlist on the right.
   md: [
-    { i: 'matrix', x: 0, y: 0, w: 2, h: 28 },
-    { i: 'rate', x: 0, y: 28, w: 1, h: 25 },
-    { i: 'chart', x: 0, y: 53, w: 1, h: 40 },
-    { i: 'book', x: 1, y: 28, w: 1, h: 53 },
-    { i: 'watchlist', x: 1, y: 81, w: 1, h: 40 },
+    { i: 'rate', x: 0, y: 0, w: 1, h: 36 },
+    { i: 'chart', x: 1, y: 0, w: 1, h: 36 },
+    { i: 'matrix', x: 0, y: 36, w: 2, h: 28 },
+    { i: 'book', x: 0, y: 64, w: 1, h: 53 },
+    { i: 'watchlist', x: 1, y: 64, w: 1, h: 53 },
   ],
-  // One column: the rate first, then the sheet, the history, the book and
-  // the watchlist.
+  // One column: the rate, its history, the sheet, the book, the watchlist.
   sm: [
     { i: 'rate', x: 0, y: 0, w: 1, h: 25 },
-    { i: 'matrix', x: 0, y: 25, w: 1, h: 28 },
-    { i: 'chart', x: 0, y: 53, w: 1, h: 36 },
+    { i: 'chart', x: 0, y: 25, w: 1, h: 36 },
+    { i: 'matrix', x: 0, y: 61, w: 1, h: 28 },
     { i: 'book', x: 0, y: 89, w: 1, h: 53 },
     { i: 'watchlist', x: 0, y: 142, w: 1, h: 56 },
   ],
   xs: [
     { i: 'rate', x: 0, y: 0, w: 1, h: 25 },
-    { i: 'matrix', x: 0, y: 25, w: 1, h: 28 },
-    { i: 'chart', x: 0, y: 53, w: 1, h: 36 },
+    { i: 'chart', x: 0, y: 25, w: 1, h: 36 },
+    { i: 'matrix', x: 0, y: 61, w: 1, h: 28 },
     { i: 'book', x: 0, y: 89, w: 1, h: 63 },
     { i: 'watchlist', x: 0, y: 152, w: 1, h: 56 },
   ],
 };
 
-// The desk the page lays out for the widgets' current widths, until a
-// person drags something: one column stacks the page's own order; wider
-// desks take the best arrangement the search finds (see marketArrange),
-// kept per set of widths.
-const arranged = new Map<string, Layout[]>();
-const arrangeMarket: Arrange = (bp, cols, span) => {
+// Room the Matrix leaves under itself in the window: it sits under the
+// rate and its history and fills the rest of the screen, scrolling inside.
+const MATRIX_RESERVE = 24;
+
+// A content card stretches at most this many desk rows past its content.
+const CONTENT_STRETCH = 12;
+
+// The page opens simple: the rate, its history and the sheet. The book and
+// the watchlist are for traders who want depth; they wait in the bar, one
+// click from the desk.
+const ADVANCED_WIDGETS = ['book', 'watchlist'];
+
+// The desk for the widgets' current widths, until a person drags
+// something: rows fill left to right in the page's order (rate and history,
+// then the sheet, then the book and watchlist), each widget in its own
+// width, a new row when the next one does not fit. The rate is one column,
+// so the history takes the rest of the top row. The grid packs heights.
+const ORDER = ['rate', 'chart', 'matrix', 'book', 'watchlist'];
+const HEIGHTS: Record<string, number> = {
+  rate: 36,
+  chart: 36,
+  matrix: 28,
+  book: 53,
+  watchlist: 53,
+};
+const arrangeMarket: Arrange = (bp, cols, span, shown) => {
   if (cols < 2) return MARKET_LAYOUTS[bp] ?? MARKET_LAYOUTS.xs;
-  const ids = ['matrix', 'rate', 'chart', 'book', 'watchlist'];
-  const key = `${cols}|${ids.map(span).join()}`;
-  let out = arranged.get(key);
-  if (!out) {
-    out = searchArrangement(cols, span);
-    arranged.set(key, out);
-  }
+  const ids = ORDER.filter(shown);
+  const out: Layout[] = [];
+  let x = 0;
+  let y = 0;
+  let rowH = 0;
+  ids.forEach((id, n) => {
+    let w = Math.max(1, Math.min(cols, span(id)));
+    // The history takes what the rate leaves on the top row.
+    if (id === 'chart' && ids[n - 1] === 'rate' && x < cols) w = cols - x;
+    if (x + w > cols) {
+      x = 0;
+      y += rowH;
+      rowH = 0;
+    }
+    out.push({ i: id, x, y, w, h: HEIGHTS[id] });
+    x += w;
+    rowH = Math.max(rowH, HEIGHTS[id]);
+  });
   return out;
 };
 
@@ -183,6 +211,9 @@ const MarketPage: React.FC = () => {
   // columns as its columns need.
   const [matrixWidth, setMatrixWidth] = useState<number | undefined>();
   const matrixAssets = useMatrixAssets();
+  const universe = useMemo(() => matrixUniverse(matrixAssets), [matrixAssets]);
+  // The whole sheet over the full screen.
+  const [fullMatrix, setFullMatrix] = useState(false);
   const matrixHidden =
     matrixAssets.length - visibleAssets(matrixAssets, matrix.settings).length;
   const watchlist = useWatchlistSettings();
@@ -285,8 +316,9 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v15"
+          storageKey="allways.market.workspace.v17"
           defaultLayouts={MARKET_LAYOUTS}
+          defaultHidden={ADVANCED_WIDGETS}
           arrange={arrangeMarket}
           layoutKey={[
             matrix.settings.width,
@@ -311,23 +343,47 @@ const MarketPage: React.FC = () => {
                   : matrix.settings.width,
               flush: true,
               aside: (
-                <WidgetSettings
-                  label="Matrix settings"
-                  width={272}
-                  count={matrixHidden}
-                  onReset={matrix.reset}
-                >
-                  <RateMatrixSettings
-                    assets={matrixAssets}
-                    settings={matrix.settings}
-                    update={matrix.update}
-                    toggleHidden={matrix.toggleHidden}
-                    toggleFavorite={matrix.toggleFavorite}
-                  />
-                </WidgetSettings>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  {universe.directions > 0 && (
+                    <Typography
+                      component="span"
+                      sx={{
+                        fontFamily: FONTS.mono,
+                        fontSize: '0.6rem',
+                        color: 'text.secondary',
+                        display: { xs: 'none', sm: 'inline' },
+                      }}
+                    >
+                      {universe.assets.toLocaleString()} assets ·{' '}
+                      <Box
+                        component="span"
+                        sx={{ color: 'text.primary', fontWeight: 700 }}
+                      >
+                        {universe.directions.toLocaleString()}
+                      </Box>{' '}
+                      directions
+                    </Typography>
+                  )}
+                  <ExpandButton onClick={() => setFullMatrix(true)} />
+                  <WidgetSettings
+                    label="Matrix settings"
+                    width={272}
+                    count={matrixHidden}
+                    onReset={matrix.reset}
+                  >
+                    <RateMatrixSettings
+                      assets={matrixAssets}
+                      settings={matrix.settings}
+                      update={matrix.update}
+                      toggleHidden={matrix.toggleHidden}
+                      toggleFavorite={matrix.toggleFavorite}
+                    />
+                  </WidgetSettings>
+                </Box>
               ),
               node: (
                 <RateMatrix
+                  reserveBelow={MATRIX_RESERVE}
                   direction={direction}
                   base={base}
                   onDirectionChange={setDirection}
@@ -367,6 +423,10 @@ const MarketPage: React.FC = () => {
               title: 'History',
               fit: 'fill',
               columns: chart.settings.width,
+              // Beside the rate card, exactly its height: one row, no
+              // dead space under the card, no chart growing into room
+              // the widgets below leave.
+              heightOf: 'rate',
               // 480px: taller than that the line only stretches.
               maxRows: 60,
               aside: (
@@ -457,6 +517,28 @@ const MarketPage: React.FC = () => {
           ]}
         />
       </Box>
+      <MatrixFullView
+        open={fullMatrix}
+        onClose={() => setFullMatrix(false)}
+        assets={universe.assets}
+        directions={universe.directions}
+      >
+        <RateMatrix
+          full
+          direction={direction}
+          base={base}
+          onDirectionChange={(d, hub) => {
+            setDirection(d, hub);
+            setFullMatrix(false);
+          }}
+          settings={{
+            ...matrix.settings,
+            quotedOnly: false,
+            favoritesOnly: false,
+          }}
+          toggleFavorite={matrix.toggleFavorite}
+        />
+      </MatrixFullView>
     </Page>
   );
 };

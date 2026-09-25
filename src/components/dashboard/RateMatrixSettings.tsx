@@ -14,7 +14,6 @@ import { quotedIds, useBestTakeable } from './takeable';
 import {
   HEADER_PRESETS,
   MATRIX_WIDTHS,
-  MAX_ROWS_OPTIONS,
   sameParts,
   type HeaderParts,
   type MatrixSettings,
@@ -235,19 +234,6 @@ const RateMatrixSettings: React.FC<{
         >
           hides empty rows
         </Typography>
-      </Box>
-      <Box sx={rowSx}>
-        <Typography component="span" sx={{ fontSize: '0.72rem' }}>
-          rows before scroll
-        </Typography>
-        <Seg
-          options={MAX_ROWS_OPTIONS.map((n) => ({
-            value: String(n),
-            label: String(n),
-          }))}
-          value={String(settings.maxRows)}
-          onChange={(v) => update({ maxRows: Number(v) })}
-        />
       </Box>
 
       <Typography component="div" sx={sectionSx}>

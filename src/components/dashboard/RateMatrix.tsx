@@ -312,6 +312,29 @@ export const matrixAxes = (
   };
 };
 
+// The whole market the sheet can show: every asset, and every direction
+// between them (each pair is two instruments; the hub↔hub pair, which sits
+// in both hub rows, counts once).
+export const matrixUniverse = (
+  all: ChainInfo[],
+): { assets: number; directions: number } => {
+  const { rows, cols } = matrixAxes(all, {
+    header: { logo: true, ticker: true, network: true },
+    width: 'fit',
+    favoritesOnly: false,
+    quotedOnly: false,
+    maxRows: 0,
+    hidden: [],
+    favorites: [],
+  });
+  const pairs = new Set<string>();
+  for (const a of rows)
+    for (const b of cols)
+      if (a.id !== b.id) pairs.add([a.id, b.id].sort().join('|'));
+  const ids = new Set([...rows, ...cols].map((a) => a.id));
+  return { assets: ids.size, directions: pairs.size * 2 };
+};
+
 // Every asset the sheet currently shows, on either axis.
 export const visibleAssets = (
   all: ChainInfo[],
@@ -339,6 +362,13 @@ const RateMatrix: React.FC<{
   /** Reports the sheet's natural width in px (every column at its content
    * width), so the desk can give the widget as many columns as it needs. */
   onNaturalWidth?: (px: number) => void;
+  /** Show every row with no cap and fill the parent's height (the full
+   * screen view). */
+  full?: boolean;
+  /** Room (px) the sheet leaves below itself inside the window, so the
+   * widgets under it show whole on landing: the sheet takes the window's
+   * height less this, up to its row cap, and scrolls the rest. */
+  reserveBelow?: number;
 }> = ({
   direction,
   base,
@@ -346,6 +376,8 @@ const RateMatrix: React.FC<{
   settings,
   toggleFavorite,
   onNaturalWidth,
+  full = false,
+  reserveBelow,
 }) => {
   const theme = useTheme();
   const { data: chains } = useChains();
@@ -450,6 +482,14 @@ const RateMatrix: React.FC<{
   // that it scrolls sideways.
   const table = useRef<HTMLTableElement>(null);
   const [maxH, setMaxH] = useState<number | undefined>(undefined);
+  // The window's height, so the sheet can leave room for what sits below.
+  const [winH, setWinH] = useState(() => window.innerHeight);
+  useEffect(() => {
+    if (reserveBelow == null) return;
+    const on = () => setWinH(window.innerHeight);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, [reserveBelow]);
   const layoutKey = `${anchors.map((a) => a.id).join()}|${assets
     .map((a) => a.id)
     .join()}|${logo}${ticker}${network}|${settings.maxRows}|${dataUpdatedAt}`;
@@ -458,19 +498,37 @@ const RateMatrix: React.FC<{
     if (!t) return;
     const body = t.tBodies[0];
     const rows = body ? [...body.rows] : [];
-    const last = rows[Math.min(settings.maxRows, rows.length) - 1];
+    // Full screen and the window-fitted desk sheet show as many rows as
+    // their room holds; only a bare sheet keeps the row cap.
+    const cap = full || reserveBelow != null ? Infinity : settings.maxRows;
+    const last = rows[Math.min(cap, rows.length) - 1];
     const next =
-      rows.length > settings.maxRows && last
+      rows.length > cap && last
         ? last.offsetTop + last.offsetHeight
         : undefined;
-    setMaxH(next == null ? undefined : next + 1);
+    let h = next == null ? undefined : next + 1;
+    if (reserveBelow != null && rows.length) {
+      // Page offset of the sheet's top, then whatever the window leaves
+      // after the reserve, cut to whole rows (at least the hubs and a few
+      // subnets) so no row is half shown.
+      const top = t.getBoundingClientRect().top + window.scrollY;
+      const room = winH - top - reserveBelow;
+      const minRows = Math.min(rows.length, 5);
+      let fit = rows[minRows - 1];
+      for (const row of rows)
+        if (row.offsetTop + row.offsetHeight + 1 <= room) fit = row;
+      const fitH = fit.offsetTop + fit.offsetHeight + 1;
+      if (h == null || fitH < h) h = fitH;
+      if (fit === rows[rows.length - 1] && next == null) h = undefined;
+    }
+    setMaxH(h);
     // Natural width: the table at its content width, read before paint.
     const prevMin = t.style.minWidth;
     t.style.minWidth = '0';
     const natural = t.offsetWidth;
     t.style.minWidth = prevMin;
     onNaturalWidth?.(natural);
-  }, [layoutKey, settings.maxRows, onNaturalWidth]);
+  }, [layoutKey, settings.maxRows, onNaturalWidth, full, reserveBelow, winH]);
 
   return (
     <Box
@@ -478,7 +536,7 @@ const RateMatrix: React.FC<{
         // The sheet scrolls inside its widget; the header row and anchor
         // column stay pinned while it scrolls either way.
         width: '100%',
-        maxHeight: maxH,
+        maxHeight: full ? '100%' : maxH,
         overflow: 'auto',
         // A sideways swipe at the sheet's edge stays in the sheet (no
         // browser back gesture); a vertical one hands on to the page.

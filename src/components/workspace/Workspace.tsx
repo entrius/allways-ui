@@ -48,6 +48,10 @@ export type WorkspacePanel = {
   /** The most rows the desk may add below its own height: a content card
    * stretched far past its content is a big blank box. */
   maxStretch?: number;
+  /** Another widget's id: while that one sits beside this one on the same
+   * row, this one takes its height exactly (a chart beside the rate card
+   * it charts), so the pair reads as one row and neither stretches. */
+  heightOf?: string;
   /** The body has no padding: a sheet that scrolls runs to the card's
    * edges, its scrollbars on the border. */
   flush?: boolean;
@@ -104,10 +108,14 @@ export type Arrange = (
   bp: string,
   cols: number,
   span: (id: string) => number,
+  shown: (id: string) => boolean,
 ) => Layout[];
 
-// What a browser remembers: where each widget sits, and which are put away.
-type Saved = { layouts: Layouts; hidden: string[] };
+const NO_IDS: string[] = [];
+
+// What a browser remembers: where each widget sits, which are put away, and
+// whether a person placed them by hand (else the page arranges them).
+type Saved = { layouts: Layouts; hidden: string[]; placed?: boolean };
 
 // The grid reports its layout after every change of props; treat a report
 // that changes nothing as nothing, or the two would ping-pong for ever.
@@ -133,7 +141,11 @@ const readSaved = (key: string): Saved | null => {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Saved>;
     if (!parsed || typeof parsed !== 'object' || !parsed.layouts) return null;
-    return { layouts: parsed.layouts, hidden: parsed.hidden ?? [] };
+    return {
+      layouts: parsed.layouts,
+      hidden: parsed.hidden ?? [],
+      placed: parsed.placed ?? true,
+    };
   } catch {
     return null;
   }
@@ -193,6 +205,9 @@ const Workspace: React.FC<{
   /** Page state that differs from its defaults (the window, a widget's
    * settings): the desk offers its reset for that too. */
   dirty?: boolean;
+  /** Widgets that start put away: the page opens simple and a person adds
+   * the advanced ones from the bar. */
+  defaultHidden?: string[];
 }> = ({
   panels,
   defaultLayouts,
@@ -202,6 +217,7 @@ const Workspace: React.FC<{
   arrange,
   layoutKey,
   dirty = false,
+  defaultHidden = NO_IDS,
 }) => {
   const [layouts, setLayouts] = useState<Layouts>(() => {
     const stored = readSaved(storageKey);
@@ -210,9 +226,13 @@ const Workspace: React.FC<{
   const [hidden, setHidden] = useState<Set<string>>(() => {
     const stored = readSaved(storageKey);
     const ids = new Set(panels.map((p) => p.id));
-    return new Set((stored?.hidden ?? []).filter((id) => ids.has(id)));
+    return new Set(
+      (stored?.hidden ?? defaultHidden).filter((id) => ids.has(id)),
+    );
   });
-  const [custom, setCustom] = useState(() => readSaved(storageKey) != null);
+  const [custom, setCustom] = useState(
+    () => readSaved(storageKey)?.placed ?? false,
+  );
   // False until the first content measurements have landed.
   const [settled, setSettled] = useState(false);
   useEffect(() => {
@@ -228,9 +248,18 @@ const Workspace: React.FC<{
     };
   }, []);
 
+  // Put-away widgets that differ from the page's opening set.
+  const hiddenMoved =
+    hidden.size !== defaultHidden.length ||
+    defaultHidden.some((id) => !hidden.has(id));
   useEffect(() => {
-    if (custom) writeSaved(storageKey, { layouts, hidden: [...hidden] });
-  }, [custom, layouts, hidden, storageKey]);
+    if (custom || hiddenMoved)
+      writeSaved(storageKey, {
+        layouts,
+        hidden: [...hidden],
+        placed: custom,
+      });
+  }, [custom, hiddenMoved, layouts, hidden, storageKey]);
 
   // The grid reports only the widgets it shows; keep the put-away ones'
   // last positions so they come back where they were.
@@ -256,7 +285,6 @@ const Workspace: React.FC<{
   const onUserChange = useCallback(() => setCustom(true), []);
   const remove = useCallback((id: string) => {
     setHidden((h) => new Set([...h, id]));
-    setCustom(true);
   }, []);
   // A widget coming back lands at the bottom of the desk, in its own size.
   const add = useCallback(
@@ -282,7 +310,6 @@ const Workspace: React.FC<{
         n.delete(id);
         return n;
       });
-      setCustom(true);
     },
     [defaultLayouts, hidden],
   );
@@ -293,10 +320,10 @@ const Workspace: React.FC<{
       // ignore
     }
     setCustom(false);
-    setHidden(new Set());
+    setHidden(new Set(defaultHidden));
     setLayouts(defaultLayouts);
     onReset?.();
-  }, [defaultLayouts, storageKey, onReset]);
+  }, [defaultLayouts, storageKey, onReset, defaultHidden]);
 
   // A width change drops a hand-made arrangement (not the put-away
   // widgets): the page's arrangement for the new widths takes over.
@@ -468,7 +495,12 @@ const Workspace: React.FC<{
       if (!custom && arrange) {
         const h = new Map(placed.map((l) => [l.i, l.h]));
         placed = compact(
-          arrange(bp, cols, (id) => spanFor(byId.get(id), cols))
+          arrange(
+            bp,
+            cols,
+            (id) => spanFor(byId.get(id), cols),
+            (id) => !hidden.has(id),
+          )
             .filter((l) => h.has(l.i))
             .map((l) => ({
               ...l,
@@ -480,14 +512,35 @@ const Workspace: React.FC<{
             })),
         );
       }
+      // A widget paired to one beside it on its row takes that one's
+      // height; the desk then packs up under the pair.
+      let paired = false;
+      placed = placed.map((l) => {
+        const of = byId.get(l.i)?.heightOf;
+        const t = of ? placed.find((o) => o.i === of) : undefined;
+        if (!t || t.y !== l.y || overlaps(t, l) || t.h === l.h) return l;
+        paired = true;
+        return { ...l, h: t.h };
+      });
+      if (paired) placed = compact(placed);
+      const pairedIds = new Set(
+        placed
+          .filter((l) => {
+            const of = byId.get(l.i)?.heightOf;
+            const t = of ? placed.find((o) => o.i === of) : undefined;
+            return t && t.y === l.y && !overlaps(t, l);
+          })
+          .flatMap((l) => [l.i, byId.get(l.i)?.heightOf ?? '']),
+      );
       // Every widget runs down to the next one below it, or to the desk's
-      // bottom, so no stack leaves a hole.
+      // bottom, so no stack leaves a hole. A paired row keeps its height.
       const floor = placed.reduce((m, l) => Math.max(m, l.y + l.h), 0);
       out[bp] = placed.map((l) => {
         const next = placed
           .filter((o) => o !== l && o.y >= l.y + l.h && overlaps(o, l))
           .reduce((m, o) => Math.min(m, o.y), floor);
         const p = byId.get(l.i);
+        if (pairedIds.has(l.i)) return l;
         const cap = Math.min(
           p?.maxRows ?? Infinity,
           l.h + (p?.maxStretch ?? Infinity),
@@ -551,19 +604,7 @@ const Workspace: React.FC<{
           ))}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography
-            sx={{
-              fontFamily: FONTS.mono,
-              fontSize: '0.62rem',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'text.disabled',
-              display: { xs: 'none', md: 'block' },
-            }}
-          >
-            Drag a widget by its title
-          </Typography>
-          {(custom || dirty || hidden.size > 0) && (
+          {(custom || dirty || hiddenMoved) && (
             <TextLinkButton onClick={reset} sx={{ fontSize: '0.65rem', px: 0 }}>
               Reset desk
             </TextLinkButton>

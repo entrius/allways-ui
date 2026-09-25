@@ -20,18 +20,20 @@ export interface RateSettings {
   stats: RateStats;
 }
 
-const KEY = 'allways-ui.rate.settings';
+// v2: depth, quotes and volume joined the defaults.
+const KEY = 'allways-ui.rate.settings.v2';
 const DEFAULTS: RateSettings = {
-  // The exchange header's three: the window's high and low, and the
-  // spread. The rest are a click away in the gear.
+  // The window's high and low and the spread, then how deep the route is,
+  // who quotes it and what traded in the window. The reverse rate is a
+  // click away in the gear.
   stats: {
     high: true,
     low: true,
     spread: true,
     reverse: false,
-    depth: false,
-    quotes: false,
-    vol: false,
+    depth: true,
+    quotes: true,
+    vol: true,
     swaps: false,
   },
 };
