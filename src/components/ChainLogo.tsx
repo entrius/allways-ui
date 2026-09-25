@@ -4,6 +4,7 @@ import { FONTS } from '../theme';
 import {
   chainInfo,
   chainList,
+  isAlpha,
   isToken,
   nativeOf,
   type ChainInfo,
@@ -19,24 +20,10 @@ const logoSrc = (chain: string): string | undefined => {
   return baseUrl ? `${baseUrl}${path}` : path;
 };
 
-// Optical centring, as a fraction of the rendered size.
-//
-// Most chain logos are a filled disc, so geometric centre and visual centre
-// are the same point. A glyph mark is not: TAO's is a tau, and its bounding
-// box centres perfectly while its ink does not, because the crossbar carries
-// almost all the mass and the stem almost none. Measured on the 128px source,
-// the alpha-weighted centroid sits 12.4% above and 2.1% left of centre, so
-// box-centred it reads high and slightly left.
-//
-// The correction is deliberately PARTIAL (45% of the measured offset). The
-// eye judges a letterform by its extent as well as its mass, so nudging all
-// the way to the centroid overshoots and drops the mark visibly low. Same
-// instinct as the entasis on a Roman column: bend it off true so it looks
-// true. Numbers are measurable, not taste: alpha-weight the source PNG, take
-// the centroid, nudge back by 45% of the miss.
-const OPTICAL_NUDGE: Record<string, { x: number; y: number }> = {
-  tao: { x: 0.0094, y: 0.0557 },
-};
+// No optical nudge: the tau's ink (rows 19 to 103 of the 128px source) is
+// already centred in its box, and a mark shifted toward its centroid sat a
+// pixel below the ticker text beside it. Box-centred, it lines up with the
+// text's capitals.
 
 // Marks that are monochrome DARK and therefore disappear on the dark-mode
 // background. Measured on the source PNGs: TAO's tau is pure black (ink
@@ -51,6 +38,10 @@ const OPTICAL_NUDGE: Record<string, { x: number; y: number }> = {
 // blanket rule. Next closest is QNT at luminance 46; it survives because its
 // glyph is white on a dark disc, so something still reads.
 const DARK_MODE_INVERT = new Set(['tao']);
+
+// das serves every subnet alpha the TAO tau (the same 128px PNG), so an
+// alpha takes TAO's dark-mode flip: SN19 and TAO draw identically.
+const markOf = (key: string): string => (isAlpha(key) ? 'tao' : key);
 
 export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
   chain,
@@ -81,8 +72,7 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
         {key.charAt(0).toUpperCase()}
       </Box>
     );
-  const nudge = OPTICAL_NUDGE[key];
-  const invert = isDark && DARK_MODE_INVERT.has(key);
+  const invert = isDark && DARK_MODE_INVERT.has(markOf(key));
   return (
     <Box
       component="img"
@@ -96,11 +86,6 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
         display: 'block',
         flexShrink: 0,
         ...(invert ? { filter: 'brightness(0) invert(1)' } : {}),
-        ...(nudge
-          ? {
-              transform: `translate(${(nudge.x * size).toFixed(2)}px, ${(nudge.y * size).toFixed(2)}px)`,
-            }
-          : {}),
       }}
     />
   );

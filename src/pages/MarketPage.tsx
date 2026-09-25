@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import { Page, SEO } from '../components';
 import { PAGE_FRAME_SX } from '../components/layout/pageFrame';
@@ -23,16 +23,12 @@ import RateMatrix, {
 import RateMatrixSettings from '../components/dashboard/RateMatrixSettings';
 import { useMatrixSettings } from '../components/dashboard/matrixSettings';
 import WidgetSettings, {
-  SettingsSeg,
-  settingsLabelSx,
-  settingsNoteSx,
-  settingsRowSx,
+  SettingsWidthRows,
 } from '../components/workspace/WidgetSettings';
 import {
-  deskChanges,
-  useDeskSettings,
-  type Spacing,
-} from '../components/workspace/deskSettings';
+  bookChanges,
+  useBookSettings,
+} from '../components/dashboard/bookSettings';
 import RangeChips from '../components/RangeChips';
 import Watchlist from '../components/dashboard/Watchlist';
 import WatchlistSettingsRows from '../components/dashboard/WatchlistSettingsRows';
@@ -40,8 +36,9 @@ import {
   useWatchlistSettings,
   watchlistChanges,
 } from '../components/dashboard/watchlistSettings';
-import Workspace from '../components/workspace/Workspace';
-import type { Layouts } from 'react-grid-layout';
+import Workspace, { type Arrange } from '../components/workspace/Workspace';
+import type { Layout, Layouts } from 'react-grid-layout';
+import { CONTENT_STRETCH, searchArrangement } from './marketArrange';
 import {
   isDirection,
   useCompleteSwapHistory,
@@ -58,6 +55,7 @@ import {
 } from '../api/models/MinersDashboard';
 import {
   RANGES,
+  RANGE_SECS,
   type HeroRange,
 } from '../components/dashboard/AllwaysMarketRate';
 
@@ -68,13 +66,17 @@ const DEFAULT_RANGE: HeroRange = '1D';
 // Otherwise the page opens on the busiest direction (see busiestDirection).
 const FALLBACK_DIRECTION: Direction = 'SOL-BTC';
 
-// Windows tried in turn for "recent": the last day, then the week, then the
-// month, so a quiet day still opens on something real.
-const RECENT_WINDOWS_SECS = [86_400, 604_800, 2_592_000];
+// Windows tried in turn: the desk's default window first (the page opens on
+// the route with the most volume in the window it opens showing), then the
+// longer ones, so a quiet day still opens on something real.
+const RECENT_WINDOWS_SECS = RANGES.map((r) => RANGE_SECS[r]).filter(
+  (secs) => secs >= RANGE_SECS[DEFAULT_RANGE],
+);
 
-// The direction with the most settled volume in the most recent window that
-// has any, in USD where the hub is priced (so SOL- and TAO-anchored routes
-// compare), else in hub units.
+// The direction with the most settled volume in the first of those windows
+// that has any, in USD so every route compares (SOL-, TAO- and
+// alpha-anchored alike): the swap's point-in-time dollars where das priced
+// it, else its hub leg at today's price, else hub units.
 const busiestDirection = (
   swaps: ActiveSwap[] | undefined,
   prices: UsdPrices,
@@ -94,8 +96,9 @@ const busiestDirection = (
       if (!isDirection(dir)) continue;
       const hub = hubLeg(src, dst) ?? src;
       const v = hubLegVolume(s, hub);
-      if (!Number.isFinite(v) || v <= 0) continue;
-      vol.set(dir, (vol.get(dir) ?? 0) + (usdFromHuman(v, hub, prices) ?? v));
+      const usd = s.usdValue ?? usdFromHuman(v, hub, prices) ?? v;
+      if (!Number.isFinite(usd) || usd <= 0) continue;
+      vol.set(dir, (vol.get(dir) ?? 0) + usd);
     }
     let best: Direction | null = null;
     let max = 0;
@@ -107,40 +110,61 @@ const busiestDirection = (
 
 // The page's own desk.
 const MARKET_LAYOUTS: Layouts = {
-  // Two columns: the sheet and the watchlist down the left, the rate over
-  // its history over the book down the right. Heights are in the desk's
-  // 8px rows and only seed the first paint: content-fit widgets take their
-  // own height once they have measured.
+  // Three columns: the sheet across the top, as wide as its columns need
+  // and as tall as its rows. Under it the history over the book across two
+  // columns, and the rate over the watchlist down the third. The desk
+  // squares its own bottom (the last widget in each column runs to the
+  // lowest one), so the watchlist, which fills, meets the book.
+  // Heights are in the desk's 8px rows; content widgets take their own.
   lg: [
-    { i: 'matrix', x: 0, y: 0, w: 1, h: 93 },
-    { i: 'watchlist', x: 0, y: 93, w: 1, h: 63 },
-    { i: 'rate', x: 1, y: 0, w: 1, h: 27 },
-    { i: 'chart', x: 1, y: 27, w: 1, h: 36 },
-    { i: 'book', x: 1, y: 63, w: 1, h: 63 },
+    { i: 'matrix', x: 0, y: 0, w: 3, h: 28 },
+    { i: 'chart', x: 0, y: 28, w: 2, h: 36 },
+    { i: 'book', x: 0, y: 64, w: 2, h: 53 },
+    { i: 'rate', x: 2, y: 28, w: 1, h: 25 },
+    { i: 'watchlist', x: 2, y: 53, w: 1, h: 40 },
   ],
+  // Two columns: the sheet across both, the rate over its history on the
+  // left, the book over the watchlist on the right.
   md: [
-    { i: 'matrix', x: 0, y: 0, w: 1, h: 93 },
-    { i: 'watchlist', x: 0, y: 93, w: 1, h: 63 },
-    { i: 'rate', x: 1, y: 0, w: 1, h: 27 },
-    { i: 'chart', x: 1, y: 27, w: 1, h: 36 },
-    { i: 'book', x: 1, y: 63, w: 1, h: 63 },
+    { i: 'matrix', x: 0, y: 0, w: 2, h: 28 },
+    { i: 'rate', x: 0, y: 28, w: 1, h: 25 },
+    { i: 'chart', x: 0, y: 53, w: 1, h: 40 },
+    { i: 'book', x: 1, y: 28, w: 1, h: 53 },
+    { i: 'watchlist', x: 1, y: 81, w: 1, h: 40 },
   ],
   // One column: the rate first, then the sheet, the history, the book and
   // the watchlist.
   sm: [
-    { i: 'rate', x: 0, y: 0, w: 1, h: 27 },
-    { i: 'matrix', x: 0, y: 27, w: 1, h: 93 },
-    { i: 'chart', x: 0, y: 120, w: 1, h: 36 },
-    { i: 'book', x: 0, y: 156, w: 1, h: 63 },
-    { i: 'watchlist', x: 0, y: 219, w: 1, h: 63 },
+    { i: 'rate', x: 0, y: 0, w: 1, h: 25 },
+    { i: 'matrix', x: 0, y: 25, w: 1, h: 28 },
+    { i: 'chart', x: 0, y: 53, w: 1, h: 36 },
+    { i: 'book', x: 0, y: 89, w: 1, h: 53 },
+    { i: 'watchlist', x: 0, y: 142, w: 1, h: 56 },
   ],
   xs: [
-    { i: 'rate', x: 0, y: 0, w: 1, h: 27 },
-    { i: 'matrix', x: 0, y: 27, w: 1, h: 93 },
-    { i: 'chart', x: 0, y: 120, w: 1, h: 36 },
-    { i: 'book', x: 0, y: 156, w: 1, h: 75 },
-    { i: 'watchlist', x: 0, y: 231, w: 1, h: 63 },
+    { i: 'rate', x: 0, y: 0, w: 1, h: 25 },
+    { i: 'matrix', x: 0, y: 25, w: 1, h: 28 },
+    { i: 'chart', x: 0, y: 53, w: 1, h: 36 },
+    { i: 'book', x: 0, y: 89, w: 1, h: 63 },
+    { i: 'watchlist', x: 0, y: 152, w: 1, h: 56 },
   ],
+};
+
+// The desk the page lays out for the widgets' current widths, until a
+// person drags something: one column stacks the page's own order; wider
+// desks take the best arrangement the search finds (see marketArrange),
+// kept per set of widths.
+const arranged = new Map<string, Layout[]>();
+const arrangeMarket: Arrange = (bp, cols, span) => {
+  if (cols < 2) return MARKET_LAYOUTS[bp] ?? MARKET_LAYOUTS.xs;
+  const ids = ['matrix', 'rate', 'chart', 'book', 'watchlist'];
+  const key = `${cols}|${ids.map(span).join()}`;
+  let out = arranged.get(key);
+  if (!out) {
+    out = searchArrangement(cols, span);
+    arranged.set(key, out);
+  }
+  return out;
 };
 
 // The market page: every route's live crown rate on one sheet (the rate
@@ -152,20 +176,42 @@ const MarketPage: React.FC = () => {
   // The desk's window: the rate card's stats, the history, the watchlist
   // and the network map all read it, so it is picked once in the desk bar.
   const [range, setRange] = useState<HeroRange>(DEFAULT_RANGE);
-  const desk = useDeskSettings();
-  const resetDesk = useCallback(() => {
-    setRange(DEFAULT_RANGE);
-    desk.reset();
-  }, [desk]);
   // The Matrix widget's settings live with the page: the sheet reads them
   // and the widget's gear (in its title row) edits them.
   const matrix = useMatrixSettings();
+  // The sheet's natural width: the Matrix widget takes as many desk
+  // columns as its columns need.
+  const [matrixWidth, setMatrixWidth] = useState<number | undefined>();
   const matrixAssets = useMatrixAssets();
   const matrixHidden =
     matrixAssets.length - visibleAssets(matrixAssets, matrix.settings).length;
   const watchlist = useWatchlistSettings();
   const rateCard = useRateSettings();
   const chart = useChartSettings();
+  const book = useBookSettings();
+  // Reset desk returns the whole page to its defaults: the widgets' places
+  // (the desk's own part), the window, and every widget's settings, widths
+  // included, with the stars kept.
+  const resetDesk = useCallback(() => {
+    setRange(DEFAULT_RANGE);
+    // Back to the opening route: the busiest one in the default window.
+    const next = new URLSearchParams(params);
+    for (const k of ['dir', 'base', 'direction', 'pair']) next.delete(k);
+    setParams(next, { replace: true });
+    matrix.resetKeepStars();
+    watchlist.reset();
+    rateCard.reset();
+    chart.reset();
+    book.reset();
+  }, [matrix, watchlist, rateCard, chart, book, params, setParams]);
+  const deskDirty =
+    range !== DEFAULT_RANGE ||
+    matrixHidden > 0 ||
+    matrix.settings.width !== 'fit' ||
+    watchlistChanges(watchlist.settings) > 0 ||
+    rateChanges(rateCard.settings) > 0 ||
+    chartChanges(chart.settings) > 0 ||
+    bookChanges(book.settings) > 0;
 
   // Where the page opens with nothing on the URL: the recent busiest cell.
   const { data: swaps } = useCompleteSwapHistory();
@@ -239,47 +285,35 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v10"
+          storageKey="allways.market.workspace.v15"
           defaultLayouts={MARKET_LAYOUTS}
+          arrange={arrangeMarket}
+          layoutKey={[
+            matrix.settings.width,
+            watchlist.settings.width,
+            chart.settings.width,
+            book.settings.width,
+          ].join('|')}
+          dirty={deskDirty}
           controls={
             <RangeChips value={range} options={RANGES} onChange={setRange} />
           }
-          settings={
-            <>
-              <Typography
-                component="div"
-                sx={{ ...settingsLabelSx, pt: 0.25, pb: 0.25 }}
-              >
-                spacing
-              </Typography>
-              <Box sx={settingsRowSx}>
-                <SettingsSeg
-                  left
-                  options={[
-                    { value: 'comfortable', label: 'comfortable' },
-                    { value: 'compact', label: 'compact' },
-                  ]}
-                  value={desk.settings.spacing}
-                  onChange={(v) => desk.update({ spacing: v as Spacing })}
-                />
-              </Box>
-              <Typography component="div" sx={settingsNoteSx}>
-                {desk.settings.spacing === 'compact'
-                  ? 'Widgets stack touching, a hairline between them.'
-                  : 'Widgets keep the site\u2019s card gap down each stack.'}
-              </Typography>
-            </>
-          }
-          settingsCount={deskChanges(desk.settings)}
           onReset={resetDesk}
-          spacing={desk.settings.spacing}
           panels={[
             {
               id: 'matrix',
+              maxStretch: CONTENT_STRETCH,
               title: 'Matrix',
+              widthPx: matrixWidth,
+              columns:
+                matrix.settings.width === 'fit'
+                  ? undefined
+                  : matrix.settings.width,
+              flush: true,
               aside: (
                 <WidgetSettings
                   label="Matrix settings"
+                  width={272}
                   count={matrixHidden}
                   onReset={matrix.reset}
                 >
@@ -299,11 +333,13 @@ const MarketPage: React.FC = () => {
                   onDirectionChange={setDirection}
                   settings={matrix.settings}
                   toggleFavorite={matrix.toggleFavorite}
+                  onNaturalWidth={setMatrixWidth}
                 />
               ),
             },
             {
               id: 'rate',
+              maxStretch: CONTENT_STRETCH,
               title: 'Rate',
               aside: (
                 <WidgetSettings
@@ -330,6 +366,9 @@ const MarketPage: React.FC = () => {
               id: 'chart',
               title: 'History',
               fit: 'fill',
+              columns: chart.settings.width,
+              // 480px: taller than that the line only stretches.
+              maxRows: 60,
               aside: (
                 <WidgetSettings
                   label="History settings"
@@ -358,7 +397,22 @@ const MarketPage: React.FC = () => {
             },
             {
               id: 'book',
+              maxStretch: CONTENT_STRETCH,
               title: 'Order book',
+              columns: book.settings.width,
+              aside: (
+                <WidgetSettings
+                  label="Order book settings"
+                  count={bookChanges(book.settings)}
+                  onReset={book.reset}
+                >
+                  <SettingsWidthRows
+                    value={book.settings.width}
+                    options={[1, 2]}
+                    onChange={(n) => book.update({ width: n === 1 ? 1 : 2 })}
+                  />
+                </WidgetSettings>
+              ),
               node: (
                 <OrderbookDepth
                   direction={direction}
@@ -371,6 +425,8 @@ const MarketPage: React.FC = () => {
             {
               id: 'watchlist',
               title: 'Watchlist',
+              fit: 'fill',
+              columns: watchlist.settings.width,
               aside: (
                 <WidgetSettings
                   label="Watchlist settings"
@@ -385,6 +441,7 @@ const MarketPage: React.FC = () => {
               ),
               node: (
                 <Watchlist
+                  fill
                   direction={direction}
                   range={range}
                   scope={watchlist.settings.scope}

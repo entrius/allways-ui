@@ -600,7 +600,11 @@ const Watchlist: React.FC<{
   favoritesOnly: boolean;
   onToggleFavorite: (direction: Direction) => void;
   onDirectionChange: (direction: Direction, hub: string) => void;
+  /** Stretch to the widget's height (the desk sizes it) instead of
+   * capping the list at about fourteen rows. */
+  fill?: boolean;
 }> = ({
+  fill = false,
   direction,
   range,
   scope,
@@ -727,7 +731,7 @@ const Watchlist: React.FC<{
   };
 
   return (
-    <Stack sx={{ minHeight: 0, minWidth: 0 }}>
+    <Stack sx={{ minHeight: 0, minWidth: 0, ...(fill ? { flex: 1 } : {}) }}>
       {/* Column headings, each with a plain-language hover. Same grid as
           the rows (including the 2px selection border) so the labels sit
           flush over their columns. */}
@@ -805,7 +809,7 @@ const Watchlist: React.FC<{
         ref={listRef}
         onKeyDown={onKeyDown}
         sx={{
-          maxHeight: LIST_MAX_PX,
+          ...(fill ? { flex: 1 } : { maxHeight: LIST_MAX_PX }),
           minHeight: 0,
           overflowY: 'auto',
           mx: -1.5,

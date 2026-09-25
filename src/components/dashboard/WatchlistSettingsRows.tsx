@@ -57,6 +57,31 @@ const WatchlistSettingsRows: React.FC<{
   return (
     <>
       <Typography component="div" sx={{ ...labelSx, pt: 0.25, pb: 0.25 }}>
+        width
+      </Typography>
+      <Box sx={rowSx}>
+        <Seg
+          left
+          options={[
+            { value: '1', label: '1 col' },
+            { value: '2', label: '2 col' },
+          ]}
+          value={String(settings.width)}
+          onChange={(v) => update({ width: v === '2' ? 2 : 1 })}
+        />
+      </Box>
+
+      <Typography
+        component="div"
+        sx={{
+          ...labelSx,
+          pt: 1,
+          pb: 0.25,
+          mt: 0.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
         hub
       </Typography>
       <Box sx={rowSx}>

@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Box, Typography, useTheme } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { FLASH_ANIMATION } from './flash';
@@ -6,30 +12,47 @@ import {
   orderByMarketCap,
   useChains,
   useChainSupply,
+  useCompleteSwapHistory,
   useMarketCaps,
+  useUsdPrices,
 } from '../../api';
-import { hubLeg, type ChainInfo } from '../../api/models/chains';
+import type { ActiveSwap } from '../../api/models/Swaps';
+import {
+  hubChains,
+  hubLeg,
+  isAlpha,
+  type ChainInfo,
+} from '../../api/models/chains';
 import {
   decomposeDirection,
   type Direction,
 } from '../../api/models/MinersDashboard';
-import { formatRate } from '../../utils/format';
-import { takeableFor, useBestTakeable, type TakeableMap } from './takeable';
+import { formatRate, usdFromHuman, type UsdPrices } from '../../utils/format';
+import { hubLegVolume } from './marketRate';
+import {
+  quotedIds,
+  takeableFor,
+  useBestTakeable,
+  type TakeableMap,
+} from './takeable';
 import { FONTS } from '../../theme';
 import { ChainLogo, NetworkBadge } from '../ChainLogo';
 import type { MatrixSettings } from './matrixSettings';
 
 // A spreadsheet of bare numbers, port of allways-matrix into the site's own
-// theme. Turned on its side: the hubs are COLUMNS (two each) and every asset
-// is a row, so the sheet grows downward as the registry grows and scrolls
-// the way a page does. The rule never changes: under each hub, the LEFT
-// (plain) column is FROM the hub, the RIGHT (banded) column is TO the hub.
-// Every number is in the row asset, per 1 unit of the hub:
-//   left    you send 1 SOL, you get this much of the row asset
-//   right   you get 1 SOL, you send this much of the row asset
+// theme. Every ROW is an anchor: the hubs, then every subnet alpha (an alpha
+// anchors its pairs with the spokes). Every COLUMN pair is an asset you can
+// trade an anchor against: the hubs and the spokes. Alpha↔alpha is not a
+// pair, so alphas never become columns, and the sheet grows downward as
+// subnets are listed (130 anchors × ~16 assets) instead of sideways. The
+// rule never changes: under each asset, the LEFT (plain) column is FROM the
+// row anchor, the RIGHT (banded) column is TO it. Every number is in the
+// column asset, per 1 unit of the row anchor:
+//   left    you send 1 SN7, you get this much of the column asset
+//   right   you get 1 SN7, you send this much of the column asset
 // Same unit in both columns, so the gap between them is the spread. Tone is
-// the only marker; hovering a number or a hub spells it out in full. Each
-// direction stays its own instrument: no midpoint, no buy/sell.
+// the only marker; hovering a number or a header spells it out in full.
+// Each direction stays its own instrument: no midpoint, no buy/sell.
 
 const HEAD_H = 52;
 const ROW_H = 30;
@@ -49,18 +72,47 @@ const invert = (n: number | null): number | null => (n && n > 0 ? 1 / n : n);
 const directionKey = (from: string, to: string): Direction =>
   `${from}-${to}`.toUpperCase() as Direction;
 
-// A cell is the best TAKEABLE rate on the COLUMN's hub purse: the top of
-// the book for that direction. Spoke pairs have one purse (their hub); the
-// hub↔hub pair has one per hub, so the SOL columns show the sol-backed
-// quotes and the TAO columns the tao-backed ones.
+// A cell is the best TAKEABLE rate for its pair: the top of the book for
+// that direction. Most pairs have one purse (a spoke pair its hub, every
+// alpha pair TAO), so any backing counts. The hub↔hub pair has one per hub
+// and sits in both hub rows: the SOL row shows the sol-backed quotes, the
+// TAO row the tao-backed ones.
+const purseFor = (anchor: ChainInfo, asset: ChainInfo): string | undefined =>
+  anchor.hub && asset.hub ? anchor.id : undefined;
+
 const cellRates = (
-  hub: string,
-  asset: string,
+  anchor: ChainInfo,
+  asset: ChainInfo,
   takeable: TakeableMap,
-): CellRates => ({
-  out: takeableFor(takeable, directionKey(hub, asset), hub),
-  back: invert(takeableFor(takeable, directionKey(asset, hub), hub)),
-});
+): CellRates => {
+  const purse = purseFor(anchor, asset);
+  return {
+    out: takeableFor(takeable, directionKey(anchor.id, asset.id), purse),
+    back: invert(
+      takeableFor(takeable, directionKey(asset.id, anchor.id), purse),
+    ),
+  };
+};
+
+// Where a direction lives on the sheet: its row anchor (the alpha leg of an
+// alpha pair, else the hub; for hub↔hub, the purse it was picked under) and
+// its column asset.
+export const matrixCell = (
+  direction: Direction,
+  base?: string,
+): { row: string; col: string } => {
+  const { from, to } = decomposeDirection(direction);
+  const f = from.toLowerCase();
+  const t = to.toLowerCase();
+  const row = isAlpha(f)
+    ? f
+    : isAlpha(t)
+      ? t
+      : base && (base === f || base === t)
+        ? base
+        : (hubLeg(f, t) ?? f);
+  return { row, col: row === f ? t : f };
+};
 
 // One asset mention, drawn from whichever label parts are switched on.
 const AssetLabel: React.FC<{
@@ -98,7 +150,9 @@ const AssetLabel: React.FC<{
             {chain.symbol}
           </Typography>
         )}
-        {network && chain.network && (
+        {/* Every subnet lives on Bittensor: a network line under each of
+            128 rows only doubles the row height. */}
+        {network && chain.network && !isAlpha(chain.id) && (
           <Typography
             component="span"
             sx={{
@@ -166,41 +220,115 @@ const Cell: React.FC<{
   return cell;
 };
 
-// The sheet's rows: hubs first, in das priority order (the same order the
-// rest of the site files pairs under), then every other asset by market
-// cap, largest first, with same-asset deployments ordered by their chain's
-// supply. Shared with the widget's settings panel so it lists rows in the
-// order the sheet shows them.
+// Settled volume per anchor in USD, over every swap das has served: the
+// swap's point-in-time dollars where das priced it, else its hub leg at
+// today's price. A swap counts toward the row it trades in (the alpha leg of
+// an alpha pair, else its hub); a hub↔hub swap used both hubs and counts
+// toward both.
+const anchorVolumes = (
+  swaps: ActiveSwap[] | undefined,
+  prices: UsdPrices,
+): Map<string, number> => {
+  const vol = new Map<string, number>();
+  for (const s of swaps ?? []) {
+    if (s.status !== 'COMPLETED') continue;
+    const src = s.sourceChain?.toLowerCase();
+    const dst = s.destChain?.toLowerCase();
+    if (!src || !dst) continue;
+    const hub = hubLeg(src, dst);
+    if (!hub) continue;
+    const usd =
+      s.usdValue ??
+      (isAlpha(hub) ? null : usdFromHuman(hubLegVolume(s, hub), hub, prices));
+    if (usd == null || !Number.isFinite(usd) || usd <= 0) continue;
+    const rows = isAlpha(src)
+      ? [src]
+      : isAlpha(dst)
+        ? [dst]
+        : hubChains().includes(src) && hubChains().includes(dst)
+          ? [src, dst]
+          : [hub];
+    for (const r of rows) vol.set(r, (vol.get(r) ?? 0) + usd);
+  }
+  return vol;
+};
+
+// The sheet's order. Rows (hubs and alphas) by settled volume, the most
+// used first; anchors that have never traded keep das order after them
+// (hubs in priority, then the subnets by netuid). Every other asset by
+// market cap, largest first, with same-asset deployments ordered by their
+// chain's supply. Shared with the widget's settings panel so it lists
+// entries in the order the sheet shows them.
 export const useMatrixAssets = (): ChainInfo[] => {
   const { data: chains } = useChains();
   const { data: caps } = useMarketCaps(chains);
   const { data: supply } = useChainSupply(chains);
-  return useMemo(
-    () => orderByMarketCap(chains, caps, supply),
-    [chains, caps, supply],
-  );
+  const { data: swaps } = useCompleteSwapHistory();
+  const prices = useUsdPrices();
+  const volume = useMemo(() => anchorVolumes(swaps, prices), [swaps, prices]);
+  return useMemo(() => {
+    const ordered = orderByMarketCap(chains, caps, supply);
+    const isAnchor = (c: ChainInfo) => c.hub || isAlpha(c.id);
+    const anchors = ordered
+      .map((c, i) => ({ c, i }))
+      .filter(({ c }) => isAnchor(c))
+      .sort(
+        (a, b) =>
+          (volume.get(b.c.id) ?? 0) - (volume.get(a.c.id) ?? 0) || a.i - b.i,
+      )
+      .map(({ c }) => c);
+    return [...anchors, ...ordered.filter((c) => !isAnchor(c))];
+  }, [chains, caps, supply, volume]);
 };
 
-// Favorites-only shows exactly the starred rows, hubs included (a hub row
-// is the hub↔hub corridor, and is starred like any other). Otherwise hubs
-// always show and the rest honour hidden.
+// The sheet's two axes. Rows are anchors (hubs, then alphas), columns the
+// assets an anchor trades against (hubs, then spokes). Hubs sit on both
+// axes and always show; everything else honours hidden. Favorites-only
+// keeps the starred entries on each axis, hubs included (a hub is starred
+// like any other), and an axis with nothing starred keeps its default:
+// the hub rows, or every column. With quoted-only and the live quote set
+// given, entries nobody is quoting drop out too.
+export const matrixAxes = (
+  all: ChainInfo[],
+  settings: MatrixSettings,
+  quoted?: Set<string>,
+): { rows: ChainInfo[]; cols: ChainInfo[] } => {
+  const shown = all.filter(
+    (a) =>
+      a.hub ||
+      (!settings.hidden.includes(a.id) &&
+        (!settings.quotedOnly || !quoted || quoted.has(a.id))),
+  );
+  const rows = shown.filter((a) => a.hub || isAlpha(a.id));
+  const cols = shown.filter((a) => !isAlpha(a.id));
+  if (!settings.favoritesOnly) return { rows, cols };
+  const starred = (list: ChainInfo[]) =>
+    list.filter((a) => settings.favorites.includes(a.id));
+  const favRows = starred(rows);
+  const favCols = starred(cols);
+  return {
+    rows: favRows.length ? favRows : rows.filter((a) => a.hub),
+    cols: favCols.length ? favCols : cols,
+  };
+};
+
+// Every asset the sheet currently shows, on either axis.
 export const visibleAssets = (
   all: ChainInfo[],
   settings: MatrixSettings,
-): ChainInfo[] =>
-  all.filter((a) =>
-    settings.favoritesOnly
-      ? settings.favorites.includes(a.id)
-      : a.hub || !settings.hidden.includes(a.id),
-  );
+): ChainInfo[] => {
+  const { rows, cols } = matrixAxes(all, settings);
+  const on = new Set([...rows, ...cols].map((a) => a.id));
+  return all.filter((a) => on.has(a.id));
+};
 
 // The sheet is also the picker: clicking a number selects that DIRECTION
 // (hub → asset for a plain column, asset → hub for a banded one) for the
 // panels beside it.
 const RateMatrix: React.FC<{
   direction: Direction;
-  // The hub column the selection was made in. Only matters for the hub↔hub
-  // pair, which appears under both hub columns.
+  // The hub row the selection was made in. Only matters for the hub↔hub
+  // pair, which appears in both hub rows.
   base?: string;
   onDirectionChange: (direction: Direction, hub: string) => void;
   /** The widget's settings, owned by the page (its gear lives in the
@@ -208,20 +336,44 @@ const RateMatrix: React.FC<{
   settings: MatrixSettings;
   /** The row stars star and unstar assets in place. */
   toggleFavorite: (id: string) => void;
-}> = ({ direction, base, onDirectionChange, settings, toggleFavorite }) => {
+  /** Reports the sheet's natural width in px (every column at its content
+   * width), so the desk can give the widget as many columns as it needs. */
+  onNaturalWidth?: (px: number) => void;
+}> = ({
+  direction,
+  base,
+  onDirectionChange,
+  settings,
+  toggleFavorite,
+  onNaturalWidth,
+}) => {
   const theme = useTheme();
   const { data: chains } = useChains();
   const { map: takeable, miners, dataUpdatedAt, isError } = useBestTakeable();
-  // The picked cell's row asset and hub column, so their headers can light
-  // up the way a spreadsheet marks the active cell's row and column.
-  const selLegs = decomposeDirection(direction);
-  const selHub = base ?? hubLeg(selLegs.from, selLegs.to) ?? selLegs.from;
-  const selAsset = selLegs.from === selHub ? selLegs.to : selLegs.from;
+  // The picked cell's row anchor and column asset, so their headers can
+  // light up the way a spreadsheet marks the active cell's row and column.
+  const { row: selRow, col: selCol } = matrixCell(direction, base);
 
-  const hubs = useMemo(() => chains.filter((c) => c.hub), [chains]);
   const allAssets = useMatrixAssets();
-  const assets = useMemo(
-    () => visibleAssets(allAssets, settings),
+  // Quoted-only never hides the pair that is picked.
+  const quoted = useMemo(() => {
+    const ids = quotedIds(takeable);
+    ids.add(selRow);
+    ids.add(selCol);
+    return ids;
+  }, [takeable, selRow, selCol]);
+  const { rows: anchors, cols: assets } = useMemo(
+    () => matrixAxes(allAssets, settings, quoted),
+    [allAssets, settings, quoted],
+  );
+  const allAxes = useMemo(
+    () =>
+      matrixAxes(allAssets, {
+        ...settings,
+        hidden: [],
+        favoritesOnly: false,
+        quotedOnly: false,
+      }),
     [allAssets, settings],
   );
   // Logos grow as text leaves the label: 16px beside two lines, 20px beside
@@ -240,12 +392,12 @@ const RateMatrix: React.FC<{
   // rate flashes once. The first fill doesn't flash (counter stays 0).
   const rates = useMemo(() => {
     const m: Record<string, CellRates> = {};
-    for (const hub of hubs)
-      for (const a of allAssets)
-        if (a.id !== hub.id)
-          m[`${hub.id}|${a.id}`] = cellRates(hub.id, a.id, takeable);
+    for (const anchor of allAxes.rows)
+      for (const a of allAxes.cols)
+        if (a.id !== anchor.id)
+          m[`${anchor.id}|${a.id}`] = cellRates(anchor, a, takeable);
     return m;
-  }, [hubs, allAssets, takeable]);
+  }, [allAxes, takeable]);
   // Only a fill that FOLLOWS a live one counts as a move: the seed-to-live
   // step would otherwise light every cell at once.
   const prev = useRef<Record<string, CellRates> | null>(null);
@@ -279,29 +431,82 @@ const RateMatrix: React.FC<{
         })}`
       : 'loading…';
 
+  // Pinned cells are opaque, so rows scrolling under them never show
+  // through; a lit header lays its tint over the page colour.
   const pinnedSx = {
     position: 'sticky',
     backgroundColor: 'background.default',
   } as const;
+  const litSx = (edge: string) => ({
+    backgroundImage: `linear-gradient(${theme.palette.action.selected}, ${theme.palette.action.selected})`,
+    boxShadow: `${edge} ${theme.palette.text.primary}`,
+  });
+
+  // The sheet's size comes from its rows and columns only. Tall: the
+  // header and up to maxRows rows, measured from the rows themselves
+  // (a hub row with its network line is taller than a subnet's), then it
+  // scrolls. Wide: its natural width goes to the desk, which gives the
+  // widget as many columns as that needs, up to the whole desk; past
+  // that it scrolls sideways.
+  const table = useRef<HTMLTableElement>(null);
+  const [maxH, setMaxH] = useState<number | undefined>(undefined);
+  const layoutKey = `${anchors.map((a) => a.id).join()}|${assets
+    .map((a) => a.id)
+    .join()}|${logo}${ticker}${network}|${settings.maxRows}|${dataUpdatedAt}`;
+  useLayoutEffect(() => {
+    const t = table.current;
+    if (!t) return;
+    const body = t.tBodies[0];
+    const rows = body ? [...body.rows] : [];
+    const last = rows[Math.min(settings.maxRows, rows.length) - 1];
+    const next =
+      rows.length > settings.maxRows && last
+        ? last.offsetTop + last.offsetHeight
+        : undefined;
+    setMaxH(next == null ? undefined : next + 1);
+    // Natural width: the table at its content width, read before paint.
+    const prevMin = t.style.minWidth;
+    t.style.minWidth = '0';
+    const natural = t.offsetWidth;
+    t.style.minWidth = prevMin;
+    onNaturalWidth?.(natural);
+  }, [layoutKey, settings.maxRows, onNaturalWidth]);
 
   return (
     <Box
       sx={{
-        // The page scrolls; the header row and asset column stay pinned
-        // within it. Sideways the sheet scrolls on its own if it is wider
-        // than its half.
+        // The sheet scrolls inside its widget; the header row and anchor
+        // column stay pinned while it scrolls either way.
         width: '100%',
-        overflowX: 'auto',
+        maxHeight: maxH,
+        overflow: 'auto',
+        // A sideways swipe at the sheet's edge stays in the sheet (no
+        // browser back gesture); a vertical one hands on to the page.
+        overscrollBehaviorX: 'contain',
+        scrollbarWidth: 'thin',
+        scrollbarColor: `${theme.palette.border.light} transparent`,
+        '&::-webkit-scrollbar': { width: 6, height: 6 },
+        '&::-webkit-scrollbar-thumb': {
+          background: theme.palette.border.light,
+          borderRadius: 0,
+        },
+        '&::-webkit-scrollbar-corner': { background: 'transparent' },
         '--flash': alpha(theme.palette.primary.main, 0.28),
       }}
     >
       <Box
         component="table"
+        ref={table}
         sx={{
-          // The sheet fills its widget: the asset column keeps its content
-          // width and the number columns share the rest, so a wider widget
-          // means roomier cells, never dead space beside the table.
-          width: '100%',
+          // Content width, stretched to fill the widget: the desk rounds
+          // the widget up to whole columns, and the number columns share
+          // what is left, never dead space beside the table.
+          width: 'max-content',
+          minWidth: '100%',
+          // Reading across: the row under the pointer is tinted.
+          '& tbody tr:hover > td': {
+            boxShadow: `inset 0 0 0 999px ${alpha(theme.palette.text.primary, 0.035)}`,
+          },
           borderCollapse: 'separate',
           borderSpacing: 0,
           tableLayout: 'auto',
@@ -314,6 +519,10 @@ const RateMatrix: React.FC<{
             borderBottom: '1px solid',
             borderColor: 'divider',
           },
+          // The widget's own border closes the sheet: no second line at
+          // its right and bottom edges.
+          '& tr > :last-child': { borderRight: 'none' },
+          '& tbody tr:last-child > *': { borderBottom: 'none' },
         }}
       >
         <thead>
@@ -325,7 +534,7 @@ const RateMatrix: React.FC<{
                 ...pinnedSx,
                 top: 0,
                 left: 0,
-                zIndex: 3,
+                zIndex: 4,
                 height: HEAD_H,
                 textAlign: 'left',
                 overflow: 'visible',
@@ -345,32 +554,26 @@ const RateMatrix: React.FC<{
                 {status}
               </Typography>
             </Box>
-            {hubs.map((hub) => (
+            {assets.map((col) => (
               <Box
                 component="th"
-                key={hub.id}
+                key={col.id}
                 colSpan={2}
-                title={`${hub.symbol}${hub.network ? ` · ${hub.network}` : ''}\nLeft: send 1 ${hub.symbol}, get this much\nRight: get 1 ${hub.symbol}, send this much`}
+                title={`${col.symbol}${col.network ? ` · ${col.network}` : ''}\nLeft: send 1 of the row, get this much ${col.symbol}\nRight: get 1 of the row, send this much ${col.symbol}`}
                 sx={{
                   ...pinnedSx,
                   top: 0,
-                  zIndex: 1,
+                  zIndex: 3,
                   height: HEAD_H,
                   minWidth: COL_MIN * 2,
                   cursor: 'default',
                   textAlign: logoOnly ? 'center' : 'left',
                   borderBottomColor: 'border.light',
-                  ...(hub.id === selHub
-                    ? {
-                        backgroundColor: 'action.selected',
-                        boxShadow: (t) =>
-                          `inset 0 -2px 0 ${t.palette.text.primary}`,
-                      }
-                    : {}),
+                  ...(col.id === selCol ? litSx('inset 0 -2px 0') : {}),
                 }}
               >
                 <AssetLabel
-                  chain={hub}
+                  chain={col}
                   chains={chains}
                   logo={logo}
                   ticker={ticker}
@@ -382,7 +585,7 @@ const RateMatrix: React.FC<{
           </tr>
         </thead>
         <tbody>
-          {assets.map((asset) => {
+          {anchors.map((asset) => {
             const fav = settings.favorites.includes(asset.id);
             return (
               <tr key={asset.id}>
@@ -399,13 +602,7 @@ const RateMatrix: React.FC<{
                     // Room for the star at the right edge.
                     pr: asset.hub ? undefined : 3,
                     '&:hover .matrix-star': { opacity: 1 },
-                    ...(asset.id === selAsset
-                      ? {
-                          backgroundColor: 'action.selected',
-                          boxShadow: (t) =>
-                            `inset -2px 0 0 ${t.palette.text.primary}`,
-                        }
-                      : {}),
+                    ...(asset.id === selRow ? litSx('inset -2px 0 0') : {}),
                   }}
                 >
                   <AssetLabel
@@ -441,37 +638,40 @@ const RateMatrix: React.FC<{
                     ★
                   </Box>
                 </Box>
-                {hubs.map((hub) => {
+                {assets.map((col) => {
                   // Self and native (TAO↔alpha) cells stay blank.
                   const self =
-                    asset.id === hub.id || hubLeg(hub.id, asset.id) === null;
-                  const k = `${hub.id}|${asset.id}`;
+                    asset.id === col.id ||
+                    hubLeg(asset.id, col.id) === null;
+                  const k = `${asset.id}|${col.id}`;
                   const r = self ? undefined : rates[k];
                   const out = r?.out ?? null;
                   const back = r?.back ?? null;
-                  const outDir = directionKey(hub.id, asset.id);
-                  const backDir = directionKey(asset.id, hub.id);
+                  const outDir = directionKey(asset.id, col.id);
+                  const backDir = directionKey(col.id, asset.id);
+                  // The page keys a pick by its hub; only hub↔hub needs it.
+                  const hub =
+                    purseFor(asset, col) ??
+                    hubLeg(asset.id, col.id) ??
+                    asset.id;
+                  const picked = selRow === asset.id && selCol === col.id;
                   return (
-                    <React.Fragment key={hub.id}>
+                    <React.Fragment key={col.id}>
                       <Cell
                         value={out}
                         self={self}
                         band={false}
-                        selected={
-                          outDir === direction && (!base || hub.id === base)
-                        }
+                        selected={picked && outDir === direction}
                         seq={seq[`${k}|out`] ?? 0}
-                        onSelect={() => onDirectionChange(outDir, hub.id)}
+                        onSelect={() => onDirectionChange(outDir, hub)}
                       />
                       <Cell
                         value={back}
                         self={self}
                         band
-                        selected={
-                          backDir === direction && (!base || hub.id === base)
-                        }
+                        selected={picked && backDir === direction}
                         seq={seq[`${k}|back`] ?? 0}
-                        onSelect={() => onDirectionChange(backDir, hub.id)}
+                        onSelect={() => onDirectionChange(backDir, hub)}
                       />
                     </React.Fragment>
                   );

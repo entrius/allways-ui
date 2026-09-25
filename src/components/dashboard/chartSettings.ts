@@ -3,13 +3,15 @@ import { useCallback, useEffect, useState } from 'react';
 // The History widget's settings, behind its gear. Remembered per browser.
 
 export interface ChartSettings {
+  // Desk columns the widget spans.
+  width: 1 | 2;
   // The O / H / L / C readout and the window's change above the line.
   // Off by default: the line is the history, the readout is for a look.
   readout: boolean;
 }
 
 const KEY = 'allways-ui.chart.settings';
-const DEFAULTS: ChartSettings = { readout: false };
+const DEFAULTS: ChartSettings = { width: 2, readout: false };
 
 const read = (): ChartSettings => {
   try {
@@ -17,6 +19,7 @@ const read = (): ChartSettings => {
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<ChartSettings>;
     return {
+      width: parsed.width === 1 ? 1 : 2,
       readout:
         typeof parsed.readout === 'boolean' ? parsed.readout : DEFAULTS.readout,
     };
@@ -43,4 +46,5 @@ export const useChartSettings = () => {
 
 // How many settings are away from their defaults, for the gear's badge.
 export const chartChanges = (s: ChartSettings): number =>
-  s.readout === DEFAULTS.readout ? 0 : 1;
+  (s.width === DEFAULTS.width ? 0 : 1) +
+  (s.readout === DEFAULTS.readout ? 0 : 1);

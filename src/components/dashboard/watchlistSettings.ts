@@ -23,7 +23,11 @@ export const COLUMNS = [
 export type Column = (typeof COLUMNS)[number];
 export type Columns = Record<Column, boolean>;
 
+// Desk columns the widget spans.
+export type WatchlistWidth = 1 | 2;
+
 export interface WatchlistSettings {
+  width: WatchlistWidth;
   // Hub scope: ALL_HUBS files every route once under the hub that settles
   // it; a hub id shows that hub's whole network.
   scope: string;
@@ -36,6 +40,7 @@ export interface WatchlistSettings {
 
 const KEY = 'allways-ui.watchlist.settings';
 export const WATCHLIST_DEFAULTS: WatchlistSettings = {
+  width: 1,
   scope: ALL_HUBS,
   directions: 'both',
   // Lean by default: symbol, last and the move. The rest are a click away
@@ -61,6 +66,7 @@ const read = (): WatchlistSettings => {
     if (!raw) return DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<WatchlistSettings>;
     return {
+      width: parsed.width === 2 ? 2 : 1,
       scope: typeof parsed.scope === 'string' ? parsed.scope : DEFAULTS.scope,
       directions: isDirections(parsed.directions)
         ? parsed.directions
@@ -107,6 +113,7 @@ export const useWatchlistSettings = () => {
 
 // How many settings are away from their defaults, for the gear's badge.
 export const watchlistChanges = (s: WatchlistSettings): number =>
+  (s.width === DEFAULTS.width ? 0 : 1) +
   (s.scope === DEFAULTS.scope ? 0 : 1) +
   (s.directions === DEFAULTS.directions ? 0 : 1) +
   (s.favoritesOnly ? 1 : 0) +

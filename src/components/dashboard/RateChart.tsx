@@ -7,6 +7,7 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { pairBacking } from '../../api/models/chains';
 import { chainSymbol, formatRate } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { TimeSeriesChart, type ChartSeries } from '../stats';
@@ -41,15 +42,17 @@ const RateChart: React.FC<{
           : null
         : natural;
 
-  // The lane scored on the base hub — the one the matrix column shows.
+  // The lane scored on the base hub — the one the matrix cell shows; every
+  // alpha pair has only the TAO lane.
+  const purse = pairBacking(legs.from, legs.to, base);
   const { data: rows, isLoading } = useCrownRateHistory({
     direction,
     secs,
-    backing: base,
+    backing: purse,
   });
   const { data: crown } = useCurrentCrown();
   const live = toPrice(
-    directionalRateFor(direction, crownLaneFor(crown, direction, base)?.rate),
+    directionalRateFor(direction, crownLaneFor(crown, direction, purse)?.rate),
   );
 
   const points = useMemo(() => {

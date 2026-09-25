@@ -13,12 +13,10 @@ import {
   type Layouts,
 } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import { FONTS } from '../../theme';
 import { TextLinkButton } from '../Buttons';
-import WidgetSettings from './WidgetSettings';
 
 const ResponsiveGrid = WidthProvider(Responsive);
 
@@ -36,37 +34,77 @@ export type WorkspacePanel = {
    * from the layout (a chart).
    */
   fit?: 'content' | 'fill';
+  /** 'full': the widget spans every column of the desk (a wide sheet). */
+  span?: 'column' | 'full';
+  /** The widget's content width in px: it takes as many desk columns as
+   * that needs, up to the whole desk (a sheet sized by its columns). */
+  widthPx?: number;
+  /** A set number of desk columns (the widget's own width setting); wins
+   * over widthPx, and a narrower desk caps it. */
+  columns?: number;
+  /** The tallest the desk may stretch it, in 8px rows. A list can take
+   * any height; a chart past a point is just a stretched line. */
+  maxRows?: number;
+  /** The most rows the desk may add below its own height: a content card
+   * stretched far past its content is a big blank box. */
+  maxStretch?: number;
+  /** The body has no padding: a sheet that scrolls runs to the card's
+   * edges, its scrollbars on the border. */
+  flush?: boolean;
 };
 
-// The grid's units. Two columns on a wide screen, one on a narrow one,
-// with the landing card gap between them: every widget is exactly one
-// column wide, so a drag can only land it left or right and the desk is
-// always two tidy stacks. Rows are fine, 8px each (4px row + 4px gap), so a
+// The grid's units. Three columns on a wide screen, two on a medium one,
+// one on a narrow one, with the landing card gap between them: every
+// widget is exactly one column wide (or, when it asks, the whole desk), so
+// a drag can only land it in a column and the desk is always tidy stacks. Rows are fine, 8px each (4px row + 4px gap), so a
 // widget's box can end within a few pixels of its content; the visible gap
 // between widgets is made up to the landing 24px by leaving each box 20px
 // short of its slot.
-export const WORKSPACE_COLS = { lg: 2, md: 2, sm: 1, xs: 1 } as const;
+export const WORKSPACE_COLS = { lg: 3, md: 2, sm: 1, xs: 1 } as const;
 const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
 const ROW_HEIGHT = 4;
 const GUTTER_Y = 4;
 const ROW_UNIT = ROW_HEIGHT + GUTTER_Y;
-// The gap between the two columns is the landing card gap always; the
-// gap DOWN a stack is the desk's setting: the card gap, or none, so
-// widgets stack touching like a terminal's panes.
-const GUTTER_X = 24;
-const GAP_Y = { comfortable: 24, compact: 0 } as const;
+// No gaps: widgets touch like a terminal's panes, across and down, and
+// each shared edge is drawn once. A card reaches 1px left over its
+// neighbour's right border, and down through the 4px row gap and 1px over
+// the next card's top border.
+const GUTTER_X = 0;
+const OVERLAP = 1;
 // A card's border, around the contents the observer measures.
 const BORDER_PX = 2;
 // Rows for a widget whose contents (title row, body and its padding) are
-// this tall. The grid gives a slot of h rows minus one row gap; the card
-// leaves panelGap of it empty (negative when it must reach into the gap);
-// round up to the next 8px row so the slot is never shorter than the card
-// and nothing inside has to scroll.
-const rowsFor = (contentPx: number, panelGap: number) =>
-  Math.max(
-    1,
-    Math.ceil((contentPx + BORDER_PX + panelGap + GUTTER_Y) / ROW_UNIT),
-  );
+// this tall. The grid gives a slot of h rows minus one row gap, and the
+// card reaches through that gap, so the slot can be a row gap shorter than
+// the card; round up to the next 8px row so nothing inside has to scroll.
+const rowsFor = (contentPx: number) =>
+  Math.max(1, Math.ceil((contentPx + BORDER_PX) / ROW_UNIT));
+
+// Slide every widget up to the highest free spot in its own columns,
+// in order from the top, the way the grid itself compacts.
+const compact = (items: Layout[]): Layout[] => {
+  const out: Layout[] = [];
+  for (const l of [...items].sort((a, b) => a.y - b.y || a.x - b.x)) {
+    let y = 0;
+    while (
+      out.some(
+        (o) =>
+          l.x < o.x + o.w && o.x < l.x + l.w && y < o.y + o.h && o.y < y + l.h,
+      )
+    )
+      y += 1;
+    out.push({ ...l, y });
+  }
+  return out;
+};
+
+/** The page's own arrangement for one breakpoint, given how many columns
+ * each widget spans right now (its width setting, or its content). */
+export type Arrange = (
+  bp: string,
+  cols: number,
+  span: (id: string) => number,
+) => Layout[];
 
 // What a browser remembers: where each widget sits, and which are put away.
 type Saved = { layouts: Layouts; hidden: string[] };
@@ -140,40 +178,31 @@ const Workspace: React.FC<{
   defaultLayouts: Layouts;
   /** localStorage key; bump its version suffix when the defaults change. */
   storageKey: string;
-  /** Rows for the desk's own gear (a window picker): state every widget
-   * reads belongs to the desk, not to one of them. */
-  settings?: React.ReactNode;
-  /** How many desk settings are away from their defaults (the badge). */
-  settingsCount?: number;
-  /** Called with the desk's own reset, to put those settings back. */
+  /** Called with the desk's reset, to put page state (the window) back. */
   onReset?: () => void;
-  /** Desk-wide one-tap controls (the lookback) for the bar, beside the
-   * gear. */
+  /** Desk-wide one-tap controls (the lookback) for the bar. */
   controls?: React.ReactNode;
-  /** Gap down a stack: the card gap, or none. */
-  spacing?: keyof typeof GAP_Y;
+  /** The page's arrangement for the widgets' current widths. Until a
+   * person drags a widget, the desk follows it, so changing a widget's
+   * width re-lays the desk out instead of leaving a hole. */
+  arrange?: Arrange;
+  /** Changes whenever a widget's width setting does. A new width re-lays
+   * the desk out from the page's arrangement, so a person's old
+   * arrangement never clashes with the new widths. */
+  layoutKey?: string;
+  /** Page state that differs from its defaults (the window, a widget's
+   * settings): the desk offers its reset for that too. */
+  dirty?: boolean;
 }> = ({
   panels,
   defaultLayouts,
   storageKey,
-  settings,
-  settingsCount = 0,
   onReset,
   controls,
-  spacing = 'comfortable',
+  arrange,
+  layoutKey,
+  dirty = false,
 }) => {
-  const compact = spacing === 'compact';
-  // What a card leaves empty at the foot of its slot so the visible gap
-  // down the stack comes out to the setting: 20px under a comfortable
-  // card; a compact card reaches through the 4px row gap and 1px over the
-  // next card's top border, so the two draw one hairline between them.
-  const panelGap = GAP_Y[spacing] - GUTTER_Y;
-  const cardHeight = (fit: WorkspacePanel['fit']) =>
-    compact
-      ? `calc(100% + ${GUTTER_Y + 1}px)`
-      : fit === 'fill'
-        ? `calc(100% - ${panelGap}px)`
-        : 'auto';
   const [layouts, setLayouts] = useState<Layouts>(() => {
     const stored = readSaved(storageKey);
     return stored ? reconcile(stored.layouts, defaultLayouts) : defaultLayouts;
@@ -205,11 +234,18 @@ const Workspace: React.FC<{
 
   // The grid reports only the widgets it shows; keep the put-away ones'
   // last positions so they come back where they were.
+  // Positions and widths come back from the grid; a widget's height is its own
+  // (its content, or the page's default), never the stretched height the
+  // grid was handed, or a stretch would ratchet and never let go.
   const onLayoutChange = useCallback((_: Layout[], all: Layouts) => {
     setLayouts((prev) => {
       const out: Layouts = {};
       for (const bp of new Set([...Object.keys(prev), ...Object.keys(all)])) {
-        const shown = all[bp] ?? [];
+        const before = new Map((prev[bp] ?? []).map((l) => [l.i, l]));
+        const shown = (all[bp] ?? []).map((l) => {
+          const b = before.get(l.i);
+          return b ? { ...l, h: b.h } : l;
+        });
         const shownIds = new Set(shown.map((l) => l.i));
         const rest = (prev[bp] ?? []).filter((l) => !shownIds.has(l.i));
         out[bp] = [...shown, ...rest];
@@ -262,6 +298,21 @@ const Workspace: React.FC<{
     onReset?.();
   }, [defaultLayouts, storageKey, onReset]);
 
+  // A width change drops a hand-made arrangement (not the put-away
+  // widgets): the page's arrangement for the new widths takes over.
+  const lastKey = useRef(layoutKey);
+  useEffect(() => {
+    if (lastKey.current === layoutKey) return;
+    lastKey.current = layoutKey;
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
+    setCustom(false);
+    setLayouts(defaultLayouts);
+  }, [layoutKey, storageKey, defaultLayouts]);
+
   const byId = useMemo(() => new Map(panels.map((p) => [p.id, p])), [panels]);
   const shownPanels = useMemo(
     () => panels.filter((p) => !hidden.has(p.id)),
@@ -277,24 +328,21 @@ const Workspace: React.FC<{
   // every breakpoint.
   const bodies = useRef(new Map<string, HTMLDivElement>());
   const observer = useRef<ResizeObserver | null>(null);
-  const fitRows = useCallback(
-    (id: string, px: number) => {
-      const h = rowsFor(px, panelGap);
-      setLayouts((prev) => {
-        let changed = false;
-        const out: Layouts = {};
-        for (const [bp, items] of Object.entries(prev)) {
-          out[bp] = items.map((l) => {
-            if (l.i !== id || l.h === h) return l;
-            changed = true;
-            return { ...l, h };
-          });
-        }
-        return changed ? out : prev;
-      });
-    },
-    [panelGap],
-  );
+  const fitRows = useCallback((id: string, px: number) => {
+    const h = rowsFor(px);
+    setLayouts((prev) => {
+      let changed = false;
+      const out: Layouts = {};
+      for (const [bp, items] of Object.entries(prev)) {
+        out[bp] = items.map((l) => {
+          if (l.i !== id || l.h === h) return l;
+          changed = true;
+          return { ...l, h };
+        });
+      }
+      return changed ? out : prev;
+    });
+  }, []);
   // Size every content-fit widget's slot from its card as it is now.
   const remeasure = useCallback(() => {
     for (const [id, el] of bodies.current)
@@ -315,7 +363,7 @@ const Workspace: React.FC<{
     return () => cancelAnimationFrame(id);
     // remeasure is stable; the pass is keyed to the desk changing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layouts, hidden, panelGap]);
+  }, [layouts, hidden]);
   useEffect(() => {
     const onChange = () => {
       if (document.visibilityState === 'visible') remeasure();
@@ -364,16 +412,91 @@ const Workspace: React.FC<{
     [fitRows],
   );
 
-  // Only the shown widgets go to the grid; every one keeps its fixed size.
+  // The desk's width as the grid measures it, to turn a widget's content
+  // width into whole columns.
+  const [deskPx, setDeskPx] = useState(0);
+  const spanFor = useCallback(
+    (p: WorkspacePanel | undefined, cols: number) => {
+      if (p?.span === 'full') return cols;
+      if (p?.columns) return Math.max(1, Math.min(cols, p.columns));
+      if (!p?.widthPx || !deskPx) return 1;
+      const colPx = (deskPx - GUTTER_X * (cols - 1)) / cols;
+      const need = Math.ceil(
+        (p.widthPx + BORDER_PX + GUTTER_X) / (colPx + GUTTER_X),
+      );
+      return Math.max(1, Math.min(cols, need));
+    },
+    [deskPx],
+  );
+
+  // Only the shown widgets go to the grid. Each is one column wide, the
+  // whole desk, or as many columns as its content needs. Sizes are the
+  // page's: nothing is resized by hand.
+  //
+  // Then the desk is squared off: the last widget in every column runs
+  // down to the lowest bottom on the desk, so stacks of different heights
+  // still end on one line, with no hole under the shorter ones. A fill
+  // widget (a chart, a list) uses the room; a content widget keeps its
+  // content at the top of a taller card.
   const shownLayouts = useMemo<Layouts>(() => {
     const out: Layouts = {};
     for (const [bp, items] of Object.entries(layouts)) {
-      out[bp] = items
+      const cols = WORKSPACE_COLS[bp as keyof typeof WORKSPACE_COLS] ?? 1;
+      let placed: Layout[] = items
         .filter((l) => !hidden.has(l.i))
-        .map((l) => ({ ...l, w: 1, static: false, isResizable: false }));
+        .map((l) => {
+          const p = byId.get(l.i);
+          // A widget with no width of its own keeps the width the desk gave
+          // it (the page's arrangement can make the history two wide).
+          const w =
+            p?.span || p?.columns || p?.widthPx
+              ? spanFor(p, cols)
+              : Math.max(1, Math.min(cols, l.w));
+          return {
+            ...l,
+            w,
+            x: Math.min(l.x, cols - w),
+            static: false,
+            isResizable: false,
+          };
+        });
+      const overlaps = (a: Layout, b: Layout) =>
+        a.x < b.x + b.w && b.x < a.x + a.w;
+      // Until a person arranges the desk, it is the page's: where each
+      // widget sits and how wide comes from the page's arrangement for the
+      // current widths; heights stay the widgets' own.
+      if (!custom && arrange) {
+        const h = new Map(placed.map((l) => [l.i, l.h]));
+        placed = compact(
+          arrange(bp, cols, (id) => spanFor(byId.get(id), cols))
+            .filter((l) => h.has(l.i))
+            .map((l) => ({
+              ...l,
+              w: Math.min(l.w, cols),
+              x: Math.min(l.x, cols - Math.min(l.w, cols)),
+              h: h.get(l.i) ?? l.h,
+              static: false,
+              isResizable: false,
+            })),
+        );
+      }
+      // Every widget runs down to the next one below it, or to the desk's
+      // bottom, so no stack leaves a hole.
+      const floor = placed.reduce((m, l) => Math.max(m, l.y + l.h), 0);
+      out[bp] = placed.map((l) => {
+        const next = placed
+          .filter((o) => o !== l && o.y >= l.y + l.h && overlaps(o, l))
+          .reduce((m, o) => Math.min(m, o.y), floor);
+        const p = byId.get(l.i);
+        const cap = Math.min(
+          p?.maxRows ?? Infinity,
+          l.h + (p?.maxStretch ?? Infinity),
+        );
+        return { ...l, h: Math.max(l.h, Math.min(cap, next - l.y)) };
+      });
     }
     return out;
-  }, [layouts, hidden]);
+  }, [layouts, hidden, byId, spanFor, custom, arrange]);
 
   return (
     <Box
@@ -440,23 +563,12 @@ const Workspace: React.FC<{
           >
             Drag a widget by its title
           </Typography>
-          {custom && (
+          {(custom || dirty || hidden.size > 0) && (
             <TextLinkButton onClick={reset} sx={{ fontSize: '0.65rem', px: 0 }}>
               Reset desk
             </TextLinkButton>
           )}
           {controls}
-          {/* The desk's own gear, the same control every widget wears:
-              the desk's settings, and reset. */}
-          {settings && (
-            <WidgetSettings
-              label="Desk settings"
-              count={settingsCount}
-              onReset={reset}
-            >
-              {settings}
-            </WidgetSettings>
-          )}
         </Box>
       </Box>
       <ResponsiveGrid
@@ -471,6 +583,7 @@ const Workspace: React.FC<{
         compactType="vertical"
         onLayoutChange={onLayoutChange}
         onDragStop={onUserChange}
+        onWidthChange={(px) => setDeskPx(px)}
         isResizable={false}
       >
         {shownPanels.map((p) => (
@@ -478,17 +591,17 @@ const Workspace: React.FC<{
             <Box
               className="workspace-panel"
               sx={{
-                // A content-fit card ends at its contents and is never
-                // clamped: its slot is sized from them, rounded to the
-                // grid, so the slot may run a few px longer but never
-                // shorter. A fill card takes the whole slot. Compact cards
-                // take the slot and the gap after it, so they touch.
-                height: cardHeight(p.fit),
+                // Every card takes its slot, the row gap after it and the
+                // next card's top border; and 1px of its left neighbour's
+                // right border. Shared edges draw once, one weight.
+                height: `calc(100% + ${GUTTER_Y + OVERLAP}px)`,
+                width: `calc(100% + ${OVERLAP}px)`,
+                ml: `-${OVERLAP}px`,
                 display: 'flex',
                 flexDirection: 'column',
                 minHeight: 0,
                 border: '1px solid',
-                borderColor: 'divider',
+                borderColor: 'border.medium',
                 borderRadius: 0,
                 backgroundColor: 'background.default',
                 transition: 'border-color 120ms',
@@ -581,7 +694,7 @@ const Workspace: React.FC<{
                     overflow: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
-                    p: 1.5,
+                    p: p.flush ? 0 : 1.5,
                     '&::-webkit-scrollbar': { width: 4, height: 4 },
                     '&::-webkit-scrollbar-thumb': {
                       background: (t) => t.palette.border.light,

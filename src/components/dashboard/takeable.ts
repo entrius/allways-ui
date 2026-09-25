@@ -108,6 +108,16 @@ export const takeableSpread = (
   return bid + ask > 0 ? ((ask - bid) / ((ask + bid) / 2)) * 100 : null;
 };
 
+/** Every chain with at least one live quote, on either leg. */
+export const quotedIds = (map: TakeableMap): Set<string> => {
+  const ids = new Set<string>();
+  for (const key of map.keys()) {
+    if (key.includes('|')) continue;
+    for (const id of key.toLowerCase().split('-')) ids.add(id);
+  }
+  return ids;
+};
+
 export const useBestTakeable = () => {
   const { data: miners, dataUpdatedAt, isError, isLoading } = useMiners();
   const map = useMemo(() => bestTakeable(miners), [miners]);
