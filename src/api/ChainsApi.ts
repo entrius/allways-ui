@@ -45,24 +45,21 @@ export const useDirections = (): Direction[] => {
   return useMemo(() => allDirections(data), [data]);
 };
 
-// What menus and lists show: the directions with a live quote (a crown holder
-// on any lane), in registry order, plus `pinned` ones (selected, deep-linked,
-// starred, or held in history) so they never vanish.
+// Menus and lists: live-quoted plus `pinned` directions, in registry order.
 export const useLiveDirections = (
   pinned: (Direction | null)[] = [],
 ): Direction[] => {
   const all = useDirections();
   const { data: crown } = useCurrentCrown();
-  const live = useMemo(
-    () => all.filter((d) => crown?.[d]?.some((lane) => lane.rate != null)),
-    [all, crown],
-  );
   // Keyed by content: callers pass fresh array literals.
-  const missing = [...new Set(pinned)]
-    .filter((d): d is Direction => !!d && !live.includes(d))
-    .join(' ');
-  return useMemo(
-    () => (missing ? [...missing.split(' '), ...live] : live),
-    [live, missing],
-  );
+  const pinnedKey = [...new Set(pinned)].filter(Boolean).join(' ');
+  return useMemo(() => {
+    const pins = new Set(pinnedKey ? pinnedKey.split(' ') : []);
+    const listed = all.filter(
+      (d) => pins.has(d) || crown?.[d]?.some((lane) => lane.rate != null),
+    );
+    // A pin the registry does not know yet still renders, first.
+    const unknown = [...pins].filter((d) => !all.includes(d));
+    return unknown.length ? [...unknown, ...listed] : listed;
+  }, [all, crown, pinnedKey]);
 };
