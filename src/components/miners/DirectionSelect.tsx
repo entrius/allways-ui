@@ -22,11 +22,12 @@ const DirectionSelect: React.FC<{
   // With allowAll, null renders as an "All pairs" option; without it, null is
   // not selectable and onChange always yields a Direction.
   allowAll?: boolean;
+  // Directions the caller holds history for: listed even without a live quote.
+  extra?: Direction[];
   /** Kept for callers; the chip sizes to its label. */
   width?: number;
-}> = ({ value, onChange, allowAll = false }) => {
-  // Live routes plus the current pick, so a deep link never blanks the chip.
-  const directions = useLiveDirections(value);
+}> = ({ value, onChange, allowAll = false, extra = [] }) => {
+  const directions = useLiveDirections([value, ...extra]);
   const options = [
     ...(allowAll ? [{ value: ALL_PAIRS, label: 'All pairs' }] : []),
     ...directions.map((d) => ({

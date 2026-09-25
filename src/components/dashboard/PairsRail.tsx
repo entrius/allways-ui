@@ -386,7 +386,7 @@ const PairsRail: React.FC<{
   const { from, to } = decomposeDirection(direction);
   // Every route with a live quote. A deep link must never lose its market,
   // so the selected route stays pinned even without one.
-  const directions = useLiveDirections(direction);
+  const directions = useLiveDirections([direction]);
   const reverseDir = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 
   // ── Hub scope ──

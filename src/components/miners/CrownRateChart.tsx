@@ -5,6 +5,7 @@ import {
   CROWN_REFRESH_MS,
   decomposeDirection,
   directionalRateFor,
+  isDirection,
   useMinerRateHistory,
   type CrownRateHistoryRow,
   type Direction,
@@ -117,6 +118,18 @@ const CrownRateChart: React.FC<{
     { direction, seconds: secs },
   );
   const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
+  // Every pair the miner quoted in the window: pickable even without a live crown.
+  const held = useMemo(
+    () =>
+      [
+        ...new Set(
+          (minerRates ?? []).map((r) =>
+            `${r.fromChain}-${r.toChain}`.toUpperCase(),
+          ),
+        ),
+      ].filter(isDirection),
+    [minerRates],
+  );
 
   // {crown, miner} rows clipped to a shared window anchored on the freshest
   // point of either series. Stored rates are canonical "spoke per 1 hub";
@@ -216,6 +229,7 @@ const CrownRateChart: React.FC<{
           <DirectionSelect
             value={direction}
             onChange={(d) => d && onDirectionChange(d)}
+            extra={held}
             width={168}
           />
           <RangeChips

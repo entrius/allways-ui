@@ -39,25 +39,30 @@ export const useChains = () =>
     retry: false,
   });
 
-// Every valid direction (~2k with the alpha↔spoke pairs) — re-derives when
-// das serves a changed chain set. For validation and ordering; menus and
-// lists show useLiveDirections.
+// Every valid direction, live or not — for validation and ordering.
 export const useDirections = (): Direction[] => {
   const { data } = useChains();
   return useMemo(() => allDirections(data), [data]);
 };
 
-// The directions with a live quote (a crown holder on any lane), in registry
-// order — what every menu and list shows. `pinned` (the selected or
-// deep-linked direction) stays listed without a quote, so its chip never
-// blanks. Empty until /crown lands.
-export const useLiveDirections = (pinned?: Direction | null): Direction[] => {
+// What menus and lists show: the directions with a live quote (a crown holder
+// on any lane), in registry order, plus `pinned` ones (selected, deep-linked,
+// starred, or held in history) so they never vanish.
+export const useLiveDirections = (
+  pinned: (Direction | null)[] = [],
+): Direction[] => {
   const all = useDirections();
   const { data: crown } = useCurrentCrown();
-  return useMemo(() => {
-    const live = all.filter((d) =>
-      crown?.[d]?.some((lane) => lane.rate != null),
-    );
-    return pinned && !live.includes(pinned) ? [pinned, ...live] : live;
-  }, [all, crown, pinned]);
+  const live = useMemo(
+    () => all.filter((d) => crown?.[d]?.some((lane) => lane.rate != null)),
+    [all, crown],
+  );
+  // Keyed by content: callers pass fresh array literals.
+  const missing = [...new Set(pinned)]
+    .filter((d): d is Direction => !!d && !live.includes(d))
+    .join(' ');
+  return useMemo(
+    () => (missing ? [...missing.split(' '), ...live] : live),
+    [live, missing],
+  );
 };

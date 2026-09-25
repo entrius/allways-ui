@@ -414,6 +414,17 @@ const ScoringPanel: React.FC<{
     fromTs,
   });
   const { data: tip } = useCurrentMinerScores(hotkey);
+  // Every pair with a score row in the span: pickable even without a live crown.
+  const held = useMemo(
+    () => [
+      ...new Set(
+        [...(history ?? []), ...(tip ?? [])]
+          .map(rowDirection)
+          .filter((d): d is Direction => d != null),
+      ),
+    ],
+    [history, tip],
+  );
 
   const tipRows = useMemo(
     () =>
@@ -517,6 +528,7 @@ const ScoringPanel: React.FC<{
             value={direction}
             onChange={onDirectionChange}
             allowAll
+            extra={held}
             width={compactChart ? 132 : 150}
           />
           <RangeChips

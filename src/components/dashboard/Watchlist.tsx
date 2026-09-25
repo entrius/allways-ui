@@ -615,7 +615,7 @@ const Watchlist: React.FC<{
   const secs = RANGE_SECS[range];
   // Every route with a live quote. A deep link must never lose its market,
   // so the selected route stays listed even without one.
-  const directions = useLiveDirections(direction);
+  const directions = useLiveDirections([direction, ...favorites]);
   const { data: chains } = useChains();
   const hubs = useMemo(() => hubChains(chains), [chains]);
   const stats = useRowStats(directions, secs);

@@ -197,7 +197,7 @@ export const SymbolSearchPanel: React.FC<{
     setCaretX(measureRef.current?.offsetWidth ?? 0);
   }, [query, caret]);
   // Live routes plus the open one, so it stays findable without a quote.
-  const all = useLiveDirections(direction);
+  const all = useLiveDirections([direction]);
   const hubs = hubChains();
 
   const results = useMemo(() => {
