@@ -27,6 +27,7 @@ import StatusChip from '../StatusChip';
 import SectionHeading from '../SectionHeading';
 import CopyableAddress from '../CopyableAddress';
 import { lanesFor } from '../../api/models/MinersDashboard';
+import AlphaPairsFold, { hasAlphaLeg, pairMatches } from './AlphaPairsFold';
 import CrownIcon from './CrownIcon';
 import EligibilityChip from './EligibilityChip';
 import { useMinerEligibility } from './eligibility';
@@ -356,11 +357,9 @@ const MinerDetailHeader: React.FC<{
   // stored rates are canonical "spoke per 1 hub". Each pair renders as ONE row
   // with both legs shown DIRECTIONALLY — "to per 1 from" of that leg (the
   // reverse inverts); the unit label carries the leg's direction.
-  const dirOrder = allDirections();
-  const orderIdx = (src: string, dst: string): number => {
-    const i = dirOrder.indexOf(`${src}-${dst}`.toUpperCase());
-    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-  };
+  const dirOrder = new Map(allDirections().map((d, i) => [d, i]));
+  const orderIdx = (src: string, dst: string): number =>
+    dirOrder.get(`${src}-${dst}`.toUpperCase()) ?? Number.MAX_SAFE_INTEGER;
   const quoteRows: QuoteRow[] = pairs
     .flatMap((p) => {
       const src = p.sourceChain?.toLowerCase();
@@ -384,6 +383,8 @@ const MinerDetailHeader: React.FC<{
       // Same pair twice = dual-backing twins; sol bond first.
       return a.backing === b.backing ? 0 : a.backing === 'sol' ? -1 : 1;
     });
+  const hubRows = quoteRows.filter((r) => !hasAlphaLeg(r.src, r.dst));
+  const alphaRows = quoteRows.filter((r) => hasAlphaLeg(r.src, r.dst));
 
   // One bond purse per backing, each in ITS OWN asset — a tao purse is rao,
   // never piped through the SOL formatter. Same-backing rows share a purse,
@@ -431,6 +432,56 @@ const MinerDetailHeader: React.FC<{
     whiteSpace: 'nowrap',
   } as const;
   const tableHeadSx = { ...eyebrowSx, ...tableCellSx, fontSize: '0.6rem' };
+
+  const renderQuoteRow = (r: QuoteRow) => (
+    <React.Fragment key={r.key}>
+      <Box
+        sx={{
+          ...tableCellSx,
+          fontSize: '0.72rem',
+          color: 'text.secondary',
+          letterSpacing: '0.04em',
+        }}
+      >
+        {assetLabel(r.src)}/{assetLabel(r.dst)}
+        {/* Tag only a NON-native bond (backing ≠ the pair's
+            hub leg) — the marker for dual-backing twins. */}
+        {r.backing !== hubLeg(r.src, r.dst) && (
+          <Box
+            component="span"
+            sx={{
+              ml: 0.75,
+              px: 0.5,
+              fontSize: '0.58rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              border: '1px solid',
+              borderColor: 'divider',
+              color: 'text.disabled',
+            }}
+          >
+            {chainSymbol(r.backing)} bond
+          </Box>
+        )}
+      </Box>
+      <Box sx={tableCellSx}>
+        <QuoteCell
+          from={r.src}
+          to={r.dst}
+          rate={r.fwd}
+          crown={crownSet.has(crownLaneKey(`${r.src}-${r.dst}`, r.backing))}
+        />
+      </Box>
+      <Box sx={tableCellSx}>
+        <QuoteCell
+          from={r.dst}
+          to={r.src}
+          rate={r.rev}
+          crown={crownSet.has(crownLaneKey(`${r.dst}-${r.src}`, r.backing))}
+        />
+      </Box>
+    </React.Fragment>
+  );
 
   return (
     <Box sx={{ mb: { xs: 4, md: 6 } }}>
@@ -515,59 +566,18 @@ const MinerDetailHeader: React.FC<{
                   <Box sx={tableHeadSx} title="right → left leg">
                     rate ←
                   </Box>
-                  {quoteRows.map((r) => (
-                    <React.Fragment key={r.key}>
-                      <Box
-                        sx={{
-                          ...tableCellSx,
-                          fontSize: '0.72rem',
-                          color: 'text.secondary',
-                          letterSpacing: '0.04em',
-                        }}
-                      >
-                        {assetLabel(r.src)}/{assetLabel(r.dst)}
-                        {/* Tag only a NON-native bond (backing ≠ the pair's
-                            hub leg) — the marker for dual-backing twins. */}
-                        {r.backing !== hubLeg(r.src, r.dst) && (
-                          <Box
-                            component="span"
-                            sx={{
-                              ml: 0.75,
-                              px: 0.5,
-                              fontSize: '0.58rem',
-                              letterSpacing: '0.08em',
-                              textTransform: 'uppercase',
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              color: 'text.disabled',
-                            }}
-                          >
-                            {chainSymbol(r.backing)} bond
-                          </Box>
-                        )}
-                      </Box>
-                      <Box sx={tableCellSx}>
-                        <QuoteCell
-                          from={r.src}
-                          to={r.dst}
-                          rate={r.fwd}
-                          crown={crownSet.has(
-                            crownLaneKey(`${r.src}-${r.dst}`, r.backing),
-                          )}
-                        />
-                      </Box>
-                      <Box sx={tableCellSx}>
-                        <QuoteCell
-                          from={r.dst}
-                          to={r.src}
-                          rate={r.rev}
-                          crown={crownSet.has(
-                            crownLaneKey(`${r.dst}-${r.src}`, r.backing),
-                          )}
-                        />
-                      </Box>
-                    </React.Fragment>
-                  ))}
+                  {hubRows.map(renderQuoteRow)}
+                  <AlphaPairsFold
+                    rows={alphaRows}
+                    matches={(r, q) => pairMatches(r.src, r.dst, q)}
+                    sx={{
+                      gridColumn: '1 / -1',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {(visible) => visible.map(renderQuoteRow)}
+                  </AlphaPairsFold>
                 </Box>
               </Box>
             )}
