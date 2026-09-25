@@ -4,7 +4,7 @@ import {
   useChains,
   useCompleteSwapHistory,
   useCrownRateHistoryAll,
-  useDirections,
+  useLiveDirections,
   useUsdPrices,
 } from '../../api';
 import {
@@ -613,14 +613,9 @@ const Watchlist: React.FC<{
 }) => {
   const cols = useMemo(() => COLUMNS.filter((c) => columns[c]), [columns]);
   const secs = RANGE_SECS[range];
-  // Every registry pair with a hub leg. A deep link must never lose its
-  // market, so the selected route stays listed even if the registry has
-  // not (yet) served its pair.
-  const all = useDirections();
-  const directions = useMemo<Direction[]>(
-    () => (all.includes(direction) ? all : [direction, ...all]),
-    [all, direction],
-  );
+  // Every route with a live quote. A deep link must never lose its market,
+  // so the selected route stays listed even without one.
+  const directions = useLiveDirections(direction);
   const { data: chains } = useChains();
   const hubs = useMemo(() => hubChains(chains), [chains]);
   const stats = useRowStats(directions, secs);

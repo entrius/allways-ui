@@ -13,6 +13,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import { FONTS } from '../../theme';
 import {
   useDirections,
+  useLiveDirections,
   decomposeDirection,
   directionLabel,
   directionalRateFor,
@@ -152,9 +153,14 @@ const CopyRow: React.FC<CopyRowProps> = ({ label, value }) => {
 };
 
 const RateQuoteHelper: React.FC = () => {
-  const directions = useDirections();
+  const all = useDirections();
+  const live = useLiveDirections();
   const { data: miners } = useMiners();
-  const [direction, setDirection] = useState<Direction>(directions[0]);
+  const [picked, setDirection] = useState<Direction | null>(null);
+  // Opens on the first live route once /crown lands, the registry's first
+  // before; a picked route stays selectable after its quote goes.
+  const direction = picked ?? live[0] ?? all[0];
+  const directions = live.includes(direction) ? live : [direction, ...live];
   const [amountStr, setAmountStr] = useState('0.01');
   const amount = parseFloat(amountStr) || 0;
 

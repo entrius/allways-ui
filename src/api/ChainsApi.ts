@@ -8,6 +8,7 @@ import {
   type ChainInfo,
 } from './models/chains';
 import type { Direction } from './models';
+import { useCurrentCrown } from './MinersDashboardApi';
 
 const CHAINS_REFRESH_MS = 3_600_000;
 
@@ -38,8 +39,25 @@ export const useChains = () =>
     retry: false,
   });
 
-// Reactive direction list — re-derives when das serves a changed chain set.
+// Every valid direction (~2k with the alpha↔spoke pairs) — re-derives when
+// das serves a changed chain set. For validation and ordering; menus and
+// lists show useLiveDirections.
 export const useDirections = (): Direction[] => {
   const { data } = useChains();
   return useMemo(() => allDirections(data), [data]);
+};
+
+// The directions with a live quote (a crown holder on any lane), in registry
+// order — what every menu and list shows. `pinned` (the selected or
+// deep-linked direction) stays listed without a quote, so its chip never
+// blanks. Empty until /crown lands.
+export const useLiveDirections = (pinned?: Direction | null): Direction[] => {
+  const all = useDirections();
+  const { data: crown } = useCurrentCrown();
+  return useMemo(() => {
+    const live = all.filter((d) =>
+      crown?.[d]?.some((lane) => lane.rate != null),
+    );
+    return pinned && !live.includes(pinned) ? [pinned, ...live] : live;
+  }, [all, crown, pinned]);
 };

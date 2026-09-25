@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  useDirections,
+  useLiveDirections,
   directionLabel,
   isDirection,
   type Direction,
@@ -25,7 +25,8 @@ const DirectionSelect: React.FC<{
   /** Kept for callers; the chip sizes to its label. */
   width?: number;
 }> = ({ value, onChange, allowAll = false }) => {
-  const directions = useDirections();
+  // Live routes plus the current pick, so a deep link never blanks the chip.
+  const directions = useLiveDirections(value);
   const options = [
     ...(allowAll ? [{ value: ALL_PAIRS, label: 'All pairs' }] : []),
     ...directions.map((d) => ({

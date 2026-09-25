@@ -5,7 +5,7 @@ import {
   useCompleteSwapHistory,
   useCrownRateHistoryAll,
   useCurrentCrown,
-  useDirections,
+  useLiveDirections,
   useUsdPrices,
 } from '../../api';
 import {
@@ -384,14 +384,9 @@ const PairsRail: React.FC<{
 }> = ({ direction, onDirectionChange, range }) => {
   const secs = RANGE_SECS[range];
   const { from, to } = decomposeDirection(direction);
-  // Every registry pair with a hub leg, straight from das /chains. A deep
-  // link must never lose its market, so the selected route stays pinned even
-  // if the registry hasn't (yet) served its pair.
-  const all = useDirections();
-  const directions = useMemo<Direction[]>(
-    () => (all.includes(direction) ? all : [direction, ...all]),
-    [all, direction],
-  );
+  // Every route with a live quote. A deep link must never lose its market,
+  // so the selected route stays pinned even without one.
+  const directions = useLiveDirections(direction);
   const reverseDir = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 
   // ── Hub scope ──
