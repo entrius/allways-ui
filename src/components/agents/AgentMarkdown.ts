@@ -39,7 +39,7 @@ export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for native
 swaps between independent assets, settled on a **Solana program**.
 
-**Hub-and-spoke.** ${hubList} are hubs. A pair is valid iff one leg is a hub, or exactly one leg is a subnet alpha (\`sn<N>\`, an **alpha pair**); spoke↔spoke and alpha↔alpha are not swappable. \`sn19→bnb\` and \`tao→sn19\` are valid; \`sn19→sn3\` is not.
+**Hub-and-spoke.** ${hubList} are hubs. A pair is valid iff one leg is a hub, or exactly one leg is a subnet alpha (\`sn<N>\`, an **alpha pair**); spoke↔spoke and alpha↔alpha are not swappable, and TAO↔alpha is a native subtensor stake/unstake, not routed here. \`sn19→bnb\` and \`sol→sn19\` are valid; \`sn19→sn3\` and \`tao→sn19\` are not.
 
 **Backing.** Miners post collateral in the pair's hub asset (${hubOr}) and quote
 rates; alpha pairs are always TAO-backed. Validators verify both legs. On miner failure the protocol slashes that
@@ -194,7 +194,7 @@ With \`--send\` the CLI broadcasts, relays, and watches to a terminal state in o
 | Flag | Purpose |
 |---|---|
 | \`--from <chain>\` | Source asset, by wire id (see **Assets**) |
-| \`--to <chain>\` | Destination asset; one leg must be a hub, or exactly one leg a subnet alpha |
+| \`--to <chain>\` | Destination asset; one leg must be a hub, or exactly one leg a subnet alpha; never TAO↔alpha |
 | \`--amount <n>\` | Source amount, in source-chain units |
 | \`--receive-address <addr>\` | Where the miner pays you, on the \`--to\` chain |
 | \`--from-address <addr>\` | Where you broadcast from; required for a non-SOL source, and pinned as the only accepted sender |

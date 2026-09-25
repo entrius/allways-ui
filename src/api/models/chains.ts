@@ -51,19 +51,29 @@ export const hubChains = (chains: ChainInfo[] = registry): string[] =>
 // tx links, reservation fees). Pair-scoped logic wants hubLeg, not this.
 export const hubChain = (): string => hubChains()[0];
 
-// A subnet alpha (sn7, sn74) — pairs with a hub or a spoke, always TAO-backed.
+// A subnet alpha (sn7, sn74) — pairs with SOL or a spoke, always TAO-backed.
 export const isAlpha = (id: string): boolean => /^sn[0-9]+$/.test(id);
+
+// The chain a leg settles in: an alpha settles in TAO. Mirror of allways.constants.family.
+const backingFamily = (id: string): string => (isAlpha(id) ? 'tao' : id);
+
+// TAO↔alpha or alpha↔alpha: a native subtensor stake/unstake, never routed
+// here. Mirror of allways.constants.is_native_swap.
+export const isNativeSwap = (a: string, b: string): boolean =>
+  (isAlpha(a) || isAlpha(b)) && backingFamily(a) === backingFamily(b);
 
 // The pair's anchor — its canonical rate source and pricing leg: the first
 // hub (priority order) on either leg, else the alpha leg of an alpha↔spoke
-// pair; null for spoke↔spoke or alpha↔alpha (invalid). Mirror of allways.constants.hub_leg.
+// pair; null for spoke↔spoke or a native pair (invalid). Mirror of allways.constants.hub_leg.
 export const hubLeg = (
   a: string,
   b: string,
   chains: ChainInfo[] = registry,
 ): string | null =>
-  hubChains(chains).find((h) => h === a || h === b) ??
-  (isAlpha(a) !== isAlpha(b) ? (isAlpha(a) ? a : b) : null);
+  isNativeSwap(a, b)
+    ? null
+    : (hubChains(chains).find((h) => h === a || h === b) ??
+      (isAlpha(a) !== isAlpha(b) ? (isAlpha(a) ? a : b) : null));
 
 // The emission family a pair scores in: 'alpha' when either leg is an alpha,
 // else its hub leg. Each family gets an equal share of the miner pool.
@@ -78,7 +88,8 @@ export const spokeChains = (): string[] =>
 
 // Canonical render order, anchor (canonical-source) leg first: each hub
 // against every other chain (a pair lands once, under its highest-priority
-// hub), then each alpha against every spoke. Every valid pair, live or not.
+// hub; native pairs skipped), then each alpha against every spoke. Every valid
+// pair, live or not.
 // Mirror of allways.chains.canonical_pair / das deriveDirections.
 export const allDirections = (chains: ChainInfo[] = registry): string[] => {
   const ids = chains.map((c) => c.id);
@@ -88,7 +99,12 @@ export const allDirections = (chains: ChainInfo[] = registry): string[] => {
   const pairs = [
     ...hubs.flatMap((hub, i) =>
       ids
-        .filter((other) => other !== hub && !hubs.slice(0, i).includes(other))
+        .filter(
+          (other) =>
+            other !== hub &&
+            !hubs.slice(0, i).includes(other) &&
+            !isNativeSwap(hub, other),
+        )
         .map((other) => [hub, other]),
     ),
     ...alphas.flatMap((alpha) => spokes.map((spoke) => [alpha, spoke])),

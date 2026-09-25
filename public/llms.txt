@@ -9,7 +9,7 @@
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for native
 swaps between independent assets, settled on a **Solana program**.
 
-**Hub-and-spoke.** SOL and TAO are hubs. A pair is valid iff one leg is a hub, or exactly one leg is a subnet alpha (`sn<N>`, an **alpha pair**); spoke↔spoke and alpha↔alpha are not swappable. `sn19→bnb` and `tao→sn19` are valid; `sn19→sn3` is not.
+**Hub-and-spoke.** SOL and TAO are hubs. A pair is valid iff one leg is a hub, or exactly one leg is a subnet alpha (`sn<N>`, an **alpha pair**); spoke↔spoke and alpha↔alpha are not swappable, and TAO↔alpha is a native subtensor stake/unstake, not routed here. `sn19→bnb` and `sol→sn19` are valid; `sn19→sn3` and `tao→sn19` are not.
 
 **Backing.** Miners post collateral in the pair's hub asset (SOL or TAO) and quote
 rates; alpha pairs are always TAO-backed. Validators verify both legs. On miner failure the protocol slashes that
@@ -69,20 +69,20 @@ Testnet leads mainnet — confirm a feature with `alw view config` and
 
 ## Concepts you actually need
 
-- **Rates.** A pair's hub leg is its numéraire: the forward (hub→spoke) rate reads "destination per 1 hub", and the reverse leg inverts it. Collateral and swap bounds are denominated in the backing; the reservation fee is always SOL, because every bid settles on Solana.
+- **Rates.** A pair's hub leg (on an alpha↔spoke pair, its alpha leg) is its numéraire: the forward rate reads "destination per 1 of that leg", and the reverse leg inverts it. Collateral and swap bounds are denominated in the backing; the reservation fee is always SOL, because every bid settles on Solana.
 - **Reservation lifecycle (three steps).** A miner is secured *before* amounts are named:
   1. **Bid** (`open_or_request`) — you, or a validator for you, bid into a per-miner pool and pay a small non-refundable SOL **reservation fee**. The first bid pins the miner's rate for the pool window. A bid carries no taker and no amounts.
   2. **Draw** (`resolve_pool`) — after the window closes, a permissionless stake-weighted lottery picks the winner. An unrouted bid has weight 0.
   3. **Finalize** (`finalize_reservation`) — the winner names the taker and amounts, bounded by the backing's min/max swap and by the miner's collateral. The reservation is now live.
 - **Native vs routed.** A native bid carries zero draw weight and loses to any validator bidding the same pool. A routed bid asks a validator to enter with its stake weight — it fronts the entry fee, pays a stake-discounted rate, and finalizes with you pinned. **Testnet sets a router by default; mainnet has none yet, so mainnet bids are native.** `--router <hotkey>` routes one swap, `--no-router` forces native. Routed takers sharing a window are seated FIFO — losers re-run.
 - **Statuses.** `PendingAttestation → Active → Fulfilled → Completed` is the happy path. Two terminals end it early:
-  - `TimedOut` — the miner failed to deliver. The protocol pays you **1.1× the swap's hub-leg value**, in the backing asset, automatically.
+  - `TimedOut` — the miner failed to deliver. The protocol pays you **1.1× the swap's hub-leg value** (on an alpha pair, the alpha leg's TAO value at the fill block), in the backing asset, automatically.
   - `Cancelled` — validators proved your **destination cannot receive** (blacklisted or paused token, a contract that reverts a correctly-gassed transfer, a reserved Solana account). No slash, no fee, no strike — and **no refund: your source funds stay with the miner.** Validate your receive address before you send.
 - **Fee — 1%, paid via the rate.** Send `1.0` worth, receive `0.99` worth. The miner keeps none of it; the protocol skims it from the miner's collateral at settlement. Preview the real number with `alw swap quote` — the "You receive" line, not the headline rate, is your outcome.
 - **Relay immediately, don't wait.** Broadcast the source tx, then run `alw swap post-tx <hash>` at once. Validators accept a seen-but-unconfirmed deposit and wait out confirmations server-side, extending your reservation meanwhile. Sleeping before `post-tx` is how reservations lapse.
 - **Sender verification.** Validators reject any source tx whose on-chain sender does not match the address pinned in your reservation. Broadcast only from that address, never from a custodial account.
 - **BTC fees gate the source leg.** A BTC source tx must confirm inside the extension budget. Too low a fee and it mines after the deadline, into the miner's address, with no live reservation to credit — the funds are gone. Let the CLI auto-estimate `--btc-fee-rate` unless you checked current tiers (https://mempool.space).
-- **Live parameters — read, never hardcode.** Min/max swap bounds are **per backing** and are measured against the swap's hub leg, not the source amount. They, the reservation fee, min/max collateral, reservation TTL, finalize window, fulfillment timeout, extension budget, and consensus threshold are all on-chain. Read them with `alw view config`.
+- **Live parameters — read, never hardcode.** Min/max swap bounds are **per backing** and are measured against the swap's hub leg (on an alpha pair, the alpha leg's TAO value), not the source amount. They, the reservation fee, min/max collateral, reservation TTL, finalize window, fulfillment timeout, extension budget, and consensus threshold are all on-chain. Read them with `alw view config`.
 
 > **Bittensor primer.** The CLI handles all chain interaction. Background only: https://docs.bittensor.com.
 
@@ -182,7 +182,7 @@ With `--send` the CLI broadcasts, relays, and watches to a terminal state in one
 | Flag | Purpose |
 |---|---|
 | `--from <chain>` | Source asset, by wire id (see **Assets**) |
-| `--to <chain>` | Destination asset; one leg must be a hub, or exactly one leg a subnet alpha |
+| `--to <chain>` | Destination asset; one leg must be a hub, or exactly one leg a subnet alpha; never TAO↔alpha |
 | `--amount <n>` | Source amount, in source-chain units |
 | `--receive-address <addr>` | Where the miner pays you, on the `--to` chain |
 | `--from-address <addr>` | Where you broadcast from; required for a non-SOL source, and pinned as the only accepted sender |
