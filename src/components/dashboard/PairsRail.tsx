@@ -5,7 +5,7 @@ import {
   useCompleteSwapHistory,
   useCrownRateHistoryAll,
   useCurrentCrown,
-  useDirections,
+  useLiveDirections,
   useUsdPrices,
 } from '../../api';
 import {
@@ -21,7 +21,7 @@ import {
   formatRate,
   usdFromHuman,
 } from '../../utils/format';
-import { hubChains, hubLeg } from '../../api/models/chains';
+import { hubChains, hubLeg, isAlpha } from '../../api/models/chains';
 import { hubLegVolume } from './marketRate';
 import { FONTS } from '../../theme';
 import { ChainLogo } from '../ChainLogo';
@@ -53,6 +53,8 @@ const anchorHub = (direction: Direction): string | null => {
 
 // Scope chip that isn't a hub: every route at once, still grouped by anchor.
 const ALL = 'all';
+// The one section under "All" for routes an alpha anchors (sn19↔bnb).
+const ALPHA = 'alpha';
 
 // Compact volume readout: "55.4", "1.2k".
 const fmtVol = (v: number) =>
@@ -384,14 +386,9 @@ const PairsRail: React.FC<{
 }> = ({ direction, onDirectionChange, range }) => {
   const secs = RANGE_SECS[range];
   const { from, to } = decomposeDirection(direction);
-  // Every registry pair with a hub leg, straight from das /chains. A deep
-  // link must never lose its market, so the selected route stays pinned even
-  // if the registry hasn't (yet) served its pair.
-  const all = useDirections();
-  const directions = useMemo<Direction[]>(
-    () => (all.includes(direction) ? all : [direction, ...all]),
-    [all, direction],
-  );
+  // Every route with a live quote. A deep link must never lose its market,
+  // so the selected route stays pinned even without one.
+  const directions = useLiveDirections([direction]);
   const reverseDir = `${to.toUpperCase()}-${from.toUpperCase()}` as Direction;
 
   // ── Hub scope ──
@@ -441,17 +438,20 @@ const PairsRail: React.FC<{
     if (directions.includes(carried)) onDirectionChange(carried);
   };
 
-  // The list, as hub-anchored sections. "All" renders every hub's section in
-  // registry priority order (each route filed once, under its anchor); a hub
-  // scope renders that hub's whole network — including the routes it merely
-  // touches, like sol↔tao, which file under the other hub.
+  // "All": a section per hub in priority order, then one alpha section; a hub scope: every route touching it.
   const sections = useMemo(
     () =>
       scope === ALL
-        ? hubs.map((h) => ({
-            hub: h,
-            rows: directions.filter((d) => anchorHub(d) === h),
-          }))
+        ? [
+            ...hubs.map((h) => ({
+              hub: h,
+              rows: directions.filter((d) => anchorHub(d) === h),
+            })),
+            {
+              hub: ALPHA,
+              rows: directions.filter((d) => isAlpha(anchorHub(d) ?? '')),
+            },
+          ].filter((s) => s.hub !== ALPHA || s.rows.length > 0)
         : [
             {
               hub: scope,
@@ -726,9 +726,10 @@ const PairsRail: React.FC<{
                   borderColor: 'divider',
                 }}
               >
-                <ChainLogo chain={hub} size={12} />
+                {hub !== ALPHA && <ChainLogo chain={hub} size={12} />}
                 <Typography sx={railLabelSx}>
-                  {chainSymbol(hub)} hub · {rows.length}
+                  {hub === ALPHA ? 'alpha pairs' : `${chainSymbol(hub)} hub`} ·{' '}
+                  {rows.length}
                 </Typography>
               </Box>
             )}

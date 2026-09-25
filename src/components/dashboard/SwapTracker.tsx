@@ -521,6 +521,7 @@ const SwapTracker: React.FC<{
   // dropdowns (markets-composer style): each side only offers chains that
   // form a real route with the other side's pick. Straight from the chain
   // registry, so the options don't depend on what happens to be on screen.
+  // Live or not: history filters reach dead routes, and options are chains.
   const directions = useDirections();
   const routes = React.useMemo(
     () =>

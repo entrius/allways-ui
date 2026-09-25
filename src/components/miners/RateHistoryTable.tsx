@@ -68,6 +68,16 @@ const RateHistoryTable: React.FC<{
   onDirectionChange: (d: Direction | null) => void;
 }> = ({ hotkey, direction, onDirectionChange }) => {
   const { data } = useMinerRateHistory(hotkey);
+  // Every pair this miner quoted in the window: pickable even without a live crown.
+  const held = useMemo(
+    () =>
+      [
+        ...new Set(
+          (data ?? []).map((r) => `${r.fromChain}-${r.toChain}`.toUpperCase()),
+        ),
+      ].filter(isDirection),
+    [data],
+  );
 
   const { rows, truncated } = useMemo(() => {
     let filtered = data ?? [];
@@ -105,6 +115,7 @@ const RateHistoryTable: React.FC<{
           value={direction}
           onChange={onDirectionChange}
           allowAll
+          extra={held}
           width={150}
         />
       </Stack>

@@ -8,6 +8,7 @@ import {
   type ChainInfo,
 } from './models/chains';
 import type { Direction } from './models';
+import { useCurrentCrown } from './MinersDashboardApi';
 
 const CHAINS_REFRESH_MS = 3_600_000;
 
@@ -38,8 +39,27 @@ export const useChains = () =>
     retry: false,
   });
 
-// Reactive direction list — re-derives when das serves a changed chain set.
+// Every valid direction, live or not — for validation and ordering.
 export const useDirections = (): Direction[] => {
   const { data } = useChains();
   return useMemo(() => allDirections(data), [data]);
+};
+
+// Menus and lists: live-quoted plus `pinned` directions, in registry order.
+export const useLiveDirections = (
+  pinned: (Direction | null)[] = [],
+): Direction[] => {
+  const all = useDirections();
+  const { data: crown } = useCurrentCrown();
+  // Keyed by content: callers pass fresh array literals.
+  const pinnedKey = [...new Set(pinned)].filter(Boolean).join(' ');
+  return useMemo(() => {
+    const pins = new Set(pinnedKey ? pinnedKey.split(' ') : []);
+    const listed = all.filter(
+      (d) => pins.has(d) || crown?.[d]?.some((lane) => lane.rate != null),
+    );
+    // A pin the registry does not know yet still renders, first.
+    const unknown = [...pins].filter((d) => !all.includes(d));
+    return unknown.length ? [...unknown, ...listed] : listed;
+  }, [all, crown, pinnedKey]);
 };

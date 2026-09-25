@@ -10,7 +10,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { useDirections } from '../../api';
+import { useLiveDirections } from '../../api';
 import {
   decomposeDirection,
   lanesFor,
@@ -196,7 +196,8 @@ export const SymbolSearchPanel: React.FC<{
   useLayoutEffect(() => {
     setCaretX(measureRef.current?.offsetWidth ?? 0);
   }, [query, caret]);
-  const all = useDirections();
+  // Live routes plus the open one, so it stays findable without a quote.
+  const all = useLiveDirections([direction]);
   const hubs = hubChains();
 
   const results = useMemo(() => {

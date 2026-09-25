@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
-import { useCrownTimeAll, useDirections } from '../../api';
+import { useCrownTimeAll, useLiveDirections } from '../../api';
 import { directionLabel } from '../../api/models/MinersDashboard';
 import type { CrownTimeRow, Direction } from '../../api/models';
 import { shortHotkey } from '../../utils/format';
@@ -182,7 +182,8 @@ const CrownTimeLeaderboard: React.FC<{
    * give one panel thousands of pixels of the page's scroll. */
   maxBodyHeight?: number;
 }> = ({ maxBodyHeight }) => {
-  const directions = useDirections();
+  // Live routes only: the quiet line names them, not the whole registry.
+  const directions = useLiveDirections();
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
 

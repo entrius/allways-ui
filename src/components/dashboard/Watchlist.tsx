@@ -4,7 +4,7 @@ import {
   useChains,
   useCompleteSwapHistory,
   useCrownRateHistoryAll,
-  useDirections,
+  useLiveDirections,
   useUsdPrices,
 } from '../../api';
 import {
@@ -14,7 +14,7 @@ import {
 } from '../../api/models/MinersDashboard';
 import { takeableSpread, useBestTakeable } from './takeable';
 import { COLUMN_LABELS } from './WatchlistSettingsRows';
-import { chainInfo, hubChains, hubLeg } from '../../api/models/chains';
+import { chainInfo, hubChains, hubLeg, isAlpha } from '../../api/models/chains';
 import {
   canonicalSource,
   chainName,
@@ -613,14 +613,8 @@ const Watchlist: React.FC<{
 }) => {
   const cols = useMemo(() => COLUMNS.filter((c) => columns[c]), [columns]);
   const secs = RANGE_SECS[range];
-  // Every registry pair with a hub leg. A deep link must never lose its
-  // market, so the selected route stays listed even if the registry has
-  // not (yet) served its pair.
-  const all = useDirections();
-  const directions = useMemo<Direction[]>(
-    () => (all.includes(direction) ? all : [direction, ...all]),
-    [all, direction],
-  );
+  // Live routes plus the selected and starred ones, so none of them vanishes.
+  const directions = useLiveDirections([direction, ...favorites]);
   const { data: chains } = useChains();
   const hubs = useMemo(() => hubChains(chains), [chains]);
   const stats = useRowStats(directions, secs);
@@ -659,24 +653,32 @@ const Watchlist: React.FC<{
   // keeps the routes a hub sends on and 'to' the routes that arrive at it,
   // so each pair appears once.
   const rows = useMemo(() => {
-    const oneWay = (list: Direction[], hub: string) =>
+    const oneWay = (
+      list: Direction[],
+      hubOf: (d: Direction) => string | null,
+    ) =>
       which === 'both'
         ? list
         : list.filter(
             (d) =>
-              decomposeDirection(d)[which === 'from' ? 'from' : 'to'] === hub,
+              decomposeDirection(d)[which === 'from' ? 'from' : 'to'] ===
+              hubOf(d),
           );
     const listed =
       scope === ALL
-        ? hubs.flatMap((h) =>
-            oneWay(
-              directions.filter((d) => anchorHub(d) === h),
-              h,
-            ),
+        ? oneWay(
+            [
+              ...hubs.flatMap((h) =>
+                directions.filter((d) => anchorHub(d) === h),
+              ),
+              // Alpha-anchored routes (sn19↔bnb) file last, under their alpha.
+              ...directions.filter((d) => isAlpha(anchorHub(d) ?? '')),
+            ],
+            anchorHub,
           )
         : oneWay(
             directions.filter((d) => touchesHub(d, scope)),
-            scope,
+            () => scope,
           );
     // Favorites only: the starred routes and nothing else.
     return favoritesOnly ? listed.filter((d) => favorites.includes(d)) : listed;

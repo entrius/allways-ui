@@ -45,6 +45,7 @@ import type { Layouts } from 'react-grid-layout';
 import {
   isDirection,
   useCompleteSwapHistory,
+  useDirections,
   useUsdPrices,
   type ActiveSwap,
 } from '../api';
@@ -169,9 +170,13 @@ const MarketPage: React.FC = () => {
   // Where the page opens with nothing on the URL: the recent busiest cell.
   const { data: swaps } = useCompleteSwapHistory();
   const prices = useUsdPrices();
+  // Subscribed to the registry so a deep link re-resolves once /chains lands.
+  const directions = useDirections();
   const defaultDirection = useMemo(
     () => busiestDirection(swaps, prices) ?? FALLBACK_DIRECTION,
-    [swaps, prices],
+    // directions: isDirection reads the registry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [swaps, prices, directions],
   );
 
   // Selected DIRECTION, on the URL. Legacy links resolve too: ?direction=

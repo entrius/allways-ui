@@ -3,7 +3,7 @@ import { Box, Stack, Typography, useTheme } from '@mui/material';
 import {
   useCrownRateHistoryAll,
   useCurrentCrown,
-  useDirections,
+  useLiveDirections,
 } from '../../api';
 import {
   crownLaneFor,
@@ -120,8 +120,8 @@ const DirSegment: React.FC<{ direction: Direction }> = ({ direction }) => {
 // with negative margins mirroring one page's padding, which quietly made the
 // component only usable on that page.
 const RatesTicker: React.FC = () => {
-  // Every registry pair with a hub leg, straight from das /chains.
-  const directions = useDirections();
+  // Every route with a live quote.
+  const directions = useLiveDirections();
 
   // Hub-quoted routes only: SOL and TAO appear as the DENOMINATOR, never as
   // the leading side. Both directions of every pair put a hub logo first on
