@@ -414,15 +414,20 @@ const ScoringPanel: React.FC<{
     fromTs,
   });
   const { data: tip } = useCurrentMinerScores(hotkey);
+  // The last "All pairs" history, so picking one pair keeps the others pickable.
+  const allHistory = useRef<MinerScoreRow[]>([]);
+  if (direction == null && history) allHistory.current = history;
   // Every pair with a score row in the span: pickable even without a live crown.
   const held = useMemo(
     () => [
       ...new Set(
-        [...(history ?? []), ...(tip ?? [])]
+        [...allHistory.current, ...(tip ?? [])]
           .map(rowDirection)
           .filter((d): d is Direction => d != null),
       ),
     ],
+    // history: the ref follows it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [history, tip],
   );
 
