@@ -1,24 +1,380 @@
-# Allways — Agent Quickstart
+# Allways — Agent Runbook
 
-> Read this once, store under key `allways-agent-quickstart`. Don't
-> re-ingest. Query live state via the CLI or HTTP API for everything
-> dynamic — chains, rates, miners, swap status — since they change every block.
+> Store this once under key `allways-agent-runbook` and do not re-ingest it. It is a
+> **runbook, not a spec**: every step names the command to run and the output that proves
+> it worked. Anything numeric (fees, bounds, windows, rates, miners) changes on-chain
+> without notice — read it live with the commands given, never from memory or from this file.
 
-## TL;DR
+## 0. What you are dealing with
 
-Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for native
-swaps between independent assets, settled on a **Solana program**.
+Allways is Bittensor **Subnet 7**: a permissionless orderbook for native swaps between
+independent assets, settled by a Solana program. Nothing is wrapped or bridged: you send the
+real source asset to a miner's address, the miner sends the real destination asset to yours,
+validators verify both legs on their native chains, and collateral the miner posted makes you
+whole if it fails.
 
-**Hub-and-spoke.** SOL and TAO are hubs. A pair is valid iff one leg is a hub, so 18 assets give 33 pairs and 66 directions; spoke↔spoke is not swappable.
+- **Hub-and-spoke.** SOL and TAO are hubs. A pair is valid only if one leg is a hub:
+  18 assets → 33 pairs → 66 directions. Spoke↔spoke (e.g. BTC→ETH)
+  does not exist; it is two swaps through a hub.
+- **One program, two networks.** Mainnet = netuid 7 + Solana mainnet-beta + every asset's
+  mainnet. Testnet = netuid 19 + Solana devnet + every asset's testnet. Same program id
+  `6JVBEj5w27J2SVjERmv2c7wXgFee9nSSBKUJevHehyBD` on both. Testnet is free; rehearse there.
+- **You need a shell.** The taker path is the `alw` CLI (Python ≥ 3.10). The HTTP API is
+  read-only — you cannot swap over HTTP.
 
-**Backing.** Miners post collateral in the pair's hub asset (SOL or TAO) and quote
-rates. Validators verify both legs. On miner failure the protocol slashes that
-collateral and pays you in the same asset. No custodian, no wrapped asset, no
-bridge token.
+### The cost of one swap (know this before you plan an arbitrage)
 
-## Assets
+| Cost | Paid by you | Amount (mainnet, 2026-08 — verify with `alw view config`) |
+|---|---|---|
+| Reservation fee | every bid, **win or lose, non-refundable**, in SOL from your Solana keypair | `reservation_fee_sol` — 0.02 SOL |
+| Protocol fee | inside the quote — you receive 99% of `amount × rate` | 1% |
+| Source-chain gas | your source wallet | native (SOL ≈ nothing; BTC/ETH real) |
+| Solana tx fees | your Solana keypair, for bid + finalize + relay | ~0.0001 SOL |
 
-Wire ids — what `--from` and `--to` take. Live set: `GET /chains`.
+`alw swap quote` already nets the 1%. It does **not** include the 0.02 SOL reservation fee or
+gas. A 0.1 SOL swap pays a 0.02 SOL fee — 20% of notional. **Size up** (toward `max_swap`)
+to amortise the fee, and never bid on an edge smaller than fee + gas + 1%.
+
+## 1. Rules that lose money when broken
+
+1. **Run `alw swap now` with `--send --yes` from a script.** Without a TTY, `--send` is OFF by
+   default: the CLI reserves, prints "send X to Y", and exits — the reservation then burns
+   its TTL while nothing happens. `--send` keeps reserve → send → relay → watch in one process.
+2. **Never send funds to a miner outside a live reservation.** Direct transfers match nothing
+   and are not refundable. Only `alw swap now` (or `alw swap post-tx` after it) ties a deposit
+   to a swap.
+3. **Send from the pinned address, the exact pinned amount.** Validators reject any deposit
+   whose sender ≠ the address pinned at reservation. Never an exchange withdrawal.
+4. **Relay immediately; never sleep for confirmations.** After broadcasting, `alw swap post-tx
+   <hash>` at once. Validators accept an unconfirmed deposit and wait server-side.
+5. **A lost draw is not an error** — it costs the reservation fee and nothing else. Re-run.
+   Do NOT send funds after "You lost the draw".
+6. **`alw view rates` lists offline miners too** (`status: "offline"`). Only `alw swap quote`
+   returns offers you can actually fill. Quote from `swap quote`, not `view rates`.
+7. **Rates are hub-numeraire, not reciprocal.** In `GET /miners`, `rate` and `counterRate`
+   are BOTH "spoke per 1 hub". Round-tripping the same miner is a guaranteed loss (§4).
+8. **One live reservation per (miner, source chain, source address).** Back-to-back swaps
+   through the same miner from the same address are rejected until the previous
+   reservation's window (plus any extension) runs out. Rotate miners or wait.
+9. **`Cancelled` refunds nothing.** It means *your* receive address could not accept the
+   asset (frozen/blacklisted/paused token, reverting contract, reserved Solana account).
+   Validate the receive address before you bid.
+10. **Fund the Solana keypair the CLI actually signs with.** If none exists the CLI generates
+    an empty `~/.solana/id.json` and every bid fails with `Attempt to debit an account but
+    found no record of a prior credit`. `alw status` prints the signer (`caller`) — fund that.
+
+## 2. Install → configure → verify (checkpointed)
+
+Every step has a check. Do not proceed past a failed check.
+
+### 2.1 Install
+
+```bash
+git clone https://github.com/entrius/allways.git && cd allways
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e .
+alw --help                     # CHECK: prints command groups (config, status, view, swap, …)
+```
+
+`bittensor` is hard-pinned, so install into a fresh venv — never system Python. `btcli` and
+the Solana Python deps come with it. Every later command assumes the venv is active
+(`. /path/to/allways/.venv/bin/activate`) — a `No module named 'bittensor'` means it is not.
+
+### 2.2 Solana keypair (always required, even for TAO→BTC)
+
+Every bid, finalize and relay is a Solana transaction signed by this key. It also receives
+SOL you buy and is the pinned sender for SOL you sell.
+
+```bash
+sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"     # solana-keygen + solana
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+solana-keygen new -o ~/.solana/id.json --no-bip39-passphrase       # SAVE the seed phrase
+solana-keygen pubkey ~/.solana/id.json                             # CHECK: prints the address to fund
+```
+
+Fund it: mainnet — real SOL (≥ 0.05 SOL for fees, plus the swap amount if SOL is your
+source). Testnet — `solana airdrop 2 <pubkey> --url https://api.devnet.solana.com`.
+
+### 2.3 Bittensor wallet (required by the CLI; used for TAO legs)
+
+```bash
+btcli wallet new-coldkey --wallet.name agent --n-words 12      # add --no-use-password for a scripted, unencrypted coldkey
+btcli wallet new-hotkey  --wallet.name agent --wallet.hotkey default
+btcli wallet list                       # CHECK: shows wallet "agent" with coldkey ss58 + hotkey
+```
+
+The **coldkey** signs TAO you send and receives TAO you buy. Non-interactive TAO sends need
+its password in `MINER_BITTENSOR_COLDKEY_PASSWORD` (that env name is correct for takers too),
+or a coldkey created with `--no-use-password`.
+
+### 2.4 Configure
+
+```bash
+alw config set env mainnet             # or: testnet   (sets netuid, Solana cluster, EVERY chain's network, router)
+alw config set wallet agent
+alw config set hotkey default
+alw config set solana-keypair ~/.solana/id.json     # CHECK: echoes "→ signs as <pubkey>"
+alw config                             # CHECK: env-derived keys show source "config", netuid 7 (or 19)
+```
+
+Optional but recommended on mainnet: a keyed Solana RPC — `alw config set solana-rpc <url>` or
+`SOLANA_RPC_URL=<url>`. Public RPC rate-limits under a polling bot.
+
+`env mainnet` sets `router` to empty: mainnet bids are **self-represented** (you bid, crank
+the draw and finalize yourself). `env testnet` sets the Ventura Labs router, so testnet bids
+are **routed** (a validator enters the pool with its stake weight and finalizes for you).
+Behaviour of `alw swap now` is identical from your side either way.
+
+### 2.5 Source-asset credentials (only for the asset you SELL, only for `--send`)
+
+| Source | What `--send` needs | Notes |
+|---|---|---|
+| SOL / any Solana-hosted token | the keypair from 2.2 | the pinned sender IS this keypair; `--from-address` is ignored |
+| TAO | coldkey from 2.3 + `MINER_BITTENSOR_COLDKEY_PASSWORD` | `--from-address` must equal the coldkey ss58 |
+| BTC | `BTC_PRIVATE_KEY` (WIF) | over public Esplora, no node; `--from-address` = the WIF's address |
+| any EVM asset | `{NETWORK}_PRIVATE_KEY` keyed by network, not asset | `ETH_PRIVATE_KEY` covers `eth`, `ethusdc`, `uni`, `qnt`, `paxg`; `alw config set --help` lists networks |
+
+Read from the shell env, a `.env` walked up from CWD, or `~/.allways/.env`. Without them
+`--send` prints "Auto-send unavailable … use the manual flow" and falls back to printing the
+address + amount — the reservation is live and its TTL is burning, so have them set **before**
+the first bid.
+
+### 2.6 Verify (read-only; spends nothing)
+
+```bash
+alw status --json          # CHECK: program_initialized true, halted false, balance_sol > 0.05
+alw view config --json     # CHECK: read min/max swap, reservation_fee_sol, reservation_ttl_secs, pool_window_secs
+alw view validators --json # CHECK: ≥ 1 validator
+alw swap quote --from sol --to tao --amount 0.5 --json   # CHECK: exit 0 and offers[] non-empty
+```
+
+`alw status --json` echoes your `solana_rpc` URL including any API key — don't log it.
+`alw view config` today (mainnet): SOL-backed swaps 0.1–5 SOL on the hub leg, TAO-backed
+0.1–2 τ, reservation TTL 600 s, pool window 10 s, fulfillment timeout 600 s. **Re-read it
+each session.**
+
+## 3. Reading the market
+
+### 3.1 Rate semantics
+
+- The pair's **hub is its numeraire**. A quote is always "spoke per 1 hub", posted per
+  direction. The forward leg (hub→spoke) multiplies; the reverse leg (spoke→hub) **divides**.
+- `alw swap quote --from A --to B --amount N --json` does that math for you and returns
+  `offers[].receive` = what lands in your wallet after the 1% fee, per viable, **active**
+  miner, best first. Exit 1 with `offers: []` means no miner can fill that size right now.
+- Bounds are per **backing** and measured on the **hub leg**, not on your source amount: a
+  SOL-backed offer must have 0.1 ≤ hub-leg ≤ 5 SOL; a TAO-backed offer 0.1 ≤ hub-leg ≤ 2 τ.
+  Collateral caps a single fill at `collateral / 1.1` (hub-leg value).
+- `GET /miners` (HTTP) gives every quote as `{sourceChain, destChain, rate, counterRate,
+  backing, isActive, collateral, …}`. `rate` = the sourceChain→destChain quote (spoke per hub);
+  `counterRate` = the **reverse** direction's quote, *also* spoke per hub. Your receive rate
+  on the reverse leg is `1 / counterRate` hub per spoke. Filter `isActive == true`.
+
+### 3.2 Market comparison (the only arbitrage that exists)
+
+`GET https://api.all-ways.io/prices` → `{"prices": {"sol": 104.1, "tao": 253.0, …}}` (USD,
+CoinGecko-derived, `null` where no venue; fine for screening, use your own feed to execute).
+
+For a direction `from → to`, amount `a`, best offer receive `r`:
+
+```
+value_in   = a × usd[from]
+value_out  = r × usd[to]                     # r already nets the 1% protocol fee
+fee_usd    = reservation_fee_sol × usd["sol"] + source_gas_usd
+edge_usd   = value_out − value_in − fee_usd
+edge_pct   = value_out / value_in − 1        # vs market, before the fixed fee
+```
+
+Bid only when `edge_usd > 0` by your margin **and** you can sell the received asset at
+`usd[to]` somewhere else (CEX/DEX). The edge comes from a miner quoting better than market on
+one leg. Two more truths:
+
+- **Round-tripping a single miner always loses.** With `rate` and `counterRate` in the same
+  unit, sol→spoke→sol through one miner returns `0.99² × rate / counterRate`, and a miner's
+  `counterRate` sits above its `rate` — that gap is its spread. Observed on mainnet: −4% per round trip.
+- **A cross-miner loop** only pays if `0.99² × rate_A / counterRate_B > 1` **plus** two
+  reservation fees and two gas legs — check all four numbers before bidding twice.
+
+A quote far from market (|edge_pct| > 35%) is a stale or defensive miner, not free money:
+it will still fill, but re-check with `alw swap quote` right before the bid because the
+first bid into a pool pins the rate for that round.
+
+## 4. Executing one swap
+
+### 4.1 The command (agents use exactly this shape)
+
+```bash
+alw swap now --from sol --to tao --amount 0.5 \
+  --receive-address <your-TAO-ss58> \
+  --send --yes
+```
+
+For a non-SOL source add `--from-address <the address --send will sign from>`:
+
+```bash
+MINER_BITTENSOR_COLDKEY_PASSWORD=… alw swap now --from tao --to sol --amount 0.5 \
+  --from-address <your-coldkey-ss58> --receive-address <your-solana-pubkey> --send --yes
+```
+
+| Flag | Meaning |
+|---|---|
+| `--from` / `--to` | wire ids from the Assets table; one must be a hub |
+| `--amount` | **source**-asset units (whole units, not lamports/rao) |
+| `--receive-address` | your address on the `--to` chain |
+| `--from-address` | your address on the `--from` chain; required for a non-Solana source; becomes the pinned sender |
+| `--send` | broadcast the source funds from the configured wallet, relay, and watch to a terminal state |
+| `--yes` | no prompts (mandatory without a TTY — a missing flag exits non-zero) |
+| `--miner <pubkey>` | pin a miner from `swap quote` instead of best-offer auto-select |
+| `--router <hotkey>` / `--no-router` | override the configured router for this swap |
+| `--btc-fee-rate <sat/vB>` | BTC source only; default auto-estimates |
+| `--from-tx-hash <hash>` | you already broadcast; skip the send and relay this hash |
+
+### 4.2 What stdout looks like, phase by phase
+
+```
+Swap 0.5 SOL -> ~0.19531 TAO  (miner GHhbaeHp…, rate 0.39454 TAO/SOL)
+SOL-backed — if the miner fails to deliver, instant SOL refund …
+  Bid placed (tx 3kq…). Cranking the draw…            ← 0.02 SOL spent; pool window (10 s mainnet) + crank
+  Seat filled — receiving ~0.19531 TAO, SOL-backed.    ← reservation is LIVE; TTL (600 s) starts
+  Source: your configured Solana keypair  <pubkey>
+  Sent 0.5 SOL — <source-tx-hash>                       ← funds are out
+  Relaying deposit to N validator(s)...  V1: ok         ← a validator verified the deposit
+  Watching your swap — Ctrl-C is safe to walk away.
+  Resume anytime with `alw view swap <64-hex-swap-key> --watch`.
+    PendingAttestation   validators verifying your deposit
+    Active               deposit confirmed — miner is sending your funds
+    Fulfilled            miner delivered — validators confirming both legs
+  ✓ COMPLETED — settled on-chain, your TAO was delivered.
+```
+
+Capture the 64-hex **swap key** from the `Resume anytime` line (it is
+`keccak256(source-tx-hash)`); it is the handle for everything after. Mainnet sol↔tao runs
+~2–3 min bid→COMPLETED; BTC legs add ~20 min, ETH legs ~7 min (confirmation waits).
+
+Lines that end the run — and what to do:
+
+| Line | Meaning | Action |
+|---|---|---|
+| `No miners quoting X->Y right now.` / `No miner can take this swap: …` | nothing fillable at this size | re-quote; change size or direction |
+| `Reservation rejected: … No funds moved; re-run shortly.` | contract refused the bid (miner busy / already reserved) | wait ~15 s, re-run; or `--miner` another |
+| `You lost the draw — the seat went to …` | fee spent, no seat | **do not send**; re-run (or pick a less contested miner) |
+| `The draw did not resolve in the bid window` | crank timing | **do not send**; re-run — it resumes your seat if you actually won |
+| `Reservation has only Ns left — too short …` | TTL almost gone | **do not send**; re-run for a fresh reservation |
+| `Auto-send unavailable for X (…); use the manual flow.` | missing credential | reservation is live: send manually from the pinned address, then `alw swap post-tx <hash>` before the printed `Deadline:` |
+| `Your configured X wallet does not control the pinned source address` | `--from-address` ≠ the key you hold | same manual fallback; fix the flag next time |
+| `Source send failed: …` | broadcast failed, reservation still live | retry `alw swap now` (resumes) or send manually |
+| `Deposit sent (<hash>) but the confirm relay errored` / `no validator accepted the relay yet` | money moved, relay didn't land | **immediately** `alw swap post-tx <hash>`; repeat every ~30 s until accepted or the reservation expires |
+| `✗ MINER FAILED — … reimbursed … from its bond` | `TimedOut`: miner never delivered | you were paid 1.1× the hub-leg value in the backing asset; nothing to do |
+
+Re-running `alw swap now` with the same direction is **idempotent for your keypair**: it
+resumes a drawn seat or live reservation on that miner instead of paying a second fee.
+
+### 4.3 Manual path (no `--send`)
+
+Only if you must sign elsewhere. Reserve with `--no-send --yes`; the CLI prints the miner
+address, the exact amount, and a `Deadline: post-tx must complete by HH:MM:SS UTC
+(reserved_until=<unix>)`. Confirm the pinned numbers with `alw view reservation --json`
+(`from_amount` is in smallest units), send the **exact** amount from the pinned address, then
+`alw swap post-tx <hash>` immediately. Miss the deadline and the deposit is gone — it is the
+miner's, with no swap to credit. `--send` exists so you never do this.
+
+## 4.4 Coming: routed reservations through the Ventura Labs validator (Allways Access)
+
+Today a mainnet bid is **self-represented**: your keypair bids, cranks the draw, finalizes,
+and pays the full reservation fee — and it carries zero draw weight, so any validator in the
+same pool beats it. The fix is **routing**: a validator enters the pool for you with its
+stake weight, fronts the entry fee (stake-discounted, up to 95% off), and finalizes the seat
+with you pinned. That is the reservation path the protocol is built around, and it is being
+shipped as a product:
+
+- **Allways Access** — the Ventura Labs validator's front door. Sign in, fund a **credit
+  balance** with SN7 alpha, link your payout wallets, and reserve through the validator; a
+  swap "uses a credit" instead of you paying the on-chain fee. Lost draws refund the credit.
+- **API keys** (planned) — `alw_sk_…` keys that spend an account's credits, so a bot can
+  quote (`GET /rates`), reserve (`POST /swaps`, idempotent), report its deposit
+  (`POST /swaps/:id/sent`), and track (`GET /swaps/:id`) with no human in the loop — the
+  first way to run the full taker flow over HTTP.
+
+**Status: not yet public.** Until it is, everything in this runbook stands as written, and
+the CLI still does routing on its own once a validator serves it:
+`alw config set router <validator-hotkey>` (testnet already ships one via `env testnet`).
+Check https://all-ways.io/agents for the launch; this file will be updated in place.
+
+## 5. Tracking and verifying
+
+```bash
+alw view swap <swap-key> --json      # {"swap_key","status","from_tx_hash","to_tx_hash","timeout_at",…}
+alw view swap <swap-key> --watch     # live until terminal
+alw view reservation --json          # your reservation on the last miner (before/while sending)
+alw view active-swaps --json         # every in-flight swap on the program
+```
+
+Statuses: `PendingAttestation → Active → Fulfilled → Completed` (happy path), or `TimedOut`
+(miner failed → you are paid 1.1× from its collateral/bond, automatically) or `Cancelled`
+(your destination could not receive → no refund).
+
+**Swaps close on-chain when they finish.** `alw view swap` returning `{"found": false}`
+after you saw it live means *finished*, not lost. Confirm the outcome on the native chain
+(your destination balance / `to_tx_hash` on its explorer) or via
+`GET https://api.all-ways.io/swaps?search=<source-tx-hash>`, which keeps the full history.
+
+## 6. A bot loop that actually works
+
+Sequential, one swap at a time, one miner at a time. Polling every ~30 s is plenty; the
+orderbook changes when miners repost, not per block.
+
+```python
+import json, re, subprocess, time, urllib.request
+
+API = "https://api.all-ways.io"            # test-api.all-ways.io on testnet
+DIRS = [("sol", "tao"), ("tao", "sol")]    # directions you can fund AND unload elsewhere
+RECV = {"sol": "<your-solana-pubkey>", "tao": "<your-coldkey-ss58>"}
+SRC  = {"sol": None, "tao": "<your-coldkey-ss58>"}   # None = the CLI keypair is the sender
+SIZE = {"sol": 1.0, "tao": 0.5}            # in source units; keep hub leg inside min/max_swap
+MIN_EDGE_USD = 1.0                         # after the reservation fee + gas
+
+def alw(*args):
+    p = subprocess.run(["alw", *args], capture_output=True, text=True)
+    return p.returncode, p.stdout, p.stderr
+
+def get(path):
+    return json.load(urllib.request.urlopen(API + path, timeout=20))
+
+cfg = json.loads(alw("view", "config", "--json")[1])
+FEE_SOL = cfg["reservation_fee_sol"]
+
+while True:
+    usd = get("/prices")["prices"]
+    for frm, to in DIRS:
+        a = SIZE[frm]
+        rc, out, _ = alw("swap", "quote", "--from", frm, "--to", to, "--amount", str(a), "--json")
+        if rc != 0: continue
+        q = json.loads(out)
+        best = q["offers"][0]
+        edge = best["receive"] * usd[to] - a * usd[frm] - FEE_SOL * usd["sol"]
+        if edge < MIN_EDGE_USD: continue
+        args = ["swap", "now", "--from", frm, "--to", to, "--amount", str(a),
+                "--receive-address", RECV[to], "--miner", best["miner"], "--send", "--yes"]
+        if SRC[frm]: args += ["--from-address", SRC[frm]]
+        rc, out, err = alw(*args)                 # blocks until COMPLETED / failed / lost draw
+        print(rc, out[-2000:], err[-500:])
+        m = re.search(r"Deposit sent.*?post-tx (\S+?)`", out)   # money out, relay didn't land
+        if m:                                                   # (everything prints to stdout)
+            for _ in range(10):
+                if alw("swap", "post-tx", m.group(1))[0] == 0: break
+                time.sleep(30)
+        # then: unload the received asset on your external venue, and refund the source side
+    time.sleep(30)
+```
+
+What the loop relies on: `swap quote --json` exit code (1 = nothing fillable), `--send --yes`
+(no prompts, blocks to a terminal state), `--miner` (fill the offer you priced, not whatever
+is best 20 s later), and the `Deposit sent` retry (the only state where money is out and the
+CLI could not finish). Keep the Solana keypair topped up: each attempt burns 0.02 SOL.
+
+## 7. Assets (wire ids for `--from` / `--to`)
+
+Live set with decimals, explorers and confirmation depth: `GET /chains`.
 
 | id | Asset | |
 |---|---|---|
@@ -41,230 +397,68 @@ Wire ids — what `--from` and `--to` take. Live set: `GET /chains`.
 | `paxg` | PAX Gold |  |
 | `solusdc` | USDC (Solana) |  |
 
-## Resources
+## 8. HTTP API (read-only)
 
-| What | Where |
+Base `https://api.all-ways.io` (testnet `https://test-api.all-ways.io`). OpenAPI at `/swagger`
+is authoritative. Amounts are decimal strings in smallest units (lamports, satoshi, rao,
+wei) — parse with arbitrary precision. Cache; prefer `/sse` over polling.
+
+| Path | Use |
 |---|---|
-| Mainnet (netuid 7) dashboard · API | https://all-ways.io · https://api.all-ways.io/swagger |
-| Testnet (netuid 19) dashboard · API | https://test.all-ways.io · https://test-api.all-ways.io/swagger |
-| Setup walkthrough | https://docs.all-ways.io/getting-started |
-| Swap walkthrough | https://docs.all-ways.io/swap-guide |
-| Full CLI reference | https://docs.all-ways.io/cli |
-| Protocol mechanics | https://docs.all-ways.io/how-it-works |
-| Source repo | https://github.com/entrius/allways |
-| This document, raw | https://all-ways.io/llms.txt · https://test.all-ways.io/llms.txt |
+| `GET /chains` | assets, hub flags, decimals, explorer templates, confirmations |
+| `GET /prices` | USD per asset id (`null` = no venue) |
+| `GET /miners` | one row per (miner, pair, backing): `rate`, `counterRate`, `isActive`, `collateral`, addresses |
+| `GET /miners/{hotkey}` · `/miners/{hotkey}/rate-history` | one miner; its quote history |
+| `GET /swaps?search=<tx-hash>&limit=&offset=` | full swap history incl. finished ones (`search` matches tx hashes, addresses, swap ids) |
+| `GET /swaps/{swapId}` · `GET /swaps/active` | one swap + timeline; in-flight swaps |
+| `GET /reservations/by-source/{address}` | reservations pinned to a source address |
+| `GET /protocol/constants` | immutable constants (fee divisor). Live bounds: `alw view config` |
+| `GET /stats` · `GET /health` | counters; liveness |
+| `GET /sse` | events `swap`, `miner`, `reservation`, `head` |
 
-Both networks run the same Solana program
-`6JVBEj5w27J2SVjERmv2c7wXgFee9nSSBKUJevHehyBD`; only the cluster differs.
-Testnet leads mainnet — confirm a feature with `alw view config` and
-`GET /chains` on the network you target before you rely on it.
+## 9. Errors → causes → fixes
 
-> **Code is law.** This is a quickstart, not a spec. The on-chain program
-> (`smart-contracts/solana/programs/allways_swap_manager`) is the only
-> authority; everything here is convenience and may lag it. Read the program,
-> neurons, CLI, and `allways/constants.py` before any non-trivial swap.
-
-## Concepts you actually need
-
-- **Rates.** A pair's hub leg is its numéraire: the forward (hub→spoke) rate reads "destination per 1 hub", and the reverse leg inverts it. Collateral and swap bounds are denominated in the backing; the reservation fee is always SOL, because every bid settles on Solana.
-- **Reservation lifecycle (three steps).** A miner is secured *before* amounts are named:
-  1. **Bid** (`open_or_request`) — you, or a validator for you, bid into a per-miner pool and pay a small non-refundable SOL **reservation fee**. The first bid pins the miner's rate for the pool window. A bid carries no taker and no amounts.
-  2. **Draw** (`resolve_pool`) — after the window closes, a permissionless stake-weighted lottery picks the winner. An unrouted bid has weight 0.
-  3. **Finalize** (`finalize_reservation`) — the winner names the taker and amounts, bounded by the backing's min/max swap and by the miner's collateral. The reservation is now live.
-- **Native vs routed.** A native bid carries zero draw weight and loses to any validator bidding the same pool. A routed bid asks a validator to enter with its stake weight — it fronts the entry fee, pays a stake-discounted rate, and finalizes with you pinned. **Testnet sets a router by default; mainnet has none yet, so mainnet bids are native.** `--router <hotkey>` routes one swap, `--no-router` forces native. Routed takers sharing a window are seated FIFO — losers re-run.
-- **Statuses.** `PendingAttestation → Active → Fulfilled → Completed` is the happy path. Two terminals end it early:
-  - `TimedOut` — the miner failed to deliver. The protocol pays you **1.1× the swap's hub-leg value**, in the backing asset, automatically.
-  - `Cancelled` — validators proved your **destination cannot receive** (blacklisted or paused token, a contract that reverts a correctly-gassed transfer, a reserved Solana account). No slash, no fee, no strike — and **no refund: your source funds stay with the miner.** Validate your receive address before you send.
-- **Fee — 1%, paid via the rate.** Send `1.0` worth, receive `0.99` worth. The miner keeps none of it; the protocol skims it from the miner's collateral at settlement. Preview the real number with `alw swap quote` — the "You receive" line, not the headline rate, is your outcome.
-- **Relay immediately, don't wait.** Broadcast the source tx, then run `alw swap post-tx <hash>` at once. Validators accept a seen-but-unconfirmed deposit and wait out confirmations server-side, extending your reservation meanwhile. Sleeping before `post-tx` is how reservations lapse.
-- **Sender verification.** Validators reject any source tx whose on-chain sender does not match the address pinned in your reservation. Broadcast only from that address, never from a custodial account.
-- **BTC fees gate the source leg.** A BTC source tx must confirm inside the extension budget. Too low a fee and it mines after the deadline, into the miner's address, with no live reservation to credit — the funds are gone. Let the CLI auto-estimate `--btc-fee-rate` unless you checked current tiers (https://mempool.space).
-- **Live parameters — read, never hardcode.** Min/max swap bounds are **per backing** and are measured against the swap's hub leg, not the source amount. They, the reservation fee, min/max collateral, reservation TTL, finalize window, fulfillment timeout, extension budget, and consensus threshold are all on-chain. Read them with `alw view config`.
-
-> **Bittensor primer.** The CLI handles all chain interaction. Background only: https://docs.bittensor.com.
-
-## End-to-end swap flow
-
-1. **Quote.** `alw swap quote` (or `GET /miners`). Rates are posted on-chain — there is no off-chain orderbook.
-2. **Bid.** `alw swap now`. Routed where a router is configured, native otherwise. The first bid pins the rate.
-3. **Draw + finalize.** ~5–30s from bid to a live reservation. If the pool did not resolve in time, re-running is safe and resume-aware — no funds have moved. A live reservation holds the miner exclusively for the reservation TTL.
-4. **Send source funds.** The exact amount, to the miner's printed address, from your pinned source address. `--send` does this for you when the CLI holds that wallet's key.
-5. **Relay.** `alw swap post-tx <hash>`. Validators verify sender, recipient, amount, and freshness, then vote to initiate. `PendingAttestation → Active`.
-6. **Miner fulfils.** It sends 99% of the destination amount to your receive address and marks fulfilled. `Active → Fulfilled`.
-7. **Validators confirm.** Both legs verified → confirm. Confirmation waits are per chain and server-side (SOL ≈ seconds, TAO ≈ 72s, BTC ≈ 20 min). `Fulfilled → Completed`.
-8. **Or a terminal fires.** `TimedOut` refunds you 1.1× automatically; `Cancelled` does not refund at all.
-
-Poll live state throughout: `alw view reservation` before the send, `alw view swap <key> --watch` after.
-
-## Setup
-
-> Agents need shell access and Python ≥ 3.10. A pure-HTTP flow is on the roadmap.
-
-### 1. Install
-
-`pipx` keeps `alw` isolated and pulls in `bittensor` + `btcli`:
-
-    pipx install git+https://github.com/entrius/allways.git
-    alw --help
-
-### 2. Solana keypair (always required)
-
-The orderbook settles on Solana, so every bid, finalize, and fee is signed by a Solana keypair — separate from your Bittensor wallet, and needed even when neither leg is SOL.
-
-    solana-keygen new -o ~/.solana/id.json          # SAVE the seed phrase
-    solana-keygen pubkey ~/.solana/id.json          # the address to fund
-    solana airdrop 2 <pubkey> --url https://api.devnet.solana.com   # testnet only
-
-The CLI reads `~/.solana/id.json` by default (`SOLANA_KEYPAIR_PATH`, or `alw config set solana-keypair <path>`). An unfunded key cannot pay fees.
-
-### 3. Bittensor wallet
-
-    btcli wallet new-coldkey --wallet.name <coldkey-name>
-    btcli wallet new-hotkey  --wallet.name <coldkey-name> --wallet.hotkey <hotkey-name>
-
-As a taker, the **coldkey** signs TAO source transfers. The hotkey is not used on the happy path.
-
-### 4. Source-asset credentials (only for `--send`)
-
-Set these to let the CLI broadcast for you. Without them the CLI prints the address and amount, you send from your own wallet, and you relay with `post-tx` — the flow works either way. Read them from the shell env, a project `.env` walked up from CWD, or `~/.allways/.env`.
-
-| Source asset | Credential |
-|---|---|
-| SOL | the Solana keypair above |
-| TAO | Bittensor coldkey; set `MINER_BITTENSOR_COLDKEY_PASSWORD` to skip the unlock prompt |
-| BTC | `BTC_PRIVATE_KEY` (WIF). Access runs over public Esplora — no node (`BTC_ESPLORA_URLS` overrides) |
-| every EVM asset | `{NETWORK}_PRIVATE_KEY`, keyed by **network**, not asset — assets sharing a network share it (`ETH_PRIVATE_KEY` covers `eth`, `ethusdc`, `uni`, `qnt`, and `paxg`). `alw config set --help` lists every network |
-
-### 5. Configure the CLI
-
-    alw config set env    testnet   # or mainnet
-    alw config set wallet <coldkey-name>
-    alw config set hotkey <hotkey-name>
-
-`env` resolves the Bittensor network, Solana cluster, **every** chain network, netuid, and the router in one line — `testnet` = netuid 19 + devnet + each chain's testnet; `mainnet` = netuid 7 + mainnet everywhere, with no router. No program id or RPC to copy. Config persists at `~/.allways/config.json`; `alw config` shows every effective value and its source.
-
-## Verify the install (read-only, no funds spent)
-
-    alw --help                                            # 1. Binary works.
-    alw config                                            # 2. Saved config is correct.
-    alw status                                            # 3. Connects; balances appear.
-    alw view miners                                       # 4. Miners + rates. Empty = offline or wrong network.
-    alw view validators                                   # 5. Validator set and lottery weights.
-    alw view rates --pair sol-btc                         # 6. Live orderbook (swappable quotes only).
-    alw view config                                       # 7. **Read this.** Live fees, bounds, windows, timeouts.
-    alw swap quote --from btc --to sol --amount 0.001     # 8. Preview a quote (no commitment).
-
-## Run a swap
-
-`alw swap now` reserves a miner, then either sends your source funds or prints exactly what to send. **`--send` defaults on for an interactive TTY and off for scripts**, so an agent gets the print-and-relay flow unless it passes `--send`. On a TTY the CLI prompts for omitted flags; with no TTY every flag is required and a missing one fails fast with a non-zero exit.
-
-**BTC → SOL**, manual send (the default for a script):
-
-    alw swap now \
-      --from btc --to sol \
-      --amount 0.001 \
-      --receive-address <your-solana-pubkey> \
-      --from-address <your-btc-address> \
-      --yes
-    # prints the miner's address + exact amount → you broadcast → then:
-    alw swap post-tx <hash>
-
-**SOL → TAO**, CLI-driven send (`--receive-address` is a TAO ss58):
-
-    alw swap now --from sol --to tao --amount 0.5 --receive-address 5C... --send --yes
-
-With `--send` the CLI broadcasts, relays, and watches to a terminal state in one call. It falls back to manual instructions — without spending anything beyond the reservation fee — if the credential is missing or your wallet does not control the pinned source address.
-
-| Flag | Purpose |
-|---|---|
-| `--from <chain>` | Source asset, by wire id (see **Assets**) |
-| `--to <chain>` | Destination asset; one leg must be a hub |
-| `--amount <n>` | Source amount, in source-chain units |
-| `--receive-address <addr>` | Where the miner pays you, on the `--to` chain |
-| `--from-address <addr>` | Where you broadcast from; required for a non-SOL source, and pinned as the only accepted sender |
-| `--from-tx-hash <hash>` | Attach a source tx you already broadcast |
-| `--miner <pubkey>` | Pin a miner instead of auto-selecting; bare `--miner` opens a picker |
-| `--send` / `--no-send` | Broadcast the source funds from your configured wallet, then relay and watch |
-| `--router <hotkey>` | Route through this validator (overrides the `router` config) |
-| `--no-router` | Self-represent (native bid — loses contested draws) |
-| `--yes` | Skip confirmations |
-| `--btc-fee-rate <sat/vB>` | Override the BTC fee rate (default: auto-estimated) |
-
-Your swap key is `keccak256(source-tx-hash)`, printed by `alw swap post-tx` and findable via `alw view active-swaps` or `/swaps?search=<your-tx-hash>`:
-
-    alw view swap <key> --watch    # live timeline until a terminal status
-
-If interrupted after the reserve but before the send, `alw view reservation` shows whether the seat is still live: if it is, send and relay; if it lapsed, re-run `alw swap now` and forfeit only the reservation fee.
-
-## CLI cheat sheet
-
-Every read command takes `--json`. Errors come back as `{"error": …}` with a non-zero exit, so pipelines never parse prose.
-
-| Command | Purpose |
-|---|---|
-| `alw config [set <key> <value>]` | View / set `env`, `wallet`, `hotkey`, `router`, `solana-keypair`, per-chain networks |
-| `alw status` | Network, program health, balances, your swap state |
-| `alw view miners` | Every miner, including offline and cooldown |
-| `alw view rates [--pair sol-btc]` | Swappable quotes only; `--sort`, `--min-capacity`, `--search` |
-| `alw view active-swaps` | Swaps open on-chain (terminal swaps are closed and not listed) |
-| `alw view swap <key> [--watch]` | One swap, both legs, and its timeline |
-| `alw view reservation` | The reservation on the miner `swap now` saved; `--miner <pubkey>` overrides |
-| `alw view config` | Live on-chain parameters |
-| `alw view validators` | Validator set, lottery weights, consensus threshold |
-| `alw swap quote --from <c> --to <c> --amount <n>` | Preview rate, backing, and receive amount |
-| `alw swap now [...flags]` | Reserve, optionally send, relay |
-| `alw swap post-tx <tx-hash>` | Relay your source tx to the validators |
-
-Miner and operator commands (`alw miner`, `alw collateral`, `alw vault`, `alw bind-hotkey`, `alw admin`) are out of scope here — see https://docs.all-ways.io/cli.
-
-## Public API
-
-Base URL `https://api.all-ways.io` (testnet `https://test-api.all-ways.io`). Live OpenAPI at `/swagger` — treat it as authoritative, since field names here may lag. **Be a good citizen:** cache, prefer SSE over polling.
-
-| Method | Path | Purpose |
+| Symptom | Cause | Fix |
 |---|---|---|
-| GET | `/chains` | **Supported assets, hub flags, decimals, explorers.** Start here |
-| GET | `/health` | Liveness |
-| GET | `/stats` | Counters, including volume per backing |
-| GET | `/prices` | Estimated USD per chain; `null` where there is no USD venue |
-| GET | `/miners` | One row per miner per direction, with rate, backing, and fundable capacity |
-| GET | `/miners/{hotkey}` | Single miner |
-| GET | `/swaps` | All swaps; filters `search`, `status`, `fromChain`, `toChain`, `timeFrom`, `timeTo`, `minNotional`, `maxNotional`, `sort`, `dir`, `limit`, `offset` |
-| GET | `/swaps/{swapId}` | Single swap + event timeline |
-| GET | `/swaps/active` | In-progress swaps; `userAddress`, `minerHotkey` |
-| GET | `/reservations/by-source/{address}` | Reservations pinned to a source address |
-| GET | `/reservations/{requestHash}` | Reservation by hash |
-| GET | `/events` | Filtered program events |
-| GET | `/protocol/constants` | Immutable constants only (the 1% fee divisor). **Live bounds are on-chain — use `alw view config`** |
-| GET | `/sse` | Server-Sent Events (`connected`, `event`, `miner`, `swap`, `reservation`, `head`) |
+| `No module named 'bittensor'` / `alw: command not found` | venv not active | `. .venv/bin/activate` |
+| pip resolver conflicts | old env | fresh venv, never system Python |
+| `Attempt to debit an account but found no record of a prior credit` | signing key unfunded / wrong key | `alw status --json` → fund `caller` |
+| `alw swap quote` empty while the dashboard shows miners | wrong network | `alw config` — env must match the dashboard you're looking at |
+| `--from/--to must each be one of: …` | not a wire id (e.g. `usdc`) | use the Assets table (`arbusdc`, `solusdc`, …) |
+| `A swap must have a hub leg` | spoke↔spoke | two swaps through a hub |
+| `Miner already has an active reservation` / `Reservation rejected` | miner busy or your previous reservation not yet cleared | wait ~15–60 s or `--miner` another |
+| `BTC signing requires the BTC_PRIVATE_KEY env var` | no WIF | set it, or manual path |
+| `KeyFileError` traceback on a TAO source | wallet name wrong / coldkey file missing — after reservation | `btcli wallet list`; then manual path before the deadline |
+| `No live, unclaimed reservation found for your address` on `post-tx` | it expired, or `post-tx` runs under a different Solana key than `swap now` did | same `solana-keypair` for both; if expired, funds already sent are lost — don't send until reserved |
+| Swap "vanished" | closed on-chain = finished | `GET /swaps?search=<tx>` or your destination balance |
+| `Cancelled` | your receive address can't accept the asset | fix the address; no refund |
+| BTC source stuck unconfirmed near the deadline | fee too low | RBF up now; only recoverable while in mempool |
 
-> Amounts are decimal strings in smallest units (lamports, satoshi, rao, wei). Parse with arbitrary-precision types — never floats.
+## 10. Testnet
 
-## Known issues
+```bash
+alw config set env testnet          # netuid 19, Solana devnet, every asset's testnet, Ventura Labs router
+```
 
-- **Dependency resolver conflicts** — `bittensor` is hard-pinned. Install into a fresh env; `pipx` is safest. Never into a system Python.
-- **`No module named 'bittensor'`** — you are outside the venv. With `pipx`, call `alw` directly.
-- **`Attempt to debit an account but found no record of a prior credit`** — the Solana key is unfunded, or you are pointed at the wrong one. Check `solana-keygen pubkey`.
-- **Empty `alw view miners`** while the dashboard shows miners — wrong network. Re-check `alw config` (`env`, `solana-network`, `netuid`).
-- **`BTC signing requires the BTC_PRIVATE_KEY env var`** — set the WIF, or drop `--send` and use the manual flow.
-- **Lost a contested draw** — expected, not an error. That bid's fee is spent; **do not send funds.** Re-run for the next window.
-- **Reservation expired before the send** — you forfeit only the reservation fee. Start a new swap. Live TTL via `alw view config`.
-- **BTC tx stuck unconfirmed** — it will land after the deadline with no reservation to credit. RBF up immediately; recovery is only possible while the tx is in the mempool.
-- **Swap vanished** — `alw view swap --json` returns `{"found": false, …}` because swaps close on-chain at resolution. "Gone" usually means "finished": confirm the payout on the backing asset's balance.
-- **Swap `Cancelled`** — your destination could not receive. There is no refund. Verify the receive address is a plain, unfrozen account before the next attempt.
+Faucets: SOL `solana airdrop 2 <pubkey> --url https://api.devnet.solana.com` · TAO
+https://taoswap.org/testnet-faucet · BTC testnet4 https://mempool.space/testnet4/faucet
+(testnet3 faucets won't fund testnet4) · others: their own network faucet (Sepolia, Fuji,
+Amoy, …). Dashboard https://test.all-ways.io, API https://test-api.all-ways.io.
+Testnet parameters drift; `alw view config` before assuming anything.
 
-## Testnet
+## 11. Links
 
-Testnet (netuid 19 + Solana devnet) mirrors mainnet with free funds. Rehearse there first.
+Dashboard https://all-ways.io · API https://api.all-ways.io/swagger · Docs
+https://docs.all-ways.io (getting-started, swap-guide, cli, how-it-works) · Source
+https://github.com/entrius/allways · This file raw: https://all-ways.io/llms.txt
 
-    alw config set env testnet
-
-`env testnet` points every chain at its testnet — BTC testnet4 (`tb1q…` addresses), Ethereum Sepolia, Avalanche Fuji, Polygon Amoy, and so on. Inspect state at https://test.all-ways.io and https://test-api.all-ways.io.
-
-Faucets: **SOL** `solana airdrop 2 <pubkey> --url https://api.devnet.solana.com` · **TAO** https://taoswap.org/testnet-faucet · **BTC testnet4** https://mempool.space/testnet4/faucet (testnet3 faucets will not fund testnet4). Other spokes use their own network faucets. If a faucet will not cooperate, ask the operator to seed your wallets — normal on testnet.
-
-Parameters drift. Always re-read `alw view config`, `alw view miners`, and `alw view validators` before assuming the network is live.
+**Code is law.** The on-chain program (`smart-contracts/solana/programs/allways_swap_manager`)
+is the only authority; this runbook is convenience and may lag it.
 
 ## Disclaimer
 
-Allways is permissionless, open-source, beta software. Swaps settle directly between counterparty wallets; the protocol never takes custody of user funds, and the protocol fee is charged against miner collateral rather than any user transfer. Validator operators, including those run by the project, verify swap outcomes but cannot redirect or receive any transferred amount. Use at your own risk. No warranty. Not financial advice.
+Allways is permissionless, open-source, beta software. Swaps settle directly between
+counterparty wallets; the protocol never takes custody of user funds, and the protocol fee is
+charged against miner collateral rather than any user transfer. Validator operators,
+including those run by the project, verify swap outcomes but cannot redirect or receive any
+transferred amount. Use at your own risk. No warranty. Not financial advice.
