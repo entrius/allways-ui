@@ -22,12 +22,8 @@ const hubOr = hubs.map(sym).join(' or ');
 const assetRows = chains
   .map((c) => `| \`${c.id}\` | ${c.name} | ${c.hub ? '**hub**' : ''} |`)
   .join('\n');
-// Hub-anchored pairs only, as the copy below describes (alpha↔spoke pairs
-// wait on their own copy). allDirections emits [forward, reverse] per pair.
-const pairCount =
-  allDirections().filter((d) =>
-    hubs.some((h) => d.split('-').includes(h.toUpperCase())),
-  ).length / 2;
+// allDirections emits [forward, reverse] per pair.
+const pairCount = allDirections().length / 2;
 
 export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 
