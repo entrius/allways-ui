@@ -613,8 +613,7 @@ const Watchlist: React.FC<{
 }) => {
   const cols = useMemo(() => COLUMNS.filter((c) => columns[c]), [columns]);
   const secs = RANGE_SECS[range];
-  // Every route with a live quote, plus the selected and starred routes so a
-  // deep link never loses its market and a star never vanishes.
+  // Live routes plus the selected and starred ones, so none of them vanishes.
   const directions = useLiveDirections([direction, ...favorites]);
   const { data: chains } = useChains();
   const hubs = useMemo(() => hubChains(chains), [chains]);

@@ -438,11 +438,7 @@ const PairsRail: React.FC<{
     if (directions.includes(carried)) onDirectionChange(carried);
   };
 
-  // The list, as hub-anchored sections. "All" renders every hub's section in
-  // registry priority order (each route filed once, under its anchor), then
-  // the alpha-anchored routes as one section; a hub scope renders that hub's
-  // whole network — including the routes it merely touches, like sol↔tao,
-  // which file under the other hub.
+  // "All": a section per hub in priority order, then one alpha section; a hub scope: every route touching it.
   const sections = useMemo(
     () =>
       scope === ALL
