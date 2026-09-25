@@ -76,27 +76,27 @@ export const scoringFamily = (
 export const spokeChains = (): string[] =>
   registry.filter((c) => !c.hub).map((c) => c.id);
 
-// Canonical render order — hubs pair against every other chain, each pair
-// landing once under its highest-priority hub with the hub (canonical-source)
-// leg first. Mirror of allways.chains.canonical_pair / das deriveDirections.
+// Canonical render order, anchor (canonical-source) leg first: each hub
+// against every other chain (a pair lands once, under its highest-priority
+// hub), then each alpha against every spoke. Every valid pair, live or not.
+// Mirror of allways.chains.canonical_pair / das deriveDirections.
 export const allDirections = (chains: ChainInfo[] = registry): string[] => {
-  const seen = new Set<string>();
-  return chains
-    .filter((c) => c.hub)
-    .flatMap((hub) =>
-      chains
-        .filter((other) => {
-          if (other.id === hub.id) return false;
-          const pair = [hub.id, other.id].sort().join('|');
-          if (seen.has(pair)) return false;
-          seen.add(pair);
-          return true;
-        })
-        .flatMap((spoke) => [
-          `${hub.id}-${spoke.id}`.toUpperCase(),
-          `${spoke.id}-${hub.id}`.toUpperCase(),
-        ]),
-    );
+  const ids = chains.map((c) => c.id);
+  const hubs = hubChains(chains);
+  const alphas = ids.filter(isAlpha);
+  const spokes = ids.filter((id) => !hubs.includes(id) && !isAlpha(id));
+  const pairs = [
+    ...hubs.flatMap((hub, i) =>
+      ids
+        .filter((other) => other !== hub && !hubs.slice(0, i).includes(other))
+        .map((other) => [hub, other]),
+    ),
+    ...alphas.flatMap((alpha) => spokes.map((spoke) => [alpha, spoke])),
+  ];
+  return pairs.flatMap(([anchor, other]) => [
+    `${anchor}-${other}`.toUpperCase(),
+    `${other}-${anchor}`.toUpperCase(),
+  ]);
 };
 
 // A chain is a TOKEN on its network (rather than the network's native coin)
