@@ -9,10 +9,10 @@
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for native
 swaps between independent assets, settled on a **Solana program**.
 
-**Hub-and-spoke.** SOL and TAO are hubs. A pair is valid iff one leg is a hub, so 18 assets give 33 pairs and 66 directions; spoke↔spoke is not swappable.
+**Hub-and-spoke.** SOL and TAO are hubs. A pair is valid iff one leg is a hub, or exactly one leg is a subnet alpha (`sn<N>`, an **alpha pair**); spoke↔spoke and alpha↔alpha are not swappable. `sn19→bnb` and `tao→sn19` are valid; `sn19→sn3` is not.
 
 **Backing.** Miners post collateral in the pair's hub asset (SOL or TAO) and quote
-rates. Validators verify both legs. On miner failure the protocol slashes that
+rates; alpha pairs are always TAO-backed. Validators verify both legs. On miner failure the protocol slashes that
 collateral and pays you in the same asset. No custodian, no wrapped asset, no
 bridge token.
 
@@ -40,6 +40,9 @@ Wire ids — what `--from` and `--to` take. Live set: `GET /chains`.
 | `polusdc` | USDC (Polygon) |  |
 | `paxg` | PAX Gold |  |
 | `solusdc` | USDC (Solana) |  |
+| `sn<N>` | Stake on subnet N | alpha |
+
+`sn<N>` is stake on subnet N. Send a `sn<N>` source as **one** `transfer_stake` (origin and destination netuid both N; plain, not batched or proxied; exact amount; one hotkey). Received alpha lands as stake under a miner-picked hotkey, not in your free balance. Details: https://docs.all-ways.io/swap-guide#who-broadcasts-the-source-funds.
 
 ## Resources
 
@@ -132,6 +135,7 @@ Set these to let the CLI broadcast for you. Without them the CLI prints the addr
 |---|---|
 | SOL | the Solana keypair above |
 | TAO | Bittensor coldkey; set `MINER_BITTENSOR_COLDKEY_PASSWORD` to skip the unlock prompt |
+| `sn<N>` | The same coldkey; the CLI sends one `transfer_stake` from one hotkey that holds all of it |
 | BTC | `BTC_PRIVATE_KEY` (WIF). Access runs over public Esplora — no node (`BTC_ESPLORA_URLS` overrides) |
 | every EVM asset | `{NETWORK}_PRIVATE_KEY`, keyed by **network**, not asset — assets sharing a network share it (`ETH_PRIVATE_KEY` covers `eth`, `ethusdc`, `uni`, `qnt`, and `paxg`). `alw config set --help` lists every network |
 
@@ -178,7 +182,7 @@ With `--send` the CLI broadcasts, relays, and watches to a terminal state in one
 | Flag | Purpose |
 |---|---|
 | `--from <chain>` | Source asset, by wire id (see **Assets**) |
-| `--to <chain>` | Destination asset; one leg must be a hub |
+| `--to <chain>` | Destination asset; one leg must be a hub, or exactly one leg a subnet alpha |
 | `--amount <n>` | Source amount, in source-chain units |
 | `--receive-address <addr>` | Where the miner pays you, on the `--to` chain |
 | `--from-address <addr>` | Where you broadcast from; required for a non-SOL source, and pinned as the only accepted sender |

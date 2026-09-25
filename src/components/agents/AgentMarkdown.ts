@@ -2,10 +2,10 @@
 // never edit it by hand. Asset, hub, and pair lists below derive from the
 // chains registry so a new spoke or hub needs no edits here.
 import {
-  allDirections,
   chainInfo,
   chainList,
   hubChains,
+  isAlpha,
 } from '../../api/models/chains';
 
 const chains = chainList();
@@ -19,11 +19,14 @@ const hubList = withAnd(hubs.map(sym));
 const hubOr = hubs.map(sym).join(' or ');
 // Wire id, not symbol: four USDC deployments share a symbol, and the id is
 // what --from/--to take.
+// One generic sn<N> row stands in for every subnet alpha the seed lists.
 const assetRows = chains
+  .filter((c) => !isAlpha(c.id))
   .map((c) => `| \`${c.id}\` | ${c.name} | ${c.hub ? '**hub**' : ''} |`)
+  .concat('| `sn<N>` | Stake on subnet N | alpha |')
   .join('\n');
-// allDirections emits [forward, reverse] per pair.
-const pairCount = allDirections().length / 2;
+const alphaGuide =
+  'https://docs.all-ways.io/swap-guide#who-broadcasts-the-source-funds';
 
 export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 
@@ -36,10 +39,10 @@ export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
 Allways is Bittensor Subnet 7 — a permissionless on-chain orderbook for native
 swaps between independent assets, settled on a **Solana program**.
 
-**Hub-and-spoke.** ${hubList} are hubs. A pair is valid iff one leg is a hub, so ${chains.length} assets give ${pairCount} pairs and ${pairCount * 2} directions; spoke↔spoke is not swappable.
+**Hub-and-spoke.** ${hubList} are hubs. A pair is valid iff one leg is a hub, or exactly one leg is a subnet alpha (\`sn<N>\`, an **alpha pair**); spoke↔spoke and alpha↔alpha are not swappable. \`sn19→bnb\` and \`tao→sn19\` are valid; \`sn19→sn3\` is not.
 
 **Backing.** Miners post collateral in the pair's hub asset (${hubOr}) and quote
-rates. Validators verify both legs. On miner failure the protocol slashes that
+rates; alpha pairs are always TAO-backed. Validators verify both legs. On miner failure the protocol slashes that
 collateral and pays you in the same asset. No custodian, no wrapped asset, no
 bridge token.
 
@@ -50,6 +53,8 @@ Wire ids — what \`--from\` and \`--to\` take. Live set: \`GET /chains\`.
 | id | Asset | |
 |---|---|---|
 ${assetRows}
+
+\`sn<N>\` is stake on subnet N. Send a \`sn<N>\` source as **one** \`transfer_stake\` (origin and destination netuid both N; plain, not batched or proxied; exact amount; one hotkey). Received alpha lands as stake under a miner-picked hotkey, not in your free balance. Details: ${alphaGuide}.
 
 ## Resources
 
@@ -142,6 +147,7 @@ Set these to let the CLI broadcast for you. Without them the CLI prints the addr
 |---|---|
 | SOL | the Solana keypair above |
 | TAO | Bittensor coldkey; set \`MINER_BITTENSOR_COLDKEY_PASSWORD\` to skip the unlock prompt |
+| \`sn<N>\` | The same coldkey; the CLI sends one \`transfer_stake\` from one hotkey that holds all of it |
 | BTC | \`BTC_PRIVATE_KEY\` (WIF). Access runs over public Esplora — no node (\`BTC_ESPLORA_URLS\` overrides) |
 | every EVM asset | \`{NETWORK}_PRIVATE_KEY\`, keyed by **network**, not asset — assets sharing a network share it (\`ETH_PRIVATE_KEY\` covers \`eth\`, \`ethusdc\`, \`uni\`, \`qnt\`, and \`paxg\`). \`alw config set --help\` lists every network |
 
@@ -188,7 +194,7 @@ With \`--send\` the CLI broadcasts, relays, and watches to a terminal state in o
 | Flag | Purpose |
 |---|---|
 | \`--from <chain>\` | Source asset, by wire id (see **Assets**) |
-| \`--to <chain>\` | Destination asset; one leg must be a hub |
+| \`--to <chain>\` | Destination asset; one leg must be a hub, or exactly one leg a subnet alpha |
 | \`--amount <n>\` | Source amount, in source-chain units |
 | \`--receive-address <addr>\` | Where the miner pays you, on the \`--to\` chain |
 | \`--from-address <addr>\` | Where you broadcast from; required for a non-SOL source, and pinned as the only accepted sender |
