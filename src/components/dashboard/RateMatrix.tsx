@@ -314,7 +314,7 @@ export const matrixAxes = (
 
 // The whole market the sheet can show: every asset, and every direction
 // between them (each pair is two instruments; the hub↔hub pair, which sits
-// in both hub rows, counts once).
+// in both hub rows, counts once; native TAO↔alpha stakes are not counted).
 export const matrixUniverse = (
   all: ChainInfo[],
 ): { assets: number; directions: number } => {
@@ -330,7 +330,9 @@ export const matrixUniverse = (
   const pairs = new Set<string>();
   for (const a of rows)
     for (const b of cols)
-      if (a.id !== b.id) pairs.add([a.id, b.id].sort().join('|'));
+      // Native pairs (TAO↔alpha, a subtensor stake) are not routes.
+      if (a.id !== b.id && hubLeg(a.id, b.id) !== null)
+        pairs.add([a.id, b.id].sort().join('|'));
   const ids = new Set([...rows, ...cols].map((a) => a.id));
   return { assets: ids.size, directions: pairs.size * 2 };
 };
@@ -699,8 +701,7 @@ const RateMatrix: React.FC<{
                 {assets.map((col) => {
                   // Self and native (TAO↔alpha) cells stay blank.
                   const self =
-                    asset.id === col.id ||
-                    hubLeg(asset.id, col.id) === null;
+                    asset.id === col.id || hubLeg(asset.id, col.id) === null;
                   const k = `${asset.id}|${col.id}`;
                   const r = self ? undefined : rates[k];
                   const out = r?.out ?? null;
