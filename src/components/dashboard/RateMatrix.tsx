@@ -442,7 +442,9 @@ const RateMatrix: React.FC<{
                   </Box>
                 </Box>
                 {hubs.map((hub) => {
-                  const self = asset.id === hub.id;
+                  // Self and native (TAO↔alpha) cells stay blank.
+                  const self =
+                    asset.id === hub.id || hubLeg(hub.id, asset.id) === null;
                   const k = `${hub.id}|${asset.id}`;
                   const r = self ? undefined : rates[k];
                   const out = r?.out ?? null;
