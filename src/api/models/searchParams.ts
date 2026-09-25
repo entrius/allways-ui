@@ -19,7 +19,7 @@ const RATE_RANGES: readonly RateRange[] = ['1h', '24h', '7d', '30d'];
 export const isRange = (v: string | null): v is Range =>
   RANGES.includes((v ?? '') as Range);
 
-// ~2k directions, checked per swap row: one Set per registry snapshot.
+// Thousands of directions, checked per swap row: one Set per registry snapshot.
 const directionSets = new WeakMap<ChainInfo[], Set<string>>();
 const knownDirections = (): Set<string> => {
   const chains = chainList();

@@ -157,8 +157,7 @@ const RateQuoteHelper: React.FC = () => {
   const live = useLiveDirections();
   const { data: miners } = useMiners();
   const [picked, setDirection] = useState<Direction | null>(null);
-  // Opens on the first live route once /crown lands, the registry's first
-  // before; a picked route stays selectable after its quote goes.
+  // First live route once /crown lands; a picked route stays selectable.
   const direction = picked ?? live[0] ?? all[0];
   const directions = live.includes(direction) ? live : [direction, ...live];
   const [amountStr, setAmountStr] = useState('0.01');

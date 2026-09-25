@@ -520,9 +520,8 @@ const SwapTracker: React.FC<{
   // Every route the network supports drives the two dependent From/To
   // dropdowns (markets-composer style): each side only offers chains that
   // form a real route with the other side's pick. Straight from the chain
-  // registry, so the options don't depend on what happens to be on screen —
-  // and every valid route, live or not: history filters must reach a route
-  // whose quotes are gone, and the options are chains, not directions.
+  // registry, so the options don't depend on what happens to be on screen.
+  // Live or not: history filters reach dead routes, and options are chains.
   const directions = useDirections();
   const routes = React.useMemo(
     () =>

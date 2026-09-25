@@ -182,7 +182,7 @@ const CrownTimeLeaderboard: React.FC<{
    * give one panel thousands of pixels of the page's scroll. */
   maxBodyHeight?: number;
 }> = ({ maxBodyHeight }) => {
-  // Live routes only: the quiet line names them, not the ~2k registry.
+  // Live routes only: the quiet line names them, not the whole registry.
   const directions = useLiveDirections();
   const [range, setRange] = useState<RangeKey>('1h');
   const seconds = RANGES.find((r) => r.key === range)?.secs ?? 3600;
