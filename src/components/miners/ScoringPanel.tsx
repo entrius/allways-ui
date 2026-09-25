@@ -19,10 +19,12 @@ import {
   type MinerScoreRow,
   type MinerStats,
 } from '../../api';
+import { scoringFamily } from '../../api/models/chains';
 import { FONTS } from '../../theme';
 import { formatTimeAgo } from '../../utils/format';
 import ScoreBreakdown, { fmtReward } from './ScoreBreakdown';
 import ScoreFactorsTable, { type FactorTableRow } from './ScoreFactorsTable';
+import AlphaPairsFold, { pairMatches } from './AlphaPairsFold';
 import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
 import SectionHeading from '../SectionHeading';
@@ -80,6 +82,16 @@ const rowLabel = (row: ScoreRowLike): string => {
     ? `${base} · ${row.backing.toUpperCase()}`
     : base;
 };
+
+const toFactorRow = (r: CurrentMinerScoreRow): FactorTableRow => ({
+  key: rowLaneKey(r),
+  label: rowLabel(r),
+  eligible: r.eligible,
+  pool: r.pool,
+  crownShare: r.crownShare,
+  capacity: r.capacity,
+  reward: r.reward,
+});
 
 const niceTicks = (lo: number, hi: number, count = 4): number[] => {
   if (hi === lo) return [lo];
@@ -476,31 +488,29 @@ const ScoringPanel: React.FC<{
   } | null>(null);
 
   // Earners first (reward desc), canonical direction order breaking ties.
-  const tipTableRows = useMemo<FactorTableRow[]>(() => {
+  // Alpha lanes fold behind one row so a full-quote miner's crowns don't flood the panel.
+  const { hubTipRows, alphaTipRows } = useMemo(() => {
+    const dirOrder = new Map(directions.map((d, i) => [d, i]));
     const order = (r: CurrentMinerScoreRow) => {
       const dir = rowDirection(r);
-      const idx = dir ? directions.indexOf(dir) : -1;
-      return idx === -1 ? directions.length : idx;
+      return (dir ? dirOrder.get(dir) : undefined) ?? directions.length;
     };
-    return [...tipRows]
-      .sort(
-        (a, b) => Number(b.reward) - Number(a.reward) || order(a) - order(b),
-      )
-      .map((r) => ({
-        key: rowLaneKey(r),
-        label: rowLabel(r),
-        eligible: r.eligible,
-        pool: r.pool,
-        crownShare: r.crownShare,
-        capacity: r.capacity,
-        reward: r.reward,
-      }));
+    const sorted = [...tipRows].sort(
+      (a, b) => Number(b.reward) - Number(a.reward) || order(a) - order(b),
+    );
+    const isAlphaLane = (r: CurrentMinerScoreRow) =>
+      scoringFamily(r.fromChain, r.toChain) === 'alpha';
+    return {
+      hubTipRows: sorted.filter((r) => !isAlphaLane(r)),
+      alphaTipRows: sorted.filter(isAlphaLane),
+    };
   }, [tipRows, directions]);
   const tipHalves = useMemo<FactorTableRow[][]>(() => {
-    if (!twoColTip || tipTableRows.length <= 6) return [tipTableRows];
-    const splitAt = Math.ceil(tipTableRows.length / 2);
-    return [tipTableRows.slice(0, splitAt), tipTableRows.slice(splitAt)];
-  }, [tipTableRows, twoColTip]);
+    const rows = hubTipRows.map(toFactorRow);
+    if (!twoColTip || rows.length <= 6) return [rows];
+    const splitAt = Math.ceil(rows.length / 2);
+    return [rows.slice(0, splitAt), rows.slice(splitAt)];
+  }, [hubTipRows, twoColTip]);
 
   return (
     <Box
@@ -594,7 +604,7 @@ const ScoringPanel: React.FC<{
           </Typography>
         )}
       </Stack>
-      {tipTableRows.length === 0 ? (
+      {tipRows.length === 0 ? (
         <Typography
           variant="mono"
           sx={{ fontSize: '0.7rem', color: 'text.disabled', mb: 2.5 }}
@@ -602,20 +612,32 @@ const ScoringPanel: React.FC<{
           no live round · miner holds no crown right now
         </Typography>
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns:
-              tipHalves.length === 2 ? 'repeat(2, max-content)' : 'max-content',
-            columnGap: 8,
-            mb: 2.5,
-            overflowX: 'auto',
-          }}
-        >
-          {tipHalves.map((half, i) => (
-            <ScoreFactorsTable key={i} rows={half} />
-          ))}
-        </Box>
+        <Stack spacing={1} sx={{ mb: 2.5 }}>
+          {hubTipRows.length > 0 && (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns:
+                  tipHalves.length === 2
+                    ? 'repeat(2, max-content)'
+                    : 'max-content',
+                columnGap: 8,
+                overflowX: 'auto',
+              }}
+            >
+              {tipHalves.map((half, i) => (
+                <ScoreFactorsTable key={i} rows={half} />
+              ))}
+            </Box>
+          )}
+          <AlphaPairsFold
+            rows={alphaTipRows}
+            matches={(r, q) => pairMatches(r.fromChain, r.toChain, q)}
+            label="Alpha lanes"
+          >
+            {(visible) => <ScoreFactorsTable rows={visible.map(toFactorRow)} />}
+          </AlphaPairsFold>
+        </Stack>
       )}
 
       <Box sx={{ borderTop: '1px solid', borderColor: 'divider', mb: 2 }} />
