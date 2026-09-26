@@ -60,6 +60,10 @@ interface CellRates {
   // Row asset sent per 1 hub received (asset → hub). Same unit as `out`
   // so the two directions read on one scale and the spread is the gap.
   back: number | null;
+  // Side has no hittable quote; the number is a busy miner's quote or a
+  // cross, printed muted.
+  outSoft?: boolean;
+  backSoft?: boolean;
 }
 
 const invert = (n: number | null): number | null => (n && n > 0 ? 1 / n : n);
@@ -79,13 +83,22 @@ const cellRates = (
   anchor: ChainInfo,
   asset: ChainInfo,
   takeable: TakeableMap,
+  quoted: TakeableMap,
 ): CellRates => {
   const purse = purseFor(anchor, asset);
+  const side = (dir: Direction) => {
+    const live = takeableFor(takeable, dir, purse);
+    return live != null
+      ? { v: live, soft: false }
+      : { v: takeableFor(quoted, dir, purse), soft: true };
+  };
+  const out = side(directionKey(anchor.id, asset.id));
+  const back = side(directionKey(asset.id, anchor.id));
   return {
-    out: takeableFor(takeable, directionKey(anchor.id, asset.id), purse),
-    back: invert(
-      takeableFor(takeable, directionKey(asset.id, anchor.id), purse),
-    ),
+    out: out.v,
+    back: invert(back.v),
+    outSoft: out.v != null && out.soft,
+    backSoft: back.v != null && back.soft,
   };
 };
 
@@ -172,12 +185,24 @@ const Cell: React.FC<{
   // Bumps every time the value changes; a fresh key restarts the flash.
   seq: number;
   onSelect: () => void;
-}> = ({ value, self, band, selected, seq, onSelect }) => {
+  // Alpha↔TAO is not an Allways pair (it settles on-chain by staking): the
+  // cell reads like the diagonal, with a note on hover.
+  native?: boolean;
+  // No hittable quote right now: a busy miner's rate, printed muted.
+  soft?: boolean;
+}> = ({ value, self, band, selected, seq, onSelect, native, soft }) => {
   const empty = value === null || value === 0;
   const cell = (
     <Box
       component="td"
       key={seq}
+      title={
+        native
+          ? 'Not an Allways pair: alpha and TAO swap on-chain by staking.'
+          : soft && !empty
+            ? 'Indicative: the quoting miner is busy with a swap. The rate is hittable again once it settles.'
+            : undefined
+      }
       onClick={self ? undefined : onSelect}
       aria-selected={selected || undefined}
       sx={{
@@ -188,7 +213,11 @@ const Cell: React.FC<{
         fontSize: '0.74rem',
         fontWeight: selected ? 700 : 500,
         fontVariantNumeric: 'tabular-nums',
-        color: empty ? 'text.disabled' : 'text.primary',
+        color: empty
+          ? 'text.disabled'
+          : soft
+            ? 'text.secondary'
+            : 'text.primary',
         // The picked cell reads like a spreadsheet's active cell: a full
         // ring in the text colour, drawn with outline so it never fights
         // the flash's inset shadow, over a filled background.
@@ -204,12 +233,12 @@ const Cell: React.FC<{
         outlineOffset: -2,
         position: selected ? 'relative' : undefined,
         zIndex: selected ? 1 : undefined,
-        cursor: self ? 'default' : 'pointer',
+        cursor: native ? 'help' : self ? 'default' : 'pointer',
         '&:hover': self ? undefined : { backgroundColor: 'action.selected' },
         ...(seq > 0 && !self ? { animation: FLASH_ANIMATION } : {}),
       }}
     >
-      {self ? '' : empty ? '—' : formatRate(value)}
+      {self || empty ? '' : formatRate(value)}
     </Box>
   );
   return cell;
@@ -370,7 +399,13 @@ const RateMatrix: React.FC<{
 }) => {
   const theme = useTheme();
   const { data: chains } = useChains();
-  const { map: takeable, miners, dataUpdatedAt, isError } = useBestTakeable();
+  const {
+    map: takeable,
+    quoted: indicative,
+    miners,
+    dataUpdatedAt,
+    isError,
+  } = useBestTakeable();
   // The picked cell's row anchor and column asset, so their headers can
   // light up the way a spreadsheet marks the active cell's row and column.
   const { row: selRow, col: selCol } = matrixCell(direction, base);
@@ -408,9 +443,14 @@ const RateMatrix: React.FC<{
     for (const anchor of allAxes.rows)
       for (const a of allAxes.cols)
         if (a.id !== anchor.id)
-          m[`${anchor.id}|${a.id}`] = cellRates(anchor, a, takeable);
+          m[`${anchor.id}|${a.id}`] = cellRates(
+            anchor,
+            a,
+            takeable,
+            indicative,
+          );
     return m;
-  }, [allAxes, takeable]);
+  }, [allAxes, takeable, indicative]);
 
   // The sheet clips itself to what is priced: a row or column with no rate in
   // any of its cells drops out, and comes back as soon as a quote lands. A
@@ -433,7 +473,16 @@ const RateMatrix: React.FC<{
       (col) =>
         col.hub || col.id === selCol || rows.some((row) => priced(row, col)),
     );
-    return { rows, cols };
+    // Sparse columns (priced in under half the rows, e.g. BTC, or TAO once
+    // the alphas are listed) move to the right edge, keeping their order, so
+    // the gaps gather in one place instead of splitting the dense columns.
+    const coverage = (col: ChainInfo) =>
+      rows.filter((row) => priced(row, col)).length;
+    const dense = (col: ChainInfo) => coverage(col) * 2 >= rows.length;
+    return {
+      rows,
+      cols: [...cols.filter(dense), ...cols.filter((c) => !dense(c))],
+    };
   }, [axes, rates, miners, isError, selRow, selCol]);
   // Only a fill that FOLLOWS a live one counts as a move: the seed-to-live
   // step would otherwise light every cell at once.
@@ -703,8 +752,8 @@ const RateMatrix: React.FC<{
                 </Box>
                 {assets.map((col) => {
                   // Self and native (TAO↔alpha) cells stay blank.
-                  const self =
-                    asset.id === col.id || hubLeg(asset.id, col.id) === null;
+                  const native = hubLeg(asset.id, col.id) === null;
+                  const self = asset.id === col.id || native;
                   const k = `${asset.id}|${col.id}`;
                   const r = self ? undefined : rates[k];
                   const out = r?.out ?? null;
@@ -726,6 +775,8 @@ const RateMatrix: React.FC<{
                         selected={picked && outDir === direction}
                         seq={seq[`${k}|out`] ?? 0}
                         onSelect={() => onDirectionChange(outDir, hub)}
+                        native={native}
+                        soft={r?.outSoft}
                       />
                       <Cell
                         value={back}
@@ -734,6 +785,8 @@ const RateMatrix: React.FC<{
                         selected={picked && backDir === direction}
                         seq={seq[`${k}|back`] ?? 0}
                         onSelect={() => onDirectionChange(backDir, hub)}
+                        native={native}
+                        soft={r?.backSoft}
                       />
                     </React.Fragment>
                   );
