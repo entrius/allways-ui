@@ -194,10 +194,14 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
   chain,
   size = 16,
 }) => {
-  const [failed, setFailed] = useState(false);
+  // The URL that failed, not a flag: the rate card reuses one logo slot as
+  // the pick changes, and a flag would carry one subnet's dead link over to
+  // the next and draw its glyph in place of a working logo.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const isDark = useTheme().palette.mode === 'dark';
   const key = chain.toLowerCase();
   const src = logoSrc(key);
+  const failed = src != null && failedSrc === src;
   const glyph = chainInfo(key)?.glyph;
   if ((!src || failed) && glyph)
     return <AlphaGlyph glyph={glyph} size={size} />;
@@ -228,7 +232,7 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
       component="img"
       src={src}
       alt={key.toUpperCase()}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
       sx={{
         width: size,
         height: size,
