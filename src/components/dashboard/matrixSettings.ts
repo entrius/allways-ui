@@ -32,9 +32,6 @@ export interface MatrixSettings {
   header: HeaderParts;
   width: MatrixWidth;
   favoritesOnly: boolean;
-  // Only entries with a live quote: a subnet nobody is quoting yet is a row
-  // of dashes. Hubs always show.
-  quotedOnly: boolean;
   maxRows: number;
   // Chain ids. Hidden assets are collapsed out of the sheet; favorites are
   // starred and, with favoritesOnly, the only non-hub assets shown.
@@ -56,7 +53,6 @@ const DEFAULTS: MatrixSettings = {
   header: HEADER_PRESETS[0].parts,
   width: 'fit',
   favoritesOnly: false,
-  quotedOnly: false,
   maxRows: 10,
   hidden: [],
   favorites: [],
@@ -81,7 +77,6 @@ const read = (): MatrixSettings => {
         ? (parsed.width as MatrixWidth)
         : DEFAULTS.width,
       favoritesOnly: parsed.favoritesOnly ?? false,
-      quotedOnly: parsed.quotedOnly ?? DEFAULTS.quotedOnly,
       maxRows: MAX_ROWS_OPTIONS.includes(
         parsed.maxRows as (typeof MAX_ROWS_OPTIONS)[number],
       )

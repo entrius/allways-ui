@@ -221,20 +221,6 @@ const RateMatrixSettings: React.FC<{
             : 'none starred'}
         </Typography>
       </Box>
-      <Box sx={rowSx}>
-        <Check
-          checked={settings.quotedOnly}
-          onChange={() => update({ quotedOnly: !settings.quotedOnly })}
-        >
-          <span>quoted only</span>
-        </Check>
-        <Typography
-          component="span"
-          sx={{ ml: 'auto', fontSize: '0.62rem', color: 'text.disabled' }}
-        >
-          hides empty rows
-        </Typography>
-      </Box>
 
       <Typography component="div" sx={sectionSx}>
         sheet
