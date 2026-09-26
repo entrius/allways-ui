@@ -54,6 +54,8 @@ const HEAD_H = 52;
 const ROW_H = 30;
 // Floor only: the number columns grow to fit their values.
 const COL_MIN = 84;
+// 95% of subnet names fit; the handful of longer ones end in an ellipsis.
+const NAME_MAX = '14ch';
 
 interface CellRates {
   // Row asset received per 1 hub sent (hub → asset).
@@ -163,6 +165,13 @@ const AssetLabel: React.FC<{
               fontFamily: FONTS.mono,
               fontSize: '0.72rem',
               fontWeight: 600,
+              // A few subnet names run past 20 characters; cap the label so
+              // one outlier doesn't widen the whole anchor column (the full
+              // name is in the row's hover title).
+              maxWidth: NAME_MAX,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {tickerOf(chain)}

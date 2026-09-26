@@ -304,7 +304,12 @@ const RateMatrixSettings: React.FC<{
                   fontSize: '0.72rem',
                   fontWeight: 600,
                   color: shown ? 'text.primary' : 'text.disabled',
+                  maxWidth: '14ch',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
+                title={tickerOf(a)}
               >
                 {tickerOf(a)}
               </Typography>
