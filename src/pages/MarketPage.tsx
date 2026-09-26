@@ -533,7 +533,6 @@ const MarketPage: React.FC = () => {
           }}
           settings={{
             ...matrix.settings,
-            quotedOnly: false,
             favoritesOnly: false,
           }}
           toggleFavorite={matrix.toggleFavorite}
