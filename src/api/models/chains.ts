@@ -27,6 +27,10 @@ export interface ChainInfo {
   coingeckoId?: string | null;
   // Set for EVM assets; `contract` is null for a network's native coin.
   evm?: { chainId: number; contract: string | null } | null;
+  // Subnet alphas only: the token glyph drawn when the owner's logo is absent
+  // or dead, and whether the owner published a logo on chain at all.
+  glyph?: string | null;
+  ownerLogo?: boolean;
 }
 
 let registry: ChainInfo[] = seed.chains;

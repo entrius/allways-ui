@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, useTheme } from '@mui/material';
 import { FONTS } from '../theme';
 import {
@@ -13,10 +13,160 @@ import {
 // entry carries the path. Unknown chains — or a failed image load — fall back
 // to a lettered disc so layouts never break.
 const logoSrc = (chain: string): string | undefined => {
-  const path = chainInfo(chain)?.logo;
+  const info = chainInfo(chain);
+  const path = info?.logo;
   if (!path) return undefined;
+  // An alpha whose owner published no logo draws its glyph without asking; one
+  // whose link is dead gets a 404 (fallback=none) and draws it on error.
+  if (info.glyph && info.ownerLogo === false) return undefined;
   const baseUrl = import.meta.env.VITE_REACT_APP_BASE_URL;
-  return baseUrl ? `${baseUrl}${path}` : path;
+  const url = baseUrl ? `${baseUrl}${path}` : path;
+  return info.glyph
+    ? `${url}${url.includes('?') ? '&' : '?'}fallback=none`
+    : url;
+};
+
+// Where a glyph's ink actually sits, measured once per glyph and font: its ink
+// box and ink centroid, in units of the font size, relative to the pen origin.
+interface Ink {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  cx: number;
+}
+const INK = new Map<string, Ink | null>();
+const MEASURE_PX = 100;
+const GLYPH_WEIGHT = 500;
+
+const measureInk = (glyph: string, font: string): Ink | null => {
+  const key = `${font}|${glyph}`;
+  if (INK.has(key)) return INK.get(key) ?? null;
+  const w = MEASURE_PX * 3;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = w;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.font = `${GLYPH_WEIGHT} ${MEASURE_PX}px ${font}`;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(glyph, MEASURE_PX, MEASURE_PX * 2);
+  const { data } = ctx.getImageData(0, 0, w, w);
+  let minX = w,
+    maxX = -1,
+    minY = w,
+    maxY = -1,
+    sum = 0,
+    sx = 0;
+  for (let y = 0; y < w; y++)
+    for (let x = 0; x < w; x++) {
+      const a = data[(y * w + x) * 4 + 3];
+      if (!a) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      sum += a;
+      sx += a * x;
+    }
+  const ink =
+    maxX < 0
+      ? null
+      : {
+          left: (minX - MEASURE_PX) / MEASURE_PX,
+          right: (maxX + 1 - MEASURE_PX) / MEASURE_PX,
+          top: (minY - MEASURE_PX * 2) / MEASURE_PX,
+          bottom: (maxY + 1 - MEASURE_PX * 2) / MEASURE_PX,
+          cx: (sx / sum - MEASURE_PX) / MEASURE_PX,
+        };
+  INK.set(key, ink);
+  return ink;
+};
+
+// A subnet's alpha glyph (α, ε, ת) standing in for a logo, in the label's
+// colour. Fitted by eye, not by the em box, the way a column is
+// cut crooked so it reads straight:
+// - size: every glyph gets the same ink mass (ι and ω carry equal weight),
+//   capped so none outgrows the slot a logo would fill;
+// - across: the ink sits halfway between its box centre and its centroid, so
+//   lopsided letters (ג, ר) hang on the slot's axis and a column of them reads
+//   as one straight line;
+// - up/down: the ink box, not the em box, is centred in the slot, so a
+//   descender (μ, ρ) or a hanging Hebrew letter sits level with the ticker's
+//   capitals the way a box-centred logo does (see the tau note above).
+// Web fonts arrive after first paint, and a glyph measured in the fallback
+// face would be fitted wrong: wait for them once, for every glyph on the page.
+const fontsReady: Promise<unknown> =
+  typeof document !== 'undefined' && document.fonts
+    ? document.fonts.ready
+    : Promise.resolve();
+
+const fitGlyph = (glyph: string, size: number) => {
+  const ink = measureInk(glyph, FONTS.body);
+  if (!ink) return null;
+  const w = ink.right - ink.left;
+  const h = ink.bottom - ink.top;
+  const fontSize = Math.min(
+    (size * 0.66) / Math.sqrt(w * h),
+    (size * 0.92) / h,
+    size / w,
+  );
+  const inkCx = ((ink.left + ink.right) / 2 + ink.cx) / 2;
+  const inkCy = (ink.top + ink.bottom) / 2;
+  return {
+    fontSize,
+    x: size / 2 - inkCx * fontSize,
+    y: size / 2 - inkCy * fontSize,
+  };
+};
+
+const AlphaGlyph: React.FC<{ glyph: string; size: number }> = ({
+  glyph,
+  size,
+}) => {
+  const [fit, setFit] = useState<ReturnType<typeof fitGlyph>>(null);
+  useEffect(() => {
+    let live = true;
+    fontsReady.then(() => live && setFit(fitGlyph(glyph, size)));
+    return () => {
+      live = false;
+    };
+  }, [glyph, size]);
+
+  return (
+    <Box
+      component="span"
+      aria-hidden
+      sx={{
+        position: 'relative',
+        display: 'inline-block',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        lineHeight: 0,
+      }}
+    >
+      {fit && (
+        <svg
+          width={size}
+          height={size}
+          overflow="visible"
+          style={{ position: 'absolute', inset: 0 }}
+        >
+          <text
+            x={fit.x}
+            y={fit.y}
+            fontSize={fit.fontSize}
+            fontFamily={FONTS.body}
+            fontWeight={GLYPH_WEIGHT}
+            fill="currentColor"
+          >
+            {glyph}
+          </text>
+        </svg>
+      )}
+    </Box>
+  );
 };
 
 // No optical nudge: the tau's ink (rows 19 to 103 of the 128px source) is
@@ -38,7 +188,7 @@ const logoSrc = (chain: string): string | undefined => {
 // glyph is white on a dark disc, so something still reads.
 const DARK_MODE_INVERT = new Set(['tao']);
 // Subnet alphas are never flipped: das serves the owner's own logo (often in
-// colour) or the alpha's glyph on a dark disc, which reads on either theme.
+// colour), and without one the alpha's glyph is drawn as text in the label's colour.
 
 export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
   chain,
@@ -48,6 +198,9 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
   const isDark = useTheme().palette.mode === 'dark';
   const key = chain.toLowerCase();
   const src = logoSrc(key);
+  const glyph = chainInfo(key)?.glyph;
+  if ((!src || failed) && glyph)
+    return <AlphaGlyph glyph={glyph} size={size} />;
   if (!src || failed)
     return (
       <Box
