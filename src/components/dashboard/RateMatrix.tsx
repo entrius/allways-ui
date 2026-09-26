@@ -68,6 +68,15 @@ interface CellRates {
 
 const invert = (n: number | null): number | null => (n && n > 0 ? 1 / n : n);
 
+const pricedIn = (
+  rates: Record<string, CellRates>,
+  row: ChainInfo,
+  col: ChainInfo,
+): boolean => {
+  const r = rates[`${row.id}|${col.id}`];
+  return Boolean(r && (r.out || r.back));
+};
+
 const directionKey = (from: string, to: string): Direction =>
   `${from}-${to}`.toUpperCase() as Direction;
 
@@ -457,33 +466,60 @@ const RateMatrix: React.FC<{
   // column is judged against the rows that stay. Hubs and the picked pair
   // always show, and nothing clips until the first quotes arrive (or when
   // they fail), so the sheet never collapses to the hubs while loading.
-  const { rows: anchors, cols: assets } = useMemo(() => {
+  const clipped = useMemo(() => {
     if (!miners || isError) return axes;
-    const priced = (row: ChainInfo, col: ChainInfo) => {
-      const r = rates[`${row.id}|${col.id}`];
-      return Boolean(r && (r.out || r.back));
-    };
     const rows = axes.rows.filter(
       (row) =>
         row.hub ||
         row.id === selRow ||
-        axes.cols.some((col) => priced(row, col)),
+        axes.cols.some((col) => pricedIn(rates, row, col)),
     );
     const cols = axes.cols.filter(
       (col) =>
-        col.hub || col.id === selCol || rows.some((row) => priced(row, col)),
+        col.hub ||
+        col.id === selCol ||
+        rows.some((row) => pricedIn(rates, row, col)),
     );
-    // Sparse columns (priced in under half the rows, e.g. BTC, or TAO once
-    // the alphas are listed) move to the right edge, keeping their order, so
-    // the gaps gather in one place instead of splitting the dense columns.
-    const coverage = (col: ChainInfo) =>
-      rows.filter((row) => priced(row, col)).length;
-    const dense = (col: ChainInfo) => coverage(col) * 2 >= rows.length;
-    return {
-      rows,
-      cols: [...cols.filter(dense), ...cols.filter((c) => !dense(c))],
-    };
+    return { rows, cols };
   }, [axes, rates, miners, isError, selRow, selCol]);
+
+  // Columns run densest first: most priced rows on the left, so the gaps of
+  // sparse columns (BTC, or TAO beside the alphas) gather at the right edge.
+  // Ties keep das order, so hubs lead among equals. The order is frozen and
+  // only re-ranked when the sheet's assets change (a column comes or goes,
+  // the row set changes, or the first quotes land), never on a rate tick,
+  // so nothing shuffles under the cursor.
+  const ratesRef = useRef(rates);
+  ratesRef.current = rates;
+  const rankKey = `${Boolean(miners)}|${clipped.rows
+    .map((a) => a.id)
+    .join()}|${clipped.cols
+    .map((a) => a.id)
+    .sort()
+    .join()}`;
+  const rank = useMemo(() => {
+    const coverage = new Map<string, number>();
+    for (const col of clipped.cols)
+      coverage.set(
+        col.id,
+        clipped.rows.filter(
+          // A column's own row is its blank diagonal, not a gap.
+          (row) => row.id === col.id || pricedIn(ratesRef.current, row, col),
+        ).length,
+      );
+    return coverage;
+    // Keyed on rankKey alone: re-ranking on every rate would shuffle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rankKey]);
+  const { rows: anchors, cols: assets } = useMemo(() => {
+    const order = new Map(axes.cols.map((c, i) => [c.id, i]));
+    const cols = [...clipped.cols].sort(
+      (a, b) =>
+        (rank.get(b.id) ?? 0) - (rank.get(a.id) ?? 0) ||
+        (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
+    );
+    return { rows: clipped.rows, cols };
+  }, [clipped, rank, axes.cols]);
   // Only a fill that FOLLOWS a live one counts as a move: the seed-to-live
   // step would otherwise light every cell at once.
   const prev = useRef<Record<string, CellRates> | null>(null);
