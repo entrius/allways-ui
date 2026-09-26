@@ -4,7 +4,6 @@ import { FONTS } from '../theme';
 import {
   chainInfo,
   chainList,
-  isAlpha,
   isToken,
   nativeOf,
   type ChainInfo,
@@ -38,10 +37,8 @@ const logoSrc = (chain: string): string | undefined => {
 // blanket rule. Next closest is QNT at luminance 46; it survives because its
 // glyph is white on a dark disc, so something still reads.
 const DARK_MODE_INVERT = new Set(['tao']);
-
-// das serves every subnet alpha the TAO tau (the same 128px PNG), so an
-// alpha takes TAO's dark-mode flip: SN19 and TAO draw identically.
-const markOf = (key: string): string => (isAlpha(key) ? 'tao' : key);
+// Subnet alphas are never flipped: das serves the owner's own logo (often in
+// colour) or the alpha's glyph on a dark disc, which reads on either theme.
 
 export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
   chain,
@@ -72,7 +69,7 @@ export const ChainLogo: React.FC<{ chain: string; size?: number }> = ({
         {key.charAt(0).toUpperCase()}
       </Box>
     );
-  const invert = isDark && DARK_MODE_INVERT.has(markOf(key));
+  const invert = isDark && DARK_MODE_INVERT.has(key);
   return (
     <Box
       component="img"
