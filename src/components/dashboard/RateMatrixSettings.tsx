@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { isAlpha, type ChainInfo } from '../../api/models/chains';
+import { isAlpha, tickerOf, type ChainInfo } from '../../api/models/chains';
 import { FONTS } from '../../theme';
 import {
   SettingsCheck as Check,
@@ -125,6 +125,7 @@ const RateMatrixSettings: React.FC<{
   const matches = (a: ChainInfo) =>
     !q ||
     a.symbol.toLowerCase().includes(q) ||
+    a.name.toLowerCase().includes(q) ||
     a.id.includes(q) ||
     (a.network ?? '').toLowerCase().includes(q) ||
     // "7" finds SN7 as well as SN17, SN70...
@@ -305,8 +306,20 @@ const RateMatrixSettings: React.FC<{
                   color: shown ? 'text.primary' : 'text.disabled',
                 }}
               >
-                {a.symbol}
+                {tickerOf(a)}
               </Typography>
+              {isAlpha(a.id) && (
+                <Typography
+                  component="span"
+                  sx={{
+                    fontFamily: FONTS.mono,
+                    fontSize: '0.6rem',
+                    color: 'text.secondary',
+                  }}
+                >
+                  {a.symbol}
+                </Typography>
+              )}
               {a.network && !isAlpha(a.id) && (
                 <Typography
                   component="span"

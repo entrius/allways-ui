@@ -21,6 +21,7 @@ import {
   hubChains,
   hubLeg,
   isAlpha,
+  tickerOf,
   type ChainInfo,
 } from '../../api/models/chains';
 import {
@@ -164,11 +165,23 @@ const AssetLabel: React.FC<{
               fontWeight: 600,
             }}
           >
+            {tickerOf(chain)}
+          </Typography>
+        )}
+        {/* A subnet's second line is its netuid (every subnet lives on
+            Bittensor, so the network would say nothing). */}
+        {network && isAlpha(chain.id) && (
+          <Typography
+            component="span"
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.6rem',
+              color: 'text.secondary',
+            }}
+          >
             {chain.symbol}
           </Typography>
         )}
-        {/* Every subnet lives on Bittensor: a network line under each of
-            128 rows only doubles the row height. */}
         {network && chain.network && !isAlpha(chain.id) && (
           <Typography
             component="span"
@@ -743,7 +756,7 @@ const RateMatrix: React.FC<{
               <tr key={asset.id}>
                 <Box
                   component="th"
-                  title={`${asset.symbol}${asset.network ? ` · ${asset.network}` : ''}`}
+                  title={`${tickerOf(asset)}${isAlpha(asset.id) ? ` · ${asset.symbol}` : asset.network ? ` · ${asset.network}` : ''}`}
                   sx={{
                     ...pinnedSx,
                     left: 0,

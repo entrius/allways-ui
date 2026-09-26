@@ -153,12 +153,19 @@ export const nativeOf = (
     (o) => o.id !== c.id && o.network === c.network && !isToken(o, chains),
   );
 
+// A subnet alpha goes by its on-chain identity name ("Apex", "Targon"),
+// not its netuid ticker; das serves that name (or "Subnet N" when the owner
+// set none). Every other asset keeps its ticker.
+export const tickerOf = (c: ChainInfo): string =>
+  isAlpha(c.id) && c.name ? c.name : c.symbol;
+
 // The asset's display name, carrying its network whenever the symbol is
 // shared with another listing ("USDC (Arbitrum)", but plain "BTC"). The one
 // label for asset names everywhere: the matrix, the book, detail pages.
 export const assetLabel = (id: string, chains: ChainInfo[] = registry) => {
   const c = chainInfo(id);
   if (!c) return id.toUpperCase();
+  if (isAlpha(c.id)) return tickerOf(c);
   const shared = chains.some((o) => o.id !== c.id && o.symbol === c.symbol);
   return shared && c.network ? `${c.symbol} (${c.network})` : c.symbol;
 };
