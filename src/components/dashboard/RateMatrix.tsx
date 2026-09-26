@@ -601,7 +601,11 @@ const RateMatrix: React.FC<{
       // Page offset of the sheet's top, then whatever the window leaves
       // after the reserve, cut to whole rows (at least the hubs and a few
       // subnets) so no row is half shown.
-      const top = t.getBoundingClientRect().top + window.scrollY;
+      // Measured on the scroll box, not the table: the table rides up as the
+      // sheet scrolls, which would read as more room on every refresh and
+      // grow the sheet until it showed every row.
+      const box = t.parentElement ?? t;
+      const top = box.getBoundingClientRect().top + window.scrollY;
       const room = winH - top - reserveBelow;
       const minRows = Math.min(rows.length, 5);
       let fit = rows[minRows - 1];
