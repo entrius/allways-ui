@@ -22,7 +22,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { FONTS } from '../../theme';
 import { chainSymbol, formatRate, unitsToHuman } from '../../utils/format';
-import { assetLabel } from '../../api/models/chains';
+import { assetLabel, chainInfo } from '../../api/models/chains';
 import { OrderbookDepthSkeleton } from './Skeletons';
 import MonoSelect from '../MonoSelect';
 import RailTooltip from './railTooltip';
@@ -170,13 +170,19 @@ const HintLines: React.FC<{ lines: [string, string][] }> = ({ lines }) => (
   </Box>
 );
 
-// The caption over one side of the book: a legend swatch in the side's
-// chart colour, the side's direction as a chip in the site's treatment (see
-// RangeChips), and its best rate beside it.
+// The caption over one side of the book, on two lines so nothing in it
+// is cut off in a half-width column. First the side's direction as a chip
+// in the site's treatment (see RangeChips), tickers only, with a legend
+// swatch in the side's chart colour; then its best rate, with the networks
+// spelled out beside it when a ticker is listed on more than one.
 // The picked side is inverted paper-on-text. With a setter, the chip is the
-// toggle between the two directions.
+// toggle between the two directions. Each side hugs its outer edge.
 const SideHeading: React.FC<{
   label: string;
+  // "USDC on Ethereum" where a leg's ticker alone is ambiguous.
+  note?: string | null;
+  // The full name, for the chip's hover.
+  title: string;
   // The side's colour on the chart, shown as a legend swatch by the chip.
   color: string;
   // The side's best rate, e.g. "0.041680"; absent when the side is empty.
@@ -186,74 +192,104 @@ const SideHeading: React.FC<{
   selected: boolean;
   onSelect?: () => void;
   align: 'left' | 'right';
-}> = ({ label, color, best, bestSeq = 0, selected, onSelect, align }) => (
+}> = ({
+  label,
+  note,
+  title,
+  color,
+  best,
+  bestSeq = 0,
+  selected,
+  onSelect,
+  align,
+}) => (
   <Box
     sx={{
       display: 'flex',
-      alignItems: 'center',
-      flexDirection: align === 'left' ? 'row' : 'row-reverse',
-      gap: 1.5,
+      flexDirection: 'column',
+      alignItems: align === 'left' ? 'flex-start' : 'flex-end',
+      gap: 0.5,
       minWidth: 0,
       px: 1,
       py: 0.75,
     }}
   >
     <Box
-      component="span"
-      aria-hidden
       sx={{
-        flex: 'none',
-        width: 8,
-        height: 8,
-        backgroundColor: color,
-        mr: align === 'left' ? -0.5 : 0,
-        ml: align === 'right' ? -0.5 : 0,
+        display: 'flex',
+        alignItems: 'center',
+        flexDirection: align === 'left' ? 'row' : 'row-reverse',
+        gap: 0.75,
+        maxWidth: '100%',
+        minWidth: 0,
       }}
-    />
-    <RailTooltip
-      title={onSelect && !selected ? `Show ${label}` : ''}
-      placement="top"
     >
       <Box
-        component={onSelect ? 'button' : 'span'}
-        onClick={onSelect}
-        aria-pressed={onSelect ? selected : undefined}
-        sx={{
-          all: 'unset',
-          cursor: onSelect ? 'pointer' : 'default',
-          display: 'inline-block',
-          minWidth: 0,
-          boxSizing: 'border-box',
-          px: 1,
-          py: 0.4,
-          fontFamily: FONTS.mono,
-          fontSize: '0.65rem',
-          fontWeight: 600,
-          letterSpacing: '0.05em',
-          textTransform: 'uppercase',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          color: selected ? 'background.paper' : 'text.secondary',
-          backgroundColor: selected ? 'text.primary' : 'transparent',
-          '&:hover': onSelect
-            ? { backgroundColor: selected ? 'text.primary' : 'action.hover' }
-            : undefined,
-        }}
+        component="span"
+        aria-hidden
+        sx={{ flex: 'none', width: 8, height: 8, backgroundColor: color }}
+      />
+      <RailTooltip
+        title={onSelect && !selected ? `Show ${title}` : title}
+        placement="top"
       >
-        {label}
-      </Box>
-    </RailTooltip>
-    {best && (
+        <Box
+          component={onSelect ? 'button' : 'span'}
+          onClick={onSelect}
+          aria-pressed={onSelect ? selected : undefined}
+          aria-label={title}
+          sx={{
+            all: 'unset',
+            cursor: onSelect ? 'pointer' : 'default',
+            display: 'inline-block',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            px: 1,
+            py: 0.4,
+            fontFamily: FONTS.mono,
+            fontSize: '0.65rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            color: selected ? 'background.paper' : 'text.secondary',
+            backgroundColor: selected ? 'text.primary' : 'transparent',
+            border: '1px solid',
+            borderColor: selected ? 'text.primary' : 'border.light',
+            '&:hover': onSelect
+              ? { backgroundColor: selected ? 'text.primary' : 'action.hover' }
+              : undefined,
+          }}
+        >
+          {label}
+        </Box>
+      </RailTooltip>
+    </Box>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'baseline',
+        flexDirection: align === 'left' ? 'row' : 'row-reverse',
+        gap: 0.75,
+        maxWidth: '100%',
+        minWidth: 0,
+      }}
+    >
       <Box
         component="span"
         key={bestSeq}
         sx={{
           fontFamily: FONTS.mono,
-          fontSize: '0.82rem',
+          fontSize: '0.95rem',
           fontWeight: 700,
           fontVariantNumeric: 'tabular-nums',
-          color: selected ? 'text.primary' : 'text.secondary',
+          color: best
+            ? selected
+              ? 'text.primary'
+              : 'text.secondary'
+            : 'text.disabled',
           whiteSpace: 'nowrap',
           px: 0.5,
           mx: -0.5,
@@ -261,9 +297,26 @@ const SideHeading: React.FC<{
           ...(bestSeq > 0 ? { animation: FLASH_ANIMATION } : {}),
         }}
       >
-        {best}
+        {best ?? '—'}
       </Box>
-    )}
+      {note && (
+        <Box
+          component="span"
+          title={note}
+          sx={{
+            fontFamily: FONTS.mono,
+            fontSize: '0.6rem',
+            color: 'text.disabled',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            minWidth: 0,
+          }}
+        >
+          {note}
+        </Box>
+      )}
+    </Box>
   </Box>
 );
 
@@ -453,6 +506,22 @@ const OrderbookDepth: React.FC<{
   const sideLabel = (d: Direction) => {
     const l = decomposeDirection(d);
     return `${assetLabel(l.from)} → ${assetLabel(l.to)}`;
+  };
+  // The chip's short form: tickers only, which always fit ("TAO → USDC").
+  // Where a ticker is listed on several networks, the note names them.
+  const sideShort = (d: Direction) => {
+    const l = decomposeDirection(d);
+    return `${chainSymbol(l.from)} → ${chainSymbol(l.to)}`;
+  };
+  const sideNote = (d: Direction): string | null => {
+    const l = decomposeDirection(d);
+    const parts = [l.from, l.to]
+      .filter((id) => assetLabel(id) !== chainSymbol(id))
+      .map((id) => {
+        const net = chainInfo(id)?.network;
+        return net ? `${chainSymbol(id)} on ${net}` : assetLabel(id);
+      });
+    return parts.length ? parts.join(' · ') : null;
   };
   const pick = (d: Direction) =>
     onDirectionChange ? () => onDirectionChange(d, base) : undefined;
@@ -662,7 +731,9 @@ const OrderbookDepth: React.FC<{
   const heading = (col: 'left' | 'right') => (
     <Box key={`${col}-heading`} sx={columnSx(col)}>
       <SideHeading
-        label={sideLabel(dirOf(col))}
+        label={sideShort(dirOf(col))}
+        note={sideNote(dirOf(col))}
+        title={sideLabel(dirOf(col))}
         color={colorOf(col)}
         best={sideBest(col)}
         bestSeq={seq[`${sideOf(col)}|best`] ?? 0}

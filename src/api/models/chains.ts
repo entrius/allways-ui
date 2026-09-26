@@ -75,6 +75,12 @@ export const hubLeg = (
     : (hubChains(chains).find((h) => h === a || h === b) ??
       (isAlpha(a) !== isAlpha(b) ? (isAlpha(a) ? a : b) : null));
 
+// The purse a pair's quotes are backed by: TAO for any alpha pair, else the
+// given hub (the pair's hub leg, or for sol↔tao the lane being viewed).
+// Mirror of das declarableBackings[0] / allways.constants.declarable_backings.
+export const pairBacking = (a: string, b: string, hub: string): string =>
+  isAlpha(a) || isAlpha(b) ? 'tao' : hub;
+
 // The emission family a pair scores in: 'alpha' when either leg is an alpha,
 // else its hub leg. Each family gets an equal share of the miner pool.
 export const scoringFamily = (

@@ -101,6 +101,27 @@ export const SettingsSeg: React.FC<{
   </Box>
 );
 
+// A widget's width on the desk, in columns: the first row of its panel.
+export const SettingsWidthRows: React.FC<{
+  value: number;
+  options: number[];
+  onChange: (cols: number) => void;
+}> = ({ value, options, onChange }) => (
+  <>
+    <Typography component="div" sx={{ ...settingsLabelSx, pt: 0.25, pb: 0.25 }}>
+      width
+    </Typography>
+    <Box sx={settingsRowSx}>
+      <SettingsSeg
+        left
+        options={options.map((n) => ({ value: String(n), label: `${n} col` }))}
+        value={String(value)}
+        onChange={(v) => onChange(Number(v))}
+      />
+    </Box>
+  </>
+);
+
 export const SettingsCheck: React.FC<{
   checked: boolean;
   onChange: () => void;

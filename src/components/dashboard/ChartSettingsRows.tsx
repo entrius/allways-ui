@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import {
   SettingsCheck as Check,
+  SettingsWidthRows,
   settingsLabelSx as labelSx,
   settingsNoteSx,
   settingsRowSx as rowSx,
@@ -15,7 +16,22 @@ const ChartSettingsRows: React.FC<{
   update: (patch: Partial<ChartSettings>) => void;
 }> = ({ settings, update }) => (
   <>
-    <Typography component="div" sx={{ ...labelSx, pt: 0.25, pb: 0.25 }}>
+    <SettingsWidthRows
+      value={settings.width}
+      options={[1, 2]}
+      onChange={(n) => update({ width: n === 1 ? 1 : 2 })}
+    />
+    <Typography
+      component="div"
+      sx={{
+        ...labelSx,
+        pt: 1,
+        pb: 0.25,
+        mt: 0.5,
+        borderTop: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
       readout
     </Typography>
     <Box sx={rowSx}>

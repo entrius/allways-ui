@@ -10,6 +10,7 @@ import {
   directionalRateFor,
   type Direction,
 } from '../../api/models/MinersDashboard';
+import { pairBacking } from '../../api/models/chains';
 import { takeableFor, takeableKey, useBestTakeable } from './takeable';
 import {
   canonicalSource,
@@ -116,10 +117,12 @@ const DirectionCard: React.FC<{
 
   // The best takeable rate on the base hub's purse: the same number the
   // matrix cell shows and the top of the book.
+  // Alpha pairs are all TAO-backed, whichever leg the card is priced in.
+  const purse = pairBacking(legs.from, legs.to, base);
   const { map: takeable } = useBestTakeable();
-  const natural = takeableFor(takeable, direction, base);
+  const natural = takeableFor(takeable, direction, purse);
   const price = toPrice(natural);
-  const revNatural = takeableFor(takeable, reverseDir, base);
+  const revNatural = takeableFor(takeable, reverseDir, purse);
   // The reverse route on the same ruler: it is the inverse whenever this
   // one is not, and vice versa.
   const revPrice =
@@ -147,7 +150,7 @@ const DirectionCard: React.FC<{
   const { data: selRows } = useCrownRateHistory({
     direction,
     secs,
-    backing: base,
+    backing: purse,
   });
   // Move, high and low over the window, all on the displayed ruler. The
   // live rate counts as a point so the range never excludes it.
@@ -170,7 +173,7 @@ const DirectionCard: React.FC<{
   // The book behind the headline: quotes and takeable size on the base
   // hub's purse, size in USD when the purse is priced.
   const prices = useUsdPrices();
-  const quoteInfo = takeable.get(takeableKey(direction, base));
+  const quoteInfo = takeable.get(takeableKey(direction, purse));
   const depthUnits = quoteInfo
     ? Object.values(quoteInfo.depth).reduce((a, b) => a + b, 0)
     : 0;
@@ -215,6 +218,7 @@ const DirectionCard: React.FC<{
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const baseSym = chainSymbol(base);
+  const purseSym = chainSymbol(purse);
   const quoteSym = chainSymbol(quote);
   const shown = RATE_STATS.filter((k) => stats[k]);
 
@@ -229,9 +233,17 @@ const DirectionCard: React.FC<{
           minWidth: 0,
         }}
       >
-        {/* Pair, hub first, the way the matrix column and row read. */}
+        {/* Pair, hub first, the way the matrix column and row read. Lifted
+            half a pixel: flex centres the marks on the text's line box,
+            whose middle sits below the capitals' (room for descenders), so
+            this puts the marks' centre on the capitals' centre. */}
         <Box
-          sx={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            flexShrink: 0,
+            transform: 'translateY(-0.5px)',
+          }}
         >
           <Box sx={{ display: 'inline-flex', position: 'relative', zIndex: 1 }}>
             <ChainLogo chain={base} size={16} />
@@ -419,9 +431,9 @@ const DirectionCard: React.FC<{
                     value={
                       depthUsd != null
                         ? `$${fmtSize(depthUsd)}`
-                        : `${fmtSize(depthUnits)} ${baseSym}`
+                        : `${fmtSize(depthUnits)} ${purseSym}`
                     }
-                    hint={`Takeable size behind this direction's quotes right now${depthUsd != null ? `, ${fmtSize(depthUnits)} ${baseSym}` : ''}.`}
+                    hint={`Takeable size behind this direction's quotes right now${depthUsd != null ? `, ${fmtSize(depthUnits)} ${purseSym}` : ''}.`}
                   />
                 );
               case 'quotes':
