@@ -29,12 +29,7 @@ import {
 } from '../../api/models/MinersDashboard';
 import { formatRate, usdFromHuman, type UsdPrices } from '../../utils/format';
 import { hubLegVolume } from './marketRate';
-import {
-  quotedIds,
-  takeableFor,
-  useBestTakeable,
-  type TakeableMap,
-} from './takeable';
+import { takeableFor, useBestTakeable, type TakeableMap } from './takeable';
 import { FONTS } from '../../theme';
 import { ChainLogo, NetworkBadge } from '../ChainLogo';
 import type { MatrixSettings } from './matrixSettings';
@@ -286,19 +281,12 @@ export const useMatrixAssets = (): ChainInfo[] => {
 // axes and always show; everything else honours hidden. Favorites-only
 // keeps the starred entries on each axis, hubs included (a hub is starred
 // like any other), and an axis with nothing starred keeps its default:
-// the hub rows, or every column. With quoted-only and the live quote set
-// given, entries nobody is quoting drop out too.
+// the hub rows, or every column.
 export const matrixAxes = (
   all: ChainInfo[],
   settings: MatrixSettings,
-  quoted?: Set<string>,
 ): { rows: ChainInfo[]; cols: ChainInfo[] } => {
-  const shown = all.filter(
-    (a) =>
-      a.hub ||
-      (!settings.hidden.includes(a.id) &&
-        (!settings.quotedOnly || !quoted || quoted.has(a.id))),
-  );
+  const shown = all.filter((a) => a.hub || !settings.hidden.includes(a.id));
   const rows = shown.filter((a) => a.hub || isAlpha(a.id));
   const cols = shown.filter((a) => !isAlpha(a.id));
   if (!settings.favoritesOnly) return { rows, cols };
@@ -322,7 +310,6 @@ export const matrixUniverse = (
     header: { logo: true, ticker: true, network: true },
     width: 'fit',
     favoritesOnly: false,
-    quotedOnly: false,
     maxRows: 0,
     hidden: [],
     favorites: [],
@@ -389,16 +376,9 @@ const RateMatrix: React.FC<{
   const { row: selRow, col: selCol } = matrixCell(direction, base);
 
   const allAssets = useMatrixAssets();
-  // Quoted-only never hides the pair that is picked.
-  const quoted = useMemo(() => {
-    const ids = quotedIds(takeable);
-    ids.add(selRow);
-    ids.add(selCol);
-    return ids;
-  }, [takeable, selRow, selCol]);
-  const { rows: anchors, cols: assets } = useMemo(
-    () => matrixAxes(allAssets, settings, quoted),
-    [allAssets, settings, quoted],
+  const axes = useMemo(
+    () => matrixAxes(allAssets, settings),
+    [allAssets, settings],
   );
   const allAxes = useMemo(
     () =>
@@ -406,7 +386,6 @@ const RateMatrix: React.FC<{
         ...settings,
         hidden: [],
         favoritesOnly: false,
-        quotedOnly: false,
       }),
     [allAssets, settings],
   );
@@ -432,6 +411,30 @@ const RateMatrix: React.FC<{
           m[`${anchor.id}|${a.id}`] = cellRates(anchor, a, takeable);
     return m;
   }, [allAxes, takeable]);
+
+  // The sheet clips itself to what is priced: a row or column with no rate in
+  // any of its cells drops out, and comes back as soon as a quote lands. A
+  // column is judged against the rows that stay. Hubs and the picked pair
+  // always show, and nothing clips until the first quotes arrive (or when
+  // they fail), so the sheet never collapses to the hubs while loading.
+  const { rows: anchors, cols: assets } = useMemo(() => {
+    if (!miners || isError) return axes;
+    const priced = (row: ChainInfo, col: ChainInfo) => {
+      const r = rates[`${row.id}|${col.id}`];
+      return Boolean(r && (r.out || r.back));
+    };
+    const rows = axes.rows.filter(
+      (row) =>
+        row.hub ||
+        row.id === selRow ||
+        axes.cols.some((col) => priced(row, col)),
+    );
+    const cols = axes.cols.filter(
+      (col) =>
+        col.hub || col.id === selCol || rows.some((row) => priced(row, col)),
+    );
+    return { rows, cols };
+  }, [axes, rates, miners, isError, selRow, selCol]);
   // Only a fill that FOLLOWS a live one counts as a move: the seed-to-live
   // step would otherwise light every cell at once.
   const prev = useRef<Record<string, CellRates> | null>(null);
