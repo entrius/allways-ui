@@ -4,6 +4,7 @@ import {
   hubChain,
   hubChains,
   hubLeg,
+  tickerOf,
 } from '../api/models/chains';
 
 export const shortAddr = (addr: string) =>
@@ -204,7 +205,7 @@ const trimToMinDecimals = (value: string, minDecimals: number): string => {
 const chainCfg = (chain: string | null | undefined) => {
   const c = chainInfo(chain);
   return c
-    ? { exp: 10 ** c.decimals, digits: c.displayDigits, symbol: c.symbol }
+    ? { exp: 10 ** c.decimals, digits: c.displayDigits, symbol: tickerOf(c) }
     : undefined;
 };
 

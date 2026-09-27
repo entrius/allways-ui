@@ -21,6 +21,7 @@ import {
   hubChains,
   hubLeg,
   isAlpha,
+  tickerOf,
   type ChainInfo,
 } from '../../api/models/chains';
 import {
@@ -29,12 +30,7 @@ import {
 } from '../../api/models/MinersDashboard';
 import { formatRate, usdFromHuman, type UsdPrices } from '../../utils/format';
 import { hubLegVolume } from './marketRate';
-import {
-  quotedIds,
-  takeableFor,
-  useBestTakeable,
-  type TakeableMap,
-} from './takeable';
+import { takeableFor, useBestTakeable, type TakeableMap } from './takeable';
 import { FONTS } from '../../theme';
 import { ChainLogo, NetworkBadge } from '../ChainLogo';
 import type { MatrixSettings } from './matrixSettings';
@@ -58,6 +54,8 @@ const HEAD_H = 52;
 const ROW_H = 30;
 // Floor only: the number columns grow to fit their values.
 const COL_MIN = 84;
+// 95% of subnet names fit; the handful of longer ones end in an ellipsis.
+const NAME_MAX = '14ch';
 
 interface CellRates {
   // Row asset received per 1 hub sent (hub → asset).
@@ -65,9 +63,22 @@ interface CellRates {
   // Row asset sent per 1 hub received (asset → hub). Same unit as `out`
   // so the two directions read on one scale and the spread is the gap.
   back: number | null;
+  // Side has no hittable quote; the number is a busy miner's quote or a
+  // cross, printed muted.
+  outSoft?: boolean;
+  backSoft?: boolean;
 }
 
 const invert = (n: number | null): number | null => (n && n > 0 ? 1 / n : n);
+
+const pricedIn = (
+  rates: Record<string, CellRates>,
+  row: ChainInfo,
+  col: ChainInfo,
+): boolean => {
+  const r = rates[`${row.id}|${col.id}`];
+  return Boolean(r && (r.out || r.back));
+};
 
 const directionKey = (from: string, to: string): Direction =>
   `${from}-${to}`.toUpperCase() as Direction;
@@ -84,13 +95,22 @@ const cellRates = (
   anchor: ChainInfo,
   asset: ChainInfo,
   takeable: TakeableMap,
+  quoted: TakeableMap,
 ): CellRates => {
   const purse = purseFor(anchor, asset);
+  const side = (dir: Direction) => {
+    const live = takeableFor(takeable, dir, purse);
+    return live != null
+      ? { v: live, soft: false }
+      : { v: takeableFor(quoted, dir, purse), soft: true };
+  };
+  const out = side(directionKey(anchor.id, asset.id));
+  const back = side(directionKey(asset.id, anchor.id));
   return {
-    out: takeableFor(takeable, directionKey(anchor.id, asset.id), purse),
-    back: invert(
-      takeableFor(takeable, directionKey(asset.id, anchor.id), purse),
-    ),
+    out: out.v,
+    back: invert(back.v),
+    outSoft: out.v != null && out.soft,
+    backSoft: back.v != null && back.soft,
   };
 };
 
@@ -145,13 +165,32 @@ const AssetLabel: React.FC<{
               fontFamily: FONTS.mono,
               fontSize: '0.72rem',
               fontWeight: 600,
+              // A few subnet names run past 20 characters; cap the label so
+              // one outlier doesn't widen the whole anchor column (the full
+              // name is in the row's hover title).
+              maxWidth: NAME_MAX,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {tickerOf(chain)}
+          </Typography>
+        )}
+        {/* A subnet's second line is its netuid (every subnet lives on
+            Bittensor, so the network would say nothing). */}
+        {network && isAlpha(chain.id) && (
+          <Typography
+            component="span"
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.6rem',
+              color: 'text.secondary',
             }}
           >
             {chain.symbol}
           </Typography>
         )}
-        {/* Every subnet lives on Bittensor: a network line under each of
-            128 rows only doubles the row height. */}
         {network && chain.network && !isAlpha(chain.id) && (
           <Typography
             component="span"
@@ -177,12 +216,24 @@ const Cell: React.FC<{
   // Bumps every time the value changes; a fresh key restarts the flash.
   seq: number;
   onSelect: () => void;
-}> = ({ value, self, band, selected, seq, onSelect }) => {
+  // Alpha↔TAO is not an Allways pair (it settles on-chain by staking): the
+  // cell reads like the diagonal, with a note on hover.
+  native?: boolean;
+  // No hittable quote right now: a busy miner's rate, printed muted.
+  soft?: boolean;
+}> = ({ value, self, band, selected, seq, onSelect, native, soft }) => {
   const empty = value === null || value === 0;
   const cell = (
     <Box
       component="td"
       key={seq}
+      title={
+        native
+          ? 'Not an Allways pair: alpha and TAO swap on-chain by staking.'
+          : soft && !empty
+            ? 'Indicative: the quoting miner is busy with a swap. The rate is hittable again once it settles.'
+            : undefined
+      }
       onClick={self ? undefined : onSelect}
       aria-selected={selected || undefined}
       sx={{
@@ -193,7 +244,11 @@ const Cell: React.FC<{
         fontSize: '0.74rem',
         fontWeight: selected ? 700 : 500,
         fontVariantNumeric: 'tabular-nums',
-        color: empty ? 'text.disabled' : 'text.primary',
+        color: empty
+          ? 'text.disabled'
+          : soft
+            ? 'text.secondary'
+            : 'text.primary',
         // The picked cell reads like a spreadsheet's active cell: a full
         // ring in the text colour, drawn with outline so it never fights
         // the flash's inset shadow, over a filled background.
@@ -209,12 +264,12 @@ const Cell: React.FC<{
         outlineOffset: -2,
         position: selected ? 'relative' : undefined,
         zIndex: selected ? 1 : undefined,
-        cursor: self ? 'default' : 'pointer',
+        cursor: native ? 'help' : self ? 'default' : 'pointer',
         '&:hover': self ? undefined : { backgroundColor: 'action.selected' },
         ...(seq > 0 && !self ? { animation: FLASH_ANIMATION } : {}),
       }}
     >
-      {self ? '' : empty ? '—' : formatRate(value)}
+      {self || empty ? '' : formatRate(value)}
     </Box>
   );
   return cell;
@@ -286,19 +341,12 @@ export const useMatrixAssets = (): ChainInfo[] => {
 // axes and always show; everything else honours hidden. Favorites-only
 // keeps the starred entries on each axis, hubs included (a hub is starred
 // like any other), and an axis with nothing starred keeps its default:
-// the hub rows, or every column. With quoted-only and the live quote set
-// given, entries nobody is quoting drop out too.
+// the hub rows, or every column.
 export const matrixAxes = (
   all: ChainInfo[],
   settings: MatrixSettings,
-  quoted?: Set<string>,
 ): { rows: ChainInfo[]; cols: ChainInfo[] } => {
-  const shown = all.filter(
-    (a) =>
-      a.hub ||
-      (!settings.hidden.includes(a.id) &&
-        (!settings.quotedOnly || !quoted || quoted.has(a.id))),
-  );
+  const shown = all.filter((a) => a.hub || !settings.hidden.includes(a.id));
   const rows = shown.filter((a) => a.hub || isAlpha(a.id));
   const cols = shown.filter((a) => !isAlpha(a.id));
   if (!settings.favoritesOnly) return { rows, cols };
@@ -322,7 +370,6 @@ export const matrixUniverse = (
     header: { logo: true, ticker: true, network: true },
     width: 'fit',
     favoritesOnly: false,
-    quotedOnly: false,
     maxRows: 0,
     hidden: [],
     favorites: [],
@@ -383,22 +430,21 @@ const RateMatrix: React.FC<{
 }) => {
   const theme = useTheme();
   const { data: chains } = useChains();
-  const { map: takeable, miners, dataUpdatedAt, isError } = useBestTakeable();
+  const {
+    map: takeable,
+    quoted: indicative,
+    miners,
+    dataUpdatedAt,
+    isError,
+  } = useBestTakeable();
   // The picked cell's row anchor and column asset, so their headers can
   // light up the way a spreadsheet marks the active cell's row and column.
   const { row: selRow, col: selCol } = matrixCell(direction, base);
 
   const allAssets = useMatrixAssets();
-  // Quoted-only never hides the pair that is picked.
-  const quoted = useMemo(() => {
-    const ids = quotedIds(takeable);
-    ids.add(selRow);
-    ids.add(selCol);
-    return ids;
-  }, [takeable, selRow, selCol]);
-  const { rows: anchors, cols: assets } = useMemo(
-    () => matrixAxes(allAssets, settings, quoted),
-    [allAssets, settings, quoted],
+  const axes = useMemo(
+    () => matrixAxes(allAssets, settings),
+    [allAssets, settings],
   );
   const allAxes = useMemo(
     () =>
@@ -406,7 +452,6 @@ const RateMatrix: React.FC<{
         ...settings,
         hidden: [],
         favoritesOnly: false,
-        quotedOnly: false,
       }),
     [allAssets, settings],
   );
@@ -429,9 +474,74 @@ const RateMatrix: React.FC<{
     for (const anchor of allAxes.rows)
       for (const a of allAxes.cols)
         if (a.id !== anchor.id)
-          m[`${anchor.id}|${a.id}`] = cellRates(anchor, a, takeable);
+          m[`${anchor.id}|${a.id}`] = cellRates(
+            anchor,
+            a,
+            takeable,
+            indicative,
+          );
     return m;
-  }, [allAxes, takeable]);
+  }, [allAxes, takeable, indicative]);
+
+  // The sheet clips itself to what is priced: a row or column with no rate in
+  // any of its cells drops out, and comes back as soon as a quote lands. A
+  // column is judged against the rows that stay. Hubs and the picked pair
+  // always show, and nothing clips until the first quotes arrive (or when
+  // they fail), so the sheet never collapses to the hubs while loading.
+  const clipped = useMemo(() => {
+    if (!miners || isError) return axes;
+    const rows = axes.rows.filter(
+      (row) =>
+        row.hub ||
+        row.id === selRow ||
+        axes.cols.some((col) => pricedIn(rates, row, col)),
+    );
+    const cols = axes.cols.filter(
+      (col) =>
+        col.hub ||
+        col.id === selCol ||
+        rows.some((row) => pricedIn(rates, row, col)),
+    );
+    return { rows, cols };
+  }, [axes, rates, miners, isError, selRow, selCol]);
+
+  // Columns run densest first: most priced rows on the left, so the gaps of
+  // sparse columns (BTC, or TAO beside the alphas) gather at the right edge.
+  // Ties keep das order, so hubs lead among equals. The order is frozen and
+  // only re-ranked when the sheet's assets change (a column comes or goes,
+  // the row set changes, or the first quotes land), never on a rate tick,
+  // so nothing shuffles under the cursor.
+  const ratesRef = useRef(rates);
+  ratesRef.current = rates;
+  const rankKey = `${Boolean(miners)}|${clipped.rows
+    .map((a) => a.id)
+    .join()}|${clipped.cols
+    .map((a) => a.id)
+    .sort()
+    .join()}`;
+  const rank = useMemo(() => {
+    const coverage = new Map<string, number>();
+    for (const col of clipped.cols)
+      coverage.set(
+        col.id,
+        clipped.rows.filter(
+          // A column's own row is its blank diagonal, not a gap.
+          (row) => row.id === col.id || pricedIn(ratesRef.current, row, col),
+        ).length,
+      );
+    return coverage;
+    // Keyed on rankKey alone: re-ranking on every rate would shuffle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rankKey]);
+  const { rows: anchors, cols: assets } = useMemo(() => {
+    const order = new Map(axes.cols.map((c, i) => [c.id, i]));
+    const cols = [...clipped.cols].sort(
+      (a, b) =>
+        (rank.get(b.id) ?? 0) - (rank.get(a.id) ?? 0) ||
+        (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
+    );
+    return { rows: clipped.rows, cols };
+  }, [clipped, rank, axes.cols]);
   // Only a fill that FOLLOWS a live one counts as a move: the seed-to-live
   // step would otherwise light every cell at once.
   const prev = useRef<Record<string, CellRates> | null>(null);
@@ -513,7 +623,11 @@ const RateMatrix: React.FC<{
       // Page offset of the sheet's top, then whatever the window leaves
       // after the reserve, cut to whole rows (at least the hubs and a few
       // subnets) so no row is half shown.
-      const top = t.getBoundingClientRect().top + window.scrollY;
+      // Measured on the scroll box, not the table: the table rides up as the
+      // sheet scrolls, which would read as more room on every refresh and
+      // grow the sheet until it showed every row.
+      const box = t.parentElement ?? t;
+      const top = box.getBoundingClientRect().top + window.scrollY;
       const room = winH - top - reserveBelow;
       const minRows = Math.min(rows.length, 5);
       let fit = rows[minRows - 1];
@@ -651,7 +765,7 @@ const RateMatrix: React.FC<{
               <tr key={asset.id}>
                 <Box
                   component="th"
-                  title={`${asset.symbol}${asset.network ? ` · ${asset.network}` : ''}`}
+                  title={`${tickerOf(asset)}${isAlpha(asset.id) ? ` · ${asset.symbol}` : asset.network ? ` · ${asset.network}` : ''}`}
                   sx={{
                     ...pinnedSx,
                     left: 0,
@@ -700,8 +814,8 @@ const RateMatrix: React.FC<{
                 </Box>
                 {assets.map((col) => {
                   // Self and native (TAO↔alpha) cells stay blank.
-                  const self =
-                    asset.id === col.id || hubLeg(asset.id, col.id) === null;
+                  const native = hubLeg(asset.id, col.id) === null;
+                  const self = asset.id === col.id || native;
                   const k = `${asset.id}|${col.id}`;
                   const r = self ? undefined : rates[k];
                   const out = r?.out ?? null;
@@ -723,6 +837,8 @@ const RateMatrix: React.FC<{
                         selected={picked && outDir === direction}
                         seq={seq[`${k}|out`] ?? 0}
                         onSelect={() => onDirectionChange(outDir, hub)}
+                        native={native}
+                        soft={r?.outSoft}
                       />
                       <Cell
                         value={back}
@@ -731,6 +847,8 @@ const RateMatrix: React.FC<{
                         selected={picked && backDir === direction}
                         seq={seq[`${k}|back`] ?? 0}
                         onSelect={() => onDirectionChange(backDir, hub)}
+                        native={native}
+                        soft={r?.backSoft}
                       />
                     </React.Fragment>
                   );

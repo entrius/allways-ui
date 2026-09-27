@@ -51,10 +51,17 @@ const fold = (
   cur.depth[backing] = (cur.depth[backing] ?? 0) + collateral;
 };
 
-export const bestTakeable = (miners: Miner[] | undefined): TakeableMap => {
+export const bestTakeable = (
+  miners: Miner[] | undefined,
+  // Also count miners that are busy (mid-swap or reserved). A miner's
+  // collateral backs every pair it quotes, so one in-flight swap takes its
+  // whole book offline; these quotes are indicative, not hittable now.
+  includeBusy = false,
+): TakeableMap => {
   const map: TakeableMap = new Map();
   for (const m of miners ?? []) {
-    if (!m.isActive || m.hasActiveSwap || m.isReserved) continue;
+    if (!m.isActive) continue;
+    if (!includeBusy && (m.hasActiveSwap || m.isReserved)) continue;
     if (!m.collateral) continue;
     const src = m.sourceChain?.toLowerCase();
     const dst = m.destChain?.toLowerCase();
@@ -121,5 +128,6 @@ export const quotedIds = (map: TakeableMap): Set<string> => {
 export const useBestTakeable = () => {
   const { data: miners, dataUpdatedAt, isError, isLoading } = useMiners();
   const map = useMemo(() => bestTakeable(miners), [miners]);
-  return { map, miners, dataUpdatedAt, isError, isLoading };
+  const quoted = useMemo(() => bestTakeable(miners, true), [miners]);
+  return { map, quoted, miners, dataUpdatedAt, isError, isLoading };
 };
