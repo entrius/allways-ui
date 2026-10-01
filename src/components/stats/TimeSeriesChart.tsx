@@ -113,6 +113,12 @@ type TimeSeriesChartProps = {
   /** Drop the multi-series legend — for charts whose surrounding UI already
    * names and color-codes the series (e.g. the market hero headline). */
   hideLegend?: boolean;
+  /**
+   * Pin the time axis to this window (epoch ms) instead of fitting it to the
+   * data, so a quiet range still spans the selected window rather than
+   * echarts inventing one around a lone point. Time-axis charts only.
+   */
+  xWindow?: { from: number; to: number };
 };
 
 // Series name for the volume overlay — used to route tooltip formatting.
@@ -194,6 +200,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   band,
   bandColor,
   hideLegend,
+  xWindow,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
@@ -234,7 +241,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     // Short windows (intraday rate charts) label the x-axis with clock time;
     // long histories with dates. Reduce instead of Math.max(...arr) — rate
     // series can hold thousands of points and spreading them risks the stack.
-    const span = series.reduce(
+    const dataSpan = series.reduce(
       (acc, s) =>
         s.points.reduce(
           (a, p) => ({
@@ -245,6 +252,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         ),
       { lo: Infinity, hi: -Infinity },
     );
+    const win = !daily && xWindow ? xWindow : null;
+    const span = win ? { lo: win.from, hi: win.to } : dataSpan;
     const hourly =
       !daily && span.hi > span.lo && span.hi - span.lo <= HOURLY_SPAN_MS;
 
@@ -436,7 +445,28 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         grid: market
           ? {
               left: 8,
-              right: 64,
+              // Wide enough for the last-price chip: long rates (0.00027593)
+              // overflow a fixed gutter and get clipped at the panel edge.
+              // 10px mono is ~6.1px per glyph, plus chip padding and offset.
+              right: Math.max(
+                64,
+                Math.ceil(
+                  Math.max(
+                    0,
+                    ...primary.map((prim) => {
+                      const lastPt = [...prim.points]
+                        .reverse()
+                        .find((p) => p.value != null);
+                      const fmt = prim.formatValue ?? formatValue ?? defaultFmt;
+                      return lastPt?.value != null
+                        ? fmt(lastPt.value).length
+                        : 0;
+                    }),
+                  ) *
+                    6.1 +
+                    20,
+                ),
+              ),
               top: single || hideLegend ? 12 : 30,
               bottom: 28,
             }
@@ -657,6 +687,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           : {
               type: 'time' as const,
               boundaryGap: false,
+              ...(win && { min: win.from, max: win.to }),
               axisLine: { lineStyle: { color: gridColor } },
               axisTick: { show: false },
               axisLabel: {
@@ -742,6 +773,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     band,
     bandColor,
     hideLegend,
+    xWindow,
   ]);
 
   return (

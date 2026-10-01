@@ -55,19 +55,31 @@ const RateChart: React.FC<{
     directionalRateFor(direction, crownLaneFor(crown, direction, purse)?.rate),
   );
 
-  const points = useMemo(() => {
+  // The chart spans the whole selected window. The backend returns every
+  // interval overlapping it, so the first row can start before the window:
+  // clamp it to the left edge (it is the rate in effect there). A window with
+  // no recorded change at all is a flat line at the live rate, edge to edge,
+  // not a lone dot at "now" floating in an invented axis.
+  const { points, xWindow } = useMemo(() => {
+    const now = Date.now();
+    const from = now - secs * 1000;
     const pts = (rows ?? [])
       .map((r) => ({
-        t: r.t * 1000,
+        t: Math.max(r.t * 1000, from),
         value: toPrice(directionalRateFor(direction, r.rate)),
       }))
-      .filter((p): p is { t: number; value: number } => p.value != null);
+      .filter((p): p is { t: number; value: number } => p.value != null)
+      // Several carry-in rows clamped to `from`: keep only the latest.
+      .filter((p, i, arr) => !(arr[i + 1] && arr[i + 1].t === p.t));
     const tip = live ?? (pts.length ? pts[pts.length - 1].value : null);
-    if (tip != null) pts.push({ t: Date.now(), value: tip });
-    return pts;
+    if (tip != null) {
+      if (!pts.length) pts.push({ t: from, value: tip });
+      pts.push({ t: now, value: tip });
+    }
+    return { points: pts, xWindow: { from, to: now } };
     // toPrice is derived from `inverted`, listed instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, live, direction, inverted]);
+  }, [rows, live, direction, inverted, secs]);
 
   // One instrument, one line — the house monochrome (a hex value, which the
   // chart's gradient alpha-suffix requires).
@@ -177,6 +189,7 @@ const RateChart: React.FC<{
           noArea
           market
           hideLegend
+          xWindow={xWindow}
           emptyLabel="no rate history in this window"
         />
       </Box>
