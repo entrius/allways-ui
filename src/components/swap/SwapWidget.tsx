@@ -5,10 +5,17 @@ import { useThemeMode } from '../../ThemeContext';
 // Allways Access's embeddable swap box. It runs the swap itself on its own
 // origin (the human check, the deposit address, the tracking), so this site
 // only frames it: no keys, no proxy, nothing to rebuild here.
-// VITE_SWAP_WIDGET_URL points a local build at a local Access widget.
+// The Access deployment on this site's network, decided the way docsUrl
+// decides: all-ways.io is mainnet, every other host (test.all-ways.io,
+// previews, local) runs on testnet and frames testnet Access, whose widget
+// ships with each Access merge to test. VITE_SWAP_WIDGET_URL points a local
+// build at a local Access widget.
+export const ACCESS_ORIGIN =
+  typeof window !== 'undefined' && window.location.hostname === 'all-ways.io'
+    ? 'https://allways.venturalabs.ai'
+    : 'https://allways-testnet.venturalabs.ai';
 const WIDGET_URL =
-  import.meta.env.VITE_SWAP_WIDGET_URL ||
-  'https://allways.venturalabs.ai/widget';
+  import.meta.env.VITE_SWAP_WIDGET_URL || `${ACCESS_ORIGIN}/widget`;
 const WIDGET_ORIGIN = new URL(WIDGET_URL).origin;
 // Publishable: it names the account the widget swaps through, and is meant to
 // sit in page source.

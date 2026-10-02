@@ -2,14 +2,14 @@ import React from 'react';
 import { Box, Link, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { FONTS } from '../../theme';
-import SwapWidget from './SwapWidget';
+import SwapWidget, { ACCESS_ORIGIN } from './SwapWidget';
 
 // The product the desk's swap box comes from: named on the ticket and one
 // click from its own site. Apps built on Allways are their own products, so
 // the ticket says whose it is rather than calling itself the network's swap.
 const PRODUCT = {
   name: 'Allways Access',
-  url: 'https://allways.venturalabs.ai/',
+  url: `${ACCESS_ORIGIN}/`,
 };
 
 // The desk's order ticket: the selected direction, ready to send. A plain
