@@ -33,7 +33,9 @@ jobs:
           fi
 
       - name: Create .env file
-        run: echo "VITE_REACT_APP_BASE_URL=${{ steps.build.outputs.api_base_url }}" > .env
+        run: |
+          echo "VITE_REACT_APP_BASE_URL=${{ steps.build.outputs.api_base_url }}" > .env
+          echo "VITE_SWAP_WIDGET_KEY=${{ vars.VITE_SWAP_WIDGET_KEY }}" >> .env
 
       # Bake a fresh /chains seed into the image (never fails the build) —
       # keeps the first-paint / das-outage floor ≤ one deploy old.

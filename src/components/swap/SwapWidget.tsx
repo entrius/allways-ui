@@ -17,9 +17,8 @@ export const ACCESS_ORIGIN =
 const WIDGET_URL =
   import.meta.env.VITE_SWAP_WIDGET_URL || `${ACCESS_ORIGIN}/widget`;
 const WIDGET_ORIGIN = new URL(WIDGET_URL).origin;
-// Publishable: it names the account the widget swaps through, and is meant to
-// sit in page source.
-const WIDGET_KEY = 'alw_pub_ToUfdwlTXCnFDrF6p8PXZTJNscQ-Plz6my7VN0A1SBg';
+// Publishable: it names the account the widget swaps through, one per network.
+const WIDGET_KEY = import.meta.env.VITE_SWAP_WIDGET_KEY ?? '';
 
 // The height the widget is built to fit without scrolling; it takes any
 // width from 380px up.
