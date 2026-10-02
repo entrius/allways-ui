@@ -432,6 +432,9 @@ const MarketPage: React.FC = () => {
               // dead space under the card, no chart growing into room
               // the widgets below leave.
               heightOf: 'rate',
+              // The chart's 160px floor, its padding and title row: a
+              // rate card shorter than this (few stats on) stretches to it.
+              minRows: 27,
               // 480px: taller than that the line only stretches.
               maxRows: 60,
               aside: (

@@ -52,6 +52,10 @@ export type WorkspacePanel = {
    * row, this one takes its height exactly (a chart beside the rate card
    * it charts), so the pair reads as one row and neither stretches. */
   heightOf?: string;
+  /** The fewest 8px rows the widget fits in without scrolling (a chart's
+   * floor). Paired by heightOf, the row takes the taller of this and the
+   * other widget's height, so that one stretches instead. */
+  minRows?: number;
   /** The body has no padding: a sheet that scrolls runs to the card's
    * edges, its scrollbars on the border. */
   flush?: boolean;
@@ -525,12 +529,22 @@ const Workspace: React.FC<{
       // A widget paired to one beside it on its row takes that one's
       // height; the desk then packs up under the pair.
       let paired = false;
+      const rowOf = new Map<string, number>();
+      for (const l of placed) {
+        const p = byId.get(l.i);
+        const t = p?.heightOf
+          ? placed.find((o) => o.i === p.heightOf)
+          : undefined;
+        if (!t || t.y !== l.y || overlaps(t, l)) continue;
+        const h = Math.max(t.h, p?.minRows ?? 0);
+        rowOf.set(l.i, h);
+        rowOf.set(t.i, Math.max(rowOf.get(t.i) ?? 0, h));
+      }
       placed = placed.map((l) => {
-        const of = byId.get(l.i)?.heightOf;
-        const t = of ? placed.find((o) => o.i === of) : undefined;
-        if (!t || t.y !== l.y || overlaps(t, l) || t.h === l.h) return l;
+        const h = rowOf.get(l.i);
+        if (h === undefined || h === l.h) return l;
         paired = true;
-        return { ...l, h: t.h };
+        return { ...l, h };
       });
       if (paired) placed = compact(placed);
       const pairedIds = new Set(
