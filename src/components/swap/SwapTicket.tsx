@@ -2,7 +2,8 @@ import React from 'react';
 import { Box, Link, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { FONTS } from '../../theme';
-import SwapWidget, { ACCESS_ORIGIN } from './SwapWidget';
+import SwapWidget from './SwapWidget';
+import { ACCESS_ORIGIN } from './widgetConfig';
 
 // The product the desk's swap box comes from: named on the ticket and one
 // click from its own site. Apps built on Allways are their own products, so

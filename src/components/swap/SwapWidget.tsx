@@ -1,26 +1,16 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { useThemeMode } from '../../ThemeContext';
+import {
+  ACCESS_ORIGIN,
+  SWAP_WIDGET_KEY,
+  SWAP_WIDGET_URL,
+} from './widgetConfig';
 
 // Allways Access's embeddable swap box. It runs the swap itself on its own
 // origin (the human check, the deposit address, the tracking), so this site
-// only frames it: no keys, no proxy, nothing to rebuild here.
-// The Access deployment on this site's network, decided the way docsUrl
-// decides: all-ways.io is mainnet, every other host (test.all-ways.io,
-// previews, local) runs on testnet and frames testnet Access, whose widget
-// ships with each Access merge to test. VITE_SWAP_WIDGET_URL points a local
-// build at a local Access widget.
-export const ACCESS_ORIGIN =
-  typeof window !== 'undefined' && window.location.hostname === 'all-ways.io'
-    ? 'https://allways.venturalabs.ai'
-    : 'https://allways-testnet.venturalabs.ai';
-const WIDGET_URL =
-  import.meta.env.VITE_SWAP_WIDGET_URL || `${ACCESS_ORIGIN}/widget`;
-const WIDGET_ORIGIN = new URL(WIDGET_URL).origin;
-// Publishable: it names the account the widget swaps through, and is meant to
-// sit in page source.
-const WIDGET_KEY = 'alw_pub_ToUfdwlTXCnFDrF6p8PXZTJNscQ-Plz6my7VN0A1SBg';
-
+// only frames it: nothing to proxy or rebuild here. Which widget and key come
+// from the build environment (widgetConfig).
 // The height the widget is built to fit without scrolling; it takes any
 // width from 380px up.
 export const SWAP_WIDGET_HEIGHT = 560;
@@ -35,8 +25,8 @@ const SwapWidget: React.FC<{ from: string; to: string }> = ({ from, to }) => {
   const frame = React.useRef<HTMLIFrameElement>(null);
   const [src] = React.useState(
     () =>
-      `${WIDGET_URL}?${new URLSearchParams({
-        key: WIDGET_KEY,
+      `${SWAP_WIDGET_URL}?${new URLSearchParams({
+        key: SWAP_WIDGET_KEY,
         from: from.toLowerCase(),
         to: to.toLowerCase(),
         theme: mode,
@@ -52,7 +42,7 @@ const SwapWidget: React.FC<{ from: string; to: string }> = ({ from, to }) => {
         to: to.toLowerCase(),
         theme: mode,
       },
-      WIDGET_ORIGIN,
+      ACCESS_ORIGIN ?? '',
     );
   }, [from, to, mode]);
   React.useEffect(post, [post]);
@@ -62,7 +52,7 @@ const SwapWidget: React.FC<{ from: string; to: string }> = ({ from, to }) => {
   React.useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (
-        e.origin !== WIDGET_ORIGIN ||
+        e.origin !== ACCESS_ORIGIN ||
         e.source !== frame.current?.contentWindow ||
         e.data?.type !== 'allways:widget-size'
       )

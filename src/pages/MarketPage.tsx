@@ -43,6 +43,7 @@ import {
 } from '../components/dashboard/watchlistSettings';
 import Workspace, { type Arrange } from '../components/workspace/Workspace';
 import SwapTicket from '../components/swap/SwapTicket';
+import { swapWidgetEnabled } from '../components/swap/widgetConfig';
 import type { Layout, Layouts } from 'react-grid-layout';
 import {
   isDirection,
@@ -335,7 +336,7 @@ const MarketPage: React.FC = () => {
           // The swap box is where a person acts on what the desk shows, so
           // it is not one more widget: it docks beside the desk, stays in
           // view, and follows whatever is selected.
-          rail={<SwapTicket from={from} to={to} />}
+          rail={swapWidgetEnabled && <SwapTicket from={from} to={to} />}
           panels={[
             {
               id: 'matrix',
