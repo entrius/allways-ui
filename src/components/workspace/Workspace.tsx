@@ -64,8 +64,13 @@ export type WorkspacePanel = {
 // widget's box can end within a few pixels of its content; the visible gap
 // between widgets is made up to the landing 24px by leaving each box 20px
 // short of its slot.
+// The docked rail's width: the swap box's 380px and its 1px frame.
+const RAIL_PX = 382;
+
 export const WORKSPACE_COLS = { lg: 3, md: 2, sm: 1, xs: 1 } as const;
-const BREAKPOINTS = { lg: 1200, md: 900, sm: 600, xs: 0 };
+// Widths of the desk itself (not the window): two columns from 760px, so a
+// desk sharing the row with a docked rail still sits side by side.
+const BREAKPOINTS = { lg: 1200, md: 760, sm: 600, xs: 0 };
 const ROW_HEIGHT = 4;
 const GUTTER_Y = 4;
 const ROW_UNIT = ROW_HEIGHT + GUTTER_Y;
@@ -208,6 +213,10 @@ const Workspace: React.FC<{
   /** Widgets that start put away: the page opens simple and a person adds
    * the advanced ones from the bar. */
   defaultHidden?: string[];
+  /** A piece that plays by its own rules: docked beside the desk instead
+   * of on it (no dragging, putting away or stretching), and kept in view
+   * while the desk scrolls. On a phone it comes first, above the desk. */
+  rail?: React.ReactNode;
 }> = ({
   panels,
   defaultLayouts,
@@ -218,6 +227,7 @@ const Workspace: React.FC<{
   layoutKey,
   dirty = false,
   defaultHidden = NO_IDS,
+  rail,
 }) => {
   const [layouts, setLayouts] = useState<Layouts>(() => {
     const stored = readSaved(storageKey);
@@ -612,150 +622,177 @@ const Workspace: React.FC<{
           {controls}
         </Box>
       </Box>
-      <ResponsiveGrid
-        className="workspace"
-        layouts={shownLayouts}
-        breakpoints={BREAKPOINTS}
-        cols={WORKSPACE_COLS}
-        rowHeight={ROW_HEIGHT}
-        margin={[GUTTER_X, GUTTER_Y]}
-        containerPadding={[0, 0]}
-        draggableHandle=".workspace-drag"
-        compactType="vertical"
-        onLayoutChange={onLayoutChange}
-        onDragStop={onUserChange}
-        onWidthChange={(px) => setDeskPx(px)}
-        isResizable={false}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { md: 'flex-start' },
+          gap: 2,
+        }}
       >
-        {shownPanels.map((p) => (
-          <Box key={p.id} sx={{ minWidth: 0, minHeight: 0 }}>
-            <Box
-              className="workspace-panel"
-              sx={{
-                // Every card takes its slot, the row gap after it and the
-                // next card's top border; and 1px of its left neighbour's
-                // right border. Shared edges draw once, one weight.
-                height: `calc(100% + ${GUTTER_Y + OVERLAP}px)`,
-                width: `calc(100% + ${OVERLAP}px)`,
-                ml: `-${OVERLAP}px`,
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 0,
-                border: '1px solid',
-                borderColor: 'border.medium',
-                borderRadius: 0,
-                backgroundColor: 'background.default',
-                transition: 'border-color 120ms',
-                '&:hover': { borderColor: 'primary.main' },
-              }}
-            >
-              <Box
-                className="workspace-card"
-                ref={p.fit === 'fill' ? undefined : bodyRef(p.id)}
-                data-widget={p.fit === 'fill' ? undefined : p.id}
-                sx={{
-                  // The contents: what the observer measures. A fill
-                  // widget's contents stretch to the card.
-                  display: 'flex',
-                  flexDirection: 'column',
-                  flex: p.fit === 'fill' ? 1 : 'none',
-                  minHeight: 0,
-                }}
-              >
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <ResponsiveGrid
+            className="workspace"
+            layouts={shownLayouts}
+            breakpoints={BREAKPOINTS}
+            cols={WORKSPACE_COLS}
+            rowHeight={ROW_HEIGHT}
+            margin={[GUTTER_X, GUTTER_Y]}
+            containerPadding={[0, 0]}
+            draggableHandle=".workspace-drag"
+            compactType="vertical"
+            onLayoutChange={onLayoutChange}
+            onDragStop={onUserChange}
+            onWidthChange={(px) => setDeskPx(px)}
+            isResizable={false}
+          >
+            {shownPanels.map((p) => (
+              <Box key={p.id} sx={{ minWidth: 0, minHeight: 0 }}>
                 <Box
-                  className="workspace-drag"
+                  className="workspace-panel"
                   sx={{
+                    // Every card takes its slot, the row gap after it and the
+                    // next card's top border; and 1px of its left neighbour's
+                    // right border. Shared edges draw once, one weight.
+                    height: `calc(100% + ${GUTTER_Y + OVERLAP}px)`,
+                    width: `calc(100% + ${OVERLAP}px)`,
+                    ml: `-${OVERLAP}px`,
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 1,
-                    px: 1.5,
-                    py: 0.75,
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    cursor: 'grab',
-                    userSelect: 'none',
-                    flexShrink: 0,
-                    '&:active': { cursor: 'grabbing' },
+                    flexDirection: 'column',
+                    minHeight: 0,
+                    border: '1px solid',
+                    borderColor: 'border.medium',
+                    borderRadius: 0,
+                    backgroundColor: 'background.default',
+                    transition: 'border-color 120ms',
+                    '&:hover': { borderColor: 'primary.main' },
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontFamily: FONTS.mono,
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                      color: 'text.primary',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      minWidth: 0,
-                    }}
-                  >
-                    {byId.get(p.id)?.title}
-                  </Typography>
                   <Box
+                    className="workspace-card"
+                    ref={p.fit === 'fill' ? undefined : bodyRef(p.id)}
+                    data-widget={p.fit === 'fill' ? undefined : p.id}
                     sx={{
+                      // The contents: what the observer measures. A fill
+                      // widget's contents stretch to the card.
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      flexShrink: 0,
-                      cursor: 'default',
+                      flexDirection: 'column',
+                      flex: p.fit === 'fill' ? 1 : 'none',
+                      minHeight: 0,
                     }}
-                    onMouseDown={(e) => e.stopPropagation()}
                   >
-                    {p.aside}
                     <Box
-                      component="button"
-                      type="button"
-                      aria-label={`Put away ${typeof p.title === 'string' ? p.title : 'widget'}`}
-                      onClick={() => remove(p.id)}
+                      className="workspace-drag"
                       sx={{
-                        all: 'unset',
-                        display: 'inline-flex',
+                        display: 'flex',
                         alignItems: 'center',
-                        cursor: 'pointer',
-                        color: 'text.disabled',
-                        '&:hover': { color: 'primary.main' },
+                        justifyContent: 'space-between',
+                        gap: 1,
+                        px: 1.5,
+                        py: 0.75,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        cursor: 'grab',
+                        userSelect: 'none',
+                        flexShrink: 0,
+                        '&:active': { cursor: 'grabbing' },
                       }}
                     >
-                      <CloseIcon sx={{ fontSize: 14 }} />
+                      <Typography
+                        sx={{
+                          fontFamily: FONTS.mono,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          color: 'text.primary',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          minWidth: 0,
+                        }}
+                      >
+                        {byId.get(p.id)?.title}
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          flexShrink: 0,
+                          cursor: 'default',
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        {p.aside}
+                        <Box
+                          component="button"
+                          type="button"
+                          aria-label={`Put away ${typeof p.title === 'string' ? p.title : 'widget'}`}
+                          onClick={() => remove(p.id)}
+                          sx={{
+                            all: 'unset',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                            color: 'text.disabled',
+                            '&:hover': { color: 'primary.main' },
+                          }}
+                        >
+                          <CloseIcon sx={{ fontSize: 14 }} />
+                        </Box>
+                      </Box>
+                    </Box>
+                    <Box
+                      sx={{
+                        flex: 1,
+                        minHeight: 0,
+                        minWidth: 0,
+                        // A fill body scrolls if its content is taller than the
+                        // slot; a content-fit body is never shorter than its
+                        // content, so only a wide sheet gets a scrollbar.
+                        overflow: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        p: p.flush ? 0 : 1.5,
+                        '&::-webkit-scrollbar': { width: 4, height: 4 },
+                        '&::-webkit-scrollbar-thumb': {
+                          background: (t) => t.palette.border.light,
+                          borderRadius: 0,
+                        },
+                      }}
+                    >
+                      {p.fit === 'fill' ? (
+                        p.node
+                      ) : (
+                        // A block the content sets the height of; the card
+                        // around it is what the observer reads.
+                        <Box sx={{ flex: 'none', minWidth: 0 }}>{p.node}</Box>
+                      )}
                     </Box>
                   </Box>
                 </Box>
-                <Box
-                  sx={{
-                    flex: 1,
-                    minHeight: 0,
-                    minWidth: 0,
-                    // A fill body scrolls if its content is taller than the
-                    // slot; a content-fit body is never shorter than its
-                    // content, so only a wide sheet gets a scrollbar.
-                    overflow: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    p: p.flush ? 0 : 1.5,
-                    '&::-webkit-scrollbar': { width: 4, height: 4 },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: (t) => t.palette.border.light,
-                      borderRadius: 0,
-                    },
-                  }}
-                >
-                  {p.fit === 'fill' ? (
-                    p.node
-                  ) : (
-                    // A block the content sets the height of; the card
-                    // around it is what the observer reads.
-                    <Box sx={{ flex: 'none', minWidth: 0 }}>{p.node}</Box>
-                  )}
-                </Box>
               </Box>
-            </Box>
+            ))}
+          </ResponsiveGrid>
+        </Box>
+        {rail && (
+          <Box
+            sx={{
+              order: { xs: -1, md: 0 },
+              width: { xs: '100%', md: RAIL_PX },
+              maxWidth: { xs: 480, md: 'none' },
+              mx: { xs: 'auto', md: 0 },
+              flexShrink: 0,
+              position: { md: 'sticky' },
+              // The page scrolls under the nav, so this counts from its foot.
+              top: { md: 16 },
+            }}
+          >
+            {rail}
           </Box>
-        ))}
-      </ResponsiveGrid>
+        )}
+      </Box>
     </Box>
   );
 };
