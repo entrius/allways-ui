@@ -42,6 +42,7 @@ import {
   watchlistChanges,
 } from '../components/dashboard/watchlistSettings';
 import Workspace, { type Arrange } from '../components/workspace/Workspace';
+import SwapWidget from '../components/swap/SwapWidget';
 import type { Layout, Layouts } from 'react-grid-layout';
 import {
   isDirection,
@@ -118,32 +119,37 @@ const busiestDirection = (
 const MARKET_LAYOUTS: Layouts = {
   lg: [
     { i: 'rate', x: 0, y: 0, w: 1, h: 36 },
-    { i: 'chart', x: 1, y: 0, w: 2, h: 36 },
-    { i: 'matrix', x: 0, y: 36, w: 3, h: 28 },
-    { i: 'book', x: 0, y: 64, w: 2, h: 53 },
-    { i: 'watchlist', x: 2, y: 64, w: 1, h: 53 },
+    { i: 'chart', x: 1, y: 0, w: 1, h: 36 },
+    { i: 'swap', x: 2, y: 0, w: 1, h: 76 },
+    { i: 'matrix', x: 0, y: 36, w: 2, h: 28 },
+    { i: 'book', x: 0, y: 76, w: 2, h: 53 },
+    { i: 'watchlist', x: 2, y: 76, w: 1, h: 53 },
   ],
   md: [
     { i: 'rate', x: 0, y: 0, w: 1, h: 36 },
-    { i: 'chart', x: 1, y: 0, w: 1, h: 36 },
-    { i: 'matrix', x: 0, y: 36, w: 2, h: 28 },
-    { i: 'book', x: 0, y: 64, w: 1, h: 53 },
-    { i: 'watchlist', x: 1, y: 64, w: 1, h: 53 },
+    { i: 'swap', x: 1, y: 0, w: 1, h: 76 },
+    { i: 'chart', x: 0, y: 36, w: 1, h: 36 },
+    { i: 'matrix', x: 0, y: 76, w: 2, h: 28 },
+    { i: 'book', x: 0, y: 104, w: 1, h: 53 },
+    { i: 'watchlist', x: 1, y: 104, w: 1, h: 53 },
   ],
-  // One column: the rate, its history, the sheet, the book, the watchlist.
+  // One column: the rate, the swap box, its history, the sheet, the book,
+  // the watchlist.
   sm: [
     { i: 'rate', x: 0, y: 0, w: 1, h: 25 },
-    { i: 'chart', x: 0, y: 25, w: 1, h: 36 },
-    { i: 'matrix', x: 0, y: 61, w: 1, h: 28 },
-    { i: 'book', x: 0, y: 89, w: 1, h: 53 },
-    { i: 'watchlist', x: 0, y: 142, w: 1, h: 56 },
+    { i: 'swap', x: 0, y: 25, w: 1, h: 76 },
+    { i: 'chart', x: 0, y: 101, w: 1, h: 36 },
+    { i: 'matrix', x: 0, y: 137, w: 1, h: 28 },
+    { i: 'book', x: 0, y: 165, w: 1, h: 53 },
+    { i: 'watchlist', x: 0, y: 218, w: 1, h: 56 },
   ],
   xs: [
     { i: 'rate', x: 0, y: 0, w: 1, h: 25 },
-    { i: 'chart', x: 0, y: 25, w: 1, h: 36 },
-    { i: 'matrix', x: 0, y: 61, w: 1, h: 28 },
-    { i: 'book', x: 0, y: 89, w: 1, h: 63 },
-    { i: 'watchlist', x: 0, y: 152, w: 1, h: 56 },
+    { i: 'swap', x: 0, y: 25, w: 1, h: 76 },
+    { i: 'chart', x: 0, y: 101, w: 1, h: 36 },
+    { i: 'matrix', x: 0, y: 137, w: 1, h: 28 },
+    { i: 'book', x: 0, y: 165, w: 1, h: 63 },
+    { i: 'watchlist', x: 0, y: 228, w: 1, h: 56 },
   ],
 };
 
@@ -171,11 +177,21 @@ const HEIGHTS: Record<string, number> = {
   matrix: 28,
   book: 53,
   watchlist: 53,
+  // The swap box's fixed 560px, its title row and border.
+  swap: 76,
 };
-const arrangeMarket: Arrange = (bp, cols, span, shown) => {
-  if (cols < 2) return MARKET_LAYOUTS[bp] ?? MARKET_LAYOUTS.xs;
+// The swap box, when it is out, keeps the desk's right-hand column from the
+// top, beside the rate, its history and the sheet, the way a trading
+// terminal keeps its order ticket; everything else fills the columns to its
+// left.
+const arrangeMarket: Arrange = (bp, desk, span, shown) => {
+  if (desk < 2) return MARKET_LAYOUTS[bp] ?? MARKET_LAYOUTS.xs;
+  const swap = shown('swap');
+  const cols = swap ? desk - 1 : desk;
   const ids = ORDER.filter(shown);
-  const out: Layout[] = [];
+  const out: Layout[] = swap
+    ? [{ i: 'swap', x: cols, y: 0, w: 1, h: HEIGHTS.swap }]
+    : [];
   let x = 0;
   let y = 0;
   let rowH = 0;
@@ -316,7 +332,7 @@ const MarketPage: React.FC = () => {
             drags into their own desk, the way a terminal lets them. The desk
             is remembered. */}
         <Workspace
-          storageKey="allways.market.workspace.v17"
+          storageKey="allways.market.workspace.v18"
           defaultLayouts={MARKET_LAYOUTS}
           defaultHidden={ADVANCED_WIDGETS}
           arrange={arrangeMarket}
@@ -392,6 +408,14 @@ const MarketPage: React.FC = () => {
                   onNaturalWidth={setMatrixWidth}
                 />
               ),
+            },
+            {
+              id: 'swap',
+              title: 'Swap',
+              flush: true,
+              // Allways Access's swap box on the selected direction: send
+              // what the rate card prices, without leaving the desk.
+              node: <SwapWidget from={from} to={to} />,
             },
             {
               id: 'rate',
