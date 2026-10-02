@@ -1,4 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   useChains,
@@ -121,6 +127,11 @@ const gridFor = (cols: Column[]) =>
 const GAP = 1;
 // The list's cap before it scrolls: about fourteen rows.
 const LIST_MAX_PX = 408;
+// Rows rendered past each edge of the view, so a fast scroll never shows a
+// blank strip before the next ones mount.
+const OVERSCAN = 12;
+// A row's height until the first one is measured (it is set in rem).
+const ROW_PX_GUESS = 29;
 
 // FX-style instrument label, "SOL/BTC" with the two chain marks slightly
 // overlapped like a forex flag pair.
@@ -697,19 +708,61 @@ const Watchlist: React.FC<{
     onDirectionChange(d, hubLeg(legs.from, legs.to) ?? legs.from);
   };
 
-  // The rows as they are on screen (scoped, one-way, starred, sorted).
-  const ordered = useMemo(() => order(rows), [rows, sort, stats]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The rows as they are on screen (scoped, one-way, starred, sorted), the
+  // ones with stats to show.
+  const ordered = useMemo(
+    () => order(rows).filter((d) => stats.has(d)),
+    [rows, sort, stats], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // Only the rows in view are in the page. "All" is thousands of routes, and
+  // rendering every one made each pick re-render them all: half a second
+  // per click. Rows are one fixed height, so the scroll position says which
+  // rows show, and spacers keep the scrollbar true to the whole list.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [rowPx, setRowPx] = useState(ROW_PX_GUESS);
+  const [view, setView] = useState({ top: 0, height: LIST_MAX_PX });
+  const measure = () => {
+    const el = listRef.current;
+    if (el) setView({ top: el.scrollTop, height: el.clientHeight });
+  };
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    const h = listRef.current
+      ?.querySelector<HTMLElement>('button[data-dir]')
+      ?.getBoundingClientRect().height;
+    if (h && Math.abs(h - rowPx) > 0.01) setRowPx(h);
+  }, [rowPx, ordered.length]);
+  const first = Math.max(0, Math.floor(view.top / rowPx) - OVERSCAN);
+  const last = Math.min(
+    ordered.length,
+    Math.ceil((view.top + view.height) / rowPx) + OVERSCAN,
+  );
 
   // Arrow keys walk the list: with the list focused (clicking a row
   // focuses it), ↓ and ↑ pick the next and previous row in the order on
   // screen, and keep the picked row in view.
-  const listRef = useRef<HTMLDivElement>(null);
+  // The row may be outside the rendered window: scroll it into view by its
+  // position first, then focus it once it has mounted.
   const focusRow = (d: Direction) => {
-    const el = listRef.current?.querySelector<HTMLElement>(
-      `button[data-dir="${d}"]`,
+    const list = listRef.current;
+    const at = ordered.indexOf(d);
+    if (!list || at < 0) return;
+    const top = at * rowPx;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (top + rowPx > list.scrollTop + list.clientHeight)
+      list.scrollTop = top + rowPx - list.clientHeight;
+    requestAnimationFrame(() =>
+      list
+        .querySelector<HTMLElement>(`button[data-dir="${d}"]`)
+        ?.focus({ preventScroll: true }),
     );
-    el?.focus({ preventScroll: true });
-    el?.scrollIntoView({ block: 'nearest' });
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -808,6 +861,7 @@ const Watchlist: React.FC<{
       <Box
         ref={listRef}
         onKeyDown={onKeyDown}
+        onScroll={measure}
         sx={{
           ...(fill ? { flex: 1 } : { maxHeight: LIST_MAX_PX }),
           minHeight: 0,
@@ -821,21 +875,20 @@ const Watchlist: React.FC<{
           },
         }}
       >
-        {ordered.map((d) => {
-          const st = stats.get(d);
-          return st ? (
-            <Row
-              key={d}
-              direction={d}
-              selected={d === direction}
-              starred={favorites.includes(d)}
-              stats={st}
-              cols={cols}
-              onSelect={select}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ) : null;
-        })}
+        <div style={{ height: first * rowPx }} />
+        {ordered.slice(first, last).map((d) => (
+          <Row
+            key={d}
+            direction={d}
+            selected={d === direction}
+            starred={favorites.includes(d)}
+            stats={stats.get(d)!}
+            cols={cols}
+            onSelect={select}
+            onToggleFavorite={onToggleFavorite}
+          />
+        ))}
+        <div style={{ height: (ordered.length - last) * rowPx }} />
       </Box>
     </Stack>
   );

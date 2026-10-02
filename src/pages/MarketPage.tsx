@@ -42,6 +42,7 @@ import {
   watchlistChanges,
 } from '../components/dashboard/watchlistSettings';
 import Workspace, { type Arrange } from '../components/workspace/Workspace';
+import SwapTicket from '../components/swap/SwapTicket';
 import type { Layout, Layouts } from 'react-grid-layout';
 import {
   isDirection,
@@ -331,6 +332,10 @@ const MarketPage: React.FC = () => {
             <RangeChips value={range} options={RANGES} onChange={setRange} />
           }
           onReset={resetDesk}
+          // The swap box is where a person acts on what the desk shows, so
+          // it is not one more widget: it docks beside the desk, stays in
+          // view, and follows whatever is selected.
+          rail={<SwapTicket from={from} to={to} />}
           panels={[
             {
               id: 'matrix',
@@ -427,6 +432,9 @@ const MarketPage: React.FC = () => {
               // dead space under the card, no chart growing into room
               // the widgets below leave.
               heightOf: 'rate',
+              // The chart's 160px floor, its padding and title row: a
+              // rate card shorter than this (few stats on) stretches to it.
+              minRows: 27,
               // 480px: taller than that the line only stretches.
               maxRows: 60,
               aside: (
