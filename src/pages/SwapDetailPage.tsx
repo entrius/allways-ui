@@ -3,7 +3,6 @@ import { useParams, Link as RouterLink } from 'react-router-dom';
 import { Box, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import {
   displayEventType,
-  useMinerByHotkey,
   useProtocolConstants,
   useReservation,
   useSwapDetail,
@@ -87,6 +86,7 @@ const SwapDetailPage: React.FC = () => {
     ? {
         ...data.swap,
         minerHotkey: data.swap.minerHotkey ?? liveRes?.minerHotkey ?? null,
+        minerUid: data.swap.minerUid ?? liveRes?.minerUid ?? null,
         sourceChain: data.swap.sourceChain ?? liveRes?.fromChain ?? null,
         destChain: data.swap.destChain ?? liveRes?.toChain ?? null,
         sourceAmount: data.swap.sourceAmount ?? liveRes?.fromAmount ?? null,
@@ -97,7 +97,6 @@ const SwapDetailPage: React.FC = () => {
           data.swap.reservationRequestHash ?? liveRes?.requestHash ?? null,
       }
     : data?.swap;
-  const { data: miner } = useMinerByHotkey(swap?.minerHotkey ?? '');
   // While the swap is live its reservation still exists and carries the
   // user's PROVEN source-chain wallet (validators verified the deposit
   // sender against it). Pruned after settlement.
@@ -274,9 +273,9 @@ const SwapDetailPage: React.FC = () => {
                     }}
                   >
                     Miner
-                    {miner?.uid != null && (
+                    {swap.minerUid != null && (
                       <Box component="span" sx={{ color: 'text.primary' }}>
-                        UID {miner.uid}
+                        UID {swap.minerUid}
                       </Box>
                     )}
                     <CopyableAddress

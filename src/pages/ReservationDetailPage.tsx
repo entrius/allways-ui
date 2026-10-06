@@ -295,7 +295,7 @@ const ReservationDetailPage: React.FC = () => {
             >
               Miner
             </Typography>
-            {miner?.uid != null && (
+            {r.minerUid != null && (
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,
@@ -303,10 +303,10 @@ const ReservationDetailPage: React.FC = () => {
                   color: 'text.primary',
                 }}
               >
-                UID {miner.uid}
+                UID {r.minerUid}
               </Typography>
             )}
-            {miner?.uid != null && (
+            {r.minerUid != null && (
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,

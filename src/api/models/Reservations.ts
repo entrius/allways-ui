@@ -2,6 +2,9 @@ export type Reservation = {
   id: string;
   requestHash: string;
   minerHotkey: string;
+  // The miner's Bittensor uid (das miner_uids). Absent on an older das; null
+  // when the hotkey is unregistered.
+  minerUid?: number | null;
   minerPubkey: string | null;
   userFromAddress: string;
   fromChain: string | null;
