@@ -12,6 +12,9 @@ export type ActiveSwap = {
   status: string;
   userAddress: string | null;
   minerHotkey: string | null;
+  // The miner's Bittensor uid (das miner_uids). Absent on an older das; null
+  // when the hotkey is unregistered.
+  minerUid?: number | null;
   minerPubkey: string | null;
   // Backing-leg notional in the backing's smallest unit (lamports for 'sol',
   // rao for 'tao'); the field name predates the backing dimension.
