@@ -10,10 +10,11 @@ import {
 // origin (the human check, the deposit address, the tracking), so this site
 // only frames it: nothing to proxy or rebuild here. Which widget and key come
 // from the build environment (widgetConfig).
-// The height the widget is built to fit without scrolling; it takes any
-// width from 380px up.
+// The frame's height until the widget reports its own; it takes any width
+// from 380px up.
 export const SWAP_WIDGET_HEIGHT = 560;
-// Past this a reported height is not believed.
+// Outside these a reported height is not believed.
+const MIN_HEIGHT = 300;
 const MAX_HEIGHT = 1200;
 
 export type SwapPick = { from: string; to: string } | null;
@@ -41,8 +42,8 @@ const SwapWidget: React.FC<{ pick: SwapPick }> = ({ pick }) => {
     );
   }, [from, to]);
   React.useEffect(post, [post]);
-  // The widget posts its content's height; the frame fits it, so a phone's
-  // wrapped lines grow the box instead of scrolling inside it.
+  // The widget posts its content's height; the frame fits it, so the box ends
+  // where the form does and a phone's wrapped lines grow it, never scroll.
   const [height, setHeight] = React.useState(SWAP_WIDGET_HEIGHT);
   React.useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -54,7 +55,7 @@ const SwapWidget: React.FC<{ pick: SwapPick }> = ({ pick }) => {
         return;
       const h = Number(e.data.height);
       if (Number.isFinite(h))
-        setHeight(Math.min(MAX_HEIGHT, Math.max(SWAP_WIDGET_HEIGHT, h)));
+        setHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, h)));
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
