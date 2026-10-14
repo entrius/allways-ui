@@ -11,3 +11,9 @@ yarn.lock
 *.tsbuildinfo
 .wrangler
 .claude
+
+# Local economics preview data and proxy configuration
+/public/local-data/
+/vite.config.local.ts
+
+__pycache__/

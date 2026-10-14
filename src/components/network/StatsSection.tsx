@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import DailyEconomics from './DailyEconomics';
 import {
   Box,
   Grid,
@@ -184,10 +185,11 @@ const StatsSection: React.FC = () => {
 
   // Daily buckets for every lookback, so each column is one UTC day and the
   // charts read the same way at 7d and all-time.
-  const { data: history, isLoading: historyLoading } = useHistory(
-    range as HistoryRange,
-    'day',
-  );
+  const {
+    data: history,
+    isLoading: historyLoading,
+    isPlaceholderData: historyPlaceholder,
+  } = useHistory(range as HistoryRange, 'day');
   const { data: totals, isLoading: totalsLoading } = useStats();
   const { data: allSwaps, isLoading: swapsLoading } = useCompleteSwapHistory();
 
@@ -979,6 +981,11 @@ const StatsSection: React.FC = () => {
         </Typography>
         <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Box>
+      <DailyEconomics
+        history={history}
+        loading={historyLoading || historyPlaceholder}
+        days={range === '7d' ? 7 : 30}
+      />
       <Grid container spacing={{ xs: 2, md: 3 }}>
         {panels.map((p) => (
           <Grid item xs={12} md={6} key={p.title}>
