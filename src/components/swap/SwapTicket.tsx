@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Link, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { FONTS } from '../../theme';
-import SwapWidget from './SwapWidget';
+import SwapWidget, { type SwapPick } from './SwapWidget';
 import { ACCESS_ORIGIN } from './widgetConfig';
 
 // The product the desk's swap box comes from: named on the ticket and one
@@ -16,7 +16,7 @@ const PRODUCT = {
 // The desk's order ticket: the selected direction, ready to send. A plain
 // hairline frame with the swap box inside it and no widget chrome: nothing
 // to drag, put away or stretch.
-const SwapTicket: React.FC<{ from: string; to: string }> = ({ from, to }) => (
+const SwapTicket: React.FC<{ pick: SwapPick }> = ({ pick }) => (
   <Box
     sx={{
       border: '1px solid',
@@ -72,7 +72,7 @@ const SwapTicket: React.FC<{ from: string; to: string }> = ({ from, to }) => (
         <OpenInNewIcon sx={{ fontSize: 12 }} />
       </Link>
     </Box>
-    <SwapWidget from={from} to={to} />
+    <SwapWidget pick={pick} />
   </Box>
 );
 

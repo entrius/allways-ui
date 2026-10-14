@@ -278,6 +278,11 @@ const MarketPage: React.FC = () => {
   // number you clicked is the number you see. Only the hub↔hub pair can
   // differ from its anchor, so only then does it ride on the URL.
   const { from, to } = decomposeDirection(direction);
+  // The swap box opens on its owner's saved pair; it follows the desk only
+  // once the visitor picks one here or arrives on a link that names one.
+  const [picked, setPicked] = useState(
+    () => isDirection(dirParam) || isDirection(legacyDir),
+  );
   const anchor = hubLeg(from, to) ?? from;
   const baseParam = params.get('base')?.toLowerCase();
   const base =
@@ -300,6 +305,7 @@ const MarketPage: React.FC = () => {
       else next.set('base', hub);
       // replace: picking a cell is not a navigation step.
       setParams(next, { replace: true });
+      setPicked(true);
     },
     [params, setParams, defaultDirection],
   );
@@ -336,7 +342,11 @@ const MarketPage: React.FC = () => {
           // The swap box is where a person acts on what the desk shows, so
           // it is not one more widget: it docks beside the desk, stays in
           // view, and follows whatever is selected.
-          rail={swapWidgetEnabled && <SwapTicket from={from} to={to} />}
+          rail={
+            swapWidgetEnabled && (
+              <SwapTicket pick={picked ? { from, to } : null} />
+            )
+          }
           panels={[
             {
               id: 'matrix',

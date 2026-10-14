@@ -1,6 +1,5 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { useThemeMode } from '../../ThemeContext';
 import {
   ACCESS_ORIGIN,
   SWAP_WIDGET_KEY,
@@ -17,34 +16,30 @@ export const SWAP_WIDGET_HEIGHT = 560;
 // Past this a reported height is not believed.
 const MAX_HEIGHT = 1200;
 
-// Loaded once, on the pair and theme it opens with. After that a new pair
-// or theme is posted to it and it changes in place: no reload, no second
-// app boot, so picking a cell or a watchlist row moves it at once.
-const SwapWidget: React.FC<{ from: string; to: string }> = ({ from, to }) => {
-  const { mode } = useThemeMode();
+export type SwapPick = { from: string; to: string } | null;
+
+// Loaded on the key alone, so it opens on the pair and theme its owner saved
+// in Allways Access. Only a pair the visitor picks is posted to it: it
+// changes in place, no reload.
+const SwapWidget: React.FC<{ pick: SwapPick }> = ({ pick }) => {
   const frame = React.useRef<HTMLIFrameElement>(null);
   const [src] = React.useState(
     () =>
       `${SWAP_WIDGET_URL}?${new URLSearchParams({
         key: SWAP_WIDGET_KEY,
-        from: from.toLowerCase(),
-        to: to.toLowerCase(),
-        theme: mode,
         // No card of its own: it sits on the ticket's surface.
         bg: 'transparent',
       })}`,
   );
+  const from = pick?.from.toLowerCase();
+  const to = pick?.to.toLowerCase();
   const post = React.useCallback(() => {
+    if (!from || !to) return;
     frame.current?.contentWindow?.postMessage(
-      {
-        type: 'allways:widget',
-        from: from.toLowerCase(),
-        to: to.toLowerCase(),
-        theme: mode,
-      },
+      { type: 'allways:widget', from, to },
       ACCESS_ORIGIN ?? '',
     );
-  }, [from, to, mode]);
+  }, [from, to]);
   React.useEffect(post, [post]);
   // The widget posts its content's height; the frame fits it, so a phone's
   // wrapped lines grow the box instead of scrolling inside it.
