@@ -38,6 +38,25 @@ export function dailyEconomics(
   });
 }
 
+/** Completed days plus today's earned fees and elapsed-time emission estimate. */
+export function economicsThroughNow(
+  fees: FeeDay[],
+  emissions: EmissionDay[],
+  days: number,
+  now = Date.now(),
+): EconomicsDay[] {
+  const rows = dailyEconomics(fees, emissions, days, now);
+  const today = dailyEconomics(fees, emissions, 1, now + UTC_DAY_MS)[0];
+  const elapsed = (now - today.t) / UTC_DAY_MS;
+  return [
+    ...rows,
+    {
+      ...today,
+      emissions: today.emissions === null ? null : today.emissions * elapsed,
+    },
+  ];
+}
+
 export function summarizeEconomics(rows: EconomicsDay[]) {
   const feesComplete = rows.length > 0 && rows.every((r) => r.fees !== null);
   const emissionsComplete =

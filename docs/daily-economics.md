@@ -20,7 +20,7 @@ The new emission source contract is `GET /economics/emissions/history`:
 The number above illustrates the schema, not a real observation. `null` means
 missing. Missing fees, missing emissions, or unpriced completed swaps suppress
 coverage rather than imply zero. Zero fees are valid; zero emissions produce
-N/A coverage. Days are complete UTC days, never browser-local dates.
+N/A coverage. Buckets use UTC dates, never browser-local dates. Totals include today so far.
 
 ## Local preview
 
@@ -62,9 +62,9 @@ financial actions, buyback execution or weights/burn changes are part of this wo
 ## Today in progress
 
 The chart appends today’s live fee bar, visibly faded by the shared chart.
-Today’s emission point is a full-day projection from available historical samples
-(00/06/12/18 UTC). It is explicitly labeled full-day, not emissions paid so far.
-Today is excluded from complete-day summary totals. This makes the recent fee
-increase visible without presenting an incomplete day as a finished one.
+Today’s completed swap fees count immediately in all four summary KPIs.
+Today’s emission estimate uses the available sampled daily rate multiplied by
+elapsed UTC-day time, refreshed each minute. The chart and KPIs use the same
+prorated value. This is an estimate, not measured payouts or a full-day forecast.
 The ALL selector caps this new panel at the latest 30 complete days plus today,
 matching the collector’s available range; its subtitle states that window.

@@ -38,3 +38,14 @@ miner rewards = 2.91077% coverage. Today so far: $2,562.90 fees versus $1,705.99
 full-day estimated emissions, about 150.2% coverage. Today's calendar-day estimate
 uses four historical samples, so differs from the earlier report's single current
 rate and rolling 24-hour window. 30-day range populated successfully (3.2% coverage).
+
+## Follow-up: include today in KPIs
+
+Grant requested that completed swaps count before the UTC day ends. All four
+KPIs now include today alongside the selected complete-day window. Today's
+estimated emissions are prorated by elapsed UTC time and refreshed each minute;
+the chart uses the same values. Missing values still remain unavailable.
+Verified five unit tests, lint, formatting, production build, and localhost UI.
+The 7d preview showed $2,949.65 in fees including today's $2,563.32.
+Screenshot: `/Users/grant/Documents/Allways/output/daily-economics-including-today.png`.
+Same branch/worktree and local port 9080. No push or deployment.
