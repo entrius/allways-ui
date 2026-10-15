@@ -45,15 +45,15 @@ async def collect():
         today = int(now // DAY) * DAY
         # The public archive caps historical lookups, so stay at two at a time
         # and back off when it says so.
-        sem = asyncio.Semaphore(2)
+        sem = asyncio.Semaphore(1)
         async def sample(target):
-            for attempt in range(6):
+            for attempt in range(10):
                 try:
                     return await sample_once(target)
                 except Exception as e:
-                    if 'rate limit' not in str(e).lower() or attempt == 5:
+                    if 'rate limit' not in str(e).lower() or attempt == 9:
                         raise
-                    await asyncio.sleep(20 * (attempt + 1))
+                    await asyncio.sleep(min(30 * (attempt + 1), 180))
         async def sample_once(target):
             async with sem:
                 # Locate the target timestamp, including days with missed slots.
@@ -76,26 +76,62 @@ async def collect():
                 if abs(price_t/1000-ts) > 7200:
                     raise ValueError('TAO/USD observation more than two hours from sample')
                 withheld = burn['bits']/2**32
+                owner = cut/65535 if enabled else 0.0
                 if g['alpha_out_emission'] == 0:
                     # Nothing emitted to the subnet yet: a real zero, not a gap.
-                    return {'block':b, 't':datetime.fromtimestamp(ts,timezone.utc).isoformat(), 'dailyUsd':0.0, 'burnFraction':withheld,'taoUsd':usd}
+                    return {'block':b, 't':datetime.fromtimestamp(ts,timezone.utc).isoformat(), 'dailyUsd':0.0, 'minerGrossUsd':0.0, 'burnFraction':withheld,'ownerFraction':owner,'taoUsd':usd}
                 if g['alpha_in'] == 0:
                     raise ValueError('Subnet pool has no alpha reserve at this block')
-                alpha_day = (g['alpha_out_emission']/1e9)*7200*(1-cut/65535 if enabled else 1)*.5*(1-withheld)
-                usd_day = alpha_day * (g['tao_in']/g['alpha_in']) * usd
-                return {'block':b, 't':datetime.fromtimestamp(ts,timezone.utc).isoformat(), 'dailyUsd':usd_day, 'burnFraction':withheld,'taoUsd':usd}
+                # The miner half before burn, priced directly: at a 100% burn the
+                # after-burn figure is 0 and cannot be scaled back up.
+                gross_day = (g['alpha_out_emission']/1e9)*7200*(1-owner)*.5 * (g['tao_in']/g['alpha_in']) * usd
+                return {'block':b, 't':datetime.fromtimestamp(ts,timezone.utc).isoformat(), 'dailyUsd':gross_day*(1-withheld), 'minerGrossUsd':gross_day, 'burnFraction':withheld,'ownerFraction':owner,'taoUsd':usd}
+        async def owner_fraction(b):
+            # Reused days predate ownerFraction: read the cut at their block.
+            for attempt in range(10):
+                try:
+                    async with sem:
+                        h = await client.at(b)
+                        cut, enabled = await asyncio.gather(
+                            h.query(storage.SubtensorModule.SubnetOwnerCut, []),
+                            h.query(storage.SubtensorModule.OwnerCutEnabled, [7]),
+                        )
+                    return cut/65535 if enabled else 0.0
+                except Exception as e:
+                    if 'rate limit' not in str(e).lower() or attempt == 9:
+                        raise
+                    await asyncio.sleep(min(30 * (attempt + 1), 180))
+        def split(row):
+            # Per block, the owner cut comes off first; validators and miners
+            # split the rest evenly; MinerBurned withholds part of the miner
+            # half. dailyUsd is the miner half after burn.
+            parts = []
+            for x in row['samples']:
+                f, o = x['burnFraction'], x['ownerFraction']
+                miners = x.get('minerGrossUsd', x['dailyUsd']/(1-f) if f < 1 else 0.0)
+                parts.append((miners, miners*f, miners, 2*miners*o/(1-o) if o < 1 else 0.0))
+            n = len(parts)
+            miners, burned, validators, owner = (sum(p[i] for p in parts)/n for i in range(4))
+            row.update(burnedUsd=burned, validatorUsd=validators, ownerUsd=owner,
+                       totalUsd=miners+validators+owner)
+            return row
         async def day(start):
             key = datetime.fromtimestamp(start,timezone.utc).isoformat()
             if key in PREVIOUS and start + DAY <= now:
+                row = PREVIOUS[key]
+                if any('ownerFraction' not in x for x in row['samples']):
+                    o = await owner_fraction(row['samples'][0]['block'])
+                    for x in row['samples']:
+                        x.setdefault('ownerFraction', o)
                 print(key, 'reused', file=sys.stderr, flush=True)
-                return PREVIOUS[key]
+                return split(row)
             try:
                 samples = await asyncio.gather(*(sample(start+hour*3600) for hour in [0,6,12,18] if start+hour*3600 <= now))
-                result={'t':datetime.fromtimestamp(start,timezone.utc).isoformat(),'emissionsUsd':sum(s['dailyUsd'] for s in samples)/len(samples),'burnedUsd':sum(s['dailyUsd']*s['burnFraction']/(1-s['burnFraction']) for s in samples)/len(samples),'samples':samples}
+                result=split({'t':datetime.fromtimestamp(start,timezone.utc).isoformat(),'emissionsUsd':sum(s['dailyUsd'] for s in samples)/len(samples),'samples':samples})
             except Exception as e:
                 result={'t':datetime.fromtimestamp(start,timezone.utc).isoformat(),'emissionsUsd':None,'error':str(e)}
             print(result['t'], result['emissionsUsd'], file=sys.stderr,flush=True)
             return result
         rows = await asyncio.gather(*(day(today-i*DAY) for i in range(DAYS,-1,-1)))
-        return {'netuid':7,'network':'finney','asOf':datetime.fromtimestamp(now,timezone.utc).isoformat(),'method':'Four historical rate samples per UTC day, after burn (burnedUsd is the MinerBurned share withheld), with contemporaneous TAO/USD; assumes 12-second blocks. Estimates, not indexed payouts.','rows':rows}
+        return {'netuid':7,'network':'finney','asOf':datetime.fromtimestamp(now,timezone.utc).isoformat(),'method':'Four historical rate samples per UTC day, after burn (burnedUsd is the MinerBurned share withheld; ownerUsd, validatorUsd and totalUsd split the whole subnet emission), with contemporaneous TAO/USD; assumes 12-second blocks. Estimates, not indexed payouts.','rows':rows}
 print(json.dumps(asyncio.run(collect())))

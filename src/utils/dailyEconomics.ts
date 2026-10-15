@@ -8,6 +8,9 @@ export type EmissionDay = {
   t: string;
   emissionsUsd: number | null;
   burnedUsd?: number | null;
+  /** The subnet owner's cut and the validators' half, same day, USD. */
+  ownerUsd?: number | null;
+  validatorUsd?: number | null;
 };
 /** Treasury income for one UTC day (epoch ms start), lamports; null = unknown. */
 export type TreasuryDay = {
@@ -30,6 +33,8 @@ export type EconomicsDay = {
   emissions: number | null;
   /** Miner emissions withheld by MinerBurned; null when not reported. */
   burned: number | null;
+  owner: number | null;
+  validators: number | null;
 };
 export const UTC_DAY_MS = 86_400_000;
 const LAMPORTS_PER_SOL = 1e9;
@@ -98,6 +103,8 @@ export function dailyEconomics(
       churnFees,
       emissions: validAmount(emission?.emissionsUsd),
       burned: validAmount(emission?.burnedUsd),
+      owner: validAmount(emission?.ownerUsd),
+      validators: validAmount(emission?.validatorUsd),
     };
   });
 }
@@ -131,12 +138,19 @@ export function economicsThroughNow(
   const rate = today.emissions === null ? latest : null;
   const dayEmissions = rate ? validAmount(rate.emissionsUsd) : today.emissions;
   const dayBurned = rate ? validAmount(rate.burnedUsd) : today.burned;
+  const dayOwner = rate ? validAmount(rate.ownerUsd) : today.owner;
+  const dayValidators = rate
+    ? validAmount(rate.validatorUsd)
+    : today.validators;
+  const sofar = (v: number | null) => (v === null ? null : v * elapsed);
   return [
     ...rows,
     {
       ...today,
-      emissions: dayEmissions === null ? null : dayEmissions * elapsed,
-      burned: dayBurned === null ? null : dayBurned * elapsed,
+      emissions: sofar(dayEmissions),
+      burned: sofar(dayBurned),
+      owner: sofar(dayOwner),
+      validators: sofar(dayValidators),
     },
   ];
 }
@@ -155,12 +169,30 @@ export function summarizeEconomics(rows: EconomicsDay[]) {
       ? rows.reduce((sum, r) => sum + pick(r)!, 0)
       : null;
   const burned = total((r) => r.burned);
+  const owner = total((r) => r.owner);
+  const validators = total((r) => r.validators);
+  // Everything the subnet emitted: owner + validators + miners (paid and burned).
+  const totalEmissions =
+    emissions === null ||
+    burned === null ||
+    owner === null ||
+    validators === null
+      ? null
+      : emissions + burned + owner + validators;
   const comparable = rows.filter(
     (r) => r.fees !== null && r.emissions !== null && r.emissions > 0,
   );
   return {
     fees,
     burned,
+    owner,
+    validators,
+    totalEmissions,
+    /** Fees against everything emitted, not just the miners' share. */
+    totalCoverage:
+      fees !== null && totalEmissions !== null && totalEmissions > 0
+        ? (fees / totalEmissions) * 100
+        : null,
     /** Share of pre-burn miner emissions that MinerBurned withheld. */
     burnRate:
       burned !== null && emissions !== null && emissions + burned > 0

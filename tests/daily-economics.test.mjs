@@ -8,7 +8,7 @@ const now = Date.parse('2026-10-14T22:53:00Z');
 const t = '2026-10-13T00:00:00Z';
 test('complete UTC days exclude today, including DST-independent boundaries', () => {
   const rows = dailyEconomics([{t,feesUsd:100,unpricedSwaps:0},{t:'2026-10-14T00:00:00Z',feesUsd:9999,unpricedSwaps:0}], [{t,emissionsUsd:80}], 1, now);
-  assert.deepEqual(rows, [{t:Date.parse(t),fees:100,swapFees:100,reservationFees:null,churnFees:null,emissions:80,burned:null}]);
+  assert.deepEqual(rows, [{t:Date.parse(t),fees:100,swapFees:100,reservationFees:null,churnFees:null,emissions:80,burned:null,owner:null,validators:null}]);
   assert.equal(summarizeEconomics(rows).coverage,125);
   assert.equal(summarizeEconomics(rows).surplus,20);
 });
@@ -109,4 +109,11 @@ test('a missing today row carries the latest sampled rate forward, prorated', ()
   assert.equal(rows[1].emissions,25);
   assert.equal(rows[1].burned,2.5);
   assert.equal(economicsThroughNow([],[],1,now)[1].emissions,null);
+});
+test('total emissions add owner, validators and miners paid and burned', () => {
+  const rows = dailyEconomics([{t,feesUsd:100,unpricedSwaps:0}],[{t,emissionsUsd:90,burnedUsd:10,validatorUsd:100,ownerUsd:44}],1,now);
+  const s = summarizeEconomics(rows);
+  assert.equal(s.totalEmissions,244);
+  assert.ok(Math.abs(s.totalCoverage - 100/244*100) < 1e-9);
+  assert.equal(summarizeEconomics(dailyEconomics([{t,feesUsd:1,unpricedSwaps:0}],[{t,emissionsUsd:90}],1,now)).totalEmissions,null);
 });

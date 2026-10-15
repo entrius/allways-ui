@@ -24,7 +24,9 @@ The new emission source contract is `GET /economics/emissions/history`:
   "network": "finney",
   "asOf": "2026-10-14T23:00:00Z",
   "method": "Four historical rate samples per day...",
-  "rows": [{ "t": "2026-10-13T00:00:00Z", "emissionsUsd": 1600.00, "burnedUsd": 90.00 }]
+  "rows": [{ "t": "2026-10-13T00:00:00Z", "emissionsUsd": 1600.00,
+              "burnedUsd": 90.00, "validatorUsd": 1690.00, "ownerUsd": 742.00,
+              "totalUsd": 4122.00 }]
 }
 ```
 
@@ -131,3 +133,23 @@ Days before SN7 emitted record a real 0. It
 fetches TAO/USD from CoinGecko in <=85-day slices so samples keep hourly prices.
 The page fetches the emission file with `cache: 'no-cache'` so a regenerated
 file is picked up without a hard reload.
+
+## Total emissions by recipient
+
+Per block, the subnet owner's cut (SubnetOwnerCut, when OwnerCutEnabled) comes
+off the alpha emission first; validators and miners split the rest evenly, and
+MinerBurned withholds part of the miner half. The collector records each
+sample's `ownerFraction` and emits `ownerUsd`, `validatorUsd` and `totalUsd`
+per day (reused days get the cut read once at their first sample block).  The pool-side alpha injection
+(`alpha_in`) is liquidity, not a payout, and is not counted.
+
+## Panel layout (simplified)
+
+Four figures: Protocol fees, Miner emissions (burn in its tooltip), Fees cover
+(fees as % of miner emissions; % of total emissions in its tooltip) and Total
+emissions (owner / validators / miners / burned in its tooltip). Two charts:
+fee bars stacked by source against the miner emissions line, and where emissions
+go per day (miners, miner burn, validators, owner). One status line underneath.
+Earlier extras (per-source KPIs, the pre-burn line, the per-day % chart, days
+fees beat emissions) were cut for clarity; the summary helpers still compute
+them.
