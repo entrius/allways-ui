@@ -103,3 +103,10 @@ test('miner burn totals, burn rate, prorated today, and days fees beat emissions
   assert.equal(s.comparableDays,2);
   assert.equal(summarizeEconomics(dailyEconomics([],[{t:day,emissionsUsd:100}],1,now)).burnRate,null);
 });
+test('a missing today row carries the latest sampled rate forward, prorated', () => {
+  const today = '2026-10-14T00:00:00Z';
+  const rows = economicsThroughNow([{t,feesUsd:1,unpricedSwaps:0},{t:today,feesUsd:1,unpricedSwaps:0}],[{t:'2026-10-12T00:00:00Z',emissionsUsd:999},{t,emissionsUsd:100,burnedUsd:10}],1,Date.parse('2026-10-14T06:00:00Z'));
+  assert.equal(rows[1].emissions,25);
+  assert.equal(rows[1].burned,2.5);
+  assert.equal(economicsThroughNow([],[],1,now)[1].emissions,null);
+});

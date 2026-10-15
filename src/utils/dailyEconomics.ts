@@ -121,12 +121,22 @@ export function economicsThroughNow(
     solUsd,
   )[0];
   const elapsed = (now - today.t) / UTC_DAY_MS;
+  // Until the collector samples today, carry the latest sampled day's rate
+  // forward: today's figure is an elapsed-time estimate either way.
+  const latest = [...emissions]
+    .filter(
+      (r) => Date.parse(r.t) < today.t && validAmount(r.emissionsUsd) !== null,
+    )
+    .sort((a, b) => Date.parse(b.t) - Date.parse(a.t))[0];
+  const rate = today.emissions === null ? latest : null;
+  const dayEmissions = rate ? validAmount(rate.emissionsUsd) : today.emissions;
+  const dayBurned = rate ? validAmount(rate.burnedUsd) : today.burned;
   return [
     ...rows,
     {
       ...today,
-      emissions: today.emissions === null ? null : today.emissions * elapsed,
-      burned: today.burned === null ? null : today.burned * elapsed,
+      emissions: dayEmissions === null ? null : dayEmissions * elapsed,
+      burned: dayBurned === null ? null : dayBurned * elapsed,
     },
   ];
 }

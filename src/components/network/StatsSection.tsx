@@ -1142,13 +1142,23 @@ const StatsSection: React.FC = () => {
 
   return (
     <Stack gap={{ xs: 5, md: 6 }}>
+      {/* Pinned to the top of the page's scroll area (which starts below the
+          nav) while the stats scroll past, so the range stays in reach beside
+          every chart it drives. */}
       <Box
         sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: theme.zIndex.appBar - 1,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: 2,
           flexWrap: 'wrap',
+          py: 1.25,
+          backgroundColor: 'background.default',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
         }}
       >
         <Typography

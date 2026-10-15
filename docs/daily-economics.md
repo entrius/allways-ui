@@ -110,3 +110,10 @@ a share of pre-burn emissions) and pre-burn emissions, and how many days fees
 matched or beat emissions. A compact chart below shows fees as % of that day's
 emissions against a 100% break-even line. Today's burn is prorated like today's
 emissions.
+
+Until the collector has sampled today, today's emissions and burn carry the
+latest sampled day's rate forward, prorated by elapsed time, so the window
+totals never blank just because today's row is not in yet.
+
+The 7D / 30D / ALL bar is sticky at the top of the page's scroll area while
+Network Stats is on screen.
