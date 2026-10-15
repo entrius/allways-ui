@@ -9,6 +9,8 @@ export type TreasuryDay = {
   t: number;
   reservationLamports: number | null;
   churnLamports: number | null;
+  reservationEvents?: number | null;
+  churnEvents?: number | null;
 };
 /** [epoch ms, USD per SOL]. */
 export type PricePoint = [number, number];
@@ -127,8 +129,16 @@ export function summarizeEconomics(rows: EconomicsDay[]) {
   const emissions = emissionsComplete
     ? rows.reduce((sum, r) => sum + r.emissions!, 0)
     : null;
+  // Per-source totals follow the same rule: one gap suppresses the total.
+  const total = (pick: (r: EconomicsDay) => number | null) =>
+    rows.length > 0 && rows.every((r) => pick(r) !== null)
+      ? rows.reduce((sum, r) => sum + pick(r)!, 0)
+      : null;
   return {
     fees,
+    swapFees: total((r) => r.swapFees),
+    reservationFees: total((r) => r.reservationFees),
+    churnFees: total((r) => r.churnFees),
     emissions,
     coverage:
       fees !== null && emissions !== null && emissions > 0

@@ -78,3 +78,16 @@ test('today\'s treasury income counts in full; only emissions are prorated', () 
   assert.equal(rows[0].fees,210);
   assert.equal(rows[0].emissions,80);
 });
+test('per-source totals sum their own column and go blank on any gap', () => {
+  const day = Date.parse(t);
+  const prev = day - 86_400_000;
+  const prices = [[prev,100],[day,100],[day + 86_400_000,100]];
+  const fee = [{t:new Date(prev).toISOString(),feesUsd:1,unpricedSwaps:0},{t,feesUsd:2,unpricedSwaps:0}];
+  const full = summarizeEconomics(dailyEconomics(fee,[],2,now,[{t:prev,reservationLamports:1e9,churnLamports:0},{t:day,reservationLamports:2e9,churnLamports:1e9}],prices));
+  assert.equal(full.swapFees,3);
+  assert.equal(full.reservationFees,300);
+  assert.equal(full.churnFees,100);
+  const gap = summarizeEconomics(dailyEconomics(fee,[],2,now,[{t:day,reservationLamports:2e9,churnLamports:1e9}],prices));
+  assert.equal(gap.reservationFees,null);
+  assert.equal(gap.swapFees,3);
+});

@@ -13,7 +13,8 @@ Fees are stacked bars of three treasury income sources:
   open and close samples; open and latest for today). das derives reservation
   fees as reservation events x the current reservation fee.
 
-A day missing any source, or its SOL price, is a gap for the total.
+A day missing any source, or its SOL price, is a gap for the total. A second KPI
+row totals each source over the window, plus the non-swap share of all fees.
 The new emission source contract is `GET /economics/emissions/history`:
 
 ```json
@@ -78,11 +79,18 @@ prorated value. This is an estimate, not measured payouts or a full-day forecast
 The ALL selector caps this new panel at the latest 30 complete days plus today,
 matching the collector’s available range; its subtitle states that window.
 
-## Network Stats tiles
+## Network Stats tiles and panels
+
+Reservation fees and Quote churn fees also get their own per-day panels beside
+Protocol fees. They follow the 7D / 30D / ALL range and share the per-day
+`/treasury` cache with the economics panel (`useDailyTreasury`), valued at each
+day's SOL price. The all-time tiles use today's SOL price, so they read higher
+than the ALL range readouts when SOL was cheaper earlier.
 
 The all-time tiles split fees into Swap fees, Reservation fees, Quote churn fees
 and All fees. Reservation and churn come from all-time `GET /treasury`, valued at
 today's SOL price. das holds 299 corrupt `QuoteSet.update_fee` values between
 block times 1787173319 and 1787199604 (Aug 19-20 2026, about 9.1e18 lamports;
 the real maximum is 0.01 SOL per update). The UI subtracts that window's churn
-(`CORRUPT_CHURN_WINDOW` in `src/api/TreasuryApi.ts`) until das filters them.
+(`CORRUPT_CHURN_WINDOW` in `src/api/TreasuryApi.ts`), for the tiles and for any
+daily bucket overlapping it, until das filters them.

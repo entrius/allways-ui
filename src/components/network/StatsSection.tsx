@@ -20,6 +20,7 @@ import RangeChips from '../RangeChips';
 import {
   useCompleteSwapHistory,
   useHistory,
+  useDailyTreasury,
   useStats,
   useTreasury,
   useUsdPrices,
@@ -36,6 +37,11 @@ import {
   unitsToHuman,
   usdFromBackingMap,
 } from '../../utils/format';
+import {
+  UTC_DAY_MS,
+  economicsThroughNow,
+  summarizeEconomics,
+} from '../../utils/dailyEconomics';
 import { FONTS } from '../../theme';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
@@ -259,6 +265,42 @@ const StatsSection: React.FC = () => {
     solUsd != null
       ? totalFeesUsd + (reservationSol + churnSol) * solUsd
       : null;
+  // Daily reservation and churn income over the selected range (all-time
+  // starts at the first history day), shared with the fees vs emissions panel.
+  const todayStart = Math.floor(Date.now() / UTC_DAY_MS) * UTC_DAY_MS;
+  const firstDay = history?.length ? ms(history[0].t) : null;
+  const feeDays =
+    range === '7d'
+      ? 7
+      : range === '30d' || firstDay == null
+        ? 30
+        : Math.max(1, Math.round((todayStart - firstDay) / UTC_DAY_MS));
+  const dailyIncome = useDailyTreasury(feeDays, todayStart);
+  const feeRows = useMemo(
+    () =>
+      economicsThroughNow(
+        history ?? [],
+        [],
+        feeDays,
+        Date.now(),
+        dailyIncome.treasury,
+        dailyIncome.solUsd ?? [],
+      ),
+    [history, feeDays, dailyIncome.treasury, dailyIncome.solUsd],
+  );
+  const feeTotals = summarizeEconomics(feeRows);
+  const feeBars = (
+    name: string,
+    pick: (r: (typeof feeRows)[number]) => number | null,
+  ) => [
+    {
+      name,
+      type: 'bar' as const,
+      color: ink,
+      formatValue: formatUsd,
+      points: feeRows.map((r) => ({ t: r.t, value: pick(r) })),
+    },
+  ];
   const largestSwapUsd = asNumber(totals?.largestSwapUsd);
   const totalVolumeSol = totals ? lamportsToSol(totals.totalVolumeSol) : 0;
   const volumeTooltip = totals
@@ -870,6 +912,36 @@ const StatsSection: React.FC = () => {
       info: 'Running total of protocol fees since launch: a flat 1% of volume, enforced by the contract. Fees per day follow the Volume chart at one hundredth.',
       body: chart(series.cumulativeFees, historyLoading, moneyTick),
       headerRight: readout(inRange(moneyValue(series.rangeVolume * 0.01))),
+    },
+    {
+      title: 'Reservation fees',
+      subtitle: 'per day · USD at that day’s SOL price',
+      info: 'SOL paid into the treasury to request a reservation, each day. das derives it as reservations times the current reservation fee.',
+      body: chart(
+        feeBars('Reservation fees', (r) => r.reservationFees),
+        dailyIncome.isLoading,
+        usdCompact,
+      ),
+      headerRight: readout(
+        feeTotals.reservationFees == null
+          ? null
+          : inRange(formatUsd(feeTotals.reservationFees)),
+      ),
+    },
+    {
+      title: 'Quote churn fees',
+      subtitle: 'per day · USD at that day’s SOL price',
+      info: 'Anti-flashing fees miners pay into the treasury for changing or removing a quote within 10 minutes of its last update (0.01 SOL under 5 minutes, 0.001 SOL for 5 to 10).',
+      body: chart(
+        feeBars('Quote churn fees', (r) => r.churnFees),
+        dailyIncome.isLoading,
+        usdCompact,
+      ),
+      headerRight: readout(
+        feeTotals.churnFees == null
+          ? null
+          : inRange(formatUsd(feeTotals.churnFees)),
+      ),
     },
     {
       title: 'Average transaction',

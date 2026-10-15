@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Box, Stack, Typography, alpha, useTheme } from '@mui/material';
 import { Panel, StatCell, TimeSeriesChart } from '../stats';
 import type { HistoryRow } from '../../api/models';
-import { fetchSolUsdHistory, fetchTreasury } from '../../api';
+import { useDailyTreasury } from '../../api';
 import {
   economicsThroughNow,
   summarizeEconomics,
@@ -51,21 +51,6 @@ async function loadEmissions(): Promise<EmissionHistory> {
   return data;
 }
 
-/** Reservation and quote-churn income for one UTC day; a failed call is a
- * gap, never zero. */
-async function loadTreasuryDay(t: number): Promise<TreasuryDay> {
-  try {
-    const day = await fetchTreasury(t / 1000, (t + UTC_DAY_MS) / 1000 - 1);
-    return {
-      t,
-      reservationLamports: day.sources.reservationFee.lamports,
-      churnLamports: day.sources.quoteChurnFee.lamports,
-    };
-  } catch {
-    return { t, reservationLamports: null, churnLamports: null };
-  }
-}
-
 /** Fees and miner-only emissions share UTC-day buckets and USD axes. */
 export default function DailyEconomics({
   history,
@@ -88,37 +73,8 @@ export default function DailyEconomics({
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  // Completed days never change, so they load once per window; today's
-  // income keeps accruing and refreshes with the fee history.
   const todayStart = Math.floor(now / UTC_DAY_MS) * UTC_DAY_MS;
-  const pastIncome = useQuery({
-    queryKey: ['treasury-daily', days, todayStart],
-    queryFn: () =>
-      Promise.all(
-        Array.from({ length: days }, (_, i) =>
-          loadTreasuryDay(todayStart - (days - i) * UTC_DAY_MS),
-        ),
-      ),
-    staleTime: Infinity,
-  });
-  const todayIncome = useQuery({
-    queryKey: ['treasury-today', todayStart],
-    queryFn: () => loadTreasuryDay(todayStart),
-    refetchInterval: 300_000,
-  });
-  const solUsd = useQuery({
-    queryKey: ['sol-usd-daily', days],
-    queryFn: () => fetchSolUsdHistory(days + 1),
-    staleTime: 3_600_000,
-    retry: 1,
-  });
-  const treasury = useMemo(
-    () => [
-      ...(pastIncome.data ?? []),
-      ...(todayIncome.data ? [todayIncome.data] : []),
-    ],
-    [pastIncome.data, todayIncome.data],
-  );
+  const income = useDailyTreasury(days, todayStart);
   const rows = useMemo(
     () =>
       economicsThroughNow(
@@ -126,19 +82,24 @@ export default function DailyEconomics({
         emission.data?.rows ?? [],
         days,
         now,
-        treasury,
-        solUsd.data ?? [],
+        income.treasury,
+        income.solUsd ?? [],
       ),
-    [history, emission.data, days, now, treasury, solUsd.data],
+    [history, emission.data, days, now, income.treasury, income.solUsd],
   );
   const totals = summarizeEconomics(rows);
+  const windowIncome = income.treasury.filter((d) => d.t >= rows[0].t);
+  const eventTotal = (pick: (d: TreasuryDay) => number | null | undefined) =>
+    windowIncome.length === rows.length &&
+    windowIncome.every((d) => typeof pick(d) === 'number')
+      ? windowIncome.reduce((sum, d) => sum + (pick(d) as number), 0)
+      : null;
+  const events = {
+    reservations: eventTotal((d) => d.reservationEvents),
+    churn: eventTotal((d) => d.churnEvents),
+  };
   const today = rows[rows.length - 1];
-  const pending =
-    loading ||
-    emission.isLoading ||
-    pastIncome.isLoading ||
-    todayIncome.isLoading ||
-    solUsd.isLoading;
+  const pending = loading || emission.isLoading || income.isLoading;
   const stale =
     emission.data &&
     Date.now() - Date.parse(emission.data.asOf) > 48 * 3600_000;
@@ -194,6 +155,51 @@ export default function DailyEconomics({
                 : `${totals.surplus > 0 ? '+' : ''}${formatUsd(totals.surplus)}`
             }
             loading={pending}
+          />
+          <StatCell
+            label="Swap fees"
+            value={totals.swapFees === null ? '—' : formatUsd(totals.swapFees)}
+            loading={pending}
+            tooltip="1% of completed swap volume, at the price of each swap’s hour"
+          />
+          <StatCell
+            label="Reservation fees"
+            value={
+              totals.reservationFees === null
+                ? '—'
+                : formatUsd(totals.reservationFees)
+            }
+            loading={pending}
+            tooltip={
+              events.reservations === null
+                ? undefined
+                : `${events.reservations.toLocaleString('en-US')} reservations at the current reservation fee`
+            }
+          />
+          <StatCell
+            label="Quote churn fees"
+            value={
+              totals.churnFees === null ? '—' : formatUsd(totals.churnFees)
+            }
+            loading={pending}
+            tooltip={
+              events.churn === null
+                ? undefined
+                : `${events.churn.toLocaleString('en-US')} quote updates inside the anti-flashing window`
+            }
+          />
+          <StatCell
+            label="Non-swap share"
+            value={
+              totals.fees === null ||
+              totals.fees === 0 ||
+              totals.reservationFees === null ||
+              totals.churnFees === null
+                ? '—'
+                : `${(((totals.reservationFees + totals.churnFees) / totals.fees) * 100).toFixed(1)}%`
+            }
+            loading={pending}
+            tooltip="reservation + quote churn fees as a share of all fees"
           />
         </Box>
         <TimeSeriesChart
@@ -255,7 +261,7 @@ export default function DailyEconomics({
             valued at that day’s average SOL price. Reservation fees are
             reservations times the current reservation fee.
           </Typography>
-          {solUsd.isError ? (
+          {income.solUsdError ? (
             <Typography role="status" sx={note}>
               SOL price history is unavailable, so reservation and churn fees
               can’t be valued. Totals and coverage are unavailable.
