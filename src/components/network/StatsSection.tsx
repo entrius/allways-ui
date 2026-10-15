@@ -6,7 +6,6 @@ import {
   Skeleton,
   Stack,
   Typography,
-  alpha,
   useTheme,
 } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
@@ -293,12 +292,11 @@ const StatsSection: React.FC = () => {
   const feeBars = (
     name: string,
     pick: (r: (typeof feeRows)[number]) => number | null,
-    color = ink,
   ): ChartSeries[] => [
     {
       name,
       type: 'bar' as const,
-      color,
+      color: ink,
       formatValue: formatUsd,
       points: feeRows.map((r) => ({ t: r.t, value: pick(r) })),
     },
@@ -343,6 +341,7 @@ const StatsSection: React.FC = () => {
     const resolved = completed + timedOut;
     return {
       successRate: resolved ? (completed / resolved) * 100 : null,
+      timedOut,
       medianSettle: median(settle),
       avgSettle: settle.length ? sum(settle) / settle.length : null,
       nodesEver: nodes.size,
@@ -373,15 +372,6 @@ const StatsSection: React.FC = () => {
             r.cumulativeVolumeSol,
           )
         : lamportsToSol(r.cumulativeVolumeSol);
-  // Fees are 1% of volume by contract; das reports them priced when it can,
-  // and the cumulative fee column is derived otherwise because the API's
-  // native one carries a seed offset on prod (see Stats.ts).
-  const cumulativeFees = (r: HistoryRow) => {
-    if (pointInTime) return asNumber(r.cumulativeFeesUsd) ?? null;
-    const v = cumulativeVolume(r);
-    return v == null ? null : v * 0.01;
-  };
-
   const series = useMemo(() => {
     const line = (
       name: string,
@@ -403,9 +393,6 @@ const StatsSection: React.FC = () => {
         { formatValue: count },
       ),
       volume: line('Volume', volume, { type: 'bar', formatValue: moneyValue }),
-      cumulativeFees: line('Cumulative fees', cumulativeFees, {
-        formatValue: moneyValue,
-      }),
       // Mean size of that day's completed swaps; no bar on an empty day.
       avgSize: line(
         'Average transaction',
@@ -841,6 +828,12 @@ const StatsSection: React.FC = () => {
       tooltip: 'distinct hotkeys with at least one completed swap',
     },
     {
+      label: 'Timed out',
+      value: count(tape.timedOut),
+      loading: swapsLoading,
+      tooltip: 'swaps that expired before settling, all-time',
+    },
+    {
       label: 'In flight now',
       value: totals ? count(totals.activeSwaps) : '0',
       loading: totalsLoading,
@@ -859,8 +852,6 @@ const StatsSection: React.FC = () => {
     info: string;
     body: React.ReactNode;
     headerRight?: React.ReactNode;
-    /** Full row: keeps the half-width panels paired around it. */
-    wide?: boolean;
   }[] = [
     {
       title: 'Cumulative volume',
@@ -895,28 +886,6 @@ const StatsSection: React.FC = () => {
       ),
     },
     {
-      title: 'Protocol fees',
-      subtitle: 'per day, stacked by source · USD',
-      info: 'Every fee paid into the treasury each day: transaction fees (1% of volume, at the price of each swap’s hour), plus reservation and quote-churn fees (SOL, at that day’s SOL price). All protocol fees fund buybacks.',
-      body: chart(
-        [
-          ...feeBars('Transaction fees', (r) => r.swapFees, ink),
-          ...feeBars(
-            'Reservation fees',
-            (r) => r.reservationFees,
-            alpha(ink, 0.55),
-          ),
-          ...feeBars('Quote churn fees', (r) => r.churnFees, alpha(ink, 0.28)),
-        ].map((series) => ({ ...series, stack: 'protocol' })),
-        historyLoading || dailyIncome.isLoading,
-        usdCompact,
-      ),
-      headerRight: readout(
-        feeTotals.fees == null ? null : inRange(formatUsd(feeTotals.fees)),
-      ),
-      wide: true,
-    },
-    {
       title: 'Success rate',
       subtitle: `trailing ${TRAILING_DAYS}-day share of resolved swaps that completed`,
       info: `For each day, completed / (completed + timed out) over the ${TRAILING_DAYS} days ending that day, so one timeout on a quiet day reads as the share it is. Blank while nothing resolved in the window. The figure at right is the same share over the whole range.`,
@@ -934,10 +903,18 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Transaction fees',
-      subtitle: `all-time running total · 1% of volume · ${money}`,
-      info: 'Running total of transaction fees since launch: a flat 1% of volume, enforced by the contract. Fees per day follow the Volume chart at one hundredth.',
-      body: chart(series.cumulativeFees, historyLoading, moneyTick),
-      headerRight: readout(inRange(moneyValue(series.rangeVolume * 0.01))),
+      subtitle: 'per day · 1% of volume · USD at time of swap',
+      info: 'The flat 1% fee the contract takes on every completed swap, each day.',
+      body: chart(
+        feeBars('Transaction fees', (r) => r.swapFees),
+        historyLoading,
+        usdCompact,
+      ),
+      headerRight: readout(
+        feeTotals.swapFees == null
+          ? null
+          : inRange(formatUsd(feeTotals.swapFees)),
+      ),
     },
     {
       title: 'Reservation fees',
@@ -1082,21 +1059,89 @@ const StatsSection: React.FC = () => {
     },
   ];
 
+  // Each group reads top to bottom: its all-time figures, then its charts
+  // over the selected range. Panel spans keep every row full.
+  const groups: {
+    caption: string;
+    tiles: string[];
+    panels: string[];
+    lead?: React.ReactNode;
+    span?: Record<string, { md: number; lg: number }>;
+  }[] = [
+    {
+      caption: 'Volume',
+      tiles: [
+        'Total volume',
+        'Total transactions',
+        'Average transaction',
+        'Largest transaction',
+      ],
+      panels: [
+        'Cumulative volume',
+        'Cumulative transactions',
+        'Volume',
+        'Transactions',
+        'Average transaction',
+        'Volume by hub',
+        'Volume by direction',
+      ],
+      span: { 'Volume by direction': { md: 12, lg: 12 } },
+    },
+    {
+      caption: 'Fees',
+      tiles: [
+        'Protocol fees',
+        'Transaction fees',
+        'Reservation fees',
+        'Quote churn fees',
+      ],
+      lead: (
+        <DailyEconomics
+          history={history}
+          loading={historyLoading || historyPlaceholder}
+          days={range === '7d' ? 7 : 30}
+        />
+      ),
+      panels: ['Transaction fees', 'Reservation fees', 'Quote churn fees'],
+      // Three across when there is room; at medium widths the first takes
+      // the full row so the other two still pair.
+      span: {
+        'Transaction fees': { md: 12, lg: 4 },
+        'Reservation fees': { md: 6, lg: 4 },
+        'Quote churn fees': { md: 6, lg: 4 },
+      },
+    },
+    {
+      caption: 'Reliability',
+      tiles: [
+        'Success rate',
+        'Median settlement',
+        'Timed out',
+        'In flight now',
+      ],
+      panels: [
+        'Success rate',
+        'Settlement time',
+        'Peak throughput',
+        'Peak concurrent transactions',
+      ],
+    },
+    {
+      caption: 'Users and nodes',
+      tiles: [
+        'Unique users',
+        'Active miners',
+        'Nodes ever served',
+        'Days live',
+      ],
+      panels: ['Users', 'Unique users', 'Serving nodes', 'Nodes ever served'],
+    },
+  ];
+  const tileByLabel = new Map(tiles.map((t) => [t.label, t]));
+  const panelByTitle = new Map(panels.map((p) => [p.title, p]));
+
   return (
-    <Stack gap={3}>
-      <Grid container spacing={{ xs: 2, md: 3 }}>
-        {tiles.map((t) => (
-          <Grid item xs={6} sm={4} md={3} key={t.label}>
-            <StatCell
-              label={t.label}
-              value={t.value}
-              unit={t.unit}
-              loading={t.loading}
-              tooltip={t.tooltip}
-            />
-          </Grid>
-        ))}
-      </Grid>
+    <Stack gap={{ xs: 5, md: 6 }}>
       <Box
         sx={{
           display: 'flex',
@@ -1104,7 +1149,6 @@ const StatsSection: React.FC = () => {
           alignItems: 'center',
           gap: 2,
           flexWrap: 'wrap',
-          pt: 1,
         }}
       >
         <Typography
@@ -1114,33 +1158,73 @@ const StatsSection: React.FC = () => {
             color: 'text.secondary',
           }}
         >
-          tiles are all-time · charts follow the range · one column per UTC day,
-          today still filling ·{' '}
+          figures are all-time · charts follow the range · one column per UTC
+          day, today still filling ·{' '}
           {pointInTime
             ? 'dollars at the price of each swap’s hour'
             : 'dollars estimated at today’s prices'}
         </Typography>
         <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Box>
-      <DailyEconomics
-        history={history}
-        loading={historyLoading || historyPlaceholder}
-        days={range === '7d' ? 7 : 30}
-      />
-      <Grid container spacing={{ xs: 2, md: 3 }}>
-        {panels.map((p) => (
-          <Grid item xs={12} md={p.wide ? 12 : 6} key={p.title}>
-            <Panel
-              title={p.title}
-              subtitle={p.subtitle}
-              info={p.info}
-              headerRight={p.headerRight}
-            >
-              {p.body}
-            </Panel>
+      {groups.map((g) => (
+        <Stack key={g.caption} gap={{ xs: 2, md: 3 }}>
+          <Typography
+            component="h3"
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.7rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'text.secondary',
+              borderTop: 1,
+              borderColor: 'divider',
+              pt: 2,
+            }}
+          >
+            {g.caption}
+          </Typography>
+          <Grid container spacing={{ xs: 2, md: 3 }}>
+            {g.tiles.map((label) => {
+              const t = tileByLabel.get(label)!;
+              return (
+                <Grid item xs={6} md={3} key={label}>
+                  <StatCell
+                    label={t.label}
+                    value={t.value}
+                    unit={t.unit}
+                    loading={t.loading}
+                    tooltip={t.tooltip}
+                  />
+                </Grid>
+              );
+            })}
           </Grid>
-        ))}
-      </Grid>
+          {g.lead}
+          <Grid container spacing={{ xs: 2, md: 3 }}>
+            {g.panels.map((title) => {
+              const p = panelByTitle.get(title)!;
+              return (
+                <Grid
+                  item
+                  xs={12}
+                  md={g.span?.[title]?.md ?? 6}
+                  lg={g.span?.[title]?.lg ?? 6}
+                  key={title}
+                >
+                  <Panel
+                    title={p.title}
+                    subtitle={p.subtitle}
+                    info={p.info}
+                    headerRight={p.headerRight}
+                  >
+                    {p.body}
+                  </Panel>
+                </Grid>
+              );
+            })}
+          </Grid>
+        </Stack>
+      ))}
     </Stack>
   );
 };

@@ -82,9 +82,11 @@ matching the collector’s available range; its subtitle states that window.
 
 ## Network Stats tiles and panels
 
-A full-width Protocol fees panel stacks the three sources per day. The 1%
-running total panel is now Transaction fees. Reservation fees and Quote churn
-fees also get their own per-day panels. They follow the 7D / 30D / ALL range and share the per-day
+Network Stats is grouped: Volume, Fees, Reliability, Users and nodes. Each
+group shows its all-time figures, then its charts over the selected range; the
+range control sits at the top. The Fees group leads with the fees vs emissions
+panel (the one stacked chart of all three sources), then per-day Transaction
+fees, Reservation fees and Quote churn fees, three across on wide screens. They follow the 7D / 30D / ALL range and share the per-day
 `/treasury` cache with the economics panel (`useDailyTreasury`), valued at each
 day's SOL price. The all-time tiles use today's SOL price, so they read higher
 than the ALL range readouts when SOL was cheaper earlier.
