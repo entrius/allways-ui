@@ -8,6 +8,7 @@ export * from './ProtocolApi';
 export * from './ReservationsApi';
 export * from './StatsApi';
 export * from './SwapsApi';
+export * from './TreasuryApi';
 
 export * from './models';
 export * from './MarketCapsApi';

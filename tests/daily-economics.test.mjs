@@ -3,12 +3,12 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const js = ts.transpileModule(readFileSync(new URL('../src/utils/dailyEconomics.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { dailyEconomics, economicsThroughNow, summarizeEconomics } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const { dailyEconomics, economicsThroughNow, summarizeEconomics, solUsdForDay } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const now = Date.parse('2026-10-14T22:53:00Z');
 const t = '2026-10-13T00:00:00Z';
 test('complete UTC days exclude today, including DST-independent boundaries', () => {
   const rows = dailyEconomics([{t,feesUsd:100,unpricedSwaps:0},{t:'2026-10-14T00:00:00Z',feesUsd:9999,unpricedSwaps:0}], [{t,emissionsUsd:80}], 1, now);
-  assert.deepEqual(rows, [{t:Date.parse(t),fees:100,emissions:80}]);
+  assert.deepEqual(rows, [{t:Date.parse(t),fees:100,swapFees:100,reservationFees:null,churnFees:null,emissions:80}]);
   assert.equal(summarizeEconomics(rows).coverage,125);
   assert.equal(summarizeEconomics(rows).surplus,20);
 });
@@ -43,4 +43,38 @@ test('KPIs include today immediately and compare emissions for elapsed time only
   assert.equal(economicsThroughNow(fees,emissions,1,Date.parse(today))[1].emissions,0);
   assert.equal(economicsThroughNow(fees,[],1,Date.parse(today))[1].emissions,null);
   assert.equal(summarizeEconomics(economicsThroughNow([],emissions,1,now)).fees,null);
+});
+
+test('reservation and churn lamports join swap fees at that day\'s mean SOL price', () => {
+  const day = Date.parse(t);
+  const prices = [[day - 1, 999], [day, 100], [day + 86_400_000, 120], [day + 86_400_001, 999]];
+  assert.equal(solUsdForDay(prices, day), 110);
+  const treasury = [{t:day,reservationLamports:2e9,churnLamports:1e9}];
+  const [row] = dailyEconomics([{t,feesUsd:100,unpricedSwaps:0}],[{t,emissionsUsd:800}],1,now,treasury,prices);
+  assert.equal(row.reservationFees,220);
+  assert.equal(row.churnFees,110);
+  assert.equal(row.fees,430);
+  assert.ok(Math.abs(summarizeEconomics([row]).coverage - 53.75) < 1e-9);
+});
+test('missing treasury income or SOL price leaves a gap instead of swap-only totals', () => {
+  const day = Date.parse(t);
+  const fee = [{t,feesUsd:100,unpricedSwaps:0}];
+  const prices = [[day,100]];
+  for (const [treasury, px] of [
+    [[], prices],
+    [[{t:day,reservationLamports:null,churnLamports:0}], prices],
+    [[{t:day,reservationLamports:0,churnLamports:0}], []],
+  ]) {
+    const [row] = dailyEconomics(fee,[{t,emissionsUsd:80}],1,now,treasury,px);
+    assert.equal(row.swapFees,100);
+    assert.equal(row.fees,null);
+  }
+  const [zero] = dailyEconomics(fee,[{t,emissionsUsd:80}],1,now,[{t:day,reservationLamports:0,churnLamports:0}],prices);
+  assert.equal(zero.fees,100);
+});
+test('today\'s treasury income counts in full; only emissions are prorated', () => {
+  const today = Date.parse('2026-10-14T00:00:00Z');
+  const rows = economicsThroughNow([{t:'2026-10-14T00:00:00Z',feesUsd:10,unpricedSwaps:0}],[{t:'2026-10-14T00:00:00Z',emissionsUsd:160}],0,Date.parse('2026-10-14T12:00:00Z'),[{t:today,reservationLamports:1e9,churnLamports:1e9}],[[today,100],[Date.parse('2026-10-14T11:59:00Z'),100]]);
+  assert.equal(rows[0].fees,210);
+  assert.equal(rows[0].emissions,80);
 });

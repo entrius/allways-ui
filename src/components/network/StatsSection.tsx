@@ -21,6 +21,7 @@ import {
   useCompleteSwapHistory,
   useHistory,
   useStats,
+  useTreasury,
   useUsdPrices,
   type HistoryRange,
 } from '../../api';
@@ -238,6 +239,26 @@ const StatsSection: React.FC = () => {
   const totalFeesUsd =
     asNumber(totals?.totalFeesUsd) ??
     (totalVolumeUsd == null ? null : totalVolumeUsd * 0.01);
+  // Reservation and quote-churn fees are SOL paid straight into the treasury,
+  // outside the 1% swap fee; das only reports them in lamports, so they are
+  // valued at today's SOL price.
+  const { data: treasury, isLoading: treasuryLoading } = useTreasury();
+  const solUsd = typeof prices.sol === 'number' ? prices.sol : null;
+  const treasurySol = (lamports?: number) =>
+    lamports == null ? null : lamportsToSol(lamports);
+  const reservationSol = treasurySol(treasury?.sources.reservationFee.lamports);
+  const churnSol = treasurySol(treasury?.sources.quoteChurnFee.lamports);
+  const solTile = (sol: number | null) =>
+    sol == null
+      ? { value: '—' }
+      : moneyTile(solUsd == null ? null : sol * solUsd, sol);
+  const allFeesUsd =
+    totalFeesUsd != null &&
+    reservationSol != null &&
+    churnSol != null &&
+    solUsd != null
+      ? totalFeesUsd + (reservationSol + churnSol) * solUsd
+      : null;
   const largestSwapUsd = asNumber(totals?.largestSwapUsd);
   const totalVolumeSol = totals ? lamportsToSol(totals.totalVolumeSol) : 0;
   const volumeTooltip = totals
@@ -693,10 +714,32 @@ const StatsSection: React.FC = () => {
       loading: totalsLoading,
     },
     {
-      label: 'Protocol fees',
+      label: 'Swap fees',
       ...moneyTile(totalFeesUsd, totalVolumeSol * 0.01),
       loading: totalsLoading,
       tooltip: '1% of total volume',
+    },
+    {
+      label: 'Reservation fees',
+      ...solTile(reservationSol),
+      loading: treasuryLoading,
+      tooltip: treasury
+        ? `${count(treasury.sources.reservationFee.events)} reservations x ${solAmount(lamportsToSol(treasury.reservationFeeLamports))} SOL, at today’s SOL price`
+        : undefined,
+    },
+    {
+      label: 'Quote churn fees',
+      ...solTile(churnSol),
+      loading: treasuryLoading,
+      tooltip: treasury
+        ? `${count(treasury.sources.quoteChurnFee.feeEvents)} quote updates inside the anti-flashing window, at today’s SOL price`
+        : undefined,
+    },
+    {
+      label: 'All fees',
+      value: allFeesUsd == null ? '—' : formatUsd(allFeesUsd),
+      loading: totalsLoading || treasuryLoading,
+      tooltip: 'swap + reservation + quote churn fees',
     },
     {
       label: 'Unique users',
