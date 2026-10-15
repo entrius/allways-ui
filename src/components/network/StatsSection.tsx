@@ -22,7 +22,6 @@ import {
   useHistory,
   useDailyTreasury,
   useStats,
-  useTreasury,
   useUsdPrices,
   type HistoryRange,
 } from '../../api';
@@ -30,7 +29,6 @@ import type { ActiveSwap, HistoryRow } from '../../api/models';
 import { assetLabel, hubChains } from '../../api/models/chains';
 import {
   asNumber,
-  backingTooltip,
   chainSymbol,
   formatUsd,
   lamportsToSol,
@@ -233,38 +231,6 @@ const StatsSection: React.FC = () => {
       : null;
   };
 
-  // --- All-time totals ----------------------------------------------------
-  const totalVolumeUsd = totals
-    ? (asNumber(totals.totalVolumeUsd) ??
-      usdFromBackingMap(
-        totals.totalVolumeByBacking,
-        prices,
-        totals.totalVolumeSol,
-      ))
-    : null;
-  const totalFeesUsd =
-    asNumber(totals?.totalFeesUsd) ??
-    (totalVolumeUsd == null ? null : totalVolumeUsd * 0.01);
-  // Reservation and quote-churn fees are SOL paid straight into the treasury,
-  // outside the 1% swap fee; das only reports them in lamports, so they are
-  // valued at today's SOL price.
-  const { data: treasury, isLoading: treasuryLoading } = useTreasury();
-  const solUsd = typeof prices.sol === 'number' ? prices.sol : null;
-  const treasurySol = (lamports?: number) =>
-    lamports == null ? null : lamportsToSol(lamports);
-  const reservationSol = treasurySol(treasury?.sources.reservationFee.lamports);
-  const churnSol = treasurySol(treasury?.sources.quoteChurnFee.lamports);
-  const solTile = (sol: number | null) =>
-    sol == null
-      ? { value: '—' }
-      : moneyTile(solUsd == null ? null : sol * solUsd, sol);
-  const allFeesUsd =
-    totalFeesUsd != null &&
-    reservationSol != null &&
-    churnSol != null &&
-    solUsd != null
-      ? totalFeesUsd + (reservationSol + churnSol) * solUsd
-      : null;
   // Daily reservation and churn income over the selected range (all-time
   // starts at the first history day), shared with the fees vs emissions panel.
   const todayStart = Math.floor(Date.now() / UTC_DAY_MS) * UTC_DAY_MS;
@@ -301,15 +267,6 @@ const StatsSection: React.FC = () => {
       points: feeRows.map((r) => ({ t: r.t, value: pick(r) })),
     },
   ];
-  const largestSwapUsd = asNumber(totals?.largestSwapUsd);
-  const totalVolumeSol = totals ? lamportsToSol(totals.totalVolumeSol) : 0;
-  const volumeTooltip = totals
-    ? backingTooltip(totals.totalVolumeByBacking, totals.totalVolumeSol)
-    : undefined;
-  const moneyTile = (usd: number | null, sol: number) => ({
-    value: usd != null ? formatUsd(usd) : solAmount(sol),
-    unit: usd != null ? undefined : 'SOL',
-  });
 
   // Exact all-time reliability, speed, size and reach, from every swap.
   const tape = useMemo(() => {
@@ -449,6 +406,7 @@ const StatsSection: React.FC = () => {
     };
     const rangeSettle: number[] = [];
     const rangeFill: number[] = [];
+    let rangeLargest: number | null = null;
     let firstMs = Infinity;
 
     for (const s of swaps) {
@@ -493,7 +451,10 @@ const StatsSection: React.FC = () => {
       if (s.userAddress) addTo(usersByDay, startDay, s.userAddress);
       if (s.status !== 'COMPLETED') continue;
       if (s.minerHotkey) addTo(servingByDay, startDay, s.minerHotkey);
-      const usd = usdMode ? swapUsd(s) : null;
+      const notional = swapUsd(s);
+      if (notional != null && (rangeLargest == null || notional > rangeLargest))
+        rangeLargest = notional;
+      const usd = usdMode ? notional : null;
       if (usd != null) {
         tally(byDirection, directionLabel(s), usd);
         const hub = s.backing ?? 'sol';
@@ -526,6 +487,9 @@ const StatsSection: React.FC = () => {
       rangePeakHour: 0,
       rangePeakInFlight: 0,
       rangeServingNodes: 0,
+      rangeLargest: null as number | null,
+      rangeActiveDays: 0,
+      rangeDays: 0,
       settleMax: 0,
     };
     if (!sweep.length) return empty;
@@ -686,6 +650,10 @@ const StatsSection: React.FC = () => {
         ...dayList.map((t) => peakByDay.get(t) ?? 0),
       ),
       rangeServingNodes: distinct(servingByDay.values()),
+      rangeLargest,
+      rangeActiveDays: dayList.filter((t) => (completedByDay.get(t) ?? 0) > 0)
+        .length,
+      rangeDays: dayList.length,
       settleMax: Math.max(0, ...dayMedians, ...fillMedians),
     };
     // swapUsd and moneyValue close over prices, usdMode and pointInTime,
@@ -726,6 +694,21 @@ const StatsSection: React.FC = () => {
     );
   const inRange = (text: string) => `${text} in range`;
 
+  // Every figure covers the selected range, like the charts beneath it;
+  // only the live counts (in flight, active miners) describe right now.
+  const rangeIncome = dailyIncome.treasury.filter(
+    (d) => feeRows.length > 0 && d.t >= feeRows[0].t,
+  );
+  const incomeEvents = (
+    pick: (d: (typeof rangeIncome)[number]) => number | null | undefined,
+  ) =>
+    rangeIncome.length === feeRows.length &&
+    rangeIncome.every((d) => typeof pick(d) === 'number')
+      ? rangeIncome.reduce((n, d) => n + (pick(d) as number), 0)
+      : null;
+  const reservationEvents = incomeEvents((d) => d.reservationEvents);
+  const churnEvents = incomeEvents((d) => d.churnEvents);
+  const usdTile = (v: number | null) => (v == null ? '—' : formatUsd(v));
   const tiles: {
     label: string;
     value: string;
@@ -734,115 +717,123 @@ const StatsSection: React.FC = () => {
     tooltip?: string;
   }[] = [
     {
-      label: 'Total volume',
-      ...moneyTile(totalVolumeUsd, totalVolumeSol),
-      loading: totalsLoading,
-      tooltip: volumeTooltip,
+      label: 'Volume',
+      value: moneyValue(series.rangeVolume),
+      unit: usdMode ? undefined : 'SOL',
+      loading: historyLoading,
+      tooltip: `completed swap volume in range · ${money}`,
     },
     {
-      label: 'Total transactions',
-      value: totals ? count(totals.totalSwaps) : '0',
-      loading: totalsLoading,
-    },
-    {
-      label: 'Protocol fees',
-      value: allFeesUsd == null ? '—' : formatUsd(allFeesUsd),
-      loading: totalsLoading || treasuryLoading,
-      tooltip: 'transaction + reservation + quote churn fees',
-    },
-    {
-      label: 'Transaction fees',
-      ...moneyTile(totalFeesUsd, totalVolumeSol * 0.01),
-      loading: totalsLoading,
-      tooltip: '1% of total volume',
-    },
-    {
-      label: 'Reservation fees',
-      ...solTile(reservationSol),
-      loading: treasuryLoading,
-      tooltip: treasury
-        ? `${count(treasury.sources.reservationFee.events)} reservations x ${solAmount(lamportsToSol(treasury.reservationFeeLamports))} SOL, at today’s SOL price`
-        : undefined,
-    },
-    {
-      label: 'Quote churn fees',
-      ...solTile(churnSol),
-      loading: treasuryLoading,
-      tooltip: treasury
-        ? `${count(treasury.sources.quoteChurnFee.feeEvents)} quote updates inside the anti-flashing window, at today’s SOL price`
-        : undefined,
-    },
-    {
-      label: 'Unique users',
-      value: count(tape.usersEver),
-      loading: swapsLoading,
-      tooltip: 'distinct user addresses that initiated a swap',
-    },
-    {
-      label: 'Success rate',
-      value: tape.successRate == null ? '—' : tape.successRate.toFixed(1),
-      unit: tape.successRate == null ? undefined : '%',
-      loading: swapsLoading,
-      tooltip: 'completed / (completed + timed out), every resolved swap',
-    },
-    {
-      label: 'Median settlement',
-      value: tape.medianSettle == null ? '—' : secs(tape.medianSettle),
-      loading: swapsLoading,
-      tooltip:
-        tape.avgSettle == null ? undefined : `average ${secs(tape.avgSettle)}`,
+      label: 'Transactions',
+      value: count(series.rangeSwaps),
+      loading: historyLoading,
+      tooltip: 'completed swaps in range',
     },
     {
       label: 'Average transaction',
-      ...moneyTile(
-        totalVolumeUsd != null && totals?.totalSwaps
-          ? totalVolumeUsd / totals.totalSwaps
-          : null,
-        totals?.totalSwaps ? totalVolumeSol / totals.totalSwaps : 0,
-      ),
-      loading: totalsLoading,
-      tooltip: 'total volume / total transactions',
+      value:
+        series.rangeAvgSize == null ? '—' : moneyValue(series.rangeAvgSize),
+      unit: usdMode || series.rangeAvgSize == null ? undefined : 'SOL',
+      loading: historyLoading,
+      tooltip: 'volume / transactions, in range',
     },
     {
       label: 'Largest transaction',
-      value:
-        largestSwapUsd !== undefined
-          ? formatUsd(largestSwapUsd)
-          : tape.largest == null
-            ? '—'
-            : formatUsd(tape.largest),
-      loading: totalsLoading || swapsLoading,
-      tooltip: pointInTime
-        ? 'biggest completed swap by backing-leg notional, at the price of its hour'
-        : 'biggest completed swap by backing-leg notional, at today’s prices',
-    },
-    {
-      label: 'Active miners',
-      value: totals ? count(totals.activeMiners) : '0',
-      loading: totalsLoading,
-    },
-    {
-      label: 'Nodes ever served',
-      value: count(tape.nodesEver),
+      value: usdTile(derived.rangeLargest),
       loading: swapsLoading,
-      tooltip: 'distinct hotkeys with at least one completed swap',
+      tooltip: pointInTime
+        ? 'biggest completed swap in range, at the price of its hour'
+        : 'biggest completed swap in range, at today’s prices',
+    },
+    {
+      label: 'Protocol fees',
+      value: usdTile(feeTotals.fees),
+      loading: historyLoading || dailyIncome.isLoading,
+      tooltip: 'transaction + reservation + quote churn fees, in range',
+    },
+    {
+      label: 'Transaction fees',
+      value: usdTile(feeTotals.swapFees),
+      loading: historyLoading,
+      tooltip: '1% of volume, at the price of each swap’s hour',
+    },
+    {
+      label: 'Reservation fees',
+      value: usdTile(feeTotals.reservationFees),
+      loading: dailyIncome.isLoading,
+      tooltip:
+        reservationEvents == null
+          ? 'SOL, at each day’s SOL price'
+          : `${count(reservationEvents)} reservations, at each day’s SOL price`,
+    },
+    {
+      label: 'Quote churn fees',
+      value: usdTile(feeTotals.churnFees),
+      loading: dailyIncome.isLoading,
+      tooltip:
+        churnEvents == null
+          ? 'SOL, at each day’s SOL price'
+          : `${count(churnEvents)} quote updates inside the anti-flashing window, at each day’s SOL price`,
+    },
+    {
+      label: 'Success rate',
+      value:
+        derived.rangeSuccessRate == null
+          ? '—'
+          : derived.rangeSuccessRate.toFixed(1),
+      unit: derived.rangeSuccessRate == null ? undefined : '%',
+      loading: swapsLoading,
+      tooltip: 'completed / (completed + timed out), resolved in range',
+    },
+    {
+      label: 'Median settlement',
+      value:
+        derived.rangeMedianSettle == null
+          ? '—'
+          : secs(derived.rangeMedianSettle),
+      loading: swapsLoading,
+      tooltip:
+        derived.rangeMedianFill == null
+          ? 'initiation to settlement, in range'
+          : `median fill ${secs(derived.rangeMedianFill)}, in range`,
     },
     {
       label: 'Timed out',
-      value: count(tape.timedOut),
+      value: count(derived.rangeTimedOut),
       loading: swapsLoading,
-      tooltip: 'swaps that expired before settling, all-time',
+      tooltip: 'swaps that expired before settling, in range',
     },
     {
       label: 'In flight now',
       value: totals ? count(totals.activeSwaps) : '0',
       loading: totalsLoading,
+      tooltip: 'live: swaps open right now',
     },
     {
-      label: 'Days live',
-      value: tape.daysLive == null ? '—' : count(tape.daysLive),
+      label: 'Users',
+      value: count(derived.rangeUsers),
       loading: swapsLoading,
-      tooltip: 'since the first swap was initiated',
+      tooltip: 'distinct user addresses that initiated a swap in range',
+    },
+    {
+      label: 'Active miners',
+      value: totals ? count(totals.activeMiners) : '0',
+      loading: totalsLoading,
+      tooltip: 'live: miners active right now',
+    },
+    {
+      label: 'Nodes served',
+      value: count(derived.rangeServingNodes),
+      loading: swapsLoading,
+      tooltip: 'distinct hotkeys that completed a swap in range',
+    },
+    {
+      label: 'Active days',
+      value: derived.rangeDays
+        ? `${derived.rangeActiveDays} of ${derived.rangeDays}`
+        : '—',
+      loading: swapsLoading,
+      tooltip: 'days in range with at least one completed swap',
     },
   ];
 
@@ -1071,8 +1062,8 @@ const StatsSection: React.FC = () => {
     {
       caption: 'Volume',
       tiles: [
-        'Total volume',
-        'Total transactions',
+        'Volume',
+        'Transactions',
         'Average transaction',
         'Largest transaction',
       ],
@@ -1099,7 +1090,7 @@ const StatsSection: React.FC = () => {
         <DailyEconomics
           history={history}
           loading={historyLoading || historyPlaceholder}
-          days={range === '7d' ? 7 : 30}
+          days={feeDays}
         />
       ),
       panels: ['Transaction fees', 'Reservation fees', 'Quote churn fees'],
@@ -1128,12 +1119,7 @@ const StatsSection: React.FC = () => {
     },
     {
       caption: 'Users and nodes',
-      tiles: [
-        'Unique users',
-        'Active miners',
-        'Nodes ever served',
-        'Days live',
-      ],
+      tiles: ['Users', 'Active miners', 'Nodes served', 'Active days'],
       panels: ['Users', 'Unique users', 'Serving nodes', 'Nodes ever served'],
     },
   ];
@@ -1168,8 +1154,8 @@ const StatsSection: React.FC = () => {
             color: 'text.secondary',
           }}
         >
-          figures are all-time · charts follow the range · one column per UTC
-          day, today still filling ·{' '}
+          everything follows the range · one column per UTC day, today still
+          filling ·{' '}
           {pointInTime
             ? 'dollars at the price of each swap’s hour'
             : 'dollars estimated at today’s prices'}

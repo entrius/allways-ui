@@ -51,7 +51,8 @@ async function loadEmissions(): Promise<EmissionHistory> {
   const url =
     import.meta.env.VITE_MINER_EMISSIONS_URL ??
     `${base}/economics/emissions/history`;
-  const response = await fetch(url);
+  // Revalidate every time: the source is regenerated in place.
+  const response = await fetch(url, { cache: 'no-cache' });
   if (!response.ok || !response.headers.get('content-type')?.includes('json')) {
     throw new Error('Miner emission history is unavailable');
   }

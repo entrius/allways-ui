@@ -117,3 +117,17 @@ totals never blank just because today's row is not in yet.
 
 The 7D / 30D / ALL bar is sticky at the top of the page's scroll area while
 Network Stats is on screen.
+
+## Everything follows the range
+
+Every figure in Network Stats covers the selected 7D / 30D / ALL range, like
+the charts beneath it. Only "In flight now" and "Active miners" are live counts.
+ALL runs the fees vs emissions panel from the first history day (launch was
+2026-07-11), so the emission history must reach that far: run the collector
+with a day count, e.g. `python scripts/collect-miner-emissions.py 100 previous.json`
+(the optional previous file's complete days are reused, which keeps the run under
+the public archive's historical-lookup rate limit; it also backs off and retries).
+Days before SN7 emitted record a real 0. It
+fetches TAO/USD from CoinGecko in <=85-day slices so samples keep hourly prices.
+The page fetches the emission file with `cache: 'no-cache'` so a regenerated
+file is picked up without a hard reload.
