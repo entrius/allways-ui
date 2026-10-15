@@ -119,7 +119,7 @@ export default function DailyEconomics({
       <Panel
         title="Daily fees vs. miner emissions"
         subtitle={`${date(rows[0].t)} – ${date(rows[rows.length - 1].t)} · ${days} complete UTC days + today so far · USD`}
-        info="All fees paid into the treasury (swap fees, reservation fees and quote-churn fees) versus estimated miner rewards after burn. All protocol fees fund buybacks. A fee bar above the emission line means fees exceeded estimated miner rewards that day. Owner and validator rewards and operating costs are excluded."
+        info="All protocol fees paid into the treasury (transaction fees, reservation fees and quote-churn fees) versus estimated miner rewards after burn. All protocol fees fund buybacks. A fee bar above the emission line means fees exceeded estimated miner rewards that day. Owner and validator rewards and operating costs are excluded."
       >
         <Box
           sx={{
@@ -129,7 +129,7 @@ export default function DailyEconomics({
           }}
         >
           <StatCell
-            label="All fees"
+            label="Protocol fees"
             value={totals.fees === null ? '—' : formatUsd(totals.fees)}
             loading={pending}
           />
@@ -157,7 +157,7 @@ export default function DailyEconomics({
             loading={pending}
           />
           <StatCell
-            label="Swap fees"
+            label="Transaction fees"
             value={totals.swapFees === null ? '—' : formatUsd(totals.swapFees)}
             loading={pending}
             tooltip="1% of completed swap volume, at the price of each swap’s hour"
@@ -189,7 +189,7 @@ export default function DailyEconomics({
             }
           />
           <StatCell
-            label="Non-swap share"
+            label="Non-transaction share"
             value={
               totals.fees === null ||
               totals.fees === 0 ||
@@ -199,7 +199,7 @@ export default function DailyEconomics({
                 : `${(((totals.reservationFees + totals.churnFees) / totals.fees) * 100).toFixed(1)}%`
             }
             loading={pending}
-            tooltip="reservation + quote churn fees as a share of all fees"
+            tooltip="reservation + quote churn fees as a share of protocol fees"
           />
         </Box>
         <TimeSeriesChart
@@ -210,7 +210,7 @@ export default function DailyEconomics({
           formatValue={formatUsd}
           series={[
             {
-              name: 'Swap fees',
+              name: 'Transaction fees',
               type: 'bar',
               stack: 'fees',
               color: theme.palette.text.primary,

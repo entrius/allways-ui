@@ -6,7 +6,8 @@ estimated SN7 miner emissions, with totals, coverage and fees minus emissions.
 
 Fees are stacked bars of three treasury income sources:
 
-- Swap fees: the live `/history` endpoint, valued at transaction time.
+- Transaction fees (the 1% swap fee): the live `/history` endpoint, valued at
+  transaction time.
 - Reservation and quote-churn fees: `GET /treasury?timeFrom&timeTo`, called once
   per UTC day (completed days load once; today refreshes every five minutes).
   These are lamports, valued at that day's mean CoinGecko SOL/USD (the day's
@@ -14,7 +15,7 @@ Fees are stacked bars of three treasury income sources:
   fees as reservation events x the current reservation fee.
 
 A day missing any source, or its SOL price, is a gap for the total. A second KPI
-row totals each source over the window, plus the non-swap share of all fees.
+row totals each source over the window, plus the non-transaction share of protocol fees.
 The new emission source contract is `GET /economics/emissions/history`:
 
 ```json
@@ -81,14 +82,16 @@ matching the collector’s available range; its subtitle states that window.
 
 ## Network Stats tiles and panels
 
-Reservation fees and Quote churn fees also get their own per-day panels beside
-Protocol fees. They follow the 7D / 30D / ALL range and share the per-day
+A full-width Protocol fees panel stacks the three sources per day. The 1%
+running total panel is now Transaction fees. Reservation fees and Quote churn
+fees also get their own per-day panels. They follow the 7D / 30D / ALL range and share the per-day
 `/treasury` cache with the economics panel (`useDailyTreasury`), valued at each
 day's SOL price. The all-time tiles use today's SOL price, so they read higher
 than the ALL range readouts when SOL was cheaper earlier.
 
-The all-time tiles split fees into Swap fees, Reservation fees, Quote churn fees
-and All fees. Reservation and churn come from all-time `GET /treasury`, valued at
+"Protocol fees" means all three sources combined; "Transaction fees" is the 1%
+swap fee alone. The all-time tiles show Protocol fees, Transaction fees,
+Reservation fees and Quote churn fees. Reservation and churn come from all-time `GET /treasury`, valued at
 today's SOL price. das holds 299 corrupt `QuoteSet.update_fee` values between
 block times 1787173319 and 1787199604 (Aug 19-20 2026, about 9.1e18 lamports;
 the real maximum is 0.01 SOL per update). The UI subtracts that window's churn

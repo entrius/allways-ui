@@ -6,6 +6,7 @@ import {
   Skeleton,
   Stack,
   Typography,
+  alpha,
   useTheme,
 } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
@@ -292,11 +293,12 @@ const StatsSection: React.FC = () => {
   const feeBars = (
     name: string,
     pick: (r: (typeof feeRows)[number]) => number | null,
-  ) => [
+    color = ink,
+  ): ChartSeries[] => [
     {
       name,
       type: 'bar' as const,
-      color: ink,
+      color,
       formatValue: formatUsd,
       points: feeRows.map((r) => ({ t: r.t, value: pick(r) })),
     },
@@ -756,7 +758,13 @@ const StatsSection: React.FC = () => {
       loading: totalsLoading,
     },
     {
-      label: 'Swap fees',
+      label: 'Protocol fees',
+      value: allFeesUsd == null ? '—' : formatUsd(allFeesUsd),
+      loading: totalsLoading || treasuryLoading,
+      tooltip: 'transaction + reservation + quote churn fees',
+    },
+    {
+      label: 'Transaction fees',
       ...moneyTile(totalFeesUsd, totalVolumeSol * 0.01),
       loading: totalsLoading,
       tooltip: '1% of total volume',
@@ -776,12 +784,6 @@ const StatsSection: React.FC = () => {
       tooltip: treasury
         ? `${count(treasury.sources.quoteChurnFee.feeEvents)} quote updates inside the anti-flashing window, at today’s SOL price`
         : undefined,
-    },
-    {
-      label: 'All fees',
-      value: allFeesUsd == null ? '—' : formatUsd(allFeesUsd),
-      loading: totalsLoading || treasuryLoading,
-      tooltip: 'swap + reservation + quote churn fees',
     },
     {
       label: 'Unique users',
@@ -857,6 +859,8 @@ const StatsSection: React.FC = () => {
     info: string;
     body: React.ReactNode;
     headerRight?: React.ReactNode;
+    /** Full row: keeps the half-width panels paired around it. */
+    wide?: boolean;
   }[] = [
     {
       title: 'Cumulative volume',
@@ -891,6 +895,28 @@ const StatsSection: React.FC = () => {
       ),
     },
     {
+      title: 'Protocol fees',
+      subtitle: 'per day, stacked by source · USD',
+      info: 'Every fee paid into the treasury each day: transaction fees (1% of volume, at the price of each swap’s hour), plus reservation and quote-churn fees (SOL, at that day’s SOL price). All protocol fees fund buybacks.',
+      body: chart(
+        [
+          ...feeBars('Transaction fees', (r) => r.swapFees, ink),
+          ...feeBars(
+            'Reservation fees',
+            (r) => r.reservationFees,
+            alpha(ink, 0.55),
+          ),
+          ...feeBars('Quote churn fees', (r) => r.churnFees, alpha(ink, 0.28)),
+        ].map((series) => ({ ...series, stack: 'protocol' })),
+        historyLoading || dailyIncome.isLoading,
+        usdCompact,
+      ),
+      headerRight: readout(
+        feeTotals.fees == null ? null : inRange(formatUsd(feeTotals.fees)),
+      ),
+      wide: true,
+    },
+    {
       title: 'Success rate',
       subtitle: `trailing ${TRAILING_DAYS}-day share of resolved swaps that completed`,
       info: `For each day, completed / (completed + timed out) over the ${TRAILING_DAYS} days ending that day, so one timeout on a quiet day reads as the share it is. Blank while nothing resolved in the window. The figure at right is the same share over the whole range.`,
@@ -907,9 +933,9 @@ const StatsSection: React.FC = () => {
       ),
     },
     {
-      title: 'Protocol fees',
+      title: 'Transaction fees',
       subtitle: `all-time running total · 1% of volume · ${money}`,
-      info: 'Running total of protocol fees since launch: a flat 1% of volume, enforced by the contract. Fees per day follow the Volume chart at one hundredth.',
+      info: 'Running total of transaction fees since launch: a flat 1% of volume, enforced by the contract. Fees per day follow the Volume chart at one hundredth.',
       body: chart(series.cumulativeFees, historyLoading, moneyTick),
       headerRight: readout(inRange(moneyValue(series.rangeVolume * 0.01))),
     },
@@ -1103,7 +1129,7 @@ const StatsSection: React.FC = () => {
       />
       <Grid container spacing={{ xs: 2, md: 3 }}>
         {panels.map((p) => (
-          <Grid item xs={12} md={6} key={p.title}>
+          <Grid item xs={12} md={p.wide ? 12 : 6} key={p.title}>
             <Panel
               title={p.title}
               subtitle={p.subtitle}
