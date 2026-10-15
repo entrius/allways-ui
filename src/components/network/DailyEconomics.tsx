@@ -19,7 +19,31 @@ type EmissionHistory = {
   network: string;
   asOf: string;
   method: string;
-  rows: EmissionDay[];
+  rows: (EmissionDay & {
+    samples?: { dailyUsd: number; burnFraction: number }[];
+  })[];
+};
+
+// What MinerBurned withheld that day, when the source predates `burnedUsd`:
+// each sample's after-burn rate is (1 - f) of the pre-burn rate, so the
+// withheld part is rate x f / (1 - f), averaged like the emission itself.
+const burnedFromSamples = (
+  samples?: { dailyUsd: number; burnFraction: number }[],
+): number | null => {
+  const valid = (samples ?? []).filter(
+    (s) =>
+      Number.isFinite(s.dailyUsd) &&
+      Number.isFinite(s.burnFraction) &&
+      s.burnFraction >= 0 &&
+      s.burnFraction < 1,
+  );
+  if (!valid.length || valid.length !== samples?.length) return null;
+  return (
+    valid.reduce(
+      (sum, s) => sum + (s.dailyUsd * s.burnFraction) / (1 - s.burnFraction),
+      0,
+    ) / valid.length
+  );
 };
 
 async function loadEmissions(): Promise<EmissionHistory> {
@@ -48,7 +72,16 @@ async function loadEmissions(): Promise<EmissionHistory> {
   ) {
     throw new Error('Miner emission history is invalid');
   }
-  return data;
+  return {
+    ...data,
+    rows: data.rows.map((r) => ({
+      ...r,
+      burnedUsd:
+        typeof r.burnedUsd === 'number'
+          ? r.burnedUsd
+          : burnedFromSamples(r.samples),
+    })),
+  };
 }
 
 /** Fees and miner-only emissions share UTC-day buckets and USD axes. */
@@ -144,7 +177,7 @@ export default function DailyEconomics({
             loading={pending}
           />
           <StatCell
-            label="Emission coverage"
+            label="Fees as % of emissions"
             value={
               totals.coverage === null ? '—' : `${totals.coverage.toFixed(1)}%`
             }
@@ -204,6 +237,40 @@ export default function DailyEconomics({
             loading={pending}
             tooltip="reservation + quote churn fees as a share of protocol fees"
           />
+          <StatCell
+            label="Miner emissions before burn"
+            value={
+              totals.emissions === null || totals.burned === null
+                ? '—'
+                : formatUsd(totals.emissions + totals.burned)
+            }
+            loading={pending}
+            tooltip="estimated miner emissions plus what MinerBurned withheld"
+          />
+          <StatCell
+            label="Miner burn"
+            value={totals.burned === null ? '—' : formatUsd(totals.burned)}
+            loading={pending}
+            tooltip="miner emissions withheld by MinerBurned, which changes over time"
+          />
+          <StatCell
+            label="Burn rate"
+            value={
+              totals.burnRate === null ? '—' : `${totals.burnRate.toFixed(1)}%`
+            }
+            loading={pending}
+            tooltip="miner burn as a share of miner emissions before burn"
+          />
+          <StatCell
+            label="Days fees beat emissions"
+            value={
+              totals.comparableDays
+                ? `${totals.coveredDays} of ${totals.comparableDays}`
+                : '—'
+            }
+            loading={pending}
+            tooltip="days whose protocol fees matched or exceeded that day’s miner emissions"
+          />
         </Box>
         <TimeSeriesChart
           daily
@@ -240,8 +307,62 @@ export default function DailyEconomics({
               color: theme.palette.text.secondary,
               points: rows.map((r) => ({ t: r.t, value: r.emissions })),
             },
+            {
+              name: 'Before miner burn',
+              type: 'line',
+              dashed: true,
+              color: theme.palette.text.disabled,
+              points: rows.map((r) => ({
+                t: r.t,
+                value:
+                  r.emissions === null || r.burned === null
+                    ? null
+                    : r.emissions + r.burned,
+              })),
+            },
           ]}
         />
+        <Box>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              fontSize: '0.62rem',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'text.secondary',
+            }}
+          >
+            Fees as % of miner emissions, per day
+          </Typography>
+          <TimeSeriesChart
+            daily
+            noArea
+            height={160}
+            loading={pending}
+            formatValue={(v) => `${v.toFixed(0)}%`}
+            series={[
+              {
+                name: 'Fees as % of emissions',
+                type: 'bar',
+                color: theme.palette.text.primary,
+                points: rows.map((r) => ({
+                  t: r.t,
+                  value:
+                    r.fees === null || r.emissions === null || r.emissions <= 0
+                      ? null
+                      : (r.fees / r.emissions) * 100,
+                })),
+              },
+              {
+                name: 'Break-even (100%)',
+                type: 'line',
+                dashed: true,
+                color: theme.palette.text.secondary,
+                points: rows.map((r) => ({ t: r.t, value: 100 })),
+              },
+            ]}
+          />
+        </Box>
         <Stack gap={0.75}>
           {today.fees !== null && today.emissions !== null && (
             <Typography sx={{ ...note, color: 'text.primary' }}>
@@ -254,10 +375,12 @@ export default function DailyEconomics({
             </Typography>
           )}
           <Typography sx={note}>
-            When the fee stack rises above the dashed line, buyback funding
-            exceeds estimated miner emissions. Totals include today’s fees so
-            far. Today’s emissions are prorated to elapsed UTC time and update
-            each minute.
+            When the fee stack rises above the dark dashed line, buyback funding
+            exceeds estimated miner emissions. The faint dashed line is
+            emissions before the miner burn; the gap between them is what
+            MinerBurned withheld that day. Totals include today’s fees so far.
+            Today’s emissions are prorated to elapsed UTC time and update each
+            minute.
           </Typography>
           <Typography sx={note}>
             Reservation and quote-churn fees are SOL paid into the treasury,

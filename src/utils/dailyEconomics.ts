@@ -3,7 +3,12 @@ export type FeeDay = {
   feesUsd?: number | string | null;
   unpricedSwaps?: number;
 };
-export type EmissionDay = { t: string; emissionsUsd: number | null };
+/** Miner emissions after burn, plus what MinerBurned withheld (USD/day). */
+export type EmissionDay = {
+  t: string;
+  emissionsUsd: number | null;
+  burnedUsd?: number | null;
+};
 /** Treasury income for one UTC day (epoch ms start), lamports; null = unknown. */
 export type TreasuryDay = {
   t: number;
@@ -21,7 +26,10 @@ export type EconomicsDay = {
   swapFees: number | null;
   reservationFees: number | null;
   churnFees: number | null;
+  /** Miner emissions after burn. */
   emissions: number | null;
+  /** Miner emissions withheld by MinerBurned; null when not reported. */
+  burned: number | null;
 };
 export const UTC_DAY_MS = 86_400_000;
 const LAMPORTS_PER_SOL = 1e9;
@@ -89,6 +97,7 @@ export function dailyEconomics(
       reservationFees,
       churnFees,
       emissions: validAmount(emission?.emissionsUsd),
+      burned: validAmount(emission?.burnedUsd),
     };
   });
 }
@@ -117,6 +126,7 @@ export function economicsThroughNow(
     {
       ...today,
       emissions: today.emissions === null ? null : today.emissions * elapsed,
+      burned: today.burned === null ? null : today.burned * elapsed,
     },
   ];
 }
@@ -134,8 +144,21 @@ export function summarizeEconomics(rows: EconomicsDay[]) {
     rows.length > 0 && rows.every((r) => pick(r) !== null)
       ? rows.reduce((sum, r) => sum + pick(r)!, 0)
       : null;
+  const burned = total((r) => r.burned);
+  const comparable = rows.filter(
+    (r) => r.fees !== null && r.emissions !== null && r.emissions > 0,
+  );
   return {
     fees,
+    burned,
+    /** Share of pre-burn miner emissions that MinerBurned withheld. */
+    burnRate:
+      burned !== null && emissions !== null && emissions + burned > 0
+        ? (burned / (emissions + burned)) * 100
+        : null,
+    /** Days whose fees matched or beat that day's miner emissions. */
+    coveredDays: comparable.filter((r) => r.fees! >= r.emissions!).length,
+    comparableDays: comparable.length,
     swapFees: total((r) => r.swapFees),
     reservationFees: total((r) => r.reservationFees),
     churnFees: total((r) => r.churnFees),

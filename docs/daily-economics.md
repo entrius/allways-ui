@@ -24,11 +24,13 @@ The new emission source contract is `GET /economics/emissions/history`:
   "network": "finney",
   "asOf": "2026-10-14T23:00:00Z",
   "method": "Four historical rate samples per day...",
-  "rows": [{ "t": "2026-10-13T00:00:00Z", "emissionsUsd": 1600.00 }]
+  "rows": [{ "t": "2026-10-13T00:00:00Z", "emissionsUsd": 1600.00, "burnedUsd": 90.00 }]
 }
 ```
 
-The number above illustrates the schema, not a real observation. `null` means
+The numbers above illustrate the schema, not real observations. `burnedUsd` is
+the miner emission MinerBurned withheld that day (optional; the UI derives it
+from each sample's `burnFraction` when absent). `null` means
 missing. Missing fees, missing emissions, or unpriced completed swaps suppress
 coverage rather than imply zero. Zero fees are valid; zero emissions produce
 N/A coverage. Buckets use UTC dates, never browser-local dates. Totals include today so far.
@@ -99,3 +101,12 @@ block times 1787173319 and 1787199604 (Aug 19-20 2026, about 9.1e18 lamports;
 the real maximum is 0.01 SOL per update). The UI subtracts that window's churn
 (`CORRUPT_CHURN_WINDOW` in `src/api/TreasuryApi.ts`), for the tiles and for any
 daily bucket overlapping it, until das filters them.
+
+## Miner burn and coverage
+
+MinerBurned changes over time, so the panel shows it beside emissions: a faint
+dashed line for emissions before burn, KPIs for burn in USD, burn rate (burn as
+a share of pre-burn emissions) and pre-burn emissions, and how many days fees
+matched or beat emissions. A compact chart below shows fees as % of that day's
+emissions against a 100% break-even line. Today's burn is prorated like today's
+emissions.

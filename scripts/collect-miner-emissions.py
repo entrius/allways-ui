@@ -50,11 +50,11 @@ async def collect():
         async def day(start):
             try:
                 samples = await asyncio.gather(*(sample(start+hour*3600) for hour in [0,6,12,18] if start+hour*3600 <= now))
-                result={'t':datetime.fromtimestamp(start,timezone.utc).isoformat(),'emissionsUsd':sum(s['dailyUsd'] for s in samples)/len(samples),'samples':samples}
+                result={'t':datetime.fromtimestamp(start,timezone.utc).isoformat(),'emissionsUsd':sum(s['dailyUsd'] for s in samples)/len(samples),'burnedUsd':sum(s['dailyUsd']*s['burnFraction']/(1-s['burnFraction']) for s in samples)/len(samples),'samples':samples}
             except Exception as e:
                 result={'t':datetime.fromtimestamp(start,timezone.utc).isoformat(),'emissionsUsd':None,'error':str(e)}
             print(result['t'], result['emissionsUsd'], file=sys.stderr,flush=True)
             return result
         rows = await asyncio.gather(*(day(today-i*DAY) for i in range(30,-1,-1)))
-        return {'netuid':7,'network':'finney','asOf':datetime.fromtimestamp(now,timezone.utc).isoformat(),'method':'Four historical rate samples per UTC day, after burn, with contemporaneous TAO/USD; assumes 12-second blocks. Estimates, not indexed payouts.','rows':rows}
+        return {'netuid':7,'network':'finney','asOf':datetime.fromtimestamp(now,timezone.utc).isoformat(),'method':'Four historical rate samples per UTC day, after burn (burnedUsd is the MinerBurned share withheld), with contemporaneous TAO/USD; assumes 12-second blocks. Estimates, not indexed payouts.','rows':rows}
 print(json.dumps(asyncio.run(collect())))

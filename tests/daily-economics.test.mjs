@@ -8,7 +8,7 @@ const now = Date.parse('2026-10-14T22:53:00Z');
 const t = '2026-10-13T00:00:00Z';
 test('complete UTC days exclude today, including DST-independent boundaries', () => {
   const rows = dailyEconomics([{t,feesUsd:100,unpricedSwaps:0},{t:'2026-10-14T00:00:00Z',feesUsd:9999,unpricedSwaps:0}], [{t,emissionsUsd:80}], 1, now);
-  assert.deepEqual(rows, [{t:Date.parse(t),fees:100,swapFees:100,reservationFees:null,churnFees:null,emissions:80}]);
+  assert.deepEqual(rows, [{t:Date.parse(t),fees:100,swapFees:100,reservationFees:null,churnFees:null,emissions:80,burned:null}]);
   assert.equal(summarizeEconomics(rows).coverage,125);
   assert.equal(summarizeEconomics(rows).surplus,20);
 });
@@ -90,4 +90,16 @@ test('per-source totals sum their own column and go blank on any gap', () => {
   const gap = summarizeEconomics(dailyEconomics(fee,[],2,now,[{t:day,reservationLamports:2e9,churnLamports:1e9}],prices));
   assert.equal(gap.reservationFees,null);
   assert.equal(gap.swapFees,3);
+});
+test('miner burn totals, burn rate, prorated today, and days fees beat emissions', () => {
+  const day = '2026-10-13T00:00:00Z';
+  const today = '2026-10-14T00:00:00Z';
+  const rows = economicsThroughNow([{t:day,feesUsd:120,unpricedSwaps:0},{t:today,feesUsd:10,unpricedSwaps:0}],[{t:day,emissionsUsd:100,burnedUsd:25},{t:today,emissionsUsd:80,burnedUsd:20}],1,Date.parse('2026-10-14T12:00:00Z'));
+  assert.equal(rows[1].burned,10);
+  const s = summarizeEconomics(rows);
+  assert.equal(s.burned,35);
+  assert.equal(s.burnRate,20);
+  assert.equal(s.coveredDays,1);
+  assert.equal(s.comparableDays,2);
+  assert.equal(summarizeEconomics(dailyEconomics([],[{t:day,emissionsUsd:100}],1,now)).burnRate,null);
 });
