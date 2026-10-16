@@ -58,6 +58,9 @@ export type ChartSeries = {
   /** Bars drawn as a dashed outline with no fill: a quantity shown for
    * context that is not part of the stack's real total (e.g. a burn). */
   hollow?: boolean;
+  /** List this series in the tooltip indented under the named series
+   * instead of in stack order (e.g. a miner burn under "Miners"). */
+  tooltipUnder?: string;
 };
 
 type TimeSeriesChartProps = {
@@ -641,7 +644,29 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
               }
               return `${header}<br/>${rows.join('<br/>')}`;
             }
-            const lines = params
+            // Square swatches like the legend; a hollow series gets a
+            // dashed outline so the tooltip matches its bar.
+            const swatch = (sObj?: ChartSeries) =>
+              sObj
+                ? `<span style="display:inline-block;width:8px;height:8px;margin-right:5px;box-sizing:border-box;${
+                    sObj.hollow
+                      ? `border:1px dashed ${sObj.color};`
+                      : `background:${sObj.color};`
+                  }"></span>`
+                : '';
+            // Series listed under another move to just after it.
+            const ordered = params.filter(
+              (p) => !series.find((x) => x.name === p.seriesName)?.tooltipUnder,
+            );
+            for (const p of params) {
+              const under = series.find(
+                (x) => x.name === p.seriesName,
+              )?.tooltipUnder;
+              if (!under) continue;
+              const at = ordered.findIndex((q) => q.seriesName === under);
+              ordered.splice(at < 0 ? ordered.length : at + 1, 0, p);
+            }
+            const lines = ordered
               .map((p) => {
                 const raw = Array.isArray(p.value) ? p.value[1] : p.value;
                 if (raw == null || p.seriesName.startsWith('__')) return '';
@@ -654,7 +679,10 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 const s = series.find((x) => x.name === p.seriesName);
                 const fmt = s?.formatValue ?? formatValue ?? defaultFmt;
                 const unit = s?.unit ? ` ${s.unit}` : '';
-                return `${p.marker ?? ''}<b>${fmt(Number(raw))}${unit}</b>${
+                const indent = s?.tooltipUnder
+                  ? `<span style="color:${axisColor};margin:0 4px 0 2px">└</span>`
+                  : '';
+                return `${indent}${swatch(s)}<b>${fmt(Number(raw))}${unit}</b>${
                   single
                     ? ''
                     : ` <span style="color:${axisColor}">${p.seriesName}</span>`

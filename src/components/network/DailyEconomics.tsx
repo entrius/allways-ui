@@ -260,7 +260,8 @@ export default function DailyEconomics({
               points: rows.map((r) => ({ t: r.t, value: r.owner })),
             },
             {
-              name: 'Burned (not emitted)',
+              name: 'Miner burn (not emitted)',
+              tooltipUnder: 'Miners',
               formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
