@@ -61,6 +61,11 @@ export type ChartSeries = {
   /** List this series in the tooltip indented under the named series
    * instead of in stack order (e.g. a miner burn under "Miners"). */
   tooltipUnder?: string;
+  /** Start switched off in the legend; a click brings it back. */
+  hiddenByDefault?: boolean;
+  /** Straight segments between points instead of a smoothed curve: for
+   * per-day totals, where a curve would invent values between days. */
+  straight?: boolean;
 };
 
 type TimeSeriesChartProps = {
@@ -126,6 +131,8 @@ type TimeSeriesChartProps = {
    * echarts inventing one around a lone point. Time-axis charts only.
    */
   xWindow?: { from: number; to: number };
+  /** Called with every series' on/off state when the legend is clicked. */
+  onLegendChange?: (selected: Record<string, boolean>) => void;
 };
 
 // Series name for the volume overlay — used to route tooltip formatting.
@@ -197,10 +204,16 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   bandColor,
   hideLegend,
   xWindow,
+  onLegendChange,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
+  // Legend clicks survive a repaint: the option is rebuilt from this, not
+  // from each series' default.
+  const legendRef = useRef<Record<string, boolean>>({});
+  const legendCbRef = useRef(onLegendChange);
+  legendCbRef.current = onLegendChange;
 
   const totalPoints = useMemo(
     () => series.reduce((n, s) => n + s.points.length, 0),
@@ -214,6 +227,11 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       renderer: 'canvas',
     });
     chartRef.current = chart;
+    chart.on('legendselectchanged', (e) => {
+      const selected = (e as { selected: Record<string, boolean> }).selected;
+      legendRef.current = selected;
+      legendCbRef.current?.(selected);
+    });
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(elRef.current);
     return () => {
@@ -330,7 +348,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         data,
         ...(s.step
           ? { step: 'end' as const }
-          : { smooth: true, smoothMonotone: 'x' as const }),
+          : s.straight
+            ? { smooth: false }
+            : { smooth: true, smoothMonotone: 'x' as const }),
         showSymbol: false,
         symbol: 'circle',
         symbolSize: 6,
@@ -480,6 +500,12 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             : {
                 show: true,
                 data: primary.map((s) => s.name),
+                selected: Object.fromEntries(
+                  primary.map((s) => [
+                    s.name,
+                    legendRef.current[s.name] ?? !s.hiddenByDefault,
+                  ]),
+                ),
                 top: 0,
                 ...(market ? { left: 8 } : { right: 8 }),
                 textStyle: {

@@ -216,3 +216,10 @@ Treasury income loads for twice the window so fees can be compared; the full
 daily history (`/history?range=all&interval=day`) backs volume comparisons.
 Follow-ups not built yet: buybacks in alpha and USD (needs a buyback ledger),
 a weekly grouping toggle for spiky daily data, and a 90D range.
+
+Fees vs emissions default (2026-10-16): the chart opens on miners vs protocol
+fees (validators, owner and the burn start switched off in the legend via
+`hiddenByDefault`), the fee line is drawn straight (`straight`), and the
+top-right readout compares fees with whichever paid recipients are switched on
+("of miner pay", "of miner + validator pay", "of total emissions"); the burn
+never counts. Legend state survives repaints (`onLegendChange`).

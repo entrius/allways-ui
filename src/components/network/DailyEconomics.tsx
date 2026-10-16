@@ -113,6 +113,8 @@ export default function DailyEconomics({
     refetchInterval: 300_000,
   });
   const [now, setNow] = useState(Date.now);
+  // Which recipients the legend shows; the readout compares fees with them.
+  const [shown, setShown] = useState<Record<string, boolean>>({});
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
@@ -199,15 +201,36 @@ export default function DailyEconomics({
       {afterFigures && <Box sx={{ mb: { xs: 2, md: 3 } }}>{afterFigures}</Box>}
       <Panel
         title="Fees vs. emissions"
-        subtitle={`per day · emissions by recipient, fees as a line · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
-        headerRight={
-          totals.coverage === null ? undefined : (
+        subtitle={`per day · miner pay vs fees, more in the legend · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
+        headerRight={(() => {
+          // Fees against whichever paid recipients are on (miners by
+          // default). The burn is never part of it: it was never emitted.
+          const on = (name: string, dflt: boolean) => shown[name] ?? dflt;
+          const parts = [
+            { name: 'Miners', label: 'miner', v: totals.emissions, d: true },
+            {
+              name: 'Validators',
+              label: 'validator',
+              v: totals.validators,
+              d: false,
+            },
+            { name: 'Owner', label: 'owner', v: totals.owner, d: false },
+          ].filter((p) => on(p.name, p.d));
+          if (totals.fees === null || !parts.length) return undefined;
+          if (parts.some((p) => p.v === null)) return undefined;
+          const base = parts.reduce((a, p) => a + (p.v as number), 0);
+          if (base <= 0) return undefined;
+          const of =
+            parts.length === 3
+              ? 'total emissions'
+              : `${parts.map((p) => p.label).join(' + ')} pay`;
+          return (
             <PanelReadout>
-              fees {pct(totals.coverage)} of miner pay
+              fees {pct((totals.fees / base) * 100)} of {of}
             </PanelReadout>
-          )
-        }
-        info="Solid bars are what SN7 emitted each day: miners at the base, then validators and the owner. The dashed outline on top is the miner share burned instead: it was never emitted and is not counted in total emissions. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
+          );
+        })()}
+        info="Opens on what miners were paid each day against protocol fees (the line), the comparison the headline figure makes. Turn on validators, the owner and the miner burn in the legend to see everything SN7 emits; the burn is a dashed outline because it was never emitted. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. The figure at right compares fees with whatever recipients are switched on. Emissions are estimates from chain samples, not measured payouts."
       >
         {/* One chart: what the subnet emits each day, stacked with miners at
             the base, and protocol fees as a line over it. Where the line
@@ -217,6 +240,7 @@ export default function DailyEconomics({
           daily
           noArea
           height={320}
+          onLegendChange={setShown}
           loading={pending}
           formatValue={formatUsdCompact}
           series={[
@@ -230,6 +254,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Validators',
+              hiddenByDefault: true,
               formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
@@ -238,6 +263,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Owner',
+              hiddenByDefault: true,
               formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
@@ -246,6 +272,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Miner burn (not emitted)',
+              hiddenByDefault: true,
               tooltipUnder: 'Miners',
               formatValue: formatUsd,
               type: 'bar',
@@ -256,6 +283,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Protocol fees',
+              straight: true,
               formatValue: formatUsd,
               type: 'line',
               color: ink,
