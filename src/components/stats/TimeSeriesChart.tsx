@@ -55,6 +55,9 @@ export type ChartSeries = {
   /** Bar series sharing a stack name pile up in one column per bucket
    * (outcomes: completed beneath, timed out on top). */
   stack?: string;
+  /** Bars drawn as a dashed outline with no fill: a quantity shown for
+   * context that is not part of the stack's real total (e.g. a burn). */
+  hollow?: boolean;
 };
 
 type TimeSeriesChartProps = {
@@ -280,8 +283,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 ? {
                     value: v,
                     itemStyle: {
-                      color: s.color,
-                      opacity: 0.3,
+                      color: s.hollow ? 'transparent' : s.color,
+                      opacity: s.hollow ? 1 : 0.3,
                       borderColor: s.color,
                       borderType: 'dashed' as const,
                       borderWidth: 1,
@@ -294,7 +297,14 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           name: s.name,
           type: 'bar' as const,
           data,
-          itemStyle: { color: s.color, opacity: 0.75 },
+          itemStyle: s.hollow
+            ? {
+                color: 'transparent',
+                borderColor: s.color,
+                borderWidth: 1,
+                borderType: 'dashed' as const,
+              }
+            : { color: s.color, opacity: 0.75 },
           barMaxWidth: 24,
           ...(s.stack && { stack: s.stack }),
         };

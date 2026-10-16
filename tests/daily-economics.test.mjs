@@ -110,10 +110,10 @@ test('a missing today row carries the latest sampled rate forward, prorated', ()
   assert.equal(rows[1].burned,2.5);
   assert.equal(economicsThroughNow([],[],1,now)[1].emissions,null);
 });
-test('total emissions add owner, validators and miners paid and burned', () => {
+test('total emissions add owner, validators and miners paid, never the burn', () => {
   const rows = dailyEconomics([{t,feesUsd:100,unpricedSwaps:0}],[{t,emissionsUsd:90,burnedUsd:10,validatorUsd:100,ownerUsd:44}],1,now);
   const s = summarizeEconomics(rows);
-  assert.equal(s.totalEmissions,244);
-  assert.ok(Math.abs(s.totalCoverage - 100/244*100) < 1e-9);
+  assert.equal(s.totalEmissions,234);
+  assert.ok(Math.abs(s.totalCoverage - 100/234*100) < 1e-9);
   assert.equal(summarizeEconomics(dailyEconomics([{t,feesUsd:1,unpricedSwaps:0}],[{t,emissionsUsd:90}],1,now)).totalEmissions,null);
 });

@@ -195,7 +195,7 @@ export default function DailyEconomics({
             }
             value={usd(totals.burned)}
             loading={pending}
-            tooltip="the part of the miner share burned instead of paid, and that part as a % of the miner share; the burn rate changes over time"
+            tooltip="the miner share burned instead of paid, and its % of the miner share; never emitted, so not in total emissions; the burn rate changes over time"
           />
         </Grid>
         <Grid item xs={12} md={2}>
@@ -205,8 +205,8 @@ export default function DailyEconomics({
             loading={pending}
             tooltip={
               totals.totalEmissions === null
-                ? 'owner + validators + miners, paid and burned'
-                : `owner ${usd(totals.owner)} · validators ${usd(totals.validators)} · miners ${usd(totals.emissions)} · burned ${usd(totals.burned)}`
+                ? 'owner + validators + miners; the burn was never emitted'
+                : `owner ${usd(totals.owner)} · validators ${usd(totals.validators)} · miners ${usd(totals.emissions)} · the burn was never emitted`
             }
           />
         </Grid>
@@ -222,7 +222,7 @@ export default function DailyEconomics({
             </PanelReadout>
           )
         }
-        info="Bars are what SN7 emits each day: miners at the base with the burned part of their share right above, then validators and the owner. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
+        info="Solid bars are what SN7 emitted each day: miners at the base, then validators and the owner. The dashed outline on top is the miner share burned instead: it was never emitted and is not counted in total emissions. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
       >
         {/* One chart: what the subnet emits each day, stacked with miners at
             the base, and protocol fees as a line over it. Where the line
@@ -244,14 +244,6 @@ export default function DailyEconomics({
               points: rows.map((r) => ({ t: r.t, value: r.emissions })),
             },
             {
-              name: 'Miner burn',
-              formatValue: formatUsd,
-              type: 'bar',
-              stack: 'emissions',
-              color: alpha(ink, 0.12),
-              points: rows.map((r) => ({ t: r.t, value: r.burned })),
-            },
-            {
               name: 'Validators',
               formatValue: formatUsd,
               type: 'bar',
@@ -266,6 +258,15 @@ export default function DailyEconomics({
               stack: 'emissions',
               color: alpha(ink, 0.2),
               points: rows.map((r) => ({ t: r.t, value: r.owner })),
+            },
+            {
+              name: 'Burned (not emitted)',
+              formatValue: formatUsd,
+              type: 'bar',
+              stack: 'emissions',
+              color: alpha(ink, 0.55),
+              hollow: true,
+              points: rows.map((r) => ({ t: r.t, value: r.burned })),
             },
             {
               name: 'Protocol fees',

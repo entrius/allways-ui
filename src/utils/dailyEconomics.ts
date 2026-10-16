@@ -171,14 +171,12 @@ export function summarizeEconomics(rows: EconomicsDay[]) {
   const burned = total((r) => r.burned);
   const owner = total((r) => r.owner);
   const validators = total((r) => r.validators);
-  // Everything the subnet emitted: owner + validators + miners (paid and burned).
+  // Everything the subnet actually emitted: owner + validators + miners paid.
+  // The burned miner share was never emitted, so it is not counted.
   const totalEmissions =
-    emissions === null ||
-    burned === null ||
-    owner === null ||
-    validators === null
+    emissions === null || owner === null || validators === null
       ? null
-      : emissions + burned + owner + validators;
+      : emissions + owner + validators;
   const comparable = rows.filter(
     (r) => r.fees !== null && r.emissions !== null && r.emissions > 0,
   );

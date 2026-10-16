@@ -187,3 +187,8 @@ Fees vs. miner pay, Miner emissions, Miner burn with its rate in the label,
 Total emissions), five across on desktop. In the fees vs emissions chart the
 burned part sits directly above Miners so paid and burned read as one miner
 share.
+
+Burn is not emission (2026-10-16): the burned miner share was never emitted, so
+Total emissions = owner + validators + miners paid. In the fees vs emissions
+chart the burn is a hollow dashed segment on top of each solid stack
+(`hollow` on a `TimeSeriesChart` bar series), labelled "Burned (not emitted)".
