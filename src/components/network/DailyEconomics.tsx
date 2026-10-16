@@ -6,6 +6,8 @@ import type { HistoryRow } from '../../api/models';
 import {
   economicsThroughNow,
   summarizeEconomics,
+  dailyEconomics,
+  UTC_DAY_MS,
   weeklyEconomics,
   type EconomicsDay,
   type EmissionDay,
@@ -14,6 +16,7 @@ import {
 } from '../../utils/dailyEconomics';
 import { formatUsd, formatUsdCompact } from '../../utils/format';
 import { FONTS } from '../../theme';
+import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 type EmissionHistory = {
   netuid: number;
@@ -124,11 +127,17 @@ const REFERENCES: {
  * the treasury income once and passes it down. */
 export default function DailyEconomics({
   history,
+  allHistory,
+  rangeLabel,
   loading,
   days,
   income,
 }: {
   history?: HistoryRow[];
+  /** Every day since launch, for the "vs prior" comparisons. */
+  allHistory?: HistoryRow[];
+  /** "7D" / "30D"; null for ALL, which has no prior period. */
+  rangeLabel: string | null;
   loading: boolean;
   days: number;
   income: {
@@ -165,6 +174,46 @@ export default function DailyEconomics({
     [history, emission.data, days, now, income.treasury, income.solUsd],
   );
   const totals = summarizeEconomics(rows);
+  // Change vs the prior period on complete UTC days, like the overview.
+  const todayStart = Math.floor(now / UTC_DAY_MS) * UTC_DAY_MS;
+  const completeTotals = (end: number) =>
+    summarizeEconomics(
+      dailyEconomics(
+        allHistory ?? [],
+        emission.data?.rows ?? [],
+        days,
+        end,
+        income.treasury,
+        income.solUsd ?? [],
+      ),
+    );
+  const cur = rangeLabel ? completeTotals(todayStart) : null;
+  const prior = rangeLabel
+    ? completeTotals(todayStart - days * UTC_DAY_MS)
+    : null;
+  const change = (pick: (t: typeof totals) => number | null) => {
+    const a = cur ? pick(cur) : null;
+    const b = prior ? pick(prior) : null;
+    return a === null || b === null || b <= 0 ? null : (a / b - 1) * 100;
+  };
+  const caption = rangeLabel ? `vs prior ${rangeLabel}` : 'since launch';
+  const delta = (pick: (t: typeof totals) => number | null) => ({
+    pct: rangeLabel ? change(pick) : null,
+    caption,
+  });
+  // The latest whole week, the momentum the chart leads with.
+  const lastWeekCoverage = (() => {
+    const w = weeklyEconomics(rows);
+    return w.length ? summarizeEconomics([w[w.length - 1]]).coverage : null;
+  })();
+  const coverageDelta = {
+    pct:
+      cur?.coverage != null && prior?.coverage != null
+        ? cur.coverage - prior.coverage
+        : null,
+    caption,
+    points: true,
+  };
   const pending = loading || emission.isLoading || income.isLoading;
   const stale =
     emission.data &&
@@ -183,6 +232,7 @@ export default function DailyEconomics({
   const usd = (v: number | null) => (v === null ? '—' : formatUsd(v));
   const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`);
   const ink = theme.palette.text.primary;
+  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   // Weekly on longer ranges: one busy day otherwise hides the trend.
   const weekly = days > 7;
   const buckets = weekly ? weeklyEconomics(rows) : rows;
@@ -208,7 +258,13 @@ export default function DailyEconomics({
               sx={{ color: 'text.secondary', fontWeight: 500 }}
             >
               {' '}
-              {last >= prev ? '▲' : '▼'} from {pct(prev)}
+              <Box
+                component="span"
+                sx={{ color: last >= prev ? move.up : move.down }}
+              >
+                {last >= prev ? '▲' : '▼'}
+              </Box>{' '}
+              from {pct(prev)}
             </Box>
           )}
         </PanelReadout>
@@ -229,45 +285,50 @@ export default function DailyEconomics({
       <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: { xs: 2, md: 3 } }}>
         <Grid item xs={6} md={3}>
           <StatCell
+            label="Transaction fees"
+            value={usd(totals.swapFees)}
+            loading={pending}
+            tooltip="the 1% fee on every completed swap, at the swap’s hour"
+            delta={delta((t) => t.swapFees)}
+          />
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <StatCell
+            label="Reservation fees"
+            value={usd(totals.reservationFees)}
+            loading={pending}
+            tooltip="SOL paid to reserve a miner’s quote, at that day’s SOL price"
+            delta={delta((t) => t.reservationFees)}
+          />
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <StatCell
+            label="Quote churn fees"
+            value={usd(totals.churnFees)}
+            loading={pending}
+            tooltip="SOL miners pay to change a quote within 10 minutes of the last change"
+            // A penalty on quote flashing: fewer of them is healthy, so a
+            // red arrow would misread it.
+            delta={{ pct: null, caption: 'penalty for flashing quotes' }}
+          />
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <StatCell
             label="Fees vs. miner pay"
             value={pct(totals.coverage)}
             loading={pending}
-            tooltip={`protocol fees ÷ miner emissions: 100% means fees bought back as much as miners were paid${
+            tooltip={`protocol fees ÷ what miners were paid: 100% means fees bought back as much as miners earned${
               totals.totalCoverage === null
                 ? ''
                 : ` · ${pct(totals.totalCoverage)} of total emissions`
             }`}
-          />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <StatCell
-            label="Miner emissions"
-            value={usd(totals.emissions)}
-            loading={pending}
-            tooltip="what miners were paid, after the burn"
-          />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <StatCell
-            label={
-              totals.burnRate === null
-                ? 'Miner burn'
-                : `Miner burn · ${pct(totals.burnRate)}`
-            }
-            value={usd(totals.burned)}
-            loading={pending}
-            tooltip="the miner share burned instead of paid, and its % of the miner share; never emitted, so not in total emissions; the burn rate changes over time"
-          />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <StatCell
-            label="Total emissions"
-            value={usd(totals.totalEmissions)}
-            loading={pending}
-            tooltip={
-              totals.totalEmissions === null
-                ? 'owner + validators + miners; the burn was never emitted'
-                : `owner ${usd(totals.owner)} · validators ${usd(totals.validators)} · miners ${usd(totals.emissions)} · the burn was never emitted`
+            delta={
+              rangeLabel === '7D' || lastWeekCoverage === null
+                ? coverageDelta
+                : {
+                    pct: null,
+                    caption: `${pct(lastWeekCoverage)} last week`,
+                  }
             }
           />
         </Grid>
@@ -287,6 +348,7 @@ export default function DailyEconomics({
           noArea
           height={320}
           bucketDays={weekly ? 7 : 1}
+          stackTotals={weekly}
           onLegendChange={setShown}
           loading={pending}
           formatValue={formatUsdCompact}
@@ -334,6 +396,17 @@ export default function DailyEconomics({
             })),
           ]}
         />
+        {totals.emissions !== null && (
+          <Typography sx={{ ...note, color: 'text.primary' }}>
+            Emissions in range: miners paid {usd(totals.emissions)} · burned{' '}
+            {usd(totals.burned)}
+            {totals.burnRate !== null
+              ? ` (${pct(totals.burnRate)} of the miner share, never emitted)`
+              : ''}{' '}
+            · validators {usd(totals.validators)} · owner {usd(totals.owner)} ·
+            total emitted {usd(totals.totalEmissions)}
+          </Typography>
+        )}
         <Typography sx={note}>
           {emission.isError
             ? 'Emission data is unavailable, so only fees are shown.'
@@ -341,7 +414,7 @@ export default function DailyEconomics({
               ? 'SOL prices are unavailable, so reservation and churn fees can’t be valued.'
               : !pending && totals.missingDays > 0
                 ? `${totals.missingDays} day(s) lack data, so totals are hidden rather than understated.`
-                : `Estimates from four chain samples a day at that day’s prices; today is prorated.${
+                : `${weekly ? 'Whole weeks of complete days. ' : 'Today is still filling. '}Emissions are estimates from four chain samples a day at that day’s prices.${
                     emission.data
                       ? ` Updated ${date(Date.parse(emission.data.asOf))}${stale ? ', needs a refresh' : ''}.`
                       : ''

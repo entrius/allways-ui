@@ -232,3 +232,13 @@ lines, all off at first so the fee bars set the scale. The readout shows
 momentum: "fees 42.9% of miner pay last week ▲ from 11.8%", against the largest
 reference switched on (miner pay by default). Real weekly data behind the
 choice: fees $1.3K, $1.7K, then $5.5K; 9%, 12%, then 43% of miner pay.
+
+Fees section polish (2026-10-16): the four Fees figures are now about fees,
+each with its change vs the prior period like the overview: Transaction fees,
+Reservation fees, Quote churn fees (captioned as a penalty rather than given an
+arrow, since fewer is healthy) and Fees vs. miner pay (on 30D and ALL its line
+gives the latest whole week; on 7D the change in points). Emissions move to one
+caption line under the chart (miners paid, burned and never emitted,
+validators, owner, total emitted). Weekly bars print their total on top
+(`stackTotals`), the axis reads week ranges ("Oct 9 – 15"), and the readout's
+arrow uses the market colours.

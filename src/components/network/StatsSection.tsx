@@ -1104,6 +1104,8 @@ const StatsSection: React.FC = () => {
       lead: (
         <DailyEconomics
           history={history}
+          allHistory={allHistory}
+          rangeLabel={range === 'all' ? null : range.toUpperCase()}
           loading={historyLoading || historyPlaceholder}
           days={feeDays}
           income={dailyIncome}

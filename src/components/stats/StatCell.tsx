@@ -24,7 +24,7 @@ const StatCell: React.FC<{
   /** Change vs the previous period, shown on its own line under the value:
    * an up/down move in the market colours, or a plain caption ("since
    * launch") when there is nothing to compare. */
-  delta?: { pct: number | null; caption: string };
+  delta?: { pct: number | null; caption: string; points?: boolean };
   children?: React.ReactNode;
 }> = ({
   label,
@@ -136,10 +136,13 @@ const StatCell: React.FC<{
   </Box>
 );
 
-const Delta: React.FC<{ pct: number | null; caption: string }> = ({
-  pct,
-  caption,
-}) => {
+/** A change line: ▲/▼ in the market colours, as a % change or, for a ratio,
+ * in percentage points. */
+const Delta: React.FC<{
+  pct: number | null;
+  caption: string;
+  points?: boolean;
+}> = ({ pct, caption, points }) => {
   const theme = useTheme();
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const flat = pct == null || !Number.isFinite(pct) || Math.abs(pct) < 0.05;
@@ -157,7 +160,10 @@ const Delta: React.FC<{ pct: number | null; caption: string }> = ({
           component="span"
           sx={{ color: pct! > 0 ? move.up : move.down, fontWeight: 600 }}
         >
-          {pct! > 0 ? '▲' : '▼'} {Math.abs(pct!).toFixed(0)}%{' '}
+          {pct! > 0 ? '▲' : '▼'}{' '}
+          {points
+            ? `${Math.abs(pct!).toFixed(1)} pts`
+            : `${Math.abs(pct!).toFixed(0)}%`}{' '}
         </Box>
       )}
       {caption}

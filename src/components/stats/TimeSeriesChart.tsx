@@ -136,6 +136,8 @@ type TimeSeriesChartProps = {
   /** Daily mode with buckets this many days wide (7 = weeks): the tooltip
    * names the week, and bars may grow wider. */
   bucketDays?: number;
+  /** Print each bar stack's total above it (a few wide bars, e.g. weeks). */
+  stackTotals?: boolean;
 };
 
 // Series name for the volume overlay — used to route tooltip formatting.
@@ -209,6 +211,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   xWindow,
   onLegendChange,
   bucketDays = 1,
+  stackTotals = false,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
@@ -296,6 +299,20 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       ? vol.reduce((m, p) => (p.value != null && p.value > m ? p.value : m), 0)
       : 0;
 
+    // Stack totals per bucket, labelled on each stack's top series.
+    const stackTop = new Map<string, string>();
+    const stackSum = new Map<string, Map<number, number>>();
+    if (daily && stackTotals) {
+      for (const s of series) {
+        if (s.type !== 'bar' || !s.stack) continue;
+        stackTop.set(s.stack, s.name);
+        const sums = stackSum.get(s.stack) ?? new Map<number, number>();
+        for (const p of s.points)
+          if (p.value != null) sums.set(p.t, (sums.get(p.t) ?? 0) + p.value);
+        stackSum.set(s.stack, sums);
+      }
+    }
+
     const echartsSeries = series.map((s) => {
       const byT = daily ? new Map(s.points.map((p) => [p.t, p.value])) : null;
       if ((s.type ?? 'line') === 'bar') {
@@ -332,6 +349,21 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             : { color: s.color, opacity: 0.75 },
           barMaxWidth: bucketDays > 1 ? 56 : 24,
           ...(s.stack && { stack: s.stack }),
+          ...(s.stack &&
+            stackTop.get(s.stack) === s.name && {
+              label: {
+                show: true,
+                position: 'top' as const,
+                color: theme.palette.text.primary,
+                fontFamily: FONTS.mono,
+                fontSize: 10,
+                fontWeight: 600,
+                formatter: (p: { dataIndex: number }) => {
+                  const v = stackSum.get(s.stack!)?.get(bucketTs[p.dataIndex]);
+                  return v ? (formatValue ?? defaultFmt)(v) : '';
+                },
+              },
+            }),
         };
       }
       if (s.type === 'scatter') {
@@ -741,7 +773,17 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 // Label every day while they fit; fall back to auto-thinning
                 // (still bucket-aligned) on long histories.
                 interval: bucketTs.length <= 14 ? 0 : ('auto' as const),
-                formatter: (v: string) => fmtDateUtc(Number(v)),
+                // Weeks read as their date range: "Oct 9 – 15".
+                formatter: (v: string) => {
+                  const t = Number(v);
+                  if (bucketDays <= 1) return fmtDateUtc(t);
+                  const end = t + (bucketDays - 1) * 86_400_000;
+                  const a = fmtDateUtc(t);
+                  const b = fmtDateUtc(end);
+                  return a.split(' ')[0] === b.split(' ')[0]
+                    ? `${a} – ${b.split(' ')[1]}`
+                    : `${a} – ${b}`;
+                },
               },
               splitLine: { show: false },
             }
@@ -836,6 +878,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     hideLegend,
     xWindow,
     bucketDays,
+    stackTotals,
   ]);
 
   return (
