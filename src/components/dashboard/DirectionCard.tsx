@@ -18,6 +18,7 @@ import {
   chainSymbol,
   formatRate,
   usdFromHuman,
+  formatAmountCompact,
 } from '../../utils/format';
 import { hubLegVolume } from './marketRate';
 import { RATE_STATS, type RateStats } from './rateSettings';
@@ -211,10 +212,7 @@ const DirectionCard: React.FC<{
   }, [swaps, secs, legs.from, legs.to]);
   const volHub = canonicalSource(legs.from, legs.to);
   const volUsd = usdFromHuman(vol, volHub, prices);
-  const fmtSize = (n: number) =>
-    n >= 1000
-      ? `${(n / 1000).toFixed(1)}k`
-      : n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const fmtSize = formatAmountCompact;
 
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
   const baseSym = chainSymbol(base);

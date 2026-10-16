@@ -15,6 +15,7 @@ import {
   TimeSeriesChart,
   type ChartSeries,
   type SeriesPoint,
+  PanelReadout,
 } from '../stats';
 import RangeChips from '../RangeChips';
 import {
@@ -28,6 +29,9 @@ import {
 import type { ActiveSwap, HistoryRow } from '../../api/models';
 import { assetLabel, hubChains } from '../../api/models/chains';
 import {
+  formatCompact,
+  formatCount,
+  formatUsdCompact,
   asNumber,
   chainSymbol,
   formatUsd,
@@ -87,19 +91,9 @@ const dayOf = (ms: number) => Math.floor(ms / DAY_MS) * DAY_MS;
 // The success-rate line looks back this many days from each day.
 const TRAILING_DAYS = 7;
 
-// Short axis ticks: 1.2k, 340, 0.45.
-const compact = (v: number) =>
-  Math.abs(v) >= 1_000_000
-    ? `${(v / 1_000_000).toFixed(1)}m`
-    : Math.abs(v) >= 1000
-      ? `${(v / 1000).toFixed(1)}k`
-      : v >= 10
-        ? v.toFixed(0)
-        : Number(v.toPrecision(2)).toString();
-
-const usdCompact = (v: number) => `$${compact(v)}`;
-
-const count = (v: number) => Math.round(v).toString();
+const compact = formatCompact;
+const usdCompact = formatUsdCompact;
+const count = formatCount;
 
 const solAmount = (v: number) =>
   v >= 100
@@ -679,35 +673,11 @@ const StatsSection: React.FC = () => {
 
   // A panel's one summary figure, top right in the header.
   const readout = (text: string | null) =>
-    text == null ? undefined : (
-      <Typography
-        sx={{
-          ...mono,
-          fontSize: '0.82rem',
-          fontWeight: 700,
-          color: 'text.primary',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {text}
-      </Typography>
-    );
+    text == null ? undefined : <PanelReadout>{text}</PanelReadout>;
   const inRange = (text: string) => `${text} in range`;
 
   // Every figure covers the selected range, like the charts beneath it;
   // only the live counts (in flight, active miners) describe right now.
-  const rangeIncome = dailyIncome.treasury.filter(
-    (d) => feeRows.length > 0 && d.t >= feeRows[0].t,
-  );
-  const incomeEvents = (
-    pick: (d: (typeof rangeIncome)[number]) => number | null | undefined,
-  ) =>
-    rangeIncome.length === feeRows.length &&
-    rangeIncome.every((d) => typeof pick(d) === 'number')
-      ? rangeIncome.reduce((n, d) => n + (pick(d) as number), 0)
-      : null;
-  const reservationEvents = incomeEvents((d) => d.reservationEvents);
-  const churnEvents = incomeEvents((d) => d.churnEvents);
   const usdTile = (v: number | null) => (v == null ? '—' : formatUsd(v));
   const tiles: {
     label: string;
@@ -744,36 +714,6 @@ const StatsSection: React.FC = () => {
       tooltip: pointInTime
         ? 'biggest completed swap in range, at the price of its hour'
         : 'biggest completed swap in range, at today’s prices',
-    },
-    {
-      label: 'Protocol fees',
-      value: usdTile(feeTotals.fees),
-      loading: historyLoading || dailyIncome.isLoading,
-      tooltip: 'transaction + reservation + quote churn fees, in range',
-    },
-    {
-      label: 'Transaction fees',
-      value: usdTile(feeTotals.swapFees),
-      loading: historyLoading,
-      tooltip: '1% of volume, at the price of each swap’s hour',
-    },
-    {
-      label: 'Reservation fees',
-      value: usdTile(feeTotals.reservationFees),
-      loading: dailyIncome.isLoading,
-      tooltip:
-        reservationEvents == null
-          ? 'SOL, at each day’s SOL price'
-          : `${count(reservationEvents)} reservations, at each day’s SOL price`,
-    },
-    {
-      label: 'Quote churn fees',
-      value: usdTile(feeTotals.churnFees),
-      loading: dailyIncome.isLoading,
-      tooltip:
-        churnEvents == null
-          ? 'SOL, at each day’s SOL price'
-          : `${count(churnEvents)} quote updates inside the anti-flashing window, at each day’s SOL price`,
     },
     {
       label: 'Success rate',
@@ -846,14 +786,14 @@ const StatsSection: React.FC = () => {
   }[] = [
     {
       title: 'Cumulative volume',
-      subtitle: `all-time running total · ${money}`,
+      subtitle: `running total · completed volume · ${money}`,
       info: 'Running total of completed swap volume since launch.',
       body: chart(series.cumulativeVolume, historyLoading, moneyTick),
       headerRight: readout(inRange(moneyValue(series.rangeVolume))),
     },
     {
       title: 'Cumulative transactions',
-      subtitle: 'all-time running total',
+      subtitle: 'running total · completed swaps',
       info: 'Running total of completed swaps since launch.',
       body: chart(series.cumulativeTransactions, historyLoading, compact, {
         integerY: true,
@@ -862,14 +802,14 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Volume',
-      subtitle: `per day · ${money}`,
+      subtitle: `per day · completed volume · ${money}`,
       info: 'Completed swap volume each day, estimated in USD at current prices.',
       body: chart(series.volume, historyLoading, moneyTick),
       headerRight: readout(inRange(moneyValue(series.rangeVolume))),
     },
     {
       title: 'Transactions',
-      subtitle: 'per day · completed, with timed out stacked in red',
+      subtitle: 'per day · completed, timed out in red',
       info: 'One column a day: swaps that completed, with the ones that timed out stacked on top in red, by the day they resolved.',
       body: chart(derived.outcomes, swapsLoading, compact, { integerY: true }),
       headerRight: readout(
@@ -878,7 +818,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Success rate',
-      subtitle: `trailing ${TRAILING_DAYS}-day share of resolved swaps that completed`,
+      subtitle: `per day · completed share, trailing ${TRAILING_DAYS} days`,
       info: `For each day, completed / (completed + timed out) over the ${TRAILING_DAYS} days ending that day, so one timeout on a quiet day reads as the share it is. Blank while nothing resolved in the window. The figure at right is the same share over the whole range.`,
       body: chart(
         derived.successRate,
@@ -909,7 +849,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Reservation fees',
-      subtitle: 'per day · USD at that day’s SOL price',
+      subtitle: 'per day · SOL at that day’s price',
       info: 'SOL paid into the treasury to request a reservation, each day. das derives it as reservations times the current reservation fee.',
       body: chart(
         feeBars('Reservation fees', (r) => r.reservationFees),
@@ -924,7 +864,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Quote churn fees',
-      subtitle: 'per day · USD at that day’s SOL price',
+      subtitle: 'per day · SOL at that day’s price',
       info: 'Anti-flashing fees miners pay into the treasury for changing or removing a quote within 10 minutes of its last update (0.01 SOL under 5 minutes, 0.001 SOL for 5 to 10).',
       body: chart(
         feeBars('Quote churn fees', (r) => r.churnFees),
@@ -939,7 +879,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Average transaction',
-      subtitle: `per day · ${money}`,
+      subtitle: `per day · volume / swaps · ${money}`,
       info: 'That day’s completed volume divided by its completed swaps.',
       body: chart(series.avgSize, historyLoading, moneyTick),
       headerRight: readout(
@@ -950,14 +890,14 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Users',
-      subtitle: 'distinct user addresses that swapped, per day',
+      subtitle: 'per day · distinct addresses that swapped',
       info: 'How many distinct user addresses initiated at least one swap each day.',
       body: chart(derived.users, swapsLoading, count, { integerY: true }),
       headerRight: readout(inRange(count(derived.rangeUsers))),
     },
     {
       title: 'Unique users',
-      subtitle: 'all-time running total of distinct users',
+      subtitle: 'running total · distinct addresses',
       info: 'Running count of distinct user addresses since launch, by the day each first swapped.',
       body: chart(derived.cumulativeUsers, swapsLoading, count, {
         integerY: true,
@@ -966,7 +906,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Settlement time',
-      subtitle: 'median wait per day · fill (miner sent) and settled (done)',
+      subtitle: 'per day · median fill and settle',
       info: 'For that day’s completed swaps: the median time from initiation to the miner’s fill, and to final settlement. Half were faster, half slower. The figure at right is over the whole range.',
       body: chart(
         derived.settlement,
@@ -986,14 +926,14 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Peak throughput',
-      subtitle: 'most swaps completed in any one hour, per day',
+      subtitle: 'per day · most swaps settled in one hour',
       info: 'The busiest hour of each day: how many swaps completed within it. What the network has actually handled at once.',
       body: chart(derived.peakHour, swapsLoading, count, { integerY: true }),
       headerRight: readout(inRange(`${count(derived.rangePeakHour)} / hour`)),
     },
     {
       title: 'Peak concurrent transactions',
-      subtitle: 'most swaps in flight at once, per day',
+      subtitle: 'per day · most swaps open at once',
       info: 'The most swaps open at one moment each day, from every swap’s initiation and resolution times.',
       body: chart(derived.peakInFlight, swapsLoading, count, {
         integerY: true,
@@ -1002,7 +942,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Serving nodes',
-      subtitle: 'distinct nodes that completed a swap, per day',
+      subtitle: 'per day · distinct nodes that settled a swap',
       info: 'How many distinct nodes completed at least one swap each day.',
       body: chart(derived.servingNodes, swapsLoading, count, {
         integerY: true,
@@ -1011,7 +951,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Nodes ever served',
-      subtitle: 'all-time running total of distinct nodes',
+      subtitle: 'running total · distinct nodes',
       info: 'Running count of distinct hotkeys since launch, by the day each first completed a swap.',
       body: chart(derived.cumulativeNodes, swapsLoading, count, {
         integerY: true,
@@ -1020,7 +960,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Volume by direction',
-      subtitle: `share of completed volume in range · ${money}`,
+      subtitle: `in range · share of completed volume · ${money}`,
       info: 'How volume in the selected range splits by direction (asset sent → asset received), priced at current rates, with the number of swaps.',
       body: (
         <ShareList
@@ -1035,7 +975,7 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Volume by hub',
-      subtitle: `per day, stacked by backing chain · ${money}`,
+      subtitle: `per day · volume by backing chain · ${money}`,
       info: 'Completed volume each day split by the hub whose collateral backed the swap: SOL backing and TAO backing stacked in one column. The figure at right is each hub’s share of the range.',
       body: chart(derived.hubVolume, swapsLoading, moneyTick),
       headerRight: readout(
@@ -1052,6 +992,9 @@ const StatsSection: React.FC = () => {
 
   // Each group reads top to bottom: its all-time figures, then its charts
   // over the selected range. Panel spans keep every row full.
+  // Reading order: the economics headline first, then growth (volume, then
+  // users and nodes), then operational detail. Inside each group the
+  // strongest signal leads and the fine print closes it.
   const groups: {
     caption: string;
     tiles: string[];
@@ -1060,32 +1003,9 @@ const StatsSection: React.FC = () => {
     span?: Record<string, { md: number; lg: number }>;
   }[] = [
     {
-      caption: 'Volume',
-      tiles: [
-        'Volume',
-        'Transactions',
-        'Average transaction',
-        'Largest transaction',
-      ],
-      panels: [
-        'Cumulative volume',
-        'Cumulative transactions',
-        'Volume',
-        'Transactions',
-        'Average transaction',
-        'Volume by hub',
-        'Volume by direction',
-      ],
-      span: { 'Volume by direction': { md: 12, lg: 12 } },
-    },
-    {
       caption: 'Fees',
-      tiles: [
-        'Protocol fees',
-        'Transaction fees',
-        'Reservation fees',
-        'Quote churn fees',
-      ],
+      // The economics panel brings its own headline figures.
+      tiles: [],
       lead: (
         <DailyEconomics
           history={history}
@@ -1104,12 +1024,36 @@ const StatsSection: React.FC = () => {
       },
     },
     {
+      caption: 'Volume',
+      tiles: [
+        'Volume',
+        'Transactions',
+        'Average transaction',
+        'Largest transaction',
+      ],
+      panels: [
+        'Cumulative volume',
+        'Cumulative transactions',
+        'Volume',
+        'Transactions',
+        'Volume by hub',
+        'Average transaction',
+        'Volume by direction',
+      ],
+      span: { 'Volume by direction': { md: 12, lg: 12 } },
+    },
+    {
+      caption: 'Users and nodes',
+      tiles: ['Users', 'Nodes served', 'Active miners', 'Active days'],
+      panels: ['Unique users', 'Nodes ever served', 'Users', 'Serving nodes'],
+    },
+    {
       caption: 'Reliability',
       tiles: [
         'Success rate',
         'Median settlement',
-        'Timed out',
         'In flight now',
+        'Timed out',
       ],
       panels: [
         'Success rate',
@@ -1117,11 +1061,6 @@ const StatsSection: React.FC = () => {
         'Peak throughput',
         'Peak concurrent transactions',
       ],
-    },
-    {
-      caption: 'Users and nodes',
-      tiles: ['Users', 'Active miners', 'Nodes served', 'Active days'],
-      panels: ['Users', 'Unique users', 'Serving nodes', 'Nodes ever served'],
     },
   ];
   const tileByLabel = new Map(tiles.map((t) => [t.label, t]));
@@ -1155,15 +1094,15 @@ const StatsSection: React.FC = () => {
             color: 'text.secondary',
           }}
         >
-          everything follows the range · one column per UTC day, today still
-          filling ·{' '}
+          everything follows the range; running totals count from launch · one
+          column per UTC day, today still filling ·{' '}
           {pointInTime
             ? 'dollars at the price of each swap’s hour'
             : 'dollars estimated at today’s prices'}
         </Typography>
         <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Box>
-      {groups.map((g) => (
+      {groups.map((g, i) => (
         <Stack key={g.caption} gap={{ xs: 2, md: 3 }}>
           <Typography
             component="h3"
@@ -1173,29 +1112,32 @@ const StatsSection: React.FC = () => {
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: 'text.secondary',
-              borderTop: 1,
+              // The pinned range bar already rules off the first group.
+              borderTop: i === 0 ? 0 : 1,
               borderColor: 'divider',
-              pt: 2,
+              pt: i === 0 ? 0 : 2,
             }}
           >
             {g.caption}
           </Typography>
-          <Grid container spacing={{ xs: 2, md: 3 }}>
-            {g.tiles.map((label) => {
-              const t = tileByLabel.get(label)!;
-              return (
-                <Grid item xs={6} md={3} key={label}>
-                  <StatCell
-                    label={t.label}
-                    value={t.value}
-                    unit={t.unit}
-                    loading={t.loading}
-                    tooltip={t.tooltip}
-                  />
-                </Grid>
-              );
-            })}
-          </Grid>
+          {g.tiles.length > 0 && (
+            <Grid container spacing={{ xs: 2, md: 3 }}>
+              {g.tiles.map((label) => {
+                const t = tileByLabel.get(label)!;
+                return (
+                  <Grid item xs={6} md={3} key={label}>
+                    <StatCell
+                      label={t.label}
+                      value={t.value}
+                      unit={t.unit}
+                      loading={t.loading}
+                      tooltip={t.tooltip}
+                    />
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
           {g.lead}
           <Grid container spacing={{ xs: 2, md: 3 }}>
             {g.panels.map((title) => {

@@ -11,6 +11,7 @@ import {
   chainSymbol,
   formatUsd,
   usdFromHuman,
+  formatAmountCompact,
 } from '../../utils/format';
 import { hubLegVolume } from './marketRate';
 import { FONTS } from '../../theme';
@@ -129,10 +130,7 @@ const StatsStrip: React.FC<{
     };
   }, [swaps, legs, hub, secs]);
 
-  const fmtVol = (v: number) =>
-    v >= 1000
-      ? `${(v / 1000).toFixed(1)}k`
-      : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const fmtVol = formatAmountCompact;
 
   // Estimated USD readout when the hub has a price; native hub units
   // otherwise (older das / prices not fetched yet).

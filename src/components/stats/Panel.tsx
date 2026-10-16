@@ -35,6 +35,7 @@ const Panel: React.FC<{
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: 1,
       }}
     >

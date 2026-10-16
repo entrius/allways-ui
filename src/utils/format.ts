@@ -97,18 +97,57 @@ export const backingEntries = (
 // makes every conversion null so callers fall back to native rendering.
 export type UsdPrices = Record<string, number | null | undefined>;
 
+const GROUPED = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const CENTS = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Short axis ticks and compact figures, one convention site-wide: uppercase
+ * K / M with one decimal ("1.2K", "3.4M"), whole numbers from 10 to 999, two
+ * significant digits below 10.
+ */
+export const formatCompact = (v: number): string => {
+  const a = Math.abs(v);
+  if (a >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (a >= 1000) return `${(v / 1000).toFixed(1)}K`;
+  if (a >= 10) return v.toFixed(0);
+  return Number(v.toPrecision(2)).toString();
+};
+
+/**
+ * Compact native amounts (volumes, sizes): the DESIGN.md amounts rule below
+ * 1,000 (three significant digits under 1, two decimals to 100, none above),
+ * then "1.2K" / "3.4M".
+ */
+export const formatAmountCompact = (v: number): string => {
+  const a = Math.abs(v);
+  if (a >= 1000) return formatCompact(v);
+  if (a >= 100) return v.toFixed(0);
+  if (a >= 1) return v.toFixed(2);
+  return Number(v.toPrecision(3)).toString();
+};
+
+/** Compact USD for axis ticks: "$1.2K". */
+export const formatUsdCompact = (v: number): string =>
+  v < 0 ? `-$${formatCompact(-v)}` : `$${formatCompact(v)}`;
+
+/** Whole counts with thousands separators: "3,576". */
+export const formatCount = (v: number): string => GROUPED.format(Math.round(v));
+
+/**
+ * USD figures, one convention site-wide (DESIGN.md amounts rule): cents below
+ * $100, whole dollars with separators up to $10K, then compact with one
+ * decimal ("$33.0K", "$1.2M") so aggregate tiles stay tile-sized.
+ */
 export const formatUsd = (n: number): string => {
   if (!Number.isFinite(n)) return '—';
-  // Compact above 10k ("$1.23M") so aggregate tiles stay tile-sized;
-  // exact-ish 2dp below.
-  const compact = Math.abs(n) >= 10_000;
-  return n.toLocaleString(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    notation: compact ? 'compact' : 'standard',
-    minimumFractionDigits: compact ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
+  const sign = n < 0 ? '-' : '';
+  const a = Math.abs(n);
+  if (a >= 10_000) return `${sign}$${formatCompact(a)}`;
+  if (a >= 100) return `${sign}$${GROUPED.format(a)}`;
+  return `${sign}$${CENTS.format(a)}`;
 };
 
 // Estimated USD value of a per-backing map (smallest units per hub chain).
@@ -376,12 +415,7 @@ export const formatWallClock = (
   const ts = typeof unixSecs === 'string' ? parseInt(unixSecs, 10) : unixSecs;
   if (!Number.isFinite(ts) || ts <= 0) return '—';
   const d = new Date(ts * 1000);
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  const day = d.toLocaleDateString([], {
-    month: 'short',
-    day: 'numeric',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
+  const day = formatDay(d.getTime());
   const time = d.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
@@ -389,6 +423,18 @@ export const formatWallClock = (
   });
   return `${day} ${time}`;
 };
+
+/** Calendar day in the tape's convention: "Oct 15", the year only outside
+ * the current one. */
+export function formatDay(ms: number): string {
+  const d = new Date(ms);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+}
 
 // A unix-seconds timestamp as a wall-clock string for detail rows.
 export const formatUnixTime = (

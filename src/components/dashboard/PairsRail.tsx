@@ -20,6 +20,7 @@ import {
   chainSymbol,
   formatRate,
   usdFromHuman,
+  formatAmountCompact,
 } from '../../utils/format';
 import { hubChains, hubLeg, isAlpha } from '../../api/models/chains';
 import { hubLegVolume } from './marketRate';
@@ -56,11 +57,8 @@ const ALL = 'all';
 // The one section under "All" for routes an alpha anchors (sn19↔bnb).
 const ALPHA = 'alpha';
 
-// Compact volume readout: "55.4", "1.2k".
-const fmtVol = (v: number) =>
-  v >= 1000
-    ? `${(v / 1000).toFixed(1)}k`
-    : v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+// Compact volume readout: "55.40", "1.2K".
+const fmtVol = formatAmountCompact;
 
 const railLabelSx = {
   fontFamily: FONTS.mono,

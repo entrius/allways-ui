@@ -155,3 +155,23 @@ emissions. Fees by source have their own per-day charts below the panel. One sta
 Earlier extras (per-source KPIs, the pre-burn line, the per-day % chart, days
 fees beat emissions) were cut for clarity; the summary helpers still compute
 them.
+
+## Visual consistency pass (2026-10-16)
+
+- Network Stats order: Fees (economics headline), Volume, Users and nodes,
+  Reliability. Within each group the strongest signal leads and the fine print
+  (timed out, peak concurrent) closes it.
+- The Fees group opens with the economics figures (Protocol fees, Miner
+  emissions, Fees cover, Total emissions) in the same tile row every group uses;
+  the per-source amounts live on their own charts.
+- One number convention site-wide in `src/utils/format.ts`: `formatUsd` (cents
+  under $100, whole dollars to $10K, then "$33.0K"), `formatUsdCompact` /
+  `formatCompact` for axis ticks ("$1.2K"), `formatCount` ("3,576"),
+  `formatAmountCompact` for native volumes, `formatDay` for chart dates.
+- Every panel subtitle reads cadence · what · price basis; every panel readout
+  renders through `PanelReadout`.
+- `TimeSeriesChart`: square legend and tooltip swatches, empty state in
+  `text.secondary`, dates through the shared helpers.
+- Miners crown chart uses the shared `Panel`; the Markets rate card's type is
+  back on the mono scale with its headline at 1.4rem; the unused
+  `MarketRateChart` was removed.

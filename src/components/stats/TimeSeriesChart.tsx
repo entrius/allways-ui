@@ -10,6 +10,7 @@ import {
 import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Skeleton, useTheme } from '@mui/material';
 import { FONTS } from '../../theme';
+import { formatCount, formatDay, formatWallClock } from '../../utils/format';
 
 echarts.use([
   BarChart,
@@ -137,11 +138,7 @@ const fmtTime = (ms: number, hourly: boolean) =>
         hour: '2-digit',
         minute: '2-digit',
       })
-    : new Date(ms).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: '2-digit',
-      });
+    : formatDay(ms);
 
 // Market crosshair/tooltip time: clock time on intraday windows, date + time
 // on longer ones (never the ambiguous 2-digit year).
@@ -151,12 +148,7 @@ const fmtMarketTime = (ms: number, hourly: boolean) =>
         hour: '2-digit',
         minute: '2-digit',
       })
-    : new Date(ms).toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+    : formatWallClock(ms / 1000);
 
 const fmtDateUtc = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, {
@@ -171,16 +163,14 @@ const utcMidnightToday = () => {
 };
 
 const defaultFmt = (v: number) =>
-  Math.abs(v) >= 1000
-    ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
-    : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  Math.abs(v) >= 100 ? formatCount(v) : Number(v.toFixed(2)).toString();
 
 /**
  * Full-size time-series chart with visible axes, gridlines, axis labels and a
  * shared hover tooltip — the read-the-numbers counterpart to the minimal
  * landing KpiSparkline. Supports one or more line/bar series on a shared time
- * x-axis. Follows the same echarts init / ResizeObserver / setOption lifecycle
- * as MarketRateChart, and keeps the chart `<div>` always mounted (overlaying
+ * x-axis. One echarts init / ResizeObserver / setOption lifecycle, and keeps
+ * the chart `<div>` always mounted (overlaying
  * loading/empty states) so the init effect always has a real node.
  */
 const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
@@ -484,8 +474,10 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                   fontFamily: FONTS.mono,
                   fontSize: 10,
                 },
-                itemWidth: 12,
-                itemHeight: 8,
+                // Square swatches, like every other mark on the site.
+                icon: 'rect',
+                itemWidth: 10,
+                itemHeight: 10,
               },
         tooltip: {
           trigger: 'axis',
@@ -575,7 +567,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                   const fmt = s.formatValue ?? formatValue ?? defaultFmt;
                   const unit = s.unit ? ` ${s.unit}` : '';
                   rows.push(
-                    `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.color};margin-right:5px"></span><span style="color:${axisColor}">${s.name}</span> <b>${fmt(v)}${unit}</b>`,
+                    `<span style="display:inline-block;width:8px;height:8px;background:${s.color};margin-right:5px"></span><span style="color:${axisColor}">${s.name}</span> <b>${fmt(v)}${unit}</b>`,
                   );
                 }
                 const [a, b] = vals;
@@ -795,7 +787,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             justifyContent: 'center',
             fontFamily: FONTS.mono,
             fontSize: '0.72rem',
-            color: 'text.disabled',
+            color: 'text.secondary',
           }}
         >
           {emptyLabel}

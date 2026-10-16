@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Typography, alpha, useTheme } from '@mui/material';
-import { Panel, StatCell, TimeSeriesChart } from '../stats';
+import { Box, Grid, Typography, alpha, useTheme } from '@mui/material';
+import { Panel, PanelReadout, StatCell, TimeSeriesChart } from '../stats';
 import type { HistoryRow } from '../../api/models';
 import {
   economicsThroughNow,
@@ -10,7 +10,7 @@ import {
   type PricePoint,
   type TreasuryDay,
 } from '../../utils/dailyEconomics';
-import { formatUsd } from '../../utils/format';
+import { formatUsd, formatUsdCompact } from '../../utils/format';
 import { FONTS } from '../../theme';
 
 type EmissionHistory = {
@@ -139,7 +139,7 @@ export default function DailyEconomics({
     }).format(t);
   const note = {
     fontFamily: FONTS.mono,
-    fontSize: '0.7rem',
+    fontSize: '0.62rem',
     color: 'text.secondary',
   };
   const usd = (v: number | null) => (v === null ? '—' : formatUsd(v));
@@ -147,26 +147,17 @@ export default function DailyEconomics({
   const ink = theme.palette.text.primary;
   return (
     <Box id="daily-economics" sx={{ scrollMarginTop: 24 }}>
-      <Panel
-        title="Fees vs. emissions"
-        subtitle={`${date(rows[0].t)} – ${date(rows[rows.length - 1].t)} · USD · today so far`}
-        info="Bars are what SN7 emits each day, miners at the base, then validators, the owner, and the miner share burned. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
-      >
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: 'repeat(2, minmax(0, 1fr))',
-              md: 'repeat(4, minmax(0, 1fr))',
-            },
-            gap: 2,
-          }}
-        >
+      {/* Headline figures in the same row every Network Stats group opens
+          with, then the one chart they summarise. */}
+      <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: { xs: 2, md: 3 } }}>
+        <Grid item xs={6} md={3}>
           <StatCell
             label="Protocol fees"
             value={usd(totals.fees)}
             loading={pending}
           />
+        </Grid>
+        <Grid item xs={6} md={3}>
           <StatCell
             label="Miner emissions"
             value={usd(totals.emissions)}
@@ -177,6 +168,8 @@ export default function DailyEconomics({
                 : `after the miner burn · ${formatUsd(totals.burned)} burned (${pct(totals.burnRate)})`
             }
           />
+        </Grid>
+        <Grid item xs={6} md={3}>
           <StatCell
             label="Fees cover"
             value={pct(totals.coverage)}
@@ -187,6 +180,8 @@ export default function DailyEconomics({
                 : `protocol fees as a share of miner emissions · ${pct(totals.totalCoverage)} of total emissions`
             }
           />
+        </Grid>
+        <Grid item xs={6} md={3}>
           <StatCell
             label="Total emissions"
             value={usd(totals.totalEmissions)}
@@ -197,7 +192,18 @@ export default function DailyEconomics({
                 : `owner ${usd(totals.owner)} · validators ${usd(totals.validators)} · miners ${usd(totals.emissions)} · burned ${usd(totals.burned)}`
             }
           />
-        </Box>
+        </Grid>
+      </Grid>
+      <Panel
+        title="Fees vs. emissions"
+        subtitle={`per day · emissions by recipient, fees as a line · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
+        headerRight={
+          totals.coverage === null ? undefined : (
+            <PanelReadout>{pct(totals.coverage)} covered in range</PanelReadout>
+          )
+        }
+        info="Bars are what SN7 emits each day, miners at the base, then validators, the owner, and the miner share burned. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
+      >
         {/* One chart: what the subnet emits each day, stacked with miners at
             the base, and protocol fees as a line over it. Where the line
             clears the miners segment, fees covered miner emissions; the whole
@@ -207,10 +213,11 @@ export default function DailyEconomics({
           noArea
           height={320}
           loading={pending}
-          formatValue={formatUsd}
+          formatValue={formatUsdCompact}
           series={[
             {
               name: 'Miners',
+              formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
               color: alpha(ink, 0.5),
@@ -218,6 +225,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Validators',
+              formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
               color: alpha(ink, 0.3),
@@ -225,6 +233,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Owner',
+              formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
               color: alpha(ink, 0.16),
@@ -232,6 +241,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Miner burn',
+              formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
               color: alpha(ink, 0.06),
@@ -239,6 +249,7 @@ export default function DailyEconomics({
             },
             {
               name: 'Protocol fees',
+              formatValue: formatUsd,
               type: 'line',
               color: ink,
               points: rows.map((r) => ({ t: r.t, value: r.fees })),
