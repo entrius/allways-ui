@@ -1091,6 +1091,7 @@ const StatsSection: React.FC = () => {
           history={history}
           loading={historyLoading || historyPlaceholder}
           days={feeDays}
+          income={dailyIncome}
         />
       ),
       panels: ['Transaction fees', 'Reservation fees', 'Quote churn fees'],

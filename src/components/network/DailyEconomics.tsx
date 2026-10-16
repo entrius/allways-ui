@@ -3,12 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Box, Typography, alpha, useTheme } from '@mui/material';
 import { Panel, StatCell, TimeSeriesChart } from '../stats';
 import type { HistoryRow } from '../../api/models';
-import { useDailyTreasury } from '../../api';
 import {
   economicsThroughNow,
   summarizeEconomics,
-  UTC_DAY_MS,
   type EmissionDay,
+  type PricePoint,
+  type TreasuryDay,
 } from '../../utils/dailyEconomics';
 import { formatUsd } from '../../utils/format';
 import { FONTS } from '../../theme';
@@ -84,15 +84,23 @@ async function loadEmissions(): Promise<EmissionHistory> {
   };
 }
 
-/** Fees and miner-only emissions share UTC-day buckets and USD axes. */
+/** Fees and emissions share UTC-day buckets and USD axes. The parent loads
+ * the treasury income once and passes it down. */
 export default function DailyEconomics({
   history,
   loading,
   days,
+  income,
 }: {
   history?: HistoryRow[];
   loading: boolean;
   days: number;
+  income: {
+    treasury: TreasuryDay[];
+    solUsd?: PricePoint[];
+    isLoading: boolean;
+    solUsdError: boolean;
+  };
 }) {
   const theme = useTheme();
   const emission = useQuery({
@@ -106,8 +114,6 @@ export default function DailyEconomics({
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  const todayStart = Math.floor(now / UTC_DAY_MS) * UTC_DAY_MS;
-  const income = useDailyTreasury(days, todayStart);
   const rows = useMemo(
     () =>
       economicsThroughNow(
