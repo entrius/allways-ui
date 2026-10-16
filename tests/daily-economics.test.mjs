@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const js = ts.transpileModule(readFileSync(new URL('../src/utils/dailyEconomics.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { dailyEconomics, economicsThroughNow, summarizeEconomics, solUsdForDay, weeklyEconomics, cumulativeEconomics } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const { dailyEconomics, economicsThroughNow, summarizeEconomics, solUsdForDay, weeklyEconomics } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const now = Date.parse('2026-10-14T22:53:00Z');
 const t = '2026-10-13T00:00:00Z';
 test('complete UTC days exclude today, including DST-independent boundaries', () => {
@@ -127,10 +127,4 @@ test('weekly buckets keep whole complete weeks only, newest last', () => {
   assert.equal(weeks[0].fees,7);
   assert.equal(weeks[1].emissions,70);
   assert.equal(weeklyEconomics([day(0,1)]).length,0);
-});
-test('running totals add up day by day and stop at the first gap', () => {
-  const d = (fees) => ({t:0,fees,swapFees:fees,reservationFees:0,churnFees:0,emissions:1,burned:0,owner:0,validators:0});
-  const c = cumulativeEconomics([d(1),d(2),d(null),d(4)]);
-  assert.deepEqual(c.map((r)=>r.fees),[1,3,null,null]);
-  assert.deepEqual(c.map((r)=>r.emissions),[1,2,3,4]);
 });

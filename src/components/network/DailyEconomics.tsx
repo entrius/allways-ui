@@ -9,7 +9,6 @@ import {
   dailyEconomics,
   UTC_DAY_MS,
   weeklyEconomics,
-  cumulativeEconomics,
   type EconomicsDay,
   type EmissionDay,
   type PricePoint,
@@ -17,7 +16,6 @@ import {
 } from '../../utils/dailyEconomics';
 import { formatUsd, formatUsdCompact } from '../../utils/format';
 import { FONTS } from '../../theme';
-import RangeChips from '../RangeChips';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 type EmissionHistory = {
@@ -90,8 +88,6 @@ async function loadEmissions(): Promise<EmissionHistory> {
     })),
   };
 }
-
-type Grouping = 'daily' | 'weekly' | 'total';
 
 // The fee sources, in stack order; the readout counts only those shown.
 const FEE_SOURCES: {
@@ -176,7 +172,6 @@ export default function DailyEconomics({
   const [now, setNow] = useState(Date.now);
   // Which recipients the legend shows; the readout compares fees with them.
   const [shown, setShown] = useState<Record<string, boolean>>({});
-  const [picked, setPicked] = useState<Grouping | null>(null);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
@@ -253,23 +248,10 @@ export default function DailyEconomics({
   const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`);
   const ink = theme.palette.text.primary;
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
-  // Grouping, the way DefiLlama and Token Terminal offer it: weekly by
-  // default on longer ranges (one busy day otherwise hides the trend),
-  // daily, or a running total.
-  const groupings: readonly Grouping[] =
-    days > 7 ? ['daily', 'weekly', 'total'] : ['daily', 'total'];
-  const grouping =
-    picked && groupings.includes(picked)
-      ? picked
-      : days > 7
-        ? 'weekly'
-        : 'daily';
-  const weekly = grouping === 'weekly';
-  const buckets = weekly
-    ? weeklyEconomics(rows)
-    : grouping === 'total'
-      ? cumulativeEconomics(rows)
-      : rows;
+  // Follows the section's range control: daily on 7D, weekly on longer
+  // ranges, where one busy day would otherwise hide the trend.
+  const weekly = days > 7;
+  const buckets = weekly ? weeklyEconomics(rows) : rows;
   // The reference fees are compared with: miner pay by default, or the
   // largest one switched on in the legend. The burn is never part of it.
   const on = REFERENCES.filter((r) => shown[r.name] ?? false);
@@ -385,23 +367,10 @@ export default function DailyEconomics({
       </Grid>
       <Panel
         title="Protocol fees"
-        subtitle={`${
-          weekly
-            ? 'per week'
-            : grouping === 'total'
-              ? 'running total'
-              : 'per day'
-        } · by source · add miner pay from the legend · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
+        subtitle={`${weekly ? 'per week' : 'per day'} · by source · add miner pay from the legend · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
         headerRight={readout}
-        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks. The figure at right compares them with what miners were paid; switch on miner pay, validator pay or total emissions in the legend to draw that line, and the figure follows the largest one shown. Group by day, by week (the default on 30D and ALL, so one busy day doesn't hide the trend) or as a running total. Emissions are estimates from chain samples, not measured payouts."
+        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks. The figure at right compares them with what miners were paid; switch on miner pay, validator pay or total emissions in the legend to draw that line, and the figure follows the largest one shown. Daily on 7D, weekly on 30D and ALL so one busy day doesn't hide the trend. Emissions are estimates from chain samples, not measured payouts."
       >
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <RangeChips
-            value={grouping}
-            options={groupings}
-            onChange={setPicked}
-          />
-        </Box>
         <TimeSeriesChart
           daily
           noArea

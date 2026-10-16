@@ -249,3 +249,7 @@ running total via `cumulativeEconomics`). Everything follows the legend: the
 readout counts only the fee sources shown and names them ("transaction + churn
 fees 30.6% of miner pay last week"), and weekly totals sum only the visible
 segments and sit on the top visible one (the chart re-renders on legend clicks).
+
+The chart has no grouping switch of its own (2026-10-16): the section's pinned
+7D / 30D / ALL control is the one time control. Daily on 7D, weekly on 30D and
+ALL. The running-total option was removed with the switch.
