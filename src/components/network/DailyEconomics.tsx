@@ -150,29 +150,23 @@ export default function DailyEconomics({
   const ink = theme.palette.text.primary;
   return (
     <Box id="daily-economics" sx={{ scrollMarginTop: 24 }}>
-      {/* Headline figures in the same row every Network Stats group opens
-          with, then the one chart they summarise. */}
-      <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: { xs: 2, md: 3 } }}>
-        <Grid item xs={6} md={3}>
+      {/* Five across on desktop (a ten-column row); on a phone two per row,
+          the total taking the last row on its own. */}
+      <Grid
+        container
+        columns={{ xs: 12, md: 10 }}
+        spacing={{ xs: 2, md: 3 }}
+        sx={{ mb: { xs: 2, md: 3 } }}
+      >
+        <Grid item xs={6} md={2}>
           <StatCell
             label="Protocol fees"
             value={usd(totals.fees)}
             loading={pending}
+            tooltip="transaction + reservation + quote churn fees, all spent on buybacks"
           />
         </Grid>
-        <Grid item xs={6} md={3}>
-          <StatCell
-            label="Miner emissions"
-            value={usd(totals.emissions)}
-            loading={pending}
-            tooltip={
-              totals.burned === null
-                ? 'after the miner burn'
-                : `after the miner burn · ${formatUsd(totals.burned)} burned (${pct(totals.burnRate)})`
-            }
-          />
-        </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} md={2}>
           <StatCell
             label="Fees vs. miner pay"
             value={pct(totals.coverage)}
@@ -184,7 +178,27 @@ export default function DailyEconomics({
             }`}
           />
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={6} md={2}>
+          <StatCell
+            label="Miner emissions"
+            value={usd(totals.emissions)}
+            loading={pending}
+            tooltip="what miners were paid, after the burn"
+          />
+        </Grid>
+        <Grid item xs={6} md={2}>
+          <StatCell
+            label={
+              totals.burnRate === null
+                ? 'Miner burn'
+                : `Miner burn · ${pct(totals.burnRate)}`
+            }
+            value={usd(totals.burned)}
+            loading={pending}
+            tooltip="the part of the miner share burned instead of paid, and that part as a % of the miner share; the burn rate changes over time"
+          />
+        </Grid>
+        <Grid item xs={12} md={2}>
           <StatCell
             label="Total emissions"
             value={usd(totals.totalEmissions)}
@@ -208,7 +222,7 @@ export default function DailyEconomics({
             </PanelReadout>
           )
         }
-        info="Bars are what SN7 emits each day, miners at the base, then validators, the owner, and the miner share burned. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
+        info="Bars are what SN7 emits each day: miners at the base with the burned part of their share right above, then validators and the owner. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
       >
         {/* One chart: what the subnet emits each day, stacked with miners at
             the base, and protocol fees as a line over it. Where the line
@@ -230,6 +244,14 @@ export default function DailyEconomics({
               points: rows.map((r) => ({ t: r.t, value: r.emissions })),
             },
             {
+              name: 'Miner burn',
+              formatValue: formatUsd,
+              type: 'bar',
+              stack: 'emissions',
+              color: alpha(ink, 0.12),
+              points: rows.map((r) => ({ t: r.t, value: r.burned })),
+            },
+            {
               name: 'Validators',
               formatValue: formatUsd,
               type: 'bar',
@@ -242,16 +264,8 @@ export default function DailyEconomics({
               formatValue: formatUsd,
               type: 'bar',
               stack: 'emissions',
-              color: alpha(ink, 0.16),
+              color: alpha(ink, 0.2),
               points: rows.map((r) => ({ t: r.t, value: r.owner })),
-            },
-            {
-              name: 'Miner burn',
-              formatValue: formatUsd,
-              type: 'bar',
-              stack: 'emissions',
-              color: alpha(ink, 0.06),
-              points: rows.map((r) => ({ t: r.t, value: r.burned })),
             },
             {
               name: 'Protocol fees',

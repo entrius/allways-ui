@@ -181,3 +181,9 @@ source (transaction, reservation, quote churn), replaces the three per-source
 charts and sits right under the headline figures, ahead of fees vs emissions.
 Panel headers keep their readout on the title line (the heading flexes,
 the readout never shrinks).
+
+Miner burn (2026-10-16): the Fees row shows five figures (Protocol fees,
+Fees vs. miner pay, Miner emissions, Miner burn with its rate in the label,
+Total emissions), five across on desktop. In the fees vs emissions chart the
+burned part sits directly above Miners so paid and burned read as one miner
+share.
