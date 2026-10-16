@@ -145,7 +145,7 @@ per day (reused days get the cut read once at their first sample block).  The po
 
 ## Panel layout (simplified)
 
-Four figures: Protocol fees, Miner emissions (burn in its tooltip), Fees cover
+Four figures: Protocol fees, Miner emissions (burn in its tooltip), Fees vs. miner pay
 (fees as % of miner emissions; % of total emissions in its tooltip) and Total
 emissions (owner / validators / miners / burned in its tooltip). One chart: what SN7
 emits each day as stacked bars (miners at the base, then validators, owner and
@@ -162,7 +162,7 @@ them.
   Reliability. Within each group the strongest signal leads and the fine print
   (timed out, peak concurrent) closes it.
 - The Fees group opens with the economics figures (Protocol fees, Miner
-  emissions, Fees cover, Total emissions) in the same tile row every group uses;
+  emissions, Fees vs. miner pay, Total emissions) in the same tile row every group uses;
   the per-source amounts live on their own charts.
 - One number convention site-wide in `src/utils/format.ts`: `formatUsd` (cents
   under $100, whole dollars to $10K, then "$33.0K"), `formatUsdCompact` /

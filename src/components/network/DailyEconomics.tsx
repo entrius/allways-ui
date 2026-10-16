@@ -174,14 +174,14 @@ export default function DailyEconomics({
         </Grid>
         <Grid item xs={6} md={3}>
           <StatCell
-            label="Fees cover"
+            label="Fees vs. miner pay"
             value={pct(totals.coverage)}
             loading={pending}
-            tooltip={
+            tooltip={`protocol fees ÷ miner emissions: 100% means fees bought back as much as miners were paid${
               totals.totalCoverage === null
-                ? 'protocol fees as a share of miner emissions'
-                : `protocol fees as a share of miner emissions · ${pct(totals.totalCoverage)} of total emissions`
-            }
+                ? ''
+                : ` · ${pct(totals.totalCoverage)} of total emissions`
+            }`}
           />
         </Grid>
         <Grid item xs={6} md={3}>
@@ -203,7 +203,9 @@ export default function DailyEconomics({
         subtitle={`per day · emissions by recipient, fees as a line · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
         headerRight={
           totals.coverage === null ? undefined : (
-            <PanelReadout>{pct(totals.coverage)} covered in range</PanelReadout>
+            <PanelReadout>
+              fees {pct(totals.coverage)} of miner pay
+            </PanelReadout>
           )
         }
         info="Bars are what SN7 emits each day, miners at the base, then validators, the owner, and the miner share burned. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
