@@ -136,6 +136,8 @@ type TimeSeriesChartProps = {
   /** Daily mode with buckets this many days wide (7 = weeks): the tooltip
    * names the week, and bars may grow wider. */
   bucketDays?: number;
+  /** A legend that only names the series: no click to hide or show. */
+  staticLegend?: boolean;
   /** Print each bar stack's total above it (a few wide bars, e.g. weeks). */
   stackTotals?: boolean;
 };
@@ -212,6 +214,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   onLegendChange,
   bucketDays = 1,
   stackTotals = false,
+  staticLegend = false,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
@@ -563,6 +566,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                   fontFamily: FONTS.mono,
                   fontSize: 10,
                 },
+                ...(staticLegend && { selectedMode: false }),
                 // Square swatches, like every other mark on the site.
                 icon: 'rect',
                 itemWidth: 10,
@@ -893,6 +897,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     xWindow,
     bucketDays,
     stackTotals,
+    staticLegend,
     legendTick,
   ]);
 

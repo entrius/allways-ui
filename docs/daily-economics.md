@@ -253,3 +253,8 @@ segments and sit on the top visible one (the chart re-renders on legend clicks).
 The chart has no grouping switch of its own (2026-10-16): the section's pinned
 7D / 30D / ALL control is the one time control. Daily on 7D, weekly on 30D and
 ALL. The running-total option was removed with the switch.
+
+Fixed chart (2026-10-16): the fees chart always shows the three fee sources;
+its legend is a static key (`staticLegend`, no click to hide or show), the
+miner pay / validator / total emissions reference lines are gone, and the
+readout always compares all protocol fees with miner pay.

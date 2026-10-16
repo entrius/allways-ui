@@ -89,55 +89,6 @@ async function loadEmissions(): Promise<EmissionHistory> {
   };
 }
 
-// The fee sources, in stack order; the readout counts only those shown.
-const FEE_SOURCES: {
-  name: string;
-  label: string;
-  pick: (r: EconomicsDay) => number | null;
-}[] = [
-  { name: 'Transaction fees', label: 'transaction', pick: (r) => r.swapFees },
-  {
-    name: 'Reservation fees',
-    label: 'reservation',
-    pick: (r) => r.reservationFees,
-  },
-  { name: 'Quote churn fees', label: 'churn', pick: (r) => r.churnFees },
-];
-
-// What fees are measured against, smallest first: what miners were paid
-// (the default), then adding validators, then everything emitted.
-const REFERENCES: {
-  name: string;
-  label: string;
-  byDefault: boolean;
-  pick: (r: EconomicsDay) => number | null;
-}[] = [
-  {
-    name: 'Miner pay',
-    label: 'miner pay',
-    byDefault: true,
-    pick: (r) => r.emissions,
-  },
-  {
-    name: 'Miner + validator pay',
-    label: 'miner + validator pay',
-    byDefault: false,
-    pick: (r) =>
-      r.emissions === null || r.validators === null
-        ? null
-        : r.emissions + r.validators,
-  },
-  {
-    name: 'Total emissions',
-    label: 'total emissions',
-    byDefault: false,
-    pick: (r) =>
-      r.emissions === null || r.validators === null || r.owner === null
-        ? null
-        : r.emissions + r.validators + r.owner,
-  },
-];
-
 /** Fees and emissions share UTC-day buckets and USD axes. The parent loads
  * the treasury income once and passes it down. */
 export default function DailyEconomics({
@@ -170,8 +121,6 @@ export default function DailyEconomics({
     refetchInterval: 300_000,
   });
   const [now, setNow] = useState(Date.now);
-  // Which recipients the legend shows; the readout compares fees with them.
-  const [shown, setShown] = useState<Record<string, boolean>>({});
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
@@ -252,35 +201,17 @@ export default function DailyEconomics({
   // ranges, where one busy day would otherwise hide the trend.
   const weekly = days > 7;
   const buckets = weekly ? weeklyEconomics(rows) : rows;
-  // The reference fees are compared with: miner pay by default, or the
-  // largest one switched on in the legend. The burn is never part of it.
-  const on = REFERENCES.filter((r) => shown[r.name] ?? false);
-  const ref = on[on.length - 1] ?? REFERENCES[0];
-  // ...and only the fee sources the legend shows.
-  const sources = FEE_SOURCES.filter((f) => shown[f.name] ?? true);
-  const feesOf = (r: EconomicsDay) => {
-    const parts = sources.map((f) => f.pick(r));
-    return parts.some((v) => v === null)
-      ? null
-      : parts.reduce<number>((a, v) => a + (v as number), 0);
-  };
-  const feeLabel =
-    sources.length === FEE_SOURCES.length
-      ? 'fees'
-      : `${sources.map((f) => f.label).join(' + ')} fees`;
-  const ratio = (r?: EconomicsDay) => {
-    const base = r ? ref.pick(r) : null;
-    const fees = r ? feesOf(r) : null;
-    return fees !== null && base ? (fees / base) * 100 : null;
-  };
+  // Fees against what miners were paid, the comparison the section makes.
+  const ratio = (r?: EconomicsDay) =>
+    r && r.fees !== null && r.emissions ? (r.fees / r.emissions) * 100 : null;
   const readout = (() => {
     if (weekly) {
       const last = ratio(buckets[buckets.length - 1]);
       const prev = ratio(buckets[buckets.length - 2]);
-      if (last === null || !sources.length) return undefined;
+      if (last === null) return undefined;
       return (
         <PanelReadout>
-          {feeLabel} {pct(last)} of {ref.label} last week
+          fees {pct(last)} of miner pay last week
           {prev !== null && (
             <Box
               component="span"
@@ -299,16 +230,10 @@ export default function DailyEconomics({
         </PanelReadout>
       );
     }
-    const base = rows.every((r) => ref.pick(r) !== null)
-      ? rows.reduce((a, r) => a + (ref.pick(r) as number), 0)
-      : null;
-    const fees = rows.every((r) => feesOf(r) !== null)
-      ? rows.reduce((a, r) => a + (feesOf(r) as number), 0)
-      : null;
-    if (fees === null || !base || !sources.length) return undefined;
+    if (totals.coverage === null) return undefined;
     return (
       <PanelReadout>
-        {feeLabel} {pct((fees / base) * 100)} of {ref.label} in range
+        fees {pct(totals.coverage)} of miner pay in range
       </PanelReadout>
     );
   })();
@@ -367,9 +292,9 @@ export default function DailyEconomics({
       </Grid>
       <Panel
         title="Protocol fees"
-        subtitle={`${weekly ? 'per week' : 'per day'} · by source · add miner pay from the legend · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
+        subtitle={`${weekly ? 'per week' : 'per day'} · by source · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
         headerRight={readout}
-        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks. The figure at right compares them with what miners were paid; switch on miner pay, validator pay or total emissions in the legend to draw that line, and the figure follows the largest one shown. Daily on 7D, weekly on 30D and ALL so one busy day doesn't hide the trend. Emissions are estimates from chain samples, not measured payouts."
+        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks. The figure at right compares them with what miners were paid. Daily on 7D, weekly on 30D and ALL so one busy day doesn't hide the trend. Emissions are estimates from chain samples, not measured payouts."
       >
         <TimeSeriesChart
           daily
@@ -377,7 +302,7 @@ export default function DailyEconomics({
           height={320}
           bucketDays={weekly ? 7 : 1}
           stackTotals={weekly}
-          onLegendChange={setShown}
+          staticLegend
           loading={pending}
           formatValue={formatUsdCompact}
           series={[
@@ -408,20 +333,6 @@ export default function DailyEconomics({
               color: alpha(ink, 0.28),
               points: buckets.map((r) => ({ t: r.t, value: r.churnFees })),
             },
-            ...REFERENCES.map((ref) => ({
-              name: ref.name,
-              // Off at first so the fee bars set the scale; the readout
-              // still compares with miner pay.
-              hiddenByDefault: true,
-              straight: true,
-              dashed: true,
-              formatValue: formatUsd,
-              type: 'line' as const,
-              color: ref.byDefault
-                ? theme.palette.text.secondary
-                : theme.palette.text.disabled,
-              points: buckets.map((r) => ({ t: r.t, value: ref.pick(r) })),
-            })),
           ]}
         />
         {totals.emissions !== null && (
