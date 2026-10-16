@@ -175,3 +175,9 @@ them.
 - Miners crown chart uses the shared `Panel`; the Markets rate card's type is
   back on the mono scale with its headline at 1.4rem; the unused
   `MarketRateChart` was removed.
+
+Fees group (2026-10-16 follow-up): one Protocol fees chart, per day stacked by
+source (transaction, reservation, quote churn), replaces the three per-source
+charts and sits right under the headline figures, ahead of fees vs emissions.
+Panel headers keep their readout on the title line (the heading flexes,
+the readout never shrinks).

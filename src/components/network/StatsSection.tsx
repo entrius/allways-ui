@@ -6,6 +6,7 @@ import {
   Skeleton,
   Stack,
   Typography,
+  alpha,
   useTheme,
 } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
@@ -249,14 +250,17 @@ const StatsSection: React.FC = () => {
     [history, feeDays, dailyIncome.treasury, dailyIncome.solUsd],
   );
   const feeTotals = summarizeEconomics(feeRows);
+  // One stack: every fee source shares a column per day.
   const feeBars = (
     name: string,
     pick: (r: (typeof feeRows)[number]) => number | null,
+    color: string,
   ): ChartSeries[] => [
     {
       name,
       type: 'bar' as const,
-      color: ink,
+      stack: 'fees',
+      color,
       formatValue: formatUsd,
       points: feeRows.map((r) => ({ t: r.t, value: pick(r) })),
     },
@@ -833,48 +837,24 @@ const StatsSection: React.FC = () => {
       ),
     },
     {
-      title: 'Transaction fees',
-      subtitle: 'per day · 1% of volume · USD at time of swap',
-      info: 'The flat 1% fee the contract takes on every completed swap, each day.',
+      title: 'Protocol fees',
+      subtitle: 'per day · by source · USD at the time it was paid',
+      info: 'Every fee paid into the treasury, each day, stacked by source: transaction fees (the flat 1% the contract takes on each completed swap), reservation fees (SOL paid to request a reservation) and quote churn fees (SOL miners pay to change a quote within 10 minutes of its last update). All protocol fees fund buybacks.',
       body: chart(
-        feeBars('Transaction fees', (r) => r.swapFees),
-        historyLoading,
+        [
+          ...feeBars('Transaction fees', (r) => r.swapFees, ink),
+          ...feeBars(
+            'Reservation fees',
+            (r) => r.reservationFees,
+            alpha(ink, 0.55),
+          ),
+          ...feeBars('Quote churn fees', (r) => r.churnFees, alpha(ink, 0.28)),
+        ],
+        historyLoading || dailyIncome.isLoading,
         usdCompact,
       ),
       headerRight: readout(
-        feeTotals.swapFees == null
-          ? null
-          : inRange(formatUsd(feeTotals.swapFees)),
-      ),
-    },
-    {
-      title: 'Reservation fees',
-      subtitle: 'per day · SOL at that day’s price',
-      info: 'SOL paid into the treasury to request a reservation, each day. das derives it as reservations times the current reservation fee.',
-      body: chart(
-        feeBars('Reservation fees', (r) => r.reservationFees),
-        dailyIncome.isLoading,
-        usdCompact,
-      ),
-      headerRight: readout(
-        feeTotals.reservationFees == null
-          ? null
-          : inRange(formatUsd(feeTotals.reservationFees)),
-      ),
-    },
-    {
-      title: 'Quote churn fees',
-      subtitle: 'per day · SOL at that day’s price',
-      info: 'Anti-flashing fees miners pay into the treasury for changing or removing a quote within 10 minutes of its last update (0.01 SOL under 5 minutes, 0.001 SOL for 5 to 10).',
-      body: chart(
-        feeBars('Quote churn fees', (r) => r.churnFees),
-        dailyIncome.isLoading,
-        usdCompact,
-      ),
-      headerRight: readout(
-        feeTotals.churnFees == null
-          ? null
-          : inRange(formatUsd(feeTotals.churnFees)),
+        feeTotals.fees == null ? null : inRange(formatUsd(feeTotals.fees)),
       ),
     },
     {
@@ -992,6 +972,21 @@ const StatsSection: React.FC = () => {
 
   // Each group reads top to bottom: its all-time figures, then its charts
   // over the selected range. Panel spans keep every row full.
+  const panelByTitle = new Map(panels.map((p) => [p.title, p]));
+  const renderPanel = (title: string) => {
+    const p = panelByTitle.get(title)!;
+    return (
+      <Panel
+        title={p.title}
+        subtitle={p.subtitle}
+        info={p.info}
+        headerRight={p.headerRight}
+      >
+        {p.body}
+      </Panel>
+    );
+  };
+
   // Reading order: the economics headline first, then growth (volume, then
   // users and nodes), then operational detail. Inside each group the
   // strongest signal leads and the fine print closes it.
@@ -1004,7 +999,8 @@ const StatsSection: React.FC = () => {
   }[] = [
     {
       caption: 'Fees',
-      // The economics panel brings its own headline figures.
+      // The economics figures head the group, then what the protocol earns,
+      // then how that compares with what the subnet emits.
       tiles: [],
       lead: (
         <DailyEconomics
@@ -1012,16 +1008,10 @@ const StatsSection: React.FC = () => {
           loading={historyLoading || historyPlaceholder}
           days={feeDays}
           income={dailyIncome}
+          afterFigures={renderPanel('Protocol fees')}
         />
       ),
-      panels: ['Transaction fees', 'Reservation fees', 'Quote churn fees'],
-      // Three across when there is room; at medium widths the first takes
-      // the full row so the other two still pair.
-      span: {
-        'Transaction fees': { md: 12, lg: 4 },
-        'Reservation fees': { md: 6, lg: 4 },
-        'Quote churn fees': { md: 6, lg: 4 },
-      },
+      panels: [],
     },
     {
       caption: 'Volume',
@@ -1064,7 +1054,6 @@ const StatsSection: React.FC = () => {
     },
   ];
   const tileByLabel = new Map(tiles.map((t) => [t.label, t]));
-  const panelByTitle = new Map(panels.map((p) => [p.title, p]));
 
   return (
     <Stack gap={{ xs: 5, md: 6 }}>
@@ -1094,11 +1083,9 @@ const StatsSection: React.FC = () => {
             color: 'text.secondary',
           }}
         >
-          everything follows the range; running totals count from launch · one
-          column per UTC day, today still filling ·{' '}
-          {pointInTime
-            ? 'dollars at the price of each swap’s hour'
-            : 'dollars estimated at today’s prices'}
+          {/* Short enough to share the row with the range control; each
+              chart's subtitle carries its own price basis. */}
+          one column per UTC day · running totals count from launch
         </Typography>
         <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Box>
@@ -1139,29 +1126,23 @@ const StatsSection: React.FC = () => {
             </Grid>
           )}
           {g.lead}
-          <Grid container spacing={{ xs: 2, md: 3 }}>
-            {g.panels.map((title) => {
-              const p = panelByTitle.get(title)!;
-              return (
-                <Grid
-                  item
-                  xs={12}
-                  md={g.span?.[title]?.md ?? 6}
-                  lg={g.span?.[title]?.lg ?? 6}
-                  key={title}
-                >
-                  <Panel
-                    title={p.title}
-                    subtitle={p.subtitle}
-                    info={p.info}
-                    headerRight={p.headerRight}
+          {g.panels.length > 0 && (
+            <Grid container spacing={{ xs: 2, md: 3 }}>
+              {g.panels.map((title) => {
+                return (
+                  <Grid
+                    item
+                    xs={12}
+                    md={g.span?.[title]?.md ?? 6}
+                    lg={g.span?.[title]?.lg ?? 6}
+                    key={title}
                   >
-                    {p.body}
-                  </Panel>
-                </Grid>
-              );
-            })}
-          </Grid>
+                    {renderPanel(title)}
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
         </Stack>
       ))}
     </Stack>

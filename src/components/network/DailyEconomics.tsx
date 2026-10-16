@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Grid, Typography, alpha, useTheme } from '@mui/material';
 import { Panel, PanelReadout, StatCell, TimeSeriesChart } from '../stats';
@@ -91,6 +91,7 @@ export default function DailyEconomics({
   loading,
   days,
   income,
+  afterFigures,
 }: {
   history?: HistoryRow[];
   loading: boolean;
@@ -101,6 +102,8 @@ export default function DailyEconomics({
     isLoading: boolean;
     solUsdError: boolean;
   };
+  /** Rendered between the headline figures and the emissions chart. */
+  afterFigures?: React.ReactNode;
 }) {
   const theme = useTheme();
   const emission = useQuery({
@@ -194,6 +197,7 @@ export default function DailyEconomics({
           />
         </Grid>
       </Grid>
+      {afterFigures && <Box sx={{ mb: { xs: 2, md: 3 } }}>{afterFigures}</Box>}
       <Panel
         title="Fees vs. emissions"
         subtitle={`per day · emissions by recipient, fees as a line · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
