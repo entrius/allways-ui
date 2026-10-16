@@ -242,3 +242,37 @@ export function weeklyEconomics(rows: EconomicsDay[]): EconomicsDay[] {
   }
   return weeks;
 }
+
+/** Running totals day by day; a field goes null from its first gap on, so a
+ * missing day never reads as a flat stretch. */
+export function cumulativeEconomics(rows: EconomicsDay[]): EconomicsDay[] {
+  const keys = [
+    'fees',
+    'swapFees',
+    'reservationFees',
+    'churnFees',
+    'emissions',
+    'burned',
+    'owner',
+    'validators',
+  ] as const;
+  const run: Record<(typeof keys)[number], number | null> = {
+    fees: 0,
+    swapFees: 0,
+    reservationFees: 0,
+    churnFees: 0,
+    emissions: 0,
+    burned: 0,
+    owner: 0,
+    validators: 0,
+  };
+  return rows.map((r) => {
+    const out = { ...r };
+    for (const k of keys) {
+      const v = r[k];
+      run[k] = run[k] === null || v === null ? null : run[k]! + v;
+      out[k] = run[k];
+    }
+    return out;
+  });
+}

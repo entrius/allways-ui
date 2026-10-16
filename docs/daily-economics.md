@@ -242,3 +242,10 @@ caption line under the chart (miners paid, burned and never emitted,
 validators, owner, total emitted). Weekly bars print their total on top
 (`stackTotals`), the axis reads week ranges ("Oct 9 – 15"), and the readout's
 arrow uses the market colours.
+
+Fees chart functionality (2026-10-16): a Daily / Weekly / Total switch above
+the chart (weekly is the default on 30D and ALL, daily on 7D; Total is a
+running total via `cumulativeEconomics`). Everything follows the legend: the
+readout counts only the fee sources shown and names them ("transaction + churn
+fees 30.6% of miner pay last week"), and weekly totals sum only the visible
+segments and sit on the top visible one (the chart re-renders on legend clicks).

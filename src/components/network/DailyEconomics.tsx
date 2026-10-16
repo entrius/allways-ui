@@ -9,6 +9,7 @@ import {
   dailyEconomics,
   UTC_DAY_MS,
   weeklyEconomics,
+  cumulativeEconomics,
   type EconomicsDay,
   type EmissionDay,
   type PricePoint,
@@ -16,6 +17,7 @@ import {
 } from '../../utils/dailyEconomics';
 import { formatUsd, formatUsdCompact } from '../../utils/format';
 import { FONTS } from '../../theme';
+import RangeChips from '../RangeChips';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
 type EmissionHistory = {
@@ -89,6 +91,23 @@ async function loadEmissions(): Promise<EmissionHistory> {
   };
 }
 
+type Grouping = 'daily' | 'weekly' | 'total';
+
+// The fee sources, in stack order; the readout counts only those shown.
+const FEE_SOURCES: {
+  name: string;
+  label: string;
+  pick: (r: EconomicsDay) => number | null;
+}[] = [
+  { name: 'Transaction fees', label: 'transaction', pick: (r) => r.swapFees },
+  {
+    name: 'Reservation fees',
+    label: 'reservation',
+    pick: (r) => r.reservationFees,
+  },
+  { name: 'Quote churn fees', label: 'churn', pick: (r) => r.churnFees },
+];
+
 // What fees are measured against, smallest first: what miners were paid
 // (the default), then adding validators, then everything emitted.
 const REFERENCES: {
@@ -157,6 +176,7 @@ export default function DailyEconomics({
   const [now, setNow] = useState(Date.now);
   // Which recipients the legend shows; the readout compares fees with them.
   const [shown, setShown] = useState<Record<string, boolean>>({});
+  const [picked, setPicked] = useState<Grouping | null>(null);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
@@ -233,25 +253,52 @@ export default function DailyEconomics({
   const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`);
   const ink = theme.palette.text.primary;
   const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
-  // Weekly on longer ranges: one busy day otherwise hides the trend.
-  const weekly = days > 7;
-  const buckets = weekly ? weeklyEconomics(rows) : rows;
+  // Grouping, the way DefiLlama and Token Terminal offer it: weekly by
+  // default on longer ranges (one busy day otherwise hides the trend),
+  // daily, or a running total.
+  const groupings: readonly Grouping[] =
+    days > 7 ? ['daily', 'weekly', 'total'] : ['daily', 'total'];
+  const grouping =
+    picked && groupings.includes(picked)
+      ? picked
+      : days > 7
+        ? 'weekly'
+        : 'daily';
+  const weekly = grouping === 'weekly';
+  const buckets = weekly
+    ? weeklyEconomics(rows)
+    : grouping === 'total'
+      ? cumulativeEconomics(rows)
+      : rows;
   // The reference fees are compared with: miner pay by default, or the
   // largest one switched on in the legend. The burn is never part of it.
   const on = REFERENCES.filter((r) => shown[r.name] ?? false);
   const ref = on[on.length - 1] ?? REFERENCES[0];
+  // ...and only the fee sources the legend shows.
+  const sources = FEE_SOURCES.filter((f) => shown[f.name] ?? true);
+  const feesOf = (r: EconomicsDay) => {
+    const parts = sources.map((f) => f.pick(r));
+    return parts.some((v) => v === null)
+      ? null
+      : parts.reduce<number>((a, v) => a + (v as number), 0);
+  };
+  const feeLabel =
+    sources.length === FEE_SOURCES.length
+      ? 'fees'
+      : `${sources.map((f) => f.label).join(' + ')} fees`;
   const ratio = (r?: EconomicsDay) => {
     const base = r ? ref.pick(r) : null;
-    return r && r.fees !== null && base ? (r.fees / base) * 100 : null;
+    const fees = r ? feesOf(r) : null;
+    return fees !== null && base ? (fees / base) * 100 : null;
   };
   const readout = (() => {
     if (weekly) {
       const last = ratio(buckets[buckets.length - 1]);
       const prev = ratio(buckets[buckets.length - 2]);
-      if (last === null) return undefined;
+      if (last === null || !sources.length) return undefined;
       return (
         <PanelReadout>
-          fees {pct(last)} of {ref.label} last week
+          {feeLabel} {pct(last)} of {ref.label} last week
           {prev !== null && (
             <Box
               component="span"
@@ -273,10 +320,13 @@ export default function DailyEconomics({
     const base = rows.every((r) => ref.pick(r) !== null)
       ? rows.reduce((a, r) => a + (ref.pick(r) as number), 0)
       : null;
-    if (totals.fees === null || !base) return undefined;
+    const fees = rows.every((r) => feesOf(r) !== null)
+      ? rows.reduce((a, r) => a + (feesOf(r) as number), 0)
+      : null;
+    if (fees === null || !base || !sources.length) return undefined;
     return (
       <PanelReadout>
-        fees {pct((totals.fees / base) * 100)} of {ref.label} in range
+        {feeLabel} {pct((fees / base) * 100)} of {ref.label} in range
       </PanelReadout>
     );
   })();
@@ -335,14 +385,23 @@ export default function DailyEconomics({
       </Grid>
       <Panel
         title="Protocol fees"
-        subtitle={
+        subtitle={`${
           weekly
-            ? 'per week · by source · add miner pay from the legend'
-            : `per day · by source · add miner pay from the legend · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`
-        }
+            ? 'per week'
+            : grouping === 'total'
+              ? 'running total'
+              : 'per day'
+        } · by source · add miner pay from the legend · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
         headerRight={readout}
-        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks. The figure at right compares them with what miners were paid; switch on miner pay, validator pay or total emissions in the legend to draw that line, and the figure follows the largest one shown. Weekly on 30D and ALL so one busy day doesn't hide the trend. Emissions are estimates from chain samples, not measured payouts."
+        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks. The figure at right compares them with what miners were paid; switch on miner pay, validator pay or total emissions in the legend to draw that line, and the figure follows the largest one shown. Group by day, by week (the default on 30D and ALL, so one busy day doesn't hide the trend) or as a running total. Emissions are estimates from chain samples, not measured payouts."
       >
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <RangeChips
+            value={grouping}
+            options={groupings}
+            onChange={setPicked}
+          />
+        </Box>
         <TimeSeriesChart
           daily
           noArea

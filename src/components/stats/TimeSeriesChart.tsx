@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as echarts from 'echarts/core';
 import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import {
@@ -219,6 +219,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   // Legend clicks survive a repaint: the option is rebuilt from this, not
   // from each series' default.
   const legendRef = useRef<Record<string, boolean>>({});
+  // Bumped on every legend click so labels that depend on what is shown
+  // (stack totals) are recomputed.
+  const [legendTick, setLegendTick] = useState(0);
   const legendCbRef = useRef(onLegendChange);
   legendCbRef.current = onLegendChange;
 
@@ -238,6 +241,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       const selected = (e as { selected: Record<string, boolean> }).selected;
       legendRef.current = selected;
       legendCbRef.current?.(selected);
+      setLegendTick((n) => n + 1);
     });
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(elRef.current);
@@ -303,8 +307,12 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     const stackTop = new Map<string, string>();
     const stackSum = new Map<string, Map<number, number>>();
     if (daily && stackTotals) {
+      // Only what the legend shows: hiding a source takes it out of the
+      // total, and the label moves to the top visible segment.
+      const visible = (s: ChartSeries) =>
+        legendRef.current[s.name] ?? !s.hiddenByDefault;
       for (const s of series) {
-        if (s.type !== 'bar' || !s.stack) continue;
+        if (s.type !== 'bar' || !s.stack || !visible(s)) continue;
         stackTop.set(s.stack, s.name);
         const sums = stackSum.get(s.stack) ?? new Map<number, number>();
         for (const p of s.points)
@@ -529,7 +537,13 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
               top: single || hideLegend ? 12 : 30,
               bottom: 28,
             }
-          : { left: 56, right: 16, top: 16, bottom: 28 },
+          : {
+              left: 56,
+              right: 16,
+              // Room above the tallest bar for its total label.
+              top: stackTotals ? 40 : 16,
+              bottom: 28,
+            },
         legend:
           single || hideLegend
             ? undefined
@@ -879,6 +893,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     xWindow,
     bucketDays,
     stackTotals,
+    legendTick,
   ]);
 
   return (
