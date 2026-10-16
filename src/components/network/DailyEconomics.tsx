@@ -145,19 +145,12 @@ export default function DailyEconomics({
   const usd = (v: number | null) => (v === null ? '—' : formatUsd(v));
   const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`);
   const ink = theme.palette.text.primary;
-  const caption = {
-    fontFamily: FONTS.mono,
-    fontSize: '0.62rem',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: 'text.secondary',
-  } as const;
   return (
     <Box id="daily-economics" sx={{ scrollMarginTop: 24 }}>
       <Panel
         title="Fees vs. emissions"
         subtitle={`${date(rows[0].t)} – ${date(rows[rows.length - 1].t)} · USD · today so far`}
-        info="Protocol fees (transaction, reservation and quote churn) fund buybacks. When the fee bars reach the dashed line, fees covered what miners earned that day. Emissions are estimates from chain samples, not measured payouts."
+        info="Bars are what SN7 emits each day, miners at the base, then validators, the owner, and the miner share burned. The line is protocol fees (transaction, reservation and quote churn), which fund buybacks. Where the line clears the miners segment, fees covered miner emissions. Emissions are estimates from chain samples, not measured payouts."
       >
         <Box
           sx={{
@@ -205,83 +198,53 @@ export default function DailyEconomics({
             }
           />
         </Box>
+        {/* One chart: what the subnet emits each day, stacked with miners at
+            the base, and protocol fees as a line over it. Where the line
+            clears the miners segment, fees covered miner emissions; the whole
+            stack is total emissions. Fees by source have their own charts. */}
         <TimeSeriesChart
           daily
           noArea
-          height={280}
+          height={320}
           loading={pending}
           formatValue={formatUsd}
           series={[
             {
-              name: 'Transaction fees',
+              name: 'Miners',
               type: 'bar',
-              stack: 'fees',
-              color: ink,
-              points: rows.map((r) => ({ t: r.t, value: r.swapFees })),
-            },
-            {
-              name: 'Reservation fees',
-              type: 'bar',
-              stack: 'fees',
-              color: alpha(ink, 0.55),
-              points: rows.map((r) => ({ t: r.t, value: r.reservationFees })),
-            },
-            {
-              name: 'Quote churn fees',
-              type: 'bar',
-              stack: 'fees',
-              color: alpha(ink, 0.28),
-              points: rows.map((r) => ({ t: r.t, value: r.churnFees })),
-            },
-            {
-              name: 'Miner emissions',
-              type: 'line',
-              dashed: true,
-              color: theme.palette.text.secondary,
+              stack: 'emissions',
+              color: alpha(ink, 0.5),
               points: rows.map((r) => ({ t: r.t, value: r.emissions })),
+            },
+            {
+              name: 'Validators',
+              type: 'bar',
+              stack: 'emissions',
+              color: alpha(ink, 0.3),
+              points: rows.map((r) => ({ t: r.t, value: r.validators })),
+            },
+            {
+              name: 'Owner',
+              type: 'bar',
+              stack: 'emissions',
+              color: alpha(ink, 0.16),
+              points: rows.map((r) => ({ t: r.t, value: r.owner })),
+            },
+            {
+              name: 'Miner burn',
+              type: 'bar',
+              stack: 'emissions',
+              color: alpha(ink, 0.06),
+              points: rows.map((r) => ({ t: r.t, value: r.burned })),
+            },
+            {
+              name: 'Protocol fees',
+              type: 'line',
+              color: ink,
+              points: rows.map((r) => ({ t: r.t, value: r.fees })),
             },
           ]}
         />
-        <Box>
-          <Typography sx={caption}>Where emissions go, per day</Typography>
-          <TimeSeriesChart
-            daily
-            noArea
-            height={200}
-            loading={pending}
-            formatValue={formatUsd}
-            series={[
-              {
-                name: 'Miners',
-                type: 'bar',
-                stack: 'emissions',
-                color: ink,
-                points: rows.map((r) => ({ t: r.t, value: r.emissions })),
-              },
-              {
-                name: 'Miner burn',
-                type: 'bar',
-                stack: 'emissions',
-                color: alpha(ink, 0.15),
-                points: rows.map((r) => ({ t: r.t, value: r.burned })),
-              },
-              {
-                name: 'Validators',
-                type: 'bar',
-                stack: 'emissions',
-                color: alpha(ink, 0.55),
-                points: rows.map((r) => ({ t: r.t, value: r.validators })),
-              },
-              {
-                name: 'Owner',
-                type: 'bar',
-                stack: 'emissions',
-                color: alpha(ink, 0.32),
-                points: rows.map((r) => ({ t: r.t, value: r.owner })),
-              },
-            ]}
-          />
-        </Box>
         <Typography sx={note}>
           {emission.isError
             ? 'Emission data is unavailable, so only fees are shown.'

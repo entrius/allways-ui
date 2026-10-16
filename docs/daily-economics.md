@@ -147,9 +147,11 @@ per day (reused days get the cut read once at their first sample block).  The po
 
 Four figures: Protocol fees, Miner emissions (burn in its tooltip), Fees cover
 (fees as % of miner emissions; % of total emissions in its tooltip) and Total
-emissions (owner / validators / miners / burned in its tooltip). Two charts:
-fee bars stacked by source against the miner emissions line, and where emissions
-go per day (miners, miner burn, validators, owner). One status line underneath.
+emissions (owner / validators / miners / burned in its tooltip). One chart: what SN7
+emits each day as stacked bars (miners at the base, then validators, owner and
+the burned miner share) with protocol fees as a line over it. Where the line
+clears the miners segment, fees covered miner emissions; the full stack is total
+emissions. Fees by source have their own per-day charts below the panel. One status line underneath.
 Earlier extras (per-source KPIs, the pre-burn line, the per-day % chart, days
 fees beat emissions) were cut for clarity; the summary helpers still compute
 them.
