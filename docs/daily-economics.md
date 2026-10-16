@@ -223,3 +223,12 @@ fees (validators, owner and the burn start switched off in the legend via
 top-right readout compares fees with whichever paid recipients are switched on
 ("of miner pay", "of miner + validator pay", "of total emissions"); the burn
 never counts. Legend state survives repaints (`onLegendChange`).
+
+Fees chart (2026-10-16, second pass): one "Protocol fees" chart replaces both
+the per-source fees chart and the emissions stack. Fee bars by source, weekly on
+30D and ALL (`weeklyEconomics`: whole complete weeks, today excluded) and daily
+on 7D. Miner pay, miner + validator pay and total emissions are dashed reference
+lines, all off at first so the fee bars set the scale. The readout shows
+momentum: "fees 42.9% of miner pay last week ▲ from 11.8%", against the largest
+reference switched on (miner pay by default). Real weekly data behind the
+choice: fees $1.3K, $1.7K, then $5.5K; 9%, 12%, then 43% of miner pay.

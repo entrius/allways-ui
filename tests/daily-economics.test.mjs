@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 const js = ts.transpileModule(readFileSync(new URL('../src/utils/dailyEconomics.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { dailyEconomics, economicsThroughNow, summarizeEconomics, solUsdForDay } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const { dailyEconomics, economicsThroughNow, summarizeEconomics, solUsdForDay, weeklyEconomics } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const now = Date.parse('2026-10-14T22:53:00Z');
 const t = '2026-10-13T00:00:00Z';
 test('complete UTC days exclude today, including DST-independent boundaries', () => {
@@ -116,4 +116,15 @@ test('total emissions add owner, validators and miners paid, never the burn', ()
   assert.equal(s.totalEmissions,234);
   assert.ok(Math.abs(s.totalCoverage - 100/234*100) < 1e-9);
   assert.equal(summarizeEconomics(dailyEconomics([{t,feesUsd:1,unpricedSwaps:0}],[{t,emissionsUsd:90}],1,now)).totalEmissions,null);
+});
+test('weekly buckets keep whole complete weeks only, newest last', () => {
+  const day = (i, fees) => ({t:i*86_400_000,fees,swapFees:fees,reservationFees:0,churnFees:0,emissions:10,burned:0,owner:0,validators:0});
+  const rows = [...Array.from({length:16},(_,i)=>day(i,i<2?null:1)), day(16,99)];
+  const weeks = weeklyEconomics(rows);
+  assert.equal(weeks.length,2);
+  assert.equal(weeks[1].t,9*86_400_000);
+  assert.equal(weeks[1].fees,7);
+  assert.equal(weeks[0].fees,7);
+  assert.equal(weeks[1].emissions,70);
+  assert.equal(weeklyEconomics([day(0,1)]).length,0);
 });

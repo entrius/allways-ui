@@ -212,3 +212,33 @@ export function summarizeEconomics(rows: EconomicsDay[]) {
       .length,
   };
 }
+
+/**
+ * Whole weeks of complete days, newest last, each stamped with its first
+ * day: spiky daily data reads as a trend once it is weekly. Today (the last,
+ * partial row) and any leftover days before the oldest full week are left
+ * out; a week with a gap in a field carries null for that field.
+ */
+export function weeklyEconomics(rows: EconomicsDay[]): EconomicsDay[] {
+  const complete = rows.slice(0, -1);
+  const weeks: EconomicsDay[] = [];
+  for (let end = complete.length; end - 7 >= 0; end -= 7) {
+    const days = complete.slice(end - 7, end);
+    const total = (pick: (r: EconomicsDay) => number | null) =>
+      days.every((r) => pick(r) !== null)
+        ? days.reduce((sum, r) => sum + pick(r)!, 0)
+        : null;
+    weeks.unshift({
+      t: days[0].t,
+      fees: total((r) => r.fees),
+      swapFees: total((r) => r.swapFees),
+      reservationFees: total((r) => r.reservationFees),
+      churnFees: total((r) => r.churnFees),
+      emissions: total((r) => r.emissions),
+      burned: total((r) => r.burned),
+      owner: total((r) => r.owner),
+      validators: total((r) => r.validators),
+    });
+  }
+  return weeks;
+}

@@ -133,6 +133,9 @@ type TimeSeriesChartProps = {
   xWindow?: { from: number; to: number };
   /** Called with every series' on/off state when the legend is clicked. */
   onLegendChange?: (selected: Record<string, boolean>) => void;
+  /** Daily mode with buckets this many days wide (7 = weeks): the tooltip
+   * names the week, and bars may grow wider. */
+  bucketDays?: number;
 };
 
 // Series name for the volume overlay — used to route tooltip formatting.
@@ -205,6 +208,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   hideLegend,
   xWindow,
   onLegendChange,
+  bucketDays = 1,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
@@ -326,7 +330,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 borderType: 'dashed' as const,
               }
             : { color: s.color, opacity: 0.75 },
-          barMaxWidth: 24,
+          barMaxWidth: bucketDays > 1 ? 56 : 24,
           ...(s.stack && { stack: s.stack }),
         };
       }
@@ -573,7 +577,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             if (!params.length) return '';
             const t = Number(params[0].axisValue);
             const when = daily
-              ? fmtDateUtc(t) + (t === inProgressT ? ' · in progress' : '')
+              ? (bucketDays > 1 ? `week of ${fmtDateUtc(t)}` : fmtDateUtc(t)) +
+                (t === inProgressT ? ' · in progress' : '')
               : market
                 ? fmtMarketTime(t, hourly)
                 : fmtTime(t, hourly);
@@ -830,6 +835,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     bandColor,
     hideLegend,
     xWindow,
+    bucketDays,
   ]);
 
   return (

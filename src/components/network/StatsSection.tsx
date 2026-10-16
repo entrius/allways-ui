@@ -6,7 +6,6 @@ import {
   Skeleton,
   Stack,
   Typography,
-  alpha,
   useTheme,
 } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
@@ -273,21 +272,6 @@ const StatsSection: React.FC = () => {
     [history, feeDays, dailyIncome.treasury, dailyIncome.solUsd],
   );
   const feeTotals = summarizeEconomics(feeRows);
-  // One stack: every fee source shares a column per day.
-  const feeBars = (
-    name: string,
-    pick: (r: (typeof feeRows)[number]) => number | null,
-    color: string,
-  ): ChartSeries[] => [
-    {
-      name,
-      type: 'bar' as const,
-      stack: 'fees',
-      color,
-      formatValue: formatUsd,
-      points: feeRows.map((r) => ({ t: r.t, value: pick(r) })),
-    },
-  ];
 
   // Exact all-time reliability, speed, size and reach, from every swap.
   const tape = useMemo(() => {
@@ -963,27 +947,6 @@ const StatsSection: React.FC = () => {
       ),
     },
     {
-      title: 'Protocol fees',
-      subtitle: 'per day · by source · USD at the time it was paid',
-      info: 'Every fee paid into the treasury, each day, stacked by source: transaction fees (the flat 1% the contract takes on each completed swap), reservation fees (SOL paid to request a reservation) and quote churn fees (SOL miners pay to change a quote within 10 minutes of its last update). All protocol fees fund buybacks.',
-      body: chart(
-        [
-          ...feeBars('Transaction fees', (r) => r.swapFees, ink),
-          ...feeBars(
-            'Reservation fees',
-            (r) => r.reservationFees,
-            alpha(ink, 0.55),
-          ),
-          ...feeBars('Quote churn fees', (r) => r.churnFees, alpha(ink, 0.28)),
-        ],
-        historyLoading || dailyIncome.isLoading,
-        usdCompact,
-      ),
-      headerRight: readout(
-        feeTotals.fees == null ? null : inRange(formatUsd(feeTotals.fees)),
-      ),
-    },
-    {
       title: 'Average transaction',
       subtitle: `per day · volume / swaps · ${money}`,
       info: 'That day’s completed volume divided by its completed swaps.',
@@ -1135,8 +1098,8 @@ const StatsSection: React.FC = () => {
     },
     {
       caption: 'Fees',
-      // The economics figures head the group, then what the protocol earns,
-      // then how that compares with what the subnet emits.
+      // The economics figures head the group, then one chart: fees by
+      // source against what miners were paid.
       tiles: [],
       lead: (
         <DailyEconomics
@@ -1144,7 +1107,6 @@ const StatsSection: React.FC = () => {
           loading={historyLoading || historyPlaceholder}
           days={feeDays}
           income={dailyIncome}
-          afterFigures={renderPanel('Protocol fees')}
         />
       ),
       panels: [],
