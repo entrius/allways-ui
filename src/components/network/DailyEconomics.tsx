@@ -150,23 +150,8 @@ export default function DailyEconomics({
   const ink = theme.palette.text.primary;
   return (
     <Box id="daily-economics" sx={{ scrollMarginTop: 24 }}>
-      {/* Five across on desktop (a ten-column row); on a phone two per row,
-          the total taking the last row on its own. */}
-      <Grid
-        container
-        columns={{ xs: 12, md: 10 }}
-        spacing={{ xs: 2, md: 3 }}
-        sx={{ mb: { xs: 2, md: 3 } }}
-      >
-        <Grid item xs={6} md={2}>
-          <StatCell
-            label="Protocol fees"
-            value={usd(totals.fees)}
-            loading={pending}
-            tooltip="transaction + reservation + quote churn fees, all spent on buybacks"
-          />
-        </Grid>
-        <Grid item xs={6} md={2}>
+      <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: { xs: 2, md: 3 } }}>
+        <Grid item xs={6} md={3}>
           <StatCell
             label="Fees vs. miner pay"
             value={pct(totals.coverage)}
@@ -178,7 +163,7 @@ export default function DailyEconomics({
             }`}
           />
         </Grid>
-        <Grid item xs={6} md={2}>
+        <Grid item xs={6} md={3}>
           <StatCell
             label="Miner emissions"
             value={usd(totals.emissions)}
@@ -186,7 +171,7 @@ export default function DailyEconomics({
             tooltip="what miners were paid, after the burn"
           />
         </Grid>
-        <Grid item xs={6} md={2}>
+        <Grid item xs={6} md={3}>
           <StatCell
             label={
               totals.burnRate === null
@@ -198,7 +183,7 @@ export default function DailyEconomics({
             tooltip="the miner share burned instead of paid, and its % of the miner share; never emitted, so not in total emissions; the burn rate changes over time"
           />
         </Grid>
-        <Grid item xs={12} md={2}>
+        <Grid item xs={6} md={3}>
           <StatCell
             label="Total emissions"
             value={usd(totals.totalEmissions)}

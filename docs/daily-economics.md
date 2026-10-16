@@ -193,3 +193,26 @@ Total emissions = owner + validators + miners paid. In the fees vs emissions
 chart the burn is a hollow dashed segment on top of each solid stack
 (`hollow` on a `TimeSeriesChart` bar series), labelled "Miner burn (not emitted)" and listed indented under Miners in the
 tooltip (`tooltipUnder`), with a hollow swatch.
+
+## Redesign (2026-10-16)
+
+Informed by Token Terminal, DefiLlama, ASXN's Hyperliquid revenue page and
+pump.fun's buyback page: a few headline numbers with change vs the equal prior
+period, economics before activity, run-rates labelled with their basis, today
+excluded from comparisons, methodology published under the charts.
+
+1. Overview: Total volume, Protocol fees, Annualized fees (complete-day average
+   x 365, basis printed), Total users; each with ▲/▼ vs the prior period
+   (complete UTC days only; ALL says "since launch").
+2. Fees: Fees vs. miner pay, Miner emissions, Miner burn, Total emissions; the
+   protocol fees chart by source; fees vs emissions.
+3. Volume: Transactions, Average, Largest, Active days; cumulative volume,
+   volume per day, transactions, volume by hub, top ten directions plus Other.
+4. Users and nodes: New users, Returning users, Nodes served, Active miners.
+5. Reliability: unchanged.
+6. How these numbers work: plain-language methodology.
+
+Treasury income loads for twice the window so fees can be compared; the full
+daily history (`/history?range=all&interval=day`) backs volume comparisons.
+Follow-ups not built yet: buybacks in alpha and USD (needs a buyback ledger),
+a weekly grouping toggle for spiky daily data, and a 90D range.

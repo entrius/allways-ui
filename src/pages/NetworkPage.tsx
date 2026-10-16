@@ -37,7 +37,7 @@ const SECTIONS = [
     id: 'stats',
     title: 'Network Stats',
     subtitle:
-      'All-time totals, then the network by day: volume, transactions, fees, reliability, users, settlement speed, throughput, nodes, directions and hubs.',
+      'What the protocol earns, how much it trades and who uses it, over 7D, 30D or all time, each against the period before.',
   },
 ] as const;
 

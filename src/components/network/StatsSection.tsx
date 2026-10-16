@@ -42,6 +42,7 @@ import {
 } from '../../utils/format';
 import {
   UTC_DAY_MS,
+  dailyEconomics,
   economicsThroughNow,
   summarizeEconomics,
 } from '../../utils/dailyEconomics';
@@ -162,6 +163,22 @@ const directionLabel = (s: ActiveSwap) =>
   `${assetLabel(s.sourceChain ?? '')} → ${assetLabel(s.destChain ?? '')}`;
 
 type ShareRow = { label: string; usd: number; pct: number; n: number };
+
+// The leaders and one "Other" row for the long tail, so a list of 50-odd
+// directions reads as a ranking rather than a ledger.
+const topWithOther = (rows: ShareRow[], keep: number): ShareRow[] => {
+  if (rows.length <= keep + 1) return rows;
+  const rest = rows.slice(keep);
+  return [
+    ...rows.slice(0, keep),
+    {
+      label: `Other · ${rest.length} directions`,
+      usd: rest.reduce((a, r) => a + r.usd, 0),
+      pct: rest.reduce((a, r) => a + r.pct, 0),
+      n: rest.reduce((a, r) => a + r.n, 0),
+    },
+  ];
+};
 type Tally = { usd: number; n: number };
 
 const StatsSection: React.FC = () => {
@@ -236,7 +253,13 @@ const StatsSection: React.FC = () => {
       : range === '30d' || firstDay == null
         ? 30
         : Math.max(1, Math.round((todayStart - firstDay) / UTC_DAY_MS));
-  const dailyIncome = useDailyTreasury(feeDays, todayStart);
+  // Every range compares with the period just before it, so treasury income
+  // loads for twice the window (cached per day; ALL has nothing before it).
+  const dailyIncome = useDailyTreasury(
+    range === 'all' ? feeDays : feeDays * 2,
+    todayStart,
+  );
+  const { data: allHistory } = useHistory('all' as HistoryRange, 'day');
   const feeRows = useMemo(
     () =>
       economicsThroughNow(
@@ -405,6 +428,7 @@ const StatsSection: React.FC = () => {
     const rangeSettle: number[] = [];
     const rangeFill: number[] = [];
     let rangeLargest: number | null = null;
+    const priorUsers = new Set<string>();
     let firstMs = Infinity;
 
     for (const s of swaps) {
@@ -445,6 +469,13 @@ const StatsSection: React.FC = () => {
         }
       }
 
+      if (
+        days != null &&
+        s.userAddress &&
+        startDay < sinceMs &&
+        startDay >= sinceMs - days * DAY_MS
+      )
+        priorUsers.add(s.userAddress);
       if (startDay < sinceMs) continue;
       if (s.userAddress) addTo(usersByDay, startDay, s.userAddress);
       if (s.status !== 'COMPLETED') continue;
@@ -474,6 +505,7 @@ const StatsSection: React.FC = () => {
       cumulativeNodes: [] as ChartSeries[],
       peakInFlight: [] as ChartSeries[],
       directions: [] as ShareRow[],
+      rangeDirections: 0,
       hubs: [] as ShareRow[],
       hubVolume: [] as ChartSeries[],
       rangeCompleted: 0,
@@ -486,6 +518,8 @@ const StatsSection: React.FC = () => {
       rangePeakInFlight: 0,
       rangeServingNodes: 0,
       rangeLargest: null as number | null,
+      rangeNewUsers: 0,
+      priorUsers: null as number | null,
       rangeActiveDays: 0,
       rangeDays: 0,
       settleMax: 0,
@@ -620,7 +654,8 @@ const StatsSection: React.FC = () => {
       peakInFlight: [
         bar('Peak concurrent', ink, (t) => peakByDay.get(t) ?? null),
       ],
-      directions: shares(byDirection),
+      directions: topWithOther(shares(byDirection), 10),
+      rangeDirections: byDirection.size,
       hubs: shares(byHub).map((h) => ({
         ...h,
         label: `${chainSymbol(h.label)} hub`,
@@ -649,6 +684,9 @@ const StatsSection: React.FC = () => {
       ),
       rangeServingNodes: distinct(servingByDay.values()),
       rangeLargest,
+      rangeNewUsers: [...userFirstDay.values()].filter((d) => d >= sinceMs)
+        .length,
+      priorUsers: days == null ? null : priorUsers.size,
       rangeActiveDays: dayList.filter((t) => (completedByDay.get(t) ?? 0) > 0)
         .length,
       rangeDays: dayList.length,
@@ -683,13 +721,94 @@ const StatsSection: React.FC = () => {
   // Every figure covers the selected range, like the charts beneath it;
   // only the live counts (in flight, active miners) describe right now.
   const usdTile = (v: number | null) => (v == null ? '—' : formatUsd(v));
+
+  // --- Change vs the previous period ---------------------------------------
+  // Complete UTC days only, so today's partial day never makes a period look
+  // weaker than the one before. ALL has nothing before it: "since launch".
+  const compare = range !== 'all';
+  const windowStart = todayStart - feeDays * UTC_DAY_MS;
+  const priorStart = windowStart - feeDays * UTC_DAY_MS;
+  const histSum = (
+    from: number,
+    to: number,
+    pick: (r: HistoryRow) => number | null,
+  ) =>
+    (allHistory ?? [])
+      .filter((r) => ms(r.t) >= from && ms(r.t) < to)
+      .reduce((a, r) => a + (pick(r) ?? 0), 0);
+  const change = (cur: number | null, prev: number | null) =>
+    cur == null || prev == null || prev <= 0 ? null : (cur / prev - 1) * 100;
+  const deltaCaption = compare
+    ? `vs prior ${range.toUpperCase()}`
+    : 'since launch';
+  const delta = (pct: number | null) => ({
+    pct: compare ? pct : null,
+    caption: deltaCaption,
+  });
+  const completeFees = (now: number) =>
+    summarizeEconomics(
+      dailyEconomics(
+        allHistory ?? [],
+        [],
+        feeDays,
+        now,
+        dailyIncome.treasury,
+        dailyIncome.solUsd ?? [],
+      ),
+    ).fees;
+  const feesNow = completeFees(todayStart);
+  const feesPrior = compare ? completeFees(windowStart) : null;
+  // Annualized at this range's daily pace (complete days), the run-rate
+  // convention protocol dashboards use, always labelled with its basis.
+  const annualizedFees = feesNow == null ? null : (feesNow / feeDays) * 365;
+  const volumeChange = change(
+    histSum(windowStart, todayStart, volume),
+    histSum(priorStart, windowStart, volume),
+  );
   const tiles: {
     label: string;
     value: string;
     unit?: string;
     loading: boolean;
     tooltip?: string;
+    delta?: { pct: number | null; caption: string };
   }[] = [
+    // Overview: the four numbers the page leads with.
+    {
+      label: 'Total volume',
+      value: moneyValue(series.rangeVolume),
+      unit: usdMode ? undefined : 'SOL',
+      loading: historyLoading,
+      tooltip: `completed swap volume in range · ${money}`,
+      delta: delta(volumeChange),
+    },
+    {
+      label: 'Protocol fees',
+      value: usdTile(feeTotals.fees),
+      loading: historyLoading || dailyIncome.isLoading,
+      tooltip:
+        'transaction + reservation + quote churn fees, all spent on buybacks',
+      delta: delta(change(feesNow, feesPrior)),
+    },
+    {
+      label: 'Annualized fees',
+      value: usdTile(annualizedFees),
+      loading: historyLoading || dailyIncome.isLoading,
+      tooltip: 'protocol fees per complete day in range × 365',
+      delta: {
+        pct: null,
+        caption: compare
+          ? `at the ${range.toUpperCase()} daily average`
+          : 'at the all-time daily average',
+      },
+    },
+    {
+      label: 'Total users',
+      value: count(derived.rangeUsers),
+      loading: swapsLoading,
+      tooltip: 'distinct addresses that started a swap in range',
+      delta: delta(change(derived.rangeUsers, derived.priorUsers)),
+    },
     {
       label: 'Volume',
       value: moneyValue(series.rangeVolume),
@@ -754,10 +873,17 @@ const StatsSection: React.FC = () => {
       tooltip: 'live: swaps open right now',
     },
     {
-      label: 'Users',
-      value: count(derived.rangeUsers),
+      label: 'New users',
+      value: count(derived.rangeNewUsers),
       loading: swapsLoading,
-      tooltip: 'distinct user addresses that initiated a swap in range',
+      tooltip: 'addresses whose first ever swap was in range',
+    },
+    {
+      label: 'Returning users',
+      value: count(Math.max(0, derived.rangeUsers - derived.rangeNewUsers)),
+      loading: swapsLoading,
+      tooltip:
+        'addresses that had swapped before the range and swapped again in it',
     },
     {
       label: 'Active miners',
@@ -817,7 +943,7 @@ const StatsSection: React.FC = () => {
       info: 'One column a day: swaps that completed, with the ones that timed out stacked on top in red, by the day they resolved.',
       body: chart(derived.outcomes, swapsLoading, compact, { integerY: true }),
       headerRight: readout(
-        `${count(derived.rangeCompleted)} completed · ${count(derived.rangeTimedOut)} timed out`,
+        `${count(series.rangeSwaps)} completed · ${count(derived.rangeTimedOut)} timed out`,
       ),
     },
     {
@@ -950,7 +1076,7 @@ const StatsSection: React.FC = () => {
         />
       ),
       headerRight: readout(
-        inRange(`${count(derived.directions.length)} directions`),
+        inRange(`${count(derived.rangeDirections)} directions`),
       ),
     },
     {
@@ -998,6 +1124,16 @@ const StatsSection: React.FC = () => {
     span?: Record<string, { md: number; lg: number }>;
   }[] = [
     {
+      caption: 'Overview',
+      tiles: [
+        'Total volume',
+        'Protocol fees',
+        'Annualized fees',
+        'Total users',
+      ],
+      panels: [],
+    },
+    {
       caption: 'Fees',
       // The economics figures head the group, then what the protocol earns,
       // then how that compares with what the subnet emits.
@@ -1016,25 +1152,23 @@ const StatsSection: React.FC = () => {
     {
       caption: 'Volume',
       tiles: [
-        'Volume',
         'Transactions',
         'Average transaction',
         'Largest transaction',
+        'Active days',
       ],
       panels: [
         'Cumulative volume',
-        'Cumulative transactions',
         'Volume',
         'Transactions',
         'Volume by hub',
-        'Average transaction',
         'Volume by direction',
       ],
       span: { 'Volume by direction': { md: 12, lg: 12 } },
     },
     {
       caption: 'Users and nodes',
-      tiles: ['Users', 'Nodes served', 'Active miners', 'Active days'],
+      tiles: ['New users', 'Returning users', 'Nodes served', 'Active miners'],
       panels: ['Unique users', 'Nodes ever served', 'Users', 'Serving nodes'],
     },
     {
@@ -1119,6 +1253,7 @@ const StatsSection: React.FC = () => {
                       unit={t.unit}
                       loading={t.loading}
                       tooltip={t.tooltip}
+                      delta={t.delta}
                     />
                   </Grid>
                 );
@@ -1145,9 +1280,73 @@ const StatsSection: React.FC = () => {
           )}
         </Stack>
       ))}
+      <Methodology />
     </Stack>
   );
 };
+
+// Plain-language definitions under the charts, the way the established
+// protocol dashboards publish their methodology next to the numbers.
+const METHODOLOGY: [string, string][] = [
+  [
+    'Days',
+    'One column per UTC day. Today is still filling: drawn outlined, and left out of every “vs prior” comparison so a partial day never reads as a drop.',
+  ],
+  [
+    'Protocol fees',
+    'The 1% transaction fee on every completed swap, plus reservation fees and quote churn fees paid in SOL. All of it funds buybacks. Transaction fees are valued at the swap’s hour; SOL fees at that day’s average SOL price.',
+  ],
+  [
+    'Annualized fees',
+    'Protocol fees per complete day in the range, times 365. A run-rate at the stated pace, not a forecast.',
+  ],
+  [
+    'Emissions',
+    'Estimated from four chain samples a day at that day’s prices: the owner’s cut comes off first, validators and miners split the rest, and part of the miner half is burned. Burned alpha was never emitted, so it is not in total emissions.',
+  ],
+  [
+    'Vs prior',
+    'The same number of complete days immediately before the range. ALL has no prior period.',
+  ],
+];
+
+const Methodology: React.FC = () => (
+  <Stack
+    component="section"
+    gap={1}
+    sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}
+  >
+    <Typography
+      component="h3"
+      sx={{
+        fontFamily: FONTS.mono,
+        fontSize: '0.7rem',
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color: 'text.secondary',
+      }}
+    >
+      How these numbers work
+    </Typography>
+    {METHODOLOGY.map(([term, text]) => (
+      <Typography
+        key={term}
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.62rem',
+          lineHeight: 1.6,
+          color: 'text.secondary',
+          maxWidth: 820,
+        }}
+      >
+        <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
+          {term}.
+        </Box>{' '}
+        {text}
+      </Typography>
+    ))}
+  </Stack>
+);
 
 /**
  * Ranked shares: label, share, amount and count on one line, an 8px ink bar
