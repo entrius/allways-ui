@@ -22,7 +22,6 @@ import {
   useCompleteSwapHistory,
   useHistory,
   useDailyTreasury,
-  useHaltHistory,
   useStats,
   useUsdPrices,
   type HistoryRange,
@@ -46,7 +45,6 @@ import {
   economicsThroughNow,
   summarizeEconomics,
 } from '../../utils/dailyEconomics';
-import { haltPeriods } from '../../utils/halts';
 import { FONTS } from '../../theme';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
@@ -261,8 +259,6 @@ const StatsSection: React.FC = () => {
     todayStart,
   );
   const { data: allHistory } = useHistory('all' as HistoryRange, 'day');
-  const { data: haltEvents } = useHaltHistory();
-  const halts = useMemo(() => haltPeriods(haltEvents ?? []), [haltEvents]);
   const feeRows = useMemo(
     () =>
       economicsThroughNow(
@@ -697,7 +693,6 @@ const StatsSection: React.FC = () => {
       loading={loading}
       formatValue={format}
       emptyLabel="nothing in this range"
-      halts={halts}
       {...extra}
     />
   );
@@ -1147,7 +1142,6 @@ const StatsSection: React.FC = () => {
           loading={historyLoading || historyPlaceholder}
           days={feeDays}
           income={dailyIncome}
-          halts={halts}
         />
       ),
       panels: [],
