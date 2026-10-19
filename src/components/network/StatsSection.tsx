@@ -63,7 +63,7 @@ import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
  *   with an area, so growth is the shape;
  * - per-day quantities (volume, users, nodes, concurrency, peak hour) are
  *   bars, so a quiet day is an empty slot rather than a line bridging it;
- * - outcomes are one stacked column a day, completed beneath and timed out
+ * - outcomes are one stacked column a day, completed beneath and refunded
  *   in red on top, so the failures are visible in proportion;
  * - the success rate is a trailing 7-day line, which smooths a lone timeout
  *   on a quiet day into the share it really is;
@@ -612,7 +612,7 @@ const StatsSection: React.FC = () => {
         bar('Completed', ink, (t) => completedByDay.get(t) ?? null, {
           stack: 'outcomes',
         }),
-        bar('Timed out', red, (t) => timedOutByDay.get(t) ?? null, {
+        bar('Refunded', red, (t) => timedOutByDay.get(t) ?? null, {
           stack: 'outcomes',
         }),
       ],
@@ -835,7 +835,7 @@ const StatsSection: React.FC = () => {
           : derived.rangeSuccessRate.toFixed(1),
       unit: derived.rangeSuccessRate == null ? undefined : '%',
       loading: swapsLoading,
-      tooltip: 'completed / (completed + timed out), resolved in range',
+      tooltip: 'completed / (completed + refunded), resolved in range',
     },
     {
       label: 'Median settlement',
@@ -850,10 +850,11 @@ const StatsSection: React.FC = () => {
           : `median fill ${secs(derived.rangeMedianFill)}, in range`,
     },
     {
-      label: 'Timed out',
+      label: 'Refunded',
       value: count(derived.rangeTimedOut),
       loading: swapsLoading,
-      tooltip: 'swaps that expired before settling, in range',
+      tooltip:
+        'the miner missed the deadline, so the user was paid 1.1× from its collateral, in range',
     },
     {
       label: 'In flight now',
@@ -928,17 +929,17 @@ const StatsSection: React.FC = () => {
     },
     {
       title: 'Transactions',
-      subtitle: 'per day · completed, timed out in red',
-      info: 'One column a day: swaps that completed, with the ones that timed out stacked on top in red, by the day they resolved.',
+      subtitle: 'per day · completed, refunded in red',
+      info: 'One column a day: swaps that completed, with the refunded ones stacked on top in red, by the day they resolved. A swap is refunded when its miner misses the deadline: the user is paid 1.1× its value from the miner’s collateral.',
       body: chart(derived.outcomes, swapsLoading, compact, { integerY: true }),
       headerRight: readout(
-        `${count(series.rangeSwaps)} completed · ${count(derived.rangeTimedOut)} timed out`,
+        `${count(series.rangeSwaps)} completed · ${count(derived.rangeTimedOut)} refunded`,
       ),
     },
     {
       title: 'Success rate',
       subtitle: `per day · completed share, trailing ${TRAILING_DAYS} days`,
-      info: `For each day, completed / (completed + timed out) over the ${TRAILING_DAYS} days ending that day, so one timeout on a quiet day reads as the share it is. Blank while nothing resolved in the window. The figure at right is the same share over the whole range.`,
+      info: `For each day, completed / (completed + refunded) over the ${TRAILING_DAYS} days ending that day, so one refund on a quiet day reads as the share it is. Blank while nothing resolved in the window. The figure at right is the same share over the whole range.`,
       body: chart(
         derived.successRate,
         swapsLoading,
@@ -1125,12 +1126,7 @@ const StatsSection: React.FC = () => {
     },
     {
       caption: 'Reliability',
-      tiles: [
-        'Success rate',
-        'Median settlement',
-        'In flight now',
-        'Timed out',
-      ],
+      tiles: ['Success rate', 'Median settlement', 'In flight now', 'Refunded'],
       panels: [
         'Success rate',
         'Settlement time',
