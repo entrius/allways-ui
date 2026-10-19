@@ -165,6 +165,14 @@ export default function DailyEconomics({
     pct: rangeLabel ? change(pick) : null,
     caption,
   });
+  const coverageDelta = {
+    pct:
+      cur?.coverage != null && prior?.coverage != null
+        ? cur.coverage - prior.coverage
+        : null,
+    caption,
+    points: true,
+  };
   const pending = loading || emission.isLoading || income.isLoading;
   const stale =
     emission.data &&
@@ -217,12 +225,8 @@ export default function DailyEconomics({
         </PanelReadout>
       );
     }
-    if (totals.coverage === null) return undefined;
-    return (
-      <PanelReadout>
-        fees {pct(totals.coverage)} of miner pay in range
-      </PanelReadout>
-    );
+    // Daily: the meter above already carries the range's figure.
+    return undefined;
   })();
   return (
     <Box id="daily-economics" sx={{ scrollMarginTop: 24 }}>
@@ -270,11 +274,27 @@ export default function DailyEconomics({
           />
         </Grid>
       </Grid>
+      <Box sx={{ mb: { xs: 2, md: 3 } }}>
+        <StatCell
+          label="Fees offset"
+          loading={pending}
+          tooltip="protocol fees ÷ what miners were paid in the range. Fees buy back alpha, so at 100% the buybacks fully offset miner emissions."
+          delta={coverageDelta}
+        >
+          <OffsetMeter
+            coverage={totals.coverage}
+            fees={totals.fees}
+            minerPay={totals.emissions}
+            coveredDays={totals.coveredDays}
+            comparableDays={totals.comparableDays}
+          />
+        </StatCell>
+      </Box>
       <Panel
-        title="Protocol fees"
-        subtitle={`${weekly ? 'per week' : 'per day'} · by source · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
+        title="Fees vs. miner pay"
+        subtitle={`${weekly ? 'per week' : 'per day'} · fees by source, miner pay dashed · ${date(rows[0].t)} – ${date(rows[rows.length - 1].t)}`}
         headerRight={readout}
-        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks. The figure at right compares them with what miners were paid. Daily on 7D, weekly on 30D and ALL so one busy day doesn't hide the trend. Emissions are estimates from chain samples, not measured payouts."
+        info="Protocol fees by source (transaction, reservation and quote churn), all spent on buybacks, with what miners were paid as a dashed line. A column above the line is a period where fees fully offset miner emissions. On weekly views the figure at right is the latest week's share. Daily on 7D, weekly on 30D and ALL so one busy day doesn't hide the trend. Emissions are estimates from chain samples, not measured payouts."
       >
         <TimeSeriesChart
           daily
@@ -313,6 +333,14 @@ export default function DailyEconomics({
               color: alpha(ink, 0.28),
               points: buckets.map((r) => ({ t: r.t, value: r.churnFees })),
             },
+            {
+              name: 'Miner pay',
+              formatValue: formatUsd,
+              color: ink,
+              dashed: true,
+              straight: true,
+              points: buckets.map((r) => ({ t: r.t, value: r.emissions })),
+            },
           ]}
         />
         {totals.emissions !== null && (
@@ -340,6 +368,115 @@ export default function DailyEconomics({
                   }`}
         </Typography>
       </Panel>
+    </Box>
+  );
+}
+
+/** How much of miner pay the fees offset, on a track with 100% marked: past
+ * the mark, buybacks outweighed what miners were paid. */
+function OffsetMeter({
+  coverage,
+  fees,
+  minerPay,
+  coveredDays,
+  comparableDays,
+}: {
+  coverage: number | null;
+  fees: number | null;
+  minerPay: number | null;
+  coveredDays: number;
+  comparableDays: number;
+}) {
+  const theme = useTheme();
+  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
+  const mono = { fontFamily: FONTS.mono, fontVariantNumeric: 'tabular-nums' };
+  if (coverage === null || fees === null || minerPay === null)
+    return (
+      <Typography sx={{ ...mono, fontSize: '1.4rem', fontWeight: 700 }}>
+        —
+      </Typography>
+    );
+  const offset = coverage >= 100;
+  // The track runs to 150% (or further when fees ran past it), so the 100%
+  // mark sits two thirds along and a surplus has room to show.
+  const scale = Math.max(150, coverage * 1.1);
+  const at = (v: number) => `${Math.min(100, (v / scale) * 100)}%`;
+  const gap = fees - minerPay;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 1,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Typography
+          sx={{ ...mono, fontSize: '1.4rem', fontWeight: 700, lineHeight: 1 }}
+        >
+          {coverage.toFixed(1)}%
+        </Typography>
+        <Typography
+          sx={{ ...mono, fontSize: '0.72rem', color: 'text.secondary' }}
+        >
+          {offset
+            ? 'fees fully offset miner pay'
+            : 'of miner pay offset by fees'}
+        </Typography>
+      </Box>
+      <Box sx={{ position: 'relative', pt: 2 }}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: at(100),
+            transform: 'translateX(-50%)',
+            ...mono,
+            fontSize: '0.58rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'text.secondary',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          100% · fully offset
+        </Box>
+        <Box sx={{ position: 'relative', height: 10, bgcolor: 'action.hover' }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              right: 'auto',
+              width: at(coverage),
+              bgcolor: offset ? move.up : 'text.primary',
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              top: -4,
+              bottom: -4,
+              left: at(100),
+              borderLeft: '1px dashed',
+              borderColor: 'text.primary',
+            }}
+          />
+        </Box>
+      </Box>
+      <Typography
+        sx={{ ...mono, fontSize: '0.62rem', color: 'text.secondary' }}
+      >
+        {formatUsd(fees)} fees vs {formatUsd(minerPay)} miner pay ·{' '}
+        <Box
+          component="span"
+          sx={{ color: gap >= 0 ? move.up : 'text.primary', fontWeight: 600 }}
+        >
+          {formatUsd(Math.abs(gap))} {gap >= 0 ? 'surplus' : 'short'}
+        </Box>
+        {comparableDays > 0 &&
+          ` · fees beat miner pay on ${coveredDays} of ${comparableDays} days`}
+      </Typography>
     </Box>
   );
 }
