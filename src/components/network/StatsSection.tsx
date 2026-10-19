@@ -1076,9 +1076,9 @@ const StatsSection: React.FC = () => {
     );
   };
 
-  // Reading order: the economics headline first, then growth (volume, then
-  // users and nodes), then operational detail. Inside each group the
-  // strongest signal leads and the fine print closes it.
+  // Reading order: the overview headline first, then growth (volume, then
+  // users and nodes), then operational detail, and the fee breakdown last.
+  // Inside each group the strongest signal leads and the fine print closes it.
   const groups: {
     caption: string;
     tiles: string[];
@@ -1094,23 +1094,6 @@ const StatsSection: React.FC = () => {
         'Annualized fees',
         'Total users',
       ],
-      panels: [],
-    },
-    {
-      caption: 'Fees',
-      // The economics figures head the group, then one chart: fees by
-      // source against what miners were paid.
-      tiles: [],
-      lead: (
-        <DailyEconomics
-          history={history}
-          allHistory={allHistory}
-          rangeLabel={range === 'all' ? null : range.toUpperCase()}
-          loading={historyLoading || historyPlaceholder}
-          days={feeDays}
-          income={dailyIncome}
-        />
-      ),
       panels: [],
     },
     {
@@ -1149,6 +1132,23 @@ const StatsSection: React.FC = () => {
         'Peak throughput',
         'Peak concurrent transactions',
       ],
+    },
+    {
+      caption: 'Fees',
+      // The economics figures head the group, then one chart: fees by
+      // source against what miners were paid.
+      tiles: [],
+      lead: (
+        <DailyEconomics
+          history={history}
+          allHistory={allHistory}
+          rangeLabel={range === 'all' ? null : range.toUpperCase()}
+          loading={historyLoading || historyPlaceholder}
+          days={feeDays}
+          income={dailyIncome}
+        />
+      ),
+      panels: [],
     },
   ];
   const tileByLabel = new Map(tiles.map((t) => [t.label, t]));
