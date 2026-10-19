@@ -165,19 +165,6 @@ export default function DailyEconomics({
     pct: rangeLabel ? change(pick) : null,
     caption,
   });
-  // The latest whole week, the momentum the chart leads with.
-  const lastWeekCoverage = (() => {
-    const w = weeklyEconomics(rows);
-    return w.length ? summarizeEconomics([w[w.length - 1]]).coverage : null;
-  })();
-  const coverageDelta = {
-    pct:
-      cur?.coverage != null && prior?.coverage != null
-        ? cur.coverage - prior.coverage
-        : null,
-    caption,
-    points: true,
-  };
   const pending = loading || emission.isLoading || income.isLoading;
   const stale =
     emission.data &&
@@ -271,22 +258,15 @@ export default function DailyEconomics({
         </Grid>
         <Grid item xs={6} md={3}>
           <StatCell
-            label="Fees vs. miner pay"
-            value={pct(totals.coverage)}
+            label="Miner pay"
+            value={usd(totals.emissions)}
             loading={pending}
-            tooltip={`protocol fees ÷ what miners were paid: 100% means fees bought back as much as miners earned${
-              totals.totalCoverage === null
+            tooltip={`estimated emissions paid to miners, at each day’s price; the burned share was never paid${
+              totals.coverage === null
                 ? ''
-                : ` · ${pct(totals.totalCoverage)} of total emissions`
+                : ` · fees were ${pct(totals.coverage)} of it`
             }`}
-            delta={
-              rangeLabel === '7D' || lastWeekCoverage === null
-                ? coverageDelta
-                : {
-                    pct: null,
-                    caption: `${pct(lastWeekCoverage)} last week`,
-                  }
-            }
+            delta={delta((t) => t.emissions)}
           />
         </Grid>
       </Grid>
