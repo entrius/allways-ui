@@ -255,9 +255,7 @@ export default function DailyEconomics({
             value={usd(totals.churnFees)}
             loading={pending}
             tooltip="SOL miners pay to change a quote within 10 minutes of the last change"
-            // A penalty on quote flashing: fewer of them is healthy, so a
-            // red arrow would misread it.
-            delta={{ pct: null, caption: 'penalty for flashing quotes' }}
+            delta={delta((t) => t.churnFees)}
           />
         </Grid>
         <Grid item xs={6} md={3}>
