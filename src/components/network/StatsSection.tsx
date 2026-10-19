@@ -22,6 +22,7 @@ import {
   useCompleteSwapHistory,
   useHistory,
   useDailyTreasury,
+  useHaltHistory,
   useStats,
   useUsdPrices,
   type HistoryRange,
@@ -35,6 +36,7 @@ import {
   asNumber,
   chainSymbol,
   formatUsd,
+  formatWallClock,
   lamportsToSol,
   unitsToHuman,
   usdFromBackingMap,
@@ -45,6 +47,7 @@ import {
   economicsThroughNow,
   summarizeEconomics,
 } from '../../utils/dailyEconomics';
+import { formatHaltDuration, haltPeriods, haltedMs } from '../../utils/halts';
 import { FONTS } from '../../theme';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 
@@ -259,6 +262,8 @@ const StatsSection: React.FC = () => {
     todayStart,
   );
   const { data: allHistory } = useHistory('all' as HistoryRange, 'day');
+  const { data: haltEvents, isLoading: haltsLoading } = useHaltHistory();
+  const halts = useMemo(() => haltPeriods(haltEvents ?? []), [haltEvents]);
   const feeRows = useMemo(
     () =>
       economicsThroughNow(
@@ -693,6 +698,7 @@ const StatsSection: React.FC = () => {
       loading={loading}
       formatValue={format}
       emptyLabel="nothing in this range"
+      halts={halts}
       {...extra}
     />
   );
@@ -1059,6 +1065,72 @@ const StatsSection: React.FC = () => {
     },
   ];
 
+  // Halts that touch the selected range, newest first.
+  const rangeFrom =
+    range === 'all' ? 0 : todayStart - (feeDays - 1) * UTC_DAY_MS;
+  const rangeHalts = halts
+    .filter((h) => (h.to ?? Infinity) > rangeFrom)
+    .reverse();
+  const rangeHaltedMs = haltedMs(halts, rangeFrom, Date.now());
+  panels.push({
+    title: 'Network halts',
+    subtitle:
+      'each stretch the contract paused new swaps · shaded on every chart',
+    info: 'While halted, no new swaps can start and miners are not scored. Swaps already in flight still settle. Each chart shades the days a halt touched; hover a day for how long it lasted.',
+    body: haltsLoading ? (
+      <Skeleton variant="rectangular" height={64} />
+    ) : rangeHalts.length === 0 ? (
+      <Typography
+        sx={{
+          fontFamily: FONTS.mono,
+          fontSize: '0.72rem',
+          color: 'text.secondary',
+        }}
+      >
+        no halts in this range
+      </Typography>
+    ) : (
+      <Stack divider={<Box sx={{ borderTop: 1, borderColor: 'divider' }} />}>
+        {rangeHalts.map((h) => (
+          <Box
+            key={h.from}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr auto', sm: '1fr 1fr auto' },
+              gap: 2,
+              py: 1,
+              fontFamily: FONTS.mono,
+              fontSize: '0.72rem',
+            }}
+          >
+            <Box>{formatWallClock(h.from / 1000)}</Box>
+            <Box
+              sx={{
+                color: 'text.secondary',
+                display: { xs: 'none', sm: 'block' },
+              }}
+            >
+              {h.to == null
+                ? 'still halted'
+                : `to ${formatWallClock(h.to / 1000)}`}
+            </Box>
+            <Box sx={{ textAlign: 'right', fontWeight: 600 }}>
+              {formatHaltDuration((h.to ?? Date.now()) - h.from)}
+              {h.to == null && ' so far'}
+            </Box>
+          </Box>
+        ))}
+      </Stack>
+    ),
+    headerRight: readout(
+      rangeHalts.length
+        ? inRange(
+            `${rangeHalts.length} · ${formatHaltDuration(rangeHaltedMs)} halted`,
+          )
+        : null,
+    ),
+  });
+
   // Each group reads top to bottom: its all-time figures, then its charts
   // over the selected range. Panel spans keep every row full.
   const panelByTitle = new Map(panels.map((p) => [p.title, p]));
@@ -1131,7 +1203,9 @@ const StatsSection: React.FC = () => {
         'Settlement time',
         'Peak throughput',
         'Peak concurrent transactions',
+        'Network halts',
       ],
+      span: { 'Network halts': { md: 12, lg: 12 } },
     },
     {
       caption: 'Fees',
@@ -1146,6 +1220,7 @@ const StatsSection: React.FC = () => {
           loading={historyLoading || historyPlaceholder}
           days={feeDays}
           income={dailyIncome}
+          halts={halts}
         />
       ),
       panels: [],
@@ -1183,7 +1258,8 @@ const StatsSection: React.FC = () => {
         >
           {/* Short enough to share the row with the range control; each
               chart's subtitle carries its own price basis. */}
-          one column per UTC day · running totals count from launch
+          one column per UTC day · running totals count from launch · shaded
+          days: network halted
         </Typography>
         <RangeChips value={range} options={RANGES} onChange={setRange} />
       </Box>
@@ -1271,6 +1347,10 @@ const METHODOLOGY: [string, string][] = [
   [
     'Vs prior',
     'The same number of complete days immediately before the range. ALL has no prior period.',
+  ],
+  [
+    'Halts',
+    'From the contract’s own halt and unhalt events. A daily chart shades every UTC day a halt touched, however briefly; hover the day for how long. Weekly bars name the halted time in the tooltip instead of shading.',
   ],
 ];
 

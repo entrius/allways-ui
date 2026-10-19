@@ -4,6 +4,7 @@ import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import {
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
   MarkLineComponent,
   TooltipComponent,
 } from 'echarts/components';
@@ -11,6 +12,11 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Skeleton, useTheme } from '@mui/material';
 import { FONTS } from '../../theme';
 import { formatCount, formatDay, formatWallClock } from '../../utils/format';
+import {
+  formatHaltDuration,
+  haltedMs,
+  type HaltPeriod,
+} from '../../utils/halts';
 
 echarts.use([
   BarChart,
@@ -18,6 +24,7 @@ echarts.use([
   ScatterChart,
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
   MarkLineComponent,
   TooltipComponent,
   CanvasRenderer,
@@ -140,6 +147,9 @@ type TimeSeriesChartProps = {
   staticLegend?: boolean;
   /** Print each bar stack's total above it (a few wide bars, e.g. weeks). */
   stackTotals?: boolean;
+  /** Stretches the network was halted: shaded behind the data, and named
+   * in the tooltip of any bucket they touch. */
+  halts?: HaltPeriod[];
 };
 
 // Series name for the volume overlay — used to route tooltip formatting.
@@ -148,6 +158,7 @@ const VOLUME_NAME = 'Volume';
 const LAST_TAG_NAME = '__last';
 const BAND_LO_NAME = '__band_lo';
 const BAND_HI_NAME = '__band_hi';
+const HALTS_NAME = '__halts';
 
 // Spans at or under this render hour:minute labels; longer spans render dates.
 const HOURLY_SPAN_MS = 3 * 24 * 3600 * 1000;
@@ -215,6 +226,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   bucketDays = 1,
   stackTotals = false,
   staticLegend = false,
+  halts,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
@@ -490,6 +502,58 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           ]
         : [];
 
+    // Halted stretches, shaded behind everything on a data-less series. Daily
+    // charts shade whole buckets (a 40-minute halt still marks its day) and
+    // merge neighbours into one band; time charts shade the exact stretch.
+    // A category markArea runs centre to centre, so a one-day halt would have
+    // no width: daily bands sit on a hidden value axis laid over the
+    // categories, where slot i spans i - 0.5 to i + 0.5.
+    const bucketMs = bucketDays * 86_400_000;
+    const haltedIn = new Map<number, number>();
+    if (daily && halts?.length)
+      for (const t of bucketTs) {
+        const ms = haltedMs(halts, t, t + bucketMs);
+        if (ms > 0) haltedIn.set(t, ms);
+      }
+    const haltAreas: [object, object][] = [];
+    // Weekly buckets only name the halt in the tooltip: shading a whole week
+    // for a 14-minute halt would overstate it.
+    if (daily && bucketDays === 1) {
+      let start = -1;
+      bucketTs.forEach((t, i) => {
+        const on = haltedIn.has(t);
+        if (on && start < 0) start = i;
+        if (start >= 0 && (!on || i === bucketTs.length - 1)) {
+          const end = on ? i : i - 1;
+          haltAreas.push([{ xAxis: start - 0.5 }, { xAxis: end + 0.5 }]);
+          start = -1;
+        }
+      });
+    } else if (halts?.length && span.hi > span.lo) {
+      for (const h of halts) {
+        const a = Math.max(h.from, span.lo);
+        const b = Math.min(h.to ?? Date.now(), span.hi);
+        if (b > a) haltAreas.push([{ xAxis: a }, { xAxis: b }]);
+      }
+    }
+    const haltSeries = haltAreas.length
+      ? [
+          {
+            name: HALTS_NAME,
+            type: 'line' as const,
+            data: [],
+            ...(daily && { xAxisIndex: 1 }),
+            silent: true,
+            z: 0,
+            markArea: {
+              silent: true,
+              itemStyle: { color: theme.palette.action.selected },
+              data: haltAreas,
+            },
+          },
+        ]
+      : [];
+
     const volumeSeries = vol
       ? [
           {
@@ -626,9 +690,11 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           ) => {
             if (!params.length) return '';
             const t = Number(params[0].axisValue);
+            const halted = haltedIn.get(t);
             const when = daily
               ? (bucketDays > 1 ? `week of ${fmtDateUtc(t)}` : fmtDateUtc(t)) +
-                (t === inProgressT ? ' · in progress' : '')
+                (t === inProgressT ? ' · in progress' : '') +
+                (halted ? ` · halted ${formatHaltDuration(halted)}` : '')
               : market
                 ? fmtMarketTime(t, hourly)
                 : fmtTime(t, hourly);
@@ -774,61 +840,75 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             return `${header}<br/>${lines}`;
           },
         },
-        xAxis: daily
-          ? {
-              // Category axis: each day owns a slot, so its label sits
-              // centered directly under its own column instead of at
-              // arbitrary "nice" time ticks.
-              type: 'category' as const,
-              data: bucketTs.map(String),
-              axisLine: { lineStyle: { color: gridColor } },
-              axisTick: { show: false },
-              axisLabel: {
-                color: axisColor,
-                fontFamily: FONTS.mono,
-                fontSize: 10,
-                hideOverlap: true,
-                // Label every day while they fit; fall back to auto-thinning
-                // (still bucket-aligned) on long histories.
-                interval: bucketTs.length <= 14 ? 0 : ('auto' as const),
-                // Weeks read as their date range: "Oct 9 – 15".
-                formatter: (v: string) => {
-                  const t = Number(v);
-                  if (bucketDays <= 1) return fmtDateUtc(t);
-                  const end = t + (bucketDays - 1) * 86_400_000;
-                  const a = fmtDateUtc(t);
-                  const b = fmtDateUtc(end);
-                  return a.split(' ')[0] === b.split(' ')[0]
-                    ? `${a} – ${b.split(' ')[1]}`
-                    : `${a} – ${b}`;
+        xAxis: [
+          daily
+            ? {
+                // Category axis: each day owns a slot, so its label sits
+                // centered directly under its own column instead of at
+                // arbitrary "nice" time ticks.
+                type: 'category' as const,
+                data: bucketTs.map(String),
+                axisLine: { lineStyle: { color: gridColor } },
+                axisTick: { show: false },
+                axisLabel: {
+                  color: axisColor,
+                  fontFamily: FONTS.mono,
+                  fontSize: 10,
+                  hideOverlap: true,
+                  // Label every day while they fit; fall back to auto-thinning
+                  // (still bucket-aligned) on long histories.
+                  interval: bucketTs.length <= 14 ? 0 : ('auto' as const),
+                  // Weeks read as their date range: "Oct 9 – 15".
+                  formatter: (v: string) => {
+                    const t = Number(v);
+                    if (bucketDays <= 1) return fmtDateUtc(t);
+                    const end = t + (bucketDays - 1) * 86_400_000;
+                    const a = fmtDateUtc(t);
+                    const b = fmtDateUtc(end);
+                    return a.split(' ')[0] === b.split(' ')[0]
+                      ? `${a} – ${b.split(' ')[1]}`
+                      : `${a} – ${b}`;
+                  },
                 },
+                splitLine: { show: false },
+              }
+            : {
+                type: 'time' as const,
+                boundaryGap: false,
+                ...(win && { min: win.from, max: win.to }),
+                axisLine: { lineStyle: { color: gridColor } },
+                axisTick: { show: false },
+                axisLabel: {
+                  color: axisColor,
+                  fontFamily: FONTS.mono,
+                  fontSize: 10,
+                  hideOverlap: true,
+                  formatter: (v: number) =>
+                    hourly
+                      ? new Date(v).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : new Date(v).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        }),
+                },
+                splitLine: { show: false },
               },
-              splitLine: { show: false },
-            }
-          : {
-              type: 'time' as const,
-              boundaryGap: false,
-              ...(win && { min: win.from, max: win.to }),
-              axisLine: { lineStyle: { color: gridColor } },
-              axisTick: { show: false },
-              axisLabel: {
-                color: axisColor,
-                fontFamily: FONTS.mono,
-                fontSize: 10,
-                hideOverlap: true,
-                formatter: (v: number) =>
-                  hourly
-                    ? new Date(v).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : new Date(v).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                      }),
-              },
-              splitLine: { show: false },
-            },
+          // The halt bands' axis: invisible, one unit per daily slot.
+          ...(daily && haltAreas.length
+            ? [
+                {
+                  type: 'value' as const,
+                  show: false,
+                  min: -0.5,
+                  max: bucketTs.length - 0.5,
+                  axisPointer: { show: false },
+                },
+              ]
+            : []),
+        ],
         yAxis: [
           {
             position: market ? ('right' as const) : ('left' as const),
@@ -871,6 +951,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             : []),
         ],
         series: [
+          ...haltSeries,
           ...bandSeries,
           ...echartsSeries,
           ...volumeSeries,
@@ -899,6 +980,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     stackTotals,
     staticLegend,
     legendTick,
+    halts,
   ]);
 
   return (

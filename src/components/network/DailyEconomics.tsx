@@ -14,6 +14,7 @@ import {
   type PricePoint,
   type TreasuryDay,
 } from '../../utils/dailyEconomics';
+import type { HaltPeriod } from '../../utils/halts';
 import { formatUsd, formatUsdCompact } from '../../utils/format';
 import { FONTS } from '../../theme';
 import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
@@ -98,6 +99,7 @@ export default function DailyEconomics({
   loading,
   days,
   income,
+  halts,
 }: {
   history?: HistoryRow[];
   /** Every day since launch, for the "vs prior" comparisons. */
@@ -112,6 +114,7 @@ export default function DailyEconomics({
     isLoading: boolean;
     solUsdError: boolean;
   };
+  halts?: HaltPeriod[];
 }) {
   const theme = useTheme();
   const emission = useQuery({
@@ -303,6 +306,7 @@ export default function DailyEconomics({
           bucketDays={weekly ? 7 : 1}
           stackTotals={weekly}
           staticLegend
+          halts={halts}
           loading={pending}
           formatValue={formatUsdCompact}
           series={[
