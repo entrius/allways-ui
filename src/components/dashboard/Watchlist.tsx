@@ -27,6 +27,7 @@ import {
   chainSymbol,
   formatRate,
   usdFromHuman,
+  formatAmountCompact,
 } from '../../utils/format';
 import { hubLegVolume } from './marketRate';
 import { FONTS } from '../../theme';
@@ -77,11 +78,8 @@ const anchorHub = (direction: Direction): string | null => {
   return hubLeg(from, to);
 };
 
-// Compact volume readout: "55.4", "1.2k".
-const fmtVol = (v: number) =>
-  v >= 1000
-    ? `${(v / 1000).toFixed(1)}k`
-    : v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+// Compact volume readout: "55.40", "1.2K".
+const fmtVol = formatAmountCompact;
 
 // Percent move, held to the width of its column. Test lanes throw out
 // things like +3546481.97%; past four digits it switches to compact

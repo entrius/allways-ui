@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as echarts from 'echarts/core';
 import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import {
@@ -10,6 +10,7 @@ import {
 import { CanvasRenderer } from 'echarts/renderers';
 import { Box, Skeleton, useTheme } from '@mui/material';
 import { FONTS } from '../../theme';
+import { formatCount, formatDay, formatWallClock } from '../../utils/format';
 
 echarts.use([
   BarChart,
@@ -54,6 +55,17 @@ export type ChartSeries = {
   /** Bar series sharing a stack name pile up in one column per bucket
    * (outcomes: completed beneath, timed out on top). */
   stack?: string;
+  /** Bars drawn as a dashed outline with no fill: a quantity shown for
+   * context that is not part of the stack's real total (e.g. a burn). */
+  hollow?: boolean;
+  /** List this series in the tooltip indented under the named series
+   * instead of in stack order (e.g. a miner burn under "Miners"). */
+  tooltipUnder?: string;
+  /** Start switched off in the legend; a click brings it back. */
+  hiddenByDefault?: boolean;
+  /** Straight segments between points instead of a smoothed curve: for
+   * per-day totals, where a curve would invent values between days. */
+  straight?: boolean;
 };
 
 type TimeSeriesChartProps = {
@@ -119,6 +131,15 @@ type TimeSeriesChartProps = {
    * echarts inventing one around a lone point. Time-axis charts only.
    */
   xWindow?: { from: number; to: number };
+  /** Called with every series' on/off state when the legend is clicked. */
+  onLegendChange?: (selected: Record<string, boolean>) => void;
+  /** Daily mode with buckets this many days wide (7 = weeks): the tooltip
+   * names the week, and bars may grow wider. */
+  bucketDays?: number;
+  /** A legend that only names the series: no click to hide or show. */
+  staticLegend?: boolean;
+  /** Print each bar stack's total above it (a few wide bars, e.g. weeks). */
+  stackTotals?: boolean;
 };
 
 // Series name for the volume overlay — used to route tooltip formatting.
@@ -137,11 +158,7 @@ const fmtTime = (ms: number, hourly: boolean) =>
         hour: '2-digit',
         minute: '2-digit',
       })
-    : new Date(ms).toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: '2-digit',
-      });
+    : formatDay(ms);
 
 // Market crosshair/tooltip time: clock time on intraday windows, date + time
 // on longer ones (never the ambiguous 2-digit year).
@@ -151,12 +168,7 @@ const fmtMarketTime = (ms: number, hourly: boolean) =>
         hour: '2-digit',
         minute: '2-digit',
       })
-    : new Date(ms).toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+    : formatWallClock(ms / 1000);
 
 const fmtDateUtc = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, {
@@ -171,16 +183,14 @@ const utcMidnightToday = () => {
 };
 
 const defaultFmt = (v: number) =>
-  Math.abs(v) >= 1000
-    ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
-    : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  Math.abs(v) >= 100 ? formatCount(v) : Number(v.toFixed(2)).toString();
 
 /**
  * Full-size time-series chart with visible axes, gridlines, axis labels and a
  * shared hover tooltip — the read-the-numbers counterpart to the minimal
  * landing KpiSparkline. Supports one or more line/bar series on a shared time
- * x-axis. Follows the same echarts init / ResizeObserver / setOption lifecycle
- * as MarketRateChart, and keeps the chart `<div>` always mounted (overlaying
+ * x-axis. One echarts init / ResizeObserver / setOption lifecycle, and keeps
+ * the chart `<div>` always mounted (overlaying
  * loading/empty states) so the init effect always has a real node.
  */
 const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
@@ -201,10 +211,22 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   bandColor,
   hideLegend,
   xWindow,
+  onLegendChange,
+  bucketDays = 1,
+  stackTotals = false,
+  staticLegend = false,
 }) => {
   const theme = useTheme();
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
+  // Legend clicks survive a repaint: the option is rebuilt from this, not
+  // from each series' default.
+  const legendRef = useRef<Record<string, boolean>>({});
+  // Bumped on every legend click so labels that depend on what is shown
+  // (stack totals) are recomputed.
+  const [legendTick, setLegendTick] = useState(0);
+  const legendCbRef = useRef(onLegendChange);
+  legendCbRef.current = onLegendChange;
 
   const totalPoints = useMemo(
     () => series.reduce((n, s) => n + s.points.length, 0),
@@ -218,6 +240,12 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       renderer: 'canvas',
     });
     chartRef.current = chart;
+    chart.on('legendselectchanged', (e) => {
+      const selected = (e as { selected: Record<string, boolean> }).selected;
+      legendRef.current = selected;
+      legendCbRef.current?.(selected);
+      setLegendTick((n) => n + 1);
+    });
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(elRef.current);
     return () => {
@@ -278,6 +306,24 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       ? vol.reduce((m, p) => (p.value != null && p.value > m ? p.value : m), 0)
       : 0;
 
+    // Stack totals per bucket, labelled on each stack's top series.
+    const stackTop = new Map<string, string>();
+    const stackSum = new Map<string, Map<number, number>>();
+    if (daily && stackTotals) {
+      // Only what the legend shows: hiding a source takes it out of the
+      // total, and the label moves to the top visible segment.
+      const visible = (s: ChartSeries) =>
+        legendRef.current[s.name] ?? !s.hiddenByDefault;
+      for (const s of series) {
+        if (s.type !== 'bar' || !s.stack || !visible(s)) continue;
+        stackTop.set(s.stack, s.name);
+        const sums = stackSum.get(s.stack) ?? new Map<number, number>();
+        for (const p of s.points)
+          if (p.value != null) sums.set(p.t, (sums.get(p.t) ?? 0) + p.value);
+        stackSum.set(s.stack, sums);
+      }
+    }
+
     const echartsSeries = series.map((s) => {
       const byT = daily ? new Map(s.points.map((p) => [p.t, p.value])) : null;
       if ((s.type ?? 'line') === 'bar') {
@@ -290,8 +336,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 ? {
                     value: v,
                     itemStyle: {
-                      color: s.color,
-                      opacity: 0.3,
+                      color: s.hollow ? 'transparent' : s.color,
+                      opacity: s.hollow ? 1 : 0.3,
                       borderColor: s.color,
                       borderType: 'dashed' as const,
                       borderWidth: 1,
@@ -304,9 +350,31 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           name: s.name,
           type: 'bar' as const,
           data,
-          itemStyle: { color: s.color, opacity: 0.75 },
-          barMaxWidth: 24,
+          itemStyle: s.hollow
+            ? {
+                color: 'transparent',
+                borderColor: s.color,
+                borderWidth: 1,
+                borderType: 'dashed' as const,
+              }
+            : { color: s.color, opacity: 0.75 },
+          barMaxWidth: bucketDays > 1 ? 56 : 24,
           ...(s.stack && { stack: s.stack }),
+          ...(s.stack &&
+            stackTop.get(s.stack) === s.name && {
+              label: {
+                show: true,
+                position: 'top' as const,
+                color: theme.palette.text.primary,
+                fontFamily: FONTS.mono,
+                fontSize: 10,
+                fontWeight: 600,
+                formatter: (p: { dataIndex: number }) => {
+                  const v = stackSum.get(s.stack!)?.get(bucketTs[p.dataIndex]);
+                  return v ? (formatValue ?? defaultFmt)(v) : '';
+                },
+              },
+            }),
         };
       }
       if (s.type === 'scatter') {
@@ -327,7 +395,9 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         data,
         ...(s.step
           ? { step: 'end' as const }
-          : { smooth: true, smoothMonotone: 'x' as const }),
+          : s.straight
+            ? { smooth: false }
+            : { smooth: true, smoothMonotone: 'x' as const }),
         showSymbol: false,
         symbol: 'circle',
         symbolSize: 6,
@@ -470,13 +540,25 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
               top: single || hideLegend ? 12 : 30,
               bottom: 28,
             }
-          : { left: 56, right: 16, top: 16, bottom: 28 },
+          : {
+              left: 56,
+              right: 16,
+              // Room above the tallest bar for its total label.
+              top: stackTotals ? 40 : 16,
+              bottom: 28,
+            },
         legend:
           single || hideLegend
             ? undefined
             : {
                 show: true,
                 data: primary.map((s) => s.name),
+                selected: Object.fromEntries(
+                  primary.map((s) => [
+                    s.name,
+                    legendRef.current[s.name] ?? !s.hiddenByDefault,
+                  ]),
+                ),
                 top: 0,
                 ...(market ? { left: 8 } : { right: 8 }),
                 textStyle: {
@@ -484,8 +566,11 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                   fontFamily: FONTS.mono,
                   fontSize: 10,
                 },
-                itemWidth: 12,
-                itemHeight: 8,
+                ...(staticLegend && { selectedMode: false }),
+                // Square swatches, like every other mark on the site.
+                icon: 'rect',
+                itemWidth: 10,
+                itemHeight: 10,
               },
         tooltip: {
           trigger: 'axis',
@@ -542,7 +627,8 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             if (!params.length) return '';
             const t = Number(params[0].axisValue);
             const when = daily
-              ? fmtDateUtc(t) + (t === inProgressT ? ' · in progress' : '')
+              ? (bucketDays > 1 ? `week of ${fmtDateUtc(t)}` : fmtDateUtc(t)) +
+                (t === inProgressT ? ' · in progress' : '')
               : market
                 ? fmtMarketTime(t, hourly)
                 : fmtTime(t, hourly);
@@ -575,7 +661,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                   const fmt = s.formatValue ?? formatValue ?? defaultFmt;
                   const unit = s.unit ? ` ${s.unit}` : '';
                   rows.push(
-                    `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.color};margin-right:5px"></span><span style="color:${axisColor}">${s.name}</span> <b>${fmt(v)}${unit}</b>`,
+                    `<span style="display:inline-block;width:8px;height:8px;background:${s.color};margin-right:5px"></span><span style="color:${axisColor}">${s.name}</span> <b>${fmt(v)}${unit}</b>`,
                   );
                 }
                 const [a, b] = vals;
@@ -639,7 +725,29 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
               }
               return `${header}<br/>${rows.join('<br/>')}`;
             }
-            const lines = params
+            // Square swatches like the legend; a hollow series gets a
+            // dashed outline so the tooltip matches its bar.
+            const swatch = (sObj?: ChartSeries) =>
+              sObj
+                ? `<span style="display:inline-block;width:8px;height:8px;margin-right:5px;box-sizing:border-box;${
+                    sObj.hollow
+                      ? `border:1px dashed ${sObj.color};`
+                      : `background:${sObj.color};`
+                  }"></span>`
+                : '';
+            // Series listed under another move to just after it.
+            const ordered = params.filter(
+              (p) => !series.find((x) => x.name === p.seriesName)?.tooltipUnder,
+            );
+            for (const p of params) {
+              const under = series.find(
+                (x) => x.name === p.seriesName,
+              )?.tooltipUnder;
+              if (!under) continue;
+              const at = ordered.findIndex((q) => q.seriesName === under);
+              ordered.splice(at < 0 ? ordered.length : at + 1, 0, p);
+            }
+            const lines = ordered
               .map((p) => {
                 const raw = Array.isArray(p.value) ? p.value[1] : p.value;
                 if (raw == null || p.seriesName.startsWith('__')) return '';
@@ -652,7 +760,10 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 const s = series.find((x) => x.name === p.seriesName);
                 const fmt = s?.formatValue ?? formatValue ?? defaultFmt;
                 const unit = s?.unit ? ` ${s.unit}` : '';
-                return `${p.marker ?? ''}<b>${fmt(Number(raw))}${unit}</b>${
+                const indent = s?.tooltipUnder
+                  ? `<span style="color:${axisColor};margin:0 4px 0 2px">└</span>`
+                  : '';
+                return `${indent}${swatch(s)}<b>${fmt(Number(raw))}${unit}</b>${
                   single
                     ? ''
                     : ` <span style="color:${axisColor}">${p.seriesName}</span>`
@@ -680,7 +791,17 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 // Label every day while they fit; fall back to auto-thinning
                 // (still bucket-aligned) on long histories.
                 interval: bucketTs.length <= 14 ? 0 : ('auto' as const),
-                formatter: (v: string) => fmtDateUtc(Number(v)),
+                // Weeks read as their date range: "Oct 9 – 15".
+                formatter: (v: string) => {
+                  const t = Number(v);
+                  if (bucketDays <= 1) return fmtDateUtc(t);
+                  const end = t + (bucketDays - 1) * 86_400_000;
+                  const a = fmtDateUtc(t);
+                  const b = fmtDateUtc(end);
+                  return a.split(' ')[0] === b.split(' ')[0]
+                    ? `${a} – ${b.split(' ')[1]}`
+                    : `${a} – ${b}`;
+                },
               },
               splitLine: { show: false },
             }
@@ -774,6 +895,10 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     bandColor,
     hideLegend,
     xWindow,
+    bucketDays,
+    stackTotals,
+    staticLegend,
+    legendTick,
   ]);
 
   return (
@@ -795,7 +920,7 @@ const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             justifyContent: 'center',
             fontFamily: FONTS.mono,
             fontSize: '0.72rem',
-            color: 'text.disabled',
+            color: 'text.secondary',
           }}
         >
           {emptyLabel}

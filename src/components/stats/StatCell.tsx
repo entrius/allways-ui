@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Skeleton, Typography } from '@mui/material';
+import { Box, Skeleton, Typography, useTheme } from '@mui/material';
+import { MOVE_COLORS } from '../dashboard/AllwaysMarketRate';
 import { FONTS } from '../../theme';
 
 /**
@@ -20,8 +21,22 @@ const StatCell: React.FC<{
   /** Hover title — e.g. the canonical per-backing figures behind a USD value. */
   tooltip?: string;
   loading?: boolean;
+  /** Change vs the previous period, shown on its own line under the value:
+   * an up/down move in the market colours, or a plain caption ("since
+   * launch") when there is nothing to compare. */
+  delta?: { pct: number | null; caption: string; points?: boolean };
   children?: React.ReactNode;
-}> = ({ label, value, unit, segments, sub, tooltip, loading, children }) => (
+}> = ({
+  label,
+  value,
+  unit,
+  segments,
+  sub,
+  tooltip,
+  loading,
+  delta,
+  children,
+}) => (
   <Box
     title={tooltip}
     sx={{
@@ -117,7 +132,43 @@ const StatCell: React.FC<{
         )}
       </Box>
     )}
+    {delta && !loading && <Delta {...delta} />}
   </Box>
 );
+
+/** A change line: ▲/▼ in the market colours, as a % change or, for a ratio,
+ * in percentage points. */
+const Delta: React.FC<{
+  pct: number | null;
+  caption: string;
+  points?: boolean;
+}> = ({ pct, caption, points }) => {
+  const theme = useTheme();
+  const move = MOVE_COLORS[theme.palette.mode === 'dark' ? 'dark' : 'light'];
+  const flat = pct == null || !Number.isFinite(pct) || Math.abs(pct) < 0.05;
+  return (
+    <Typography
+      sx={{
+        fontFamily: FONTS.mono,
+        fontSize: '0.62rem',
+        fontVariantNumeric: 'tabular-nums',
+        color: 'text.secondary',
+      }}
+    >
+      {!flat && (
+        <Box
+          component="span"
+          sx={{ color: pct! > 0 ? move.up : move.down, fontWeight: 600 }}
+        >
+          {pct! > 0 ? '▲' : '▼'}{' '}
+          {points
+            ? `${Math.abs(pct!).toFixed(1)} pts`
+            : `${Math.abs(pct!).toFixed(0)}%`}{' '}
+        </Box>
+      )}
+      {caption}
+    </Typography>
+  );
+};
 
 export default StatCell;

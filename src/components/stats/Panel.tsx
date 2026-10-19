@@ -35,11 +35,16 @@ const Panel: React.FC<{
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: 1,
       }}
     >
-      <SectionHeading title={title} subtitle={subtitle} info={info} />
-      {headerRight}
+      {/* The heading takes the room that is left, so a readout stays on the
+          title line; only wide header controls wrap below on a phone. */}
+      <Box sx={{ flex: '1 1 180px', minWidth: 0 }}>
+        <SectionHeading title={title} subtitle={subtitle} info={info} />
+      </Box>
+      {headerRight && <Box sx={{ flexShrink: 0 }}>{headerRight}</Box>}
     </Box>
     {children}
   </Box>

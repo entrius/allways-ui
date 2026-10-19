@@ -12,10 +12,9 @@ import {
   type RateRange,
 } from '../../api';
 import { chainSymbol } from '../../utils/format';
-import { TimeSeriesChart, type ChartSeries } from '../stats';
+import { Panel, TimeSeriesChart, type ChartSeries } from '../stats';
 import DirectionSelect from './DirectionSelect';
 import RangeChips from '../RangeChips';
-import SectionHeading from '../SectionHeading';
 import { FONTS } from '../../theme';
 
 type CrownRange = RateRange;
@@ -111,13 +110,15 @@ const CrownRateChart: React.FC<{
   const cLine = theme.palette.text.primary;
   const cReference = theme.palette.text.disabled;
 
-  const { data: crownData } = useApiQuery<CrownRateHistoryRow[]>(
-    'crown-rate-history',
-    '/crown/rate-history',
-    CROWN_REFRESH_MS,
-    { direction, seconds: secs },
+  const { data: crownData, isLoading: crownLoading } = useApiQuery<
+    CrownRateHistoryRow[]
+  >('crown-rate-history', '/crown/rate-history', CROWN_REFRESH_MS, {
+    direction,
+    seconds: secs,
+  });
+  const { data: minerRates, isLoading: minerLoading } = useMinerRateHistory(
+    minerHotkey ?? '',
   );
-  const { data: minerRates } = useMinerRateHistory(minerHotkey ?? '');
   // Every pair the miner quoted in the window: pickable even without a live crown.
   const held = useMemo(
     () =>
@@ -170,14 +171,14 @@ const CrownRateChart: React.FC<{
   const series: ChartSeries[] = minerMode
     ? [
         {
-          name: 'miner',
+          name: 'Miner',
           points: points(miner),
           color: cLine,
           formatValue: fmt,
           unit: meta.to,
         },
         {
-          name: 'crown',
+          name: 'Crown',
           points: points(crown),
           color: cReference,
           formatValue: fmt,
@@ -187,7 +188,7 @@ const CrownRateChart: React.FC<{
       ]
     : [
         {
-          name: 'crown',
+          name: 'Crown',
           points: points(crown),
           color: cLine,
           formatValue: fmt,
@@ -204,21 +205,11 @@ const CrownRateChart: React.FC<{
     : `Best ${meta.label} rate quoted by any active miner over time.`;
 
   return (
-    <Box
-      sx={{
-        border: '1px solid',
-        borderColor: 'divider',
-        backgroundColor: 'background.paper',
-        p: { xs: 2, md: 2.5 },
-      }}
-    >
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1.5 }}
-      >
-        <SectionHeading title={title} subtitle={tagline} info={info} />
+    <Panel
+      title={title}
+      subtitle={tagline}
+      info={info}
+      headerRight={
         <Stack
           direction="row"
           alignItems="center"
@@ -238,15 +229,14 @@ const CrownRateChart: React.FC<{
             onChange={onRangeChange}
           />
         </Stack>
-      </Stack>
-
+      }
+    >
       {/* The dropdown already names the direction — this row carries only
           the unit caption and the latest directional rate. */}
       <Stack
         direction="row"
         justifyContent="space-between"
         alignItems="baseline"
-        sx={{ mb: 1 }}
       >
         <Typography
           sx={{
@@ -264,9 +254,10 @@ const CrownRateChart: React.FC<{
         height={220}
         formatValue={fmt}
         autoScale
+        loading={crownLoading || (minerMode && minerLoading)}
         emptyLabel="no rate history yet"
       />
-    </Box>
+    </Panel>
   );
 };
 

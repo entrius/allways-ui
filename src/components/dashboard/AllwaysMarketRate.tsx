@@ -140,7 +140,7 @@ const AssetSelect: React.FC<{
             }}
             sx={{
               fontFamily: FONTS.mono,
-              fontSize: '0.75rem',
+              fontSize: '0.72rem',
               fontWeight: 600,
               py: 1,
               minWidth: 120,
@@ -312,7 +312,7 @@ const AllwaysMarketRate: React.FC<{
               px: 0.75,
               py: 0.25,
               ml: -0.75,
-              borderRadius: 1,
+              borderRadius: 0,
               '&:hover': { backgroundColor: 'action.hover' },
             }}
           >
@@ -369,7 +369,8 @@ const AllwaysMarketRate: React.FC<{
               pair name. */}
           <Typography
             sx={{
-              fontSize: '0.75rem',
+              fontFamily: FONTS.mono,
+              fontSize: '0.72rem',
               color: 'text.secondary',
               whiteSpace: 'nowrap',
               flexShrink: 0,
@@ -402,7 +403,7 @@ const AllwaysMarketRate: React.FC<{
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
-                      fontSize: '0.7rem',
+                      fontSize: '0.62rem',
                       color: 'text.disabled',
                     }}
                   >
@@ -411,7 +412,7 @@ const AllwaysMarketRate: React.FC<{
                   <Typography
                     sx={{
                       fontFamily: FONTS.mono,
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       fontWeight: 600,
                       fontVariantNumeric: 'tabular-nums',
                     }}
@@ -428,7 +429,7 @@ const AllwaysMarketRate: React.FC<{
               <Typography
                 sx={{
                   fontFamily: FONTS.mono,
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
                   fontVariantNumeric: 'tabular-nums',
                 }}
@@ -482,7 +483,8 @@ const AllwaysMarketRate: React.FC<{
         <Typography
           sx={{
             fontFamily: FONTS.mono,
-            fontSize: '1.1rem',
+            // The rate card's headline: the one big number the scale allows.
+            fontSize: '1.4rem',
             fontWeight: 700,
             lineHeight: 1.1,
             display: quoteInRail ? { xs: 'flex', md: 'none' } : 'flex',
