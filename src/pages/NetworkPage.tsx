@@ -164,7 +164,7 @@ const NetworkPage: React.FC = () => {
     <Page title="Network">
       <SEO
         title="Network"
-        description="Transactions, miners and network stats for Allways — Bittensor SN7"
+        description="Transactions, miners and network stats for Allways, Bittensor Subnet 7."
       />
       <Box sx={{ ...PAGE_FRAME_SX, backgroundColor: 'background.default' }}>
         <Stack>

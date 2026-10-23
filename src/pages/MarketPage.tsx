@@ -314,7 +314,7 @@ const MarketPage: React.FC = () => {
     <Page>
       <SEO
         title="Markets"
-        description="Live cross-chain rates for every route on Allways — Bittensor SN7"
+        description="Live exchange rates for every pair on Allways, Bittensor Subnet 7."
       />
       {/* The site's one page frame; the matrix needs no heading, it is
           the page. */}

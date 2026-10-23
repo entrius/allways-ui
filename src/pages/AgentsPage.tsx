@@ -33,7 +33,7 @@ const AgentsPage: React.FC = () => {
     <Page>
       <SEO
         title="Agents"
-        description="Drop-in context bundle, live snapshot, and rate quotes for AI agents using Allways."
+        description="Drop-in context bundle, live snapshot, and rate quotes for AI agents using Allways, Bittensor Subnet 7."
       />
       {/* The site frame and headroom, as on Markets and Network; the lead
           runs the frame's width like the panels under it. */}

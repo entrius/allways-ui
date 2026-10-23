@@ -12,9 +12,12 @@ import {
 const LandingPage: React.FC = () => {
   return (
     <Page>
+      {/* Canonical entity description: keep identical to index.html,
+          scripts/prerender.mjs, the Cloudflare worker and llms.txt. */}
       <SEO
         title="Allways"
-        description="Choose what you send, what arrives, and where it lands. Delivery guaranteed. Bittensor Subnet 7."
+        browserTitle="Allways (Bittensor Subnet 7): any asset to any asset"
+        description="Allways (Bittensor Subnet 7) is a marketplace for native asset transactions: any asset to any asset, at posted exchange rates, backed by locked funds worth the full value."
       />
       <Stack sx={{ width: '100%' }}>
         <Hero />
