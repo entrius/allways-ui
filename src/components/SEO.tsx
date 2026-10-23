@@ -3,6 +3,8 @@ import { Helmet } from 'react-helmet-async';
 
 export interface SEOProps {
   title: string;
+  /** Overrides the <title> text only; og/twitter titles keep `title`. */
+  browserTitle?: string;
   description: string;
   image?: string;
   type?: 'website' | 'article';
@@ -15,6 +17,7 @@ const DEFAULT_IMAGE = '/og/allways-og.png';
 
 export const SEO: React.FC<SEOProps> = ({
   title,
+  browserTitle: browserTitleOverride,
   description,
   image = DEFAULT_IMAGE,
   type = 'website',
@@ -27,8 +30,9 @@ export const SEO: React.FC<SEOProps> = ({
     ? image
     : `${typeof window !== 'undefined' ? window.location.origin : ''}${image}`;
 
-  const browserTitle =
+  const shareTitle =
     title === SITE_NAME ? SITE_NAME : `${title} | ${SITE_NAME}`;
+  const browserTitle = browserTitleOverride ?? shareTitle;
 
   return (
     <Helmet>
@@ -36,7 +40,7 @@ export const SEO: React.FC<SEOProps> = ({
       <meta name="description" content={description} />
       <link rel="canonical" href={currentUrl} />
 
-      <meta property="og:title" content={browserTitle} />
+      <meta property="og:title" content={shareTitle} />
       <meta property="og:description" content={description} />
       <meta property="og:image" content={absoluteImageUrl} />
       <meta property="og:image:width" content="1200" />
@@ -46,7 +50,7 @@ export const SEO: React.FC<SEOProps> = ({
       <meta property="og:site_name" content={SITE_NAME} />
 
       <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={browserTitle} />
+      <meta name="twitter:title" content={shareTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={absoluteImageUrl} />
     </Helmet>

@@ -1,0 +1,26 @@
+# Allways (Bittensor Subnet 7): https://all-ways.io
+# Every public page is open to search engines, AI assistants and agents.
+# Agent quickstart: https://all-ways.io/llms.txt
+
+User-agent: *
+Allow: /
+# Members-only pages of the validator app redirect to /app without a
+# subscription, and per-address reservation lookups have no lasting content.
+Disallow: /app/
+Disallow: /reservations/
+
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-User
+User-agent: Claude-SearchBot
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /app/
+Disallow: /reservations/
+
+Sitemap: https://all-ways.io/sitemap.xml

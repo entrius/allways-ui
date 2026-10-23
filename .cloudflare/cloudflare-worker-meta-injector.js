@@ -93,8 +93,10 @@ async function injectMetaTags(html, url) {
 
   // Just the name: the og image itself says "Any asset to any asset."
   let title = "Allways";
+  // Canonical entity description: keep identical to index.html,
+  // scripts/prerender.mjs, the landing page SEO and llms.txt.
   let description =
-    "Choose what you send, what arrives, and where it lands. Delivery guaranteed. Bittensor Subnet 7.";
+    "Allways (Bittensor Subnet 7) is a marketplace for native asset transactions: any asset to any asset, at posted exchange rates, backed by locked funds worth the full value.";
   let image = `${API_BASE}/og-image?type=home&v=${cacheBuster}`;
   let imageAlt =
     "Allways — any asset to any asset. Universal transaction layer on Bittensor Subnet 7.";
@@ -158,6 +160,26 @@ async function injectMetaTags(html, url) {
   // Note: home page and all other paths use the default brand card set above
 
   const canonicalUrl = `${SITE_BASE}${pathname}`;
+
+  // Prerendered pages (/, /market, /network, /agents: scripts/prerender.mjs)
+  // already carry their own title and description, so only the image and
+  // URL are swapped in. Every other path gets the full set.
+  const prerendered = /<div id="root" data-prerendered/.test(html);
+  const imageAndUrl = (out) =>
+    out
+      .replace(
+        /<meta property="og:url"[\s\S]*?\/>/i,
+        `<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />`,
+      )
+      .replace(
+        /<meta property="og:image"[\s\S]*?\/>/i,
+        `<meta property="og:image" content="${escapeHtml(image)}" />`,
+      )
+      .replace(
+        /<meta (property|name)="twitter:image"[\s\S]*?\/>/i,
+        `<meta name="twitter:image" content="${escapeHtml(image)}" />`,
+      );
+  if (prerendered && !swapMatch) return imageAndUrl(html);
 
   // Replace meta tags - use [\s\S]*? to match across newlines (the source
   // index.html wraps long content attributes onto their own line).

@@ -28,11 +28,19 @@ const assetRows = chains
 const alphaGuide =
   'https://docs.all-ways.io/swap-guide#who-broadcasts-the-source-funds';
 
-export const AGENT_MARKDOWN = `# Allways — Agent Quickstart
+// The opening paragraph is the canonical entity description: keep it
+// identical to index.html, scripts/prerender.mjs and the Cloudflare worker.
+export const AGENT_MARKDOWN = `# Allways (Bittensor Subnet 7): Agent Quickstart
 
-> Read this once, store under key \`allways-agent-quickstart\`. Don't
-> re-ingest. Query live state via the CLI or HTTP API for everything
-> dynamic — chains, rates, miners, swap status — since they change every block.
+Allways is Bittensor Subnet 7 (SN7), a marketplace for moving value between native assets. Pick any two supported assets, see the exchange rate up front, and receive the native asset in the wallet you choose. Every transaction is backed by locked funds worth its full value, and independent checks confirm delivery on both chains. Assets stay native: nothing is wrapped and no one holds your funds in between.
+
+This page is a quickstart for AI agents and developers. Chains, rates, miners and swap status change every block, so read live state from the CLI or HTTP API below rather than from this page.
+
+## Links
+
+- Docs: https://docs.all-ways.io
+- App and API: https://allways.venturalabs.ai (API quickstart: https://allways.venturalabs.ai/llms.txt)
+- Source: https://github.com/entrius/allways
 
 ## TL;DR
 
