@@ -1,0 +1,51 @@
+name: Deploy meta-injector Worker
+
+# Uploads .cloudflare/cloudflare-worker-meta-injector.js to the Worker on all-ways.io/* whenever it changes
+# on main (the file's constants point at production), or on demand from the Actions tab (branch: main).
+# Needs the secret CLOUDFLARE_API_TOKEN (Account > Workers Scripts > Edit on the account that holds
+# all-ways.io) and the variables CLOUDFLARE_ACCOUNT_ID and CF_WORKER_NAME; see .cloudflare/deploy-meta-injector.sh.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .cloudflare/cloudflare-worker-meta-injector.js
+      - .cloudflare/deploy-meta-injector.sh
+      - .github/workflows/deploy-worker.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Upload the Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CF_WORKER_NAME: ${{ vars.CF_WORKER_NAME }}
+        run: bash .cloudflare/deploy-meta-injector.sh
+
+      - name: Notify Discord
+        if: always() && env.DISCORD_WEBHOOK != ''
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            msg="🚀 meta-injector Worker deployed to all-ways.io (\`${GITHUB_SHA::7}\`)"
+          else
+            msg="💩 meta-injector Worker deploy failed on PROD: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+          curl -s -X POST "$DISCORD_WEBHOOK" -d "content=$msg"
